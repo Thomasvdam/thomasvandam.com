@@ -1,0 +1,123 @@
+{
+    "ammo": [
+      {
+        "id": "componentStyle",
+        "extension": "scss",
+        "body": ["@import '../../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
+      },
+      {
+        "id": "componentIndex",
+        "extension": "ts",
+        "name": "index",
+        "body": ["export { default } from './${FILENAME}';\n"]
+      },
+      {
+        "id": "componentReact",
+        "extension": "tsx",
+        "body": [
+          "import React from 'react';\n",
+          "import $ from './${FILENAME}.scss';\n\n",
+          "interface iProps {\n}\n",
+          "const ${COMPONENT_NAME}: React.FC<iProps> = ({",
+          "}) => {",
+          "    return <>${COMPONENT_NAME}</>;",
+          "};\n",
+          "export default ${COMPONENT_NAME};\n"
+        ]
+      },
+      {
+        "id": "componentReactView",
+        "extension": "tsx",
+        "body": [
+          "import React from 'react';",
+          "import { Page } from '~source/ui/views';\n",
+          "import $ from './${FILENAME}.scss';\n",
+          "const ${COMPONENT_NAME}: React.FC = (",
+          ") => {",
+          "    return (",
+          "        <h1>${COMPONENT_NAME}</h1>",
+          "    );",
+          "};\n",
+          "export default ${COMPONENT_NAME};\n"
+        ]
+      },
+      {
+        "id": "viewStyle",
+        "extension": "scss",
+        "body": ["@import '../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
+      },
+      {
+        "id": "model",
+        "extension": "ts",
+        "body": [
+          "export interface i${COMPONENT_NAME} {",
+          "    key: string;",
+          "}\n"
+        ]
+      },
+      {
+        "id": "updateComponentIndex",
+        "extension": "ts",
+        "name": "index",
+        "body": ["export { default as ${COMPONENT_NAME} } from './${FILENAME}';\n"]
+      },
+      {
+        "id": "updateModelIndex",
+        "extension": "ts",
+        "name": "index",
+        "body": ["export * from './${FILENAME}';\n"]
+      },
+      {
+        "id": "updateViewIndex",
+        "extension": "ts",
+        "name": "index",
+        "body": ["export { default as ${COMPONENT_NAME} } from './${FILENAME}';\n"]
+      }
+    ],
+    "cannons": [
+      {
+        "aftermath": ["updateComponentIndex"],
+        "ammo": ["componentStyle", "componentIndex", "componentReact"],
+        "description": "Creates an Atom",
+        "id": "createAtomComponent",
+        "name": "Create Atom Component",
+        "target": "source/ui/components/atoms"
+      },
+      {
+        "aftermath": ["updateComponentIndex"],
+        "ammo": ["componentStyle", "componentIndex", "componentReact"],
+        "description": "Creates a Molecule",
+        "id": "createMoleculeComponent",
+        "name": "Create Molecule Component",
+        "target": "source/ui/components/molecules"
+      },
+      {
+        "aftermath": ["updateComponentIndex"],
+        "ammo": ["componentStyle", "componentIndex", "componentReact"],
+        "description": "Creates an Organism",
+        "id": "createOrganismComponent",
+        "name": "Create Organism Component",
+        "target": "source/ui/components/organisms"
+      },
+      {
+        "aftermath": ["updateViewIndex"],
+        "ammo": ["viewStyle", "componentIndex", "componentReactView"],
+        "description": "Creates a view",
+        "id": "createView",
+        "name": "Create View",
+        "target": "source/ui/views"
+      },
+      {
+        "aftermath": ["updateModelIndex"],
+        "ammo": ["model"],
+        "description": "Creates a model",
+        "id": "createModel",
+        "name": "Create Model",
+        "target": "source/core/models",
+        "createFolder": false
+      }
+    ],
+    "options": {
+      "fileNameConvention": "kebab-case"
+    }
+}
