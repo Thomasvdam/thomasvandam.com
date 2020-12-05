@@ -1,0 +1,69 @@
+// Breakpoint helpers
+@mixin small-phones-only {
+    @media (max-width: $bp_phone - 1px) {
+        @content;
+    }
+}
+@mixin phone-only {
+    @media (max-width: $bp_tablet - 1px) {
+        @content;
+    }
+}
+@mixin tablet-only {
+    @media (min-width: $bp_tablet) and (max-width: $bp_laptop) {
+        @content;
+    }
+}
+@mixin tablet-and-larger {
+    @media (min-width: $bp_tablet) {
+        @content;
+    }
+}
+@mixin big-tablet-and-larger {
+    @media (min-width: $bp_tablet_big) {
+        @content;
+    }
+}
+@mixin laptop-and-larger {
+    @media (min-width: $bp_laptop + 1px) {
+        @content;
+    }
+}
+@mixin monitor-and-larger {
+    @media (min-width: $bp_monitor) {
+        @content;
+    }
+}
+
+@function z-index($key) {
+    @return map-get($z-index, $key);
+}
+@mixin z-index($key) {
+    z-index: z-index($key);
+}
+
+// Theme helpers
+@mixin theme($properties, $name, $prefix: '', $suffix: '') {
+    $value: map-get($theme, $name);
+    @if $value {
+        @if type-of($value) == 'map' {
+            @each $theme-name, $theme-value in $value {
+                @if $theme-value {
+                    @each $property in $properties {
+                        :global([data-theme='#{$theme-name}']) & {
+                            #{$property}: #{$prefix} $theme-value #{$suffix};
+                        }
+                    }
+                } @else {
+                    @warn "The `#{$theme-name}` value is not declared in the `#{$name}` theme settings";
+                }
+            }
+        } @else {
+            @each $property in $properties {
+                #{$property}: #{$prefix} $value #{$suffix};
+            }
+        }
+    } @else {
+        @warn "The given `#{$name}` is missing in the theme settings";
+    }
+}

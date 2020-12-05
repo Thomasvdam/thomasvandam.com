@@ -1,0 +1,7 @@
+@import '../../styling/helpers';
+
+.home {
+    * + * {
+        @include theme('margin-top', 'default_vertical_margin');
+    }
+}

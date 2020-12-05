@@ -1,5 +1,6 @@
 import Head from 'next/head';
-import { Home } from '~source/ui/views';
+import { PageContainer } from '~source/ui/components/atoms';
+import { HomeView } from '~source/ui/views';
 
 export default function HomePage() {
     return (
@@ -8,9 +9,9 @@ export default function HomePage() {
                 <title>Home</title>
             </Head>
 
-            <main>
-                <Home />
-            </main>
+            <PageContainer>
+                <HomeView />
+            </PageContainer>
         </div>
     );
 }

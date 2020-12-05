@@ -1,0 +1,23 @@
+@import './styling/helpers.scss';
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 62.5%; /* 1 rem = 10px */
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: scroll;
+    @include theme('font', 'font_body_1');
+    @include theme('background', 'background');
+    @include theme('color', 'text');
+}
+
+:global #tube {
+    position: absolute;
+    width: 0;
+    height: 0;
+}

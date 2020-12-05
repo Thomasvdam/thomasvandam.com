@@ -2,7 +2,7 @@
     "ammo": [
       {
         "id": "componentStyle",
-        "extension": "scss",
+        "extension": "module.scss",
         "body": ["@import '../../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
       },
       {
@@ -15,8 +15,7 @@
         "id": "componentReact",
         "extension": "tsx",
         "body": [
-          "import React from 'react';\n",
-          "import $ from './${FILENAME}.scss';\n\n",
+          "import $ from './${FILENAME}.module.scss';\n",
           "interface iProps {\n}\n",
           "const ${COMPONENT_NAME}: React.FC<iProps> = ({",
           "}) => {",
@@ -29,9 +28,7 @@
         "id": "componentReactView",
         "extension": "tsx",
         "body": [
-          "import React from 'react';",
-          "import { Page } from '~source/ui/views';\n",
-          "import $ from './${FILENAME}.scss';\n",
+          "import $ from './${FILENAME}.module.scss';\n",
           "const ${COMPONENT_NAME}: React.FC = (",
           ") => {",
           "    return (",

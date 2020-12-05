@@ -1,0 +1,18 @@
+// responsive breakpoints
+$bp_phone: 414px; // mobile
+$bp_tablet: 768px; // tablet
+$bp_tablet_big: 1024px; // tablet-big
+$bp_laptop: 1440px; // desktop
+$bp_monitor: 1920px; // monitor
+
+$z-index: (
+    modal: 1000,
+);
+
+$theme: (
+    page_width: $bp_tablet_big,
+    default_vertical_margin: 1rem,
+    font_body_1: 400 1.6rem/1.5 'Times',
+    text: #000000,
+    background: #FFFFFF,
+);
