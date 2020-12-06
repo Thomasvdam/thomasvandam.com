@@ -3,4 +3,5 @@
 .container {
     @include theme('max-width', 'page_width');
     margin: 0 auto;
+    overflow-y: auto;
 }

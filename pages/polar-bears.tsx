@@ -1,6 +1,5 @@
 import { GetStaticProps } from 'next';
 import Head from 'next/head';
-import { PageContainer } from '~source/ui/components/atoms';
 import { PolarView } from '~source/ui/views';
 import {
     POLAR_BEARS_DICE_COLOURS,
@@ -48,9 +47,7 @@ export default function PolarBears({ diceRolls }: iProps) {
                 <title>Ice Holes and Polar Bears</title>
             </Head>
 
-            <PageContainer>
-                <PolarView diceRolls={diceRolls} />
-            </PageContainer>
+            <PolarView diceRolls={diceRolls} />
         </div>
     );
 }
