@@ -16,6 +16,21 @@
     }
 }
 
+.description {
+    &_expander {
+        @include theme('background-color', 'polar_expander_colour');
+    }
+
+    &_title {
+        @include theme('font', 'font_heading_2');
+        margin: 0;
+    }
+
+    &_text {
+
+    }
+}
+
 .dice_container {
     padding: 4rem;
     display: grid;
