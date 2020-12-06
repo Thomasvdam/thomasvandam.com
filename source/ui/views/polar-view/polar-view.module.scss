@@ -1,5 +1,9 @@
 @import '../../styling/helpers';
 
 .polar {
+    @include theme('font', 'font_body_1');
 
+    &_title {
+        @include theme('font', 'font_heading_1');
+    }
 }

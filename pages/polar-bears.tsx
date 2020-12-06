@@ -2,18 +2,35 @@ import { GetStaticProps } from 'next';
 import Head from 'next/head';
 import { PageContainer } from '~source/ui/components/atoms';
 import { PolarView } from '~source/ui/views';
-import { rollD6 } from '~source/utils/dice';
-import { POLAR_BEARS_DICE_COUNT, POLAR_BEARS_REVALIDATION } from '~source/core/constants';
+import {
+    POLAR_BEARS_DICE_COLOURS,
+    POLAR_BEARS_DICE_COUNT,
+    POLAR_BEARS_REVALIDATION,
+} from '~source/core/constants';
 import { d6 } from '~source/core/models';
+import { rollD6 } from '~source/utils/dice';
+import { createPool } from '~source/utils/draw-from-pool';
+
+interface diceRoll {
+    roll: d6;
+    colour: string;
+}
 
 interface iProps {
-    diceRolls: d6[];
+    diceRolls: diceRoll[];
 }
 
 export const getStaticProps: GetStaticProps<iProps> = async () => {
-    const diceRolls: d6[] = [];
+    const drawColour = createPool([...POLAR_BEARS_DICE_COLOURS]);
+
+    const diceRolls: diceRoll[] = [];
     for (let count = 0; count < POLAR_BEARS_DICE_COUNT; count += 1) {
-        diceRolls.push(rollD6());
+        const roll = rollD6();
+        const colour = drawColour();
+        diceRolls.push({
+            roll,
+            colour,
+        });
     }
 
     return {

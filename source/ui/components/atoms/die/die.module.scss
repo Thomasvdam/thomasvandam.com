@@ -1,5 +1,11 @@
 @import '../../../styling/helpers';
 
 .die {
-    background-color: aqua;
+    @include theme('font', 'font_body_1');
+
+    &_6 {
+        width: 10rem;
+        height: 10rem;
+        border-radius: 20px;
+    }
 }
