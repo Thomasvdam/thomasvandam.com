@@ -9,7 +9,7 @@
         "id": "componentIndex",
         "extension": "ts",
         "name": "index",
-        "body": ["export { default } from './${FILENAME}';\n"]
+        "body": ["export * from './${FILENAME}';\n"]
       },
       {
         "id": "componentReact",
@@ -56,7 +56,7 @@
         "id": "updateComponentIndex",
         "extension": "ts",
         "name": "index",
-        "body": ["export { default as ${COMPONENT_NAME} } from './${FILENAME}';\n"]
+        "body": ["export * from './${FILENAME}';\n"]
       },
       {
         "id": "updateModelIndex",
