@@ -17,11 +17,10 @@
         "body": [
           "import $ from './${FILENAME}.module.scss';\n",
           "interface iProps {\n}\n",
-          "const ${COMPONENT_NAME}: React.FC<iProps> = ({",
+          "export const ${COMPONENT_NAME}: React.FC<iProps> = ({",
           "}) => {",
           "    return <>${COMPONENT_NAME}</>;",
-          "};\n",
-          "export default ${COMPONENT_NAME};\n"
+          "};\n"
         ]
       },
       {
@@ -29,10 +28,11 @@
         "extension": "tsx",
         "body": [
           "import $ from './${FILENAME}.module.scss';\n",
-          "const ${COMPONENT_NAME}: React.FC = (",
-          ") => {",
+          "export const ${COMPONENT_NAME}: React.FC = () => {",
           "    return (",
-          "        <h1>${COMPONENT_NAME}</h1>",
+          "        <div>",
+          "            <h1>${COMPONENT_NAME}</h1>",
+          "        </div>",
           "    );",
           "};\n",
           "export default ${COMPONENT_NAME};\n"
@@ -40,7 +40,7 @@
       },
       {
         "id": "viewStyle",
-        "extension": "scss",
+        "extension": "module.scss",
         "body": ["@import '../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
       },
       {
