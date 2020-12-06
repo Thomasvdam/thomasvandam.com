@@ -14,10 +14,10 @@ const PolarView: React.FC<iProps> = ({ diceRolls }) => {
         <div className={$.polar}>
             <PageContainer>
                 <h1>Ice Holes and Polar Bears</h1>
-                <section>
+                <section className={$.dice_container}>
                     {diceRolls.map((die, index) => (
                         // eslint-disable-next-line react/no-array-index-key
-                        <Die6 key={index} colour={die.colour} number={die.roll} />
+                        <Die6 key={index} angled colour={die.colour} number={die.roll} />
                     ))}
                 </section>
             </PageContainer>
