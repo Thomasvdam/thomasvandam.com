@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { d6 } from '~source/core/models';
 import cx from '~source/utils/join-class-names';
 import $ from './die.module.scss';
@@ -11,6 +11,10 @@ interface iProps {
 }
 
 export const Die6: React.FC<iProps> = ({ angled, className, colour = '', number }) => {
+    const [styles, setStyles] = useState<Record<string, string>>({
+        backgroundColor: colour,
+    });
+
     const dots = useMemo(() => {
         const tmp = [];
         for (let i = 0; i < number; i += 1) {
@@ -20,19 +24,17 @@ export const Die6: React.FC<iProps> = ({ angled, className, colour = '', number 
         return tmp;
     }, [number]);
 
-    const angle = useMemo(() => {
+    useEffect(() => {
         if (!angled) {
-            return '';
+            return;
         }
 
         const degree = Math.floor(Math.random() * 360) + 1;
-        return `rotate(${degree}deg)`;
+        setStyles((prevStyles) => ({
+            ...prevStyles,
+            transform: `rotate(${degree}deg)`,
+        }));
     }, [angled]);
-
-    const styles = {
-        backgroundColor: colour,
-        transform: angle,
-    };
 
     return (
         <div style={styles} className={cx($.die, $.die_6, className)}>
