@@ -1,0 +1,57 @@
+@import '../../../styling/helpers';
+
+.expander {
+    &_wrapper {
+        border-radius: 8px;
+        border: 2px solid transparent;
+        padding: 1rem;
+    }
+
+    &_toggle {
+        display: none;
+
+        &:checked + .expander_label > *:first-child::before {
+            transform: rotate(135deg) translateX(-3px);
+        }
+
+        &:checked + .expander_label {
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        &:checked + .expander_label + .expander_content {
+            max-height: 100vh;
+        }
+    }
+
+    &_label {
+        position: relative;
+        width: 100%;
+        display: block;
+
+        & > *:first-child::before {
+            content: ' ';
+            display: inline-block;
+            position: absolute;
+            top: 1.2rem;
+            right: .6rem;
+
+            border-style: solid;
+            border-width: .2rem .2rem 0 0;
+            border-color: inherit;
+            height: 0.45em;
+            width: 0.45em;
+            vertical-align: top;
+            transform: rotate(-45deg);
+
+            transition: transform .2s ease-out;
+        }
+    }
+
+    &_content {
+        max-height: 0px;
+        overflow: hidden;
+
+        transition: max-height .25s ease-in-out;
+    }
+}
