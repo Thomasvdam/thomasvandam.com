@@ -2,6 +2,8 @@
 
 .polar {
     @include theme('font', 'font_body_1');
+    @include theme('color', 'polar_text_colour');
+    @include theme('background-color', 'polar_background_colour');
 
     &_title {
         @include theme('font', 'font_heading_1');

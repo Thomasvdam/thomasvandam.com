@@ -6,5 +6,5 @@ export const POLAR_BEARS_DICE_COLOURS = [
     '#FF6F91',
     '#FF9671',
     '#FFC75F',
-    '#F9F871',
+    '#008F7A',
 ];

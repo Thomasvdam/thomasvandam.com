@@ -3,9 +3,42 @@
 .die {
     @include theme('font', 'font_body_1');
 
+    &_dot {
+        width: 2.4rem;
+        height: 2.4rem;
+        margin: auto;
+        border-radius: 50%;
+        background-color:white;
+    }
+
     &_6 {
-        width: 10rem;
-        height: 10rem;
+        width: 10.4rem;
+        height: 10.4rem;
+        padding: .8rem;
         border-radius: 20px;
+        display: grid;
+        grid-template-areas:
+            "a . c"
+            "e g f"
+            "d . b";
+
+        .die_dot:nth-child(2) {
+            grid-area: b;
+        }
+        .die_dot:nth-child(3) {
+            grid-area: c;
+        }
+        .die_dot:nth-child(4) {
+            grid-area: d;
+        }
+        .die_dot:nth-child(5) {
+            grid-area: e;
+        }
+        .die_dot:nth-child(6) {
+            grid-area: f;
+        }
+        .die_dot:nth-child(odd):last-child {
+            grid-area: g;
+        }
     }
 }
