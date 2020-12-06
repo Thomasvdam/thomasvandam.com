@@ -42,12 +42,12 @@ export const getStaticProps: GetStaticProps<iProps> = async () => {
 
 export default function PolarBears({ diceRolls }: iProps) {
     return (
-        <div>
+        <>
             <Head>
                 <title>Ice Holes and Polar Bears</title>
             </Head>
 
             <PolarView diceRolls={diceRolls} />
-        </div>
+        </>
     );
 }

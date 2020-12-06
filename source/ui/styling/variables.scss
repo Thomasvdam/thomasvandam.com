@@ -9,13 +9,18 @@ $z-index: (
     modal: 1000,
 );
 
+// Sizes
+$max_container_width: 996px;
+$container_padding: 24px;
+
 // Basic colours
 $black: #000000;
 $dark_1: #242424;
 $white: #ffffff;
 
 $theme: (
-    page_width: $bp_tablet_big,
+    container_width: $max_container_width,
+    container_padding: 0 $container_padding,
     default_vertical_margin: 1rem,
     font_heading_1: 800 3.6rem/1.4 'Time',
     font_body_1: 400 1.6rem/1.5 'Times',

@@ -1,7 +1,8 @@
 @import '../../../styling/helpers';
 
 .container {
-    @include theme('max-width', 'page_width');
+    @include theme('max-width', 'container_width');
+    @include theme('padding', 'container_padding');
     margin: 0 auto;
     overflow-y: auto;
 }
