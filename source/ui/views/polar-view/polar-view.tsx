@@ -11,23 +11,24 @@ interface iProps {
     nextRoll: number;
 }
 
-const getHoursText = (hours: number): string => {
-    if (hours <= 0) {
+const getTimeText = (minutes: number): string => {
+    if (minutes <= 0) {
         return 'A new roll is ready, refresh to check it out.';
     }
 
-    const hourWord = hours === 1 ? 'hour' : 'hours';
-    return `Approximately ${hours} ${hourWord} until the next roll.`;
+    const minuteWord = minutes === 1 ? 'minute' : 'minutes';
+    const approxMinutes = Math.ceil(minutes / 5) * 5;
+    return `Approximately ${approxMinutes} ${minuteWord} until the next roll.`;
 };
 
 const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll }) => {
-    const [hours, setHours] = useState(0);
+    const [minutes, setMinutes] = useState(0);
     const [update, setUpdate] = useState(() => 0);
 
     useEffect(() => {
         const intervalId = setInterval(() => {
             setUpdate((p) => p + 1);
-        }, 1800000);
+        }, 300000);
 
         return () => clearInterval(intervalId);
     }, []);
@@ -35,8 +36,8 @@ const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll }) => {
     useEffect(() => {
         const currentTime = Date.now() / 1000;
         const timeDifferenceSec = nextRoll - currentTime;
-        const timeDifferenceHrs = Math.ceil(timeDifferenceSec / 60 / 60);
-        setHours(timeDifferenceHrs);
+        const timeDifferenceMin = Math.ceil(timeDifferenceSec / 60);
+        setMinutes(timeDifferenceMin);
     }, [update]);
 
     return (
@@ -62,7 +63,7 @@ const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll }) => {
                         </p>
                     </Expander>
                 </section>
-                <section className={$.next_roll_container}>{getHoursText(hours)}</section>
+                <section className={$.next_roll_container}>{getTimeText(minutes)}</section>
             </PageContainer>
         </div>
     );
