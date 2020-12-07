@@ -59,7 +59,13 @@ const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll }) => {
                         title={<h4 className={$.description_title}>What is this about?</h4>}
                     >
                         <p className={$.description_text}>
-                            \// TODO: A short text about the riddle.
+                            This is a simple game or riddle where you guess the number of ice holes
+                            and polar bears present in a throw of the dice.
+                        </p>
+                        <p className={$.description_text}>
+                            While this is certainly more fun to do in person and with actual dice, I
+                            figured this would be a socially distant substitue. To inflate game
+                            length a new roll is available every hour.
                         </p>
                     </Expander>
                 </section>
