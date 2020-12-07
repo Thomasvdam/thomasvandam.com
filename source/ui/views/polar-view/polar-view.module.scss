@@ -9,27 +9,14 @@
         display: flex;
         flex-direction: column;
         min-height: 100vh;
+
+        > * + * {
+            margin-top: 2rem;
+        }
     }
 
     &_title {
         @include theme('font', 'font_heading_1');
-    }
-}
-
-.description {
-    &_expander {
-        @include theme('background-color', 'polar_expander_colour');
-    }
-
-    &_title {
-        @include theme('font', 'font_heading_2');
-        margin: 0;
-    }
-
-    &_text {
-        &:last-child {
-            margin-bottom: 0;
-        }
     }
 }
 
@@ -53,7 +40,75 @@
     }
 }
 
+.solution {
+    &_container {
+        display: flex;
+    }
+
+    &_button {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        padding: 1rem;
+        transition: ease-in-out .6s opacity, ease-in-out .2s background-color;
+        border: none;
+        border-radius: 1rem;
+        @include theme('background-color', 'polar_background_colour');
+        @include theme('color', 'polar_text_colour');
+        cursor: pointer;
+
+        &:hover {
+            @include theme('background-color', 'polar_highlight_colour');
+        }
+
+        &_hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        &_text {
+            margin: 0;
+        }
+
+        &_wrapper {
+            position: relative;
+            margin: auto;
+            min-width: 20rem;
+        }
+    }
+
+    &_text {
+        margin: 1rem auto;
+    }
+
+    &_view {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.description {
+    margin-bottom: auto;
+
+    &_expander {
+        @include theme('background-color', 'polar_highlight_colour');
+    }
+
+    &_title {
+        @include theme('font', 'font_heading_2');
+        margin: 0;
+    }
+
+    &_text {
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
+
+
 .next_roll_container {
-    margin-top: auto;
     margin-bottom: 2.4rem;
 }

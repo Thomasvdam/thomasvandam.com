@@ -28,6 +28,6 @@ $theme: (
     text: $black,
     background: $white,
     polar_background_colour: $dark_1,
-    polar_expander_colour: lighten($dark_1, 10),
+    polar_highlight_colour: lighten($dark_1, 10),
     polar_text_colour: $white,
 );

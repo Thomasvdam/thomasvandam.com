@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { d6 } from '~source/core/models';
+import { iDiceRoll, iSolution } from '~source/core/models';
 import { Die6, Expander, PageContainer } from '~source/ui/components/atoms';
+import cx from '~source/utils/join-class-names';
 import $ from './polar-view.module.scss';
 
 interface iProps {
-    diceRolls: {
-        roll: d6;
-        colour: string;
-    }[];
+    diceRolls: iDiceRoll[];
     nextRoll: number;
+    solution: iSolution;
 }
 
 const getTimeText = (minutes: number): string => {
@@ -21,7 +20,20 @@ const getTimeText = (minutes: number): string => {
     return `Approximately ${approxMinutes} ${minuteWord} until the next roll.`;
 };
 
-const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll }) => {
+const SolutionView: React.FC<iSolution> = ({ bears, iceHoles }) => {
+    const iceHolesWord = iceHoles === 1 ? 'Ice Hole' : 'Ice Holes';
+    return (
+        <>
+            <h3 className={$.solution_text}>
+                {iceHoles} {iceHolesWord}
+            </h3>
+            <h3 className={$.solution_text}>{bears} Polar Bears</h3>
+        </>
+    );
+};
+
+const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll, solution }) => {
+    const [showSolution, setShowSolution] = useState(false);
     const [minutes, setMinutes] = useState(0);
     const [update, setUpdate] = useState(() => 0);
 
@@ -45,7 +57,10 @@ const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll }) => {
             <PageContainer className={$.polar_container}>
                 <h1>Ice Holes and Polar Bears</h1>
                 <section>
-                    <p>Today&apos;s view of the Arctic is rather pretty don&apos;t you think?</p>
+                    <p>
+                        Today&apos;s view of the Arctic is rather pretty don&apos;t you think? How
+                        many ice holes and polar bears can you see?
+                    </p>
                 </section>
                 <section className={$.dice_container}>
                     {diceRolls.map((die, index) => (
@@ -53,7 +68,24 @@ const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll }) => {
                         <Die6 key={index} angled colour={die.colour} number={die.roll} />
                     ))}
                 </section>
-                <section>
+                <section className={$.solution_container}>
+                    <div className={$.solution_button_wrapper}>
+                        <button
+                            className={cx(
+                                $.solution_button,
+                                showSolution && $.solution_button_hidden,
+                            )}
+                            onClick={() => setShowSolution(true)}
+                            type="button"
+                        >
+                            <h2 className={$.solution_button_text}>Click here for the solution</h2>
+                        </button>
+                        <div className={$.solution_view}>
+                            <SolutionView bears={solution.bears} iceHoles={solution.iceHoles} />
+                        </div>
+                    </div>
+                </section>
+                <section className={$.description}>
                     <Expander
                         className={$.description_expander}
                         title={<h4 className={$.description_title}>What is this about?</h4>}
