@@ -59,7 +59,7 @@ const PolarView: React.FC<iProps> = ({ diceRolls, nextRoll, solution }) => {
                 <section>
                     <p>
                         Today&apos;s view of the Arctic is rather pretty don&apos;t you think? How
-                        many ice holes and polar bears can you see?
+                        many ice holes and polar bears do you see?
                     </p>
                 </section>
                 <section className={$.dice_container}>
