@@ -1,0 +1,32 @@
+@import '../../styling/helpers';
+
+.title {
+    @include theme('font', 'font_heading_1');
+}
+
+.text {
+    @include theme('font', 'font_body_1');
+}
+
+.groups_container {
+    @include theme('font', 'font_body_1');
+}
+
+.group_item {
+    padding-left: 1rem
+}
+
+.link {
+    @include theme('color', 'text');
+
+    text-decoration: none;
+    position: relative;
+
+    > * {
+        transition: background-color .3s ease-in-out;
+
+        &:hover {
+            background-color: grey;
+        }
+    }
+}

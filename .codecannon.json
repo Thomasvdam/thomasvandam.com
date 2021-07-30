@@ -6,6 +6,11 @@
         "body": ["@import '../../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
       },
       {
+        "id": "proxyComponentStyle",
+        "extension": "module.scss",
+        "body": ["@import '../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
+      },
+      {
         "id": "componentIndex",
         "extension": "ts",
         "name": "index",
@@ -44,6 +49,11 @@
         "body": ["@import '../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
       },
       {
+        "id": "proxyViewStyle",
+        "extension": "module.scss",
+        "body": ["@import '../../styling/helpers';\n", ".${FILENAME} {\n\n}"]
+      },
+      {
         "id": "model",
         "extension": "ts",
         "body": [
@@ -68,7 +78,7 @@
         "id": "updateViewIndex",
         "extension": "ts",
         "name": "index",
-        "body": ["export { default as ${COMPONENT_NAME} } from './${FILENAME}';\n"]
+        "body": ["export * from './${FILENAME}';\n"]
       }
     ],
     "cannons": [
@@ -112,6 +122,22 @@
         "name": "Create Model",
         "target": "source/core/models",
         "createFolder": false
+      },
+      {
+        "aftermath": ["updateComponentIndex"],
+        "ammo": ["proxyComponentStyle", "componentIndex", "componentReact"],
+        "description": "Creates a proxy component",
+        "id": "createProxyComponent",
+        "name": "Create Proxy Component",
+        "target": "source/domains/proxy-exercises/ui/components"
+      },
+      {
+        "aftermath": ["updateViewIndex"],
+        "ammo": ["proxyViewStyle", "componentIndex", "componentReactView"],
+        "description": "Creates a proxy view",
+        "id": "createProxyView",
+        "name": "Create Proxy View",
+        "target": "source/domains/proxy-exercises/ui/views"
       }
     ],
     "options": {

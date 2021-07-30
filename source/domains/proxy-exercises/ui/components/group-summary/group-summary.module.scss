@@ -1,0 +1,25 @@
+@import '../../styling/helpers';
+
+.container {
+    display: flex;
+    justify-content: space-between;
+}
+
+.title {
+    @include theme('font', 'font_heading_2');
+}
+
+.progress {
+    @include theme('font', 'font_heading_2');
+
+    margin: auto;
+    &_container {
+        display: flex;
+    }
+}
+
+.indicator {
+    margin: auto;
+    width: 5rem;
+    text-align: right;
+}

@@ -19,7 +19,8 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "~source/*": ["./source/*"]
+      "~source/*": ["./source/*"],
+      "~proxy-exercises/*": ["./source/domains/proxy-exercises/*"]
     }
   },
   "include": [
