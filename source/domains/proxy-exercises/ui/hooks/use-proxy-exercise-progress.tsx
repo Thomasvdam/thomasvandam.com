@@ -34,6 +34,8 @@ export const ProxyExerciseProgressProvider = ({ children }) => {
     }, []);
 
     useEffect(() => {
+        if (exerciseState === initialState) return;
+
         try {
             localStorage.setItem(PROXY_EXERCISE_PROGRESS_KEY, JSON.stringify(exerciseState));
         } catch (error) {

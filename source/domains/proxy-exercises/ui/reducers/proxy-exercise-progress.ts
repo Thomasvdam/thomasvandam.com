@@ -34,7 +34,7 @@ export const initialState: iProxyExercises = {
     },
 };
 
-export const reducer = (state: iProxyExercises, action: iAction) => {
+export const reducer = (state: iProxyExercises, action: iAction): iProxyExercises => {
     if (action.type === actionTypes.COMPLETE_EXERCISE) {
         const group = state[action.payload.group];
         group.exercises[action.payload.exercise] = true;
@@ -60,13 +60,14 @@ export const reducer = (state: iProxyExercises, action: iAction) => {
 
                 const exerciseKeys = Object.keys(initialState[groupKey].exercises);
                 exerciseKeys.forEach((exerciseKey) => {
-                    newGroup.exercises[exerciseKey] = initialState[groupKey].exercises[exerciseKey];
+                    newGroup.exercises[exerciseKey] =
+                        action.payload[groupKey].exercises[exerciseKey];
                 });
 
                 newGroup.completed = Object.values(newGroup.exercises).reduce((acc, completed) => {
                     if (completed) return acc + 1;
                     return acc;
-                }, 1);
+                }, 0);
 
                 newState[groupKey] = newGroup;
             });

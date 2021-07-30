@@ -3,3 +3,24 @@
 .local-exercise {
 
 }
+
+.error {
+    padding: 1rem;
+    border: red solid 2px;
+}
+
+.json {
+    padding: 1rem;
+    background-color: lightgrey;
+    counter-reset: line;
+
+    code {
+        counter-increment: line;
+        display: block;
+
+        &::before {
+            content: counter(line);
+            margin-right: 1rem;
+        }
+    }
+}

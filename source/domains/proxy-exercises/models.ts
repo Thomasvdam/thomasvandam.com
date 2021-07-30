@@ -1,5 +1,6 @@
 export type iProxyExerciseGroupKey = 'local';
-export type iProxyExerciseKey = 'local_static' | 'local_script' | 'local_html';
+export type iProxyExerciseKeyLocal = 'local_static' | 'local_script' | 'local_html';
+export type iProxyExerciseKey = iProxyExerciseKeyLocal;
 
 export type iProxyExceriseGroupExercises = Record<iProxyExerciseKey, boolean>;
 export type iProxyExerciseGroup = {
