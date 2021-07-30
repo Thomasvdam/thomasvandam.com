@@ -21,7 +21,7 @@ export const GroupSummary: React.FC<iProps> = ({ title, groupKey }) => {
                     {group.completed} / {group.total}
                 </div>
                 <div className={$.indicator}>
-                    {group.completed === group.total && <CheckMark />}
+                    <CheckMark checked={group.completed === group.total} />
                 </div>
             </div>
         </div>

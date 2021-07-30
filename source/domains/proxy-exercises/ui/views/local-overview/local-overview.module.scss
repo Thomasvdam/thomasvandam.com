@@ -1,5 +1,46 @@
 @import '../../../../../ui/styling/helpers';
 
-.local-overview {
-
+.title {
+    @include theme('font', 'font_heading_1');
 }
+
+.text {
+    @include theme('font', 'font_body_1');
+}
+
+.link {
+    @include theme('color', 'text');
+
+    display: block;
+    text-decoration: none;
+    position: relative;
+
+    > * {
+        transition: background-color .3s ease-in-out;
+
+        &:hover {
+            background-color: #F0F0F0;
+        }
+    }
+
+    & + & {
+        margin-top: 1rem;
+    }
+}
+
+.exercise {
+    &_container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center
+    }
+
+    &_item {
+        @include theme('font', 'font_heading_2');
+    }
+
+    &_title {
+        margin-left: .5rem;
+    }
+}
+
