@@ -49,7 +49,7 @@ export const MapHtml: React.FC = () => {
             {metaValue !== null && !matchingMetaValue && (
                 <p className={$.explanation}>
                     Nice work! Now try setting the content attribute of the meta tag to &apos;
-                    {expectedValue}&apos;
+                    {expectedValue}&apos; and reload the page again.
                 </p>
             )}
             {metaValue !== null && matchingMetaValue && <p className={$.explanation}>Hey</p>}

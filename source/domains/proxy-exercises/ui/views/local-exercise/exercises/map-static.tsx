@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useProxyExerciseProgress } from '~proxy-exercises/ui/hooks/use-proxy-exercise-progress';
 import { paths } from '~source/domains/proxy-exercises/paths';
+import { CodeBlock } from '~proxy-exercises/ui/components';
 
 import $ from '../local-exercise.module.scss';
 
@@ -87,26 +88,12 @@ export const MapStatic: React.FC = () => {
                 <>
                     <div>
                         <h4 className={$.label}>Expected response:</h4>
-                        <pre className={$.json}>
-                            {JSON.stringify(steps[currentStep], undefined, 4)
-                                .split('\n')
-                                .map((line, index) => {
-                                    // eslint-disable-next-line react/no-array-index-key
-                                    return <code key={index}>{line}</code>;
-                                })}
-                        </pre>
+                        <CodeBlock contents={JSON.stringify(steps[currentStep], undefined, 4)} />
                     </div>
                     <div>
                         <h4 className={$.label}>Actual response:</h4>
                         {!error && retrievedState && (
-                            <pre className={$.json}>
-                                {JSON.stringify(retrievedState, undefined, 4)
-                                    .split('\n')
-                                    .map((line, index) => {
-                                        // eslint-disable-next-line react/no-array-index-key
-                                        return <code key={index}>{line}</code>;
-                                    })}
-                            </pre>
+                            <CodeBlock contents={JSON.stringify(retrievedState, undefined, 4)} />
                         )}
                         {error && <pre className={$.error}>{error.message}</pre>}
                     </div>

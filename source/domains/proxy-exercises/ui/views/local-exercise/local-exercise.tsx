@@ -5,12 +5,11 @@ import { paths } from '~proxy-exercises/paths';
 import { ExerciseLoader } from '~proxy-exercises/ui/components/exercise-loader';
 import MapStatic from './exercises/map-static';
 import MapHtml from './exercises/map-html';
-
-import $ from './local-exercise.module.scss';
+import MapScript from './exercises/map-script';
 
 const map: Record<iProxyExerciseKeyLocal, React.FC> = {
     local_html: MapHtml,
-    local_script: () => <p>Script</p>,
+    local_script: MapScript,
     local_static: MapStatic,
 };
 

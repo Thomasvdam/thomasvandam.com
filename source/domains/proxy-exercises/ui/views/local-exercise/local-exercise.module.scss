@@ -9,18 +9,17 @@
     border: red solid 2px;
 }
 
-.json {
-    padding: 1rem;
-    background-color: lightgrey;
-    counter-reset: line;
+.big_red_button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 10rem;
+    height: 10rem;
+    margin: auto;
+    border-radius: 50px;
+    background: red;
 
-    code {
-        counter-increment: line;
-        display: block;
-
-        &::before {
-            content: counter(line);
-            margin-right: 1rem;
-        }
+    &[data-disabled] {
+        display: none;
     }
 }
