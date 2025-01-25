@@ -1,1 +1,3 @@
-This is a starter template for [Learn Next.js](https://nextjs.org/learn).
+# Hello There
+
+Don't mind me, I'm just trying things out.
