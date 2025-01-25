@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -28,7 +29,23 @@ export default function Home() {
           </span>
         </p>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
+      <section className="flex flex-col gap-8 row-start-3 items-center">
+        <p className="text-md text-center max-w-md">
+          In the meantime, consider looking at this{" "}
+          <Link href="/polar-bears" className="text-purple-500 hover:underline">
+            WIP of a game/riddle
+          </Link>{" "}
+          I like to annoy people with or{" "}
+          <Link
+            href="/you-got-this"
+            className="text-purple-500 hover:underline"
+          >
+            here
+          </Link>{" "}
+          for some motivation.
+        </p>
+      </section>
+      <footer className="row-start-4 flex gap-6 flex-wrap items-center justify-center">
         <a
           href="https://github.com/thomasvdam"
           className="flex items-center gap-1"
