@@ -1,5 +1,5 @@
 import type { Metadata,  } from "next";
-import parts from './parts.json';
+import parts from './part';
 
 const getRandomPart = (part: keyof typeof parts): string => {
     const options = parts[part];
