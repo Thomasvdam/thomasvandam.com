@@ -100,5 +100,4 @@ export const metadata: Metadata = {
   description: "How many do you see?",
 };
 
-export const dynamic = "force-dynamic";
 export const revalidate = 3600; // revalidate every hour (3600 seconds)
