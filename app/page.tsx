@@ -35,14 +35,20 @@ export default function Home() {
           <Link href="/polar-bears" className="text-purple-500 hover:underline">
             WIP of a game/riddle
           </Link>{" "}
-          I like to annoy people with or{" "}
+          I like to annoy people with,{" "}
           <Link
             href="/you-got-this"
             className="text-purple-500 hover:underline"
           >
             here
           </Link>{" "}
-          for some motivation.
+          for some motivation, or check out the LLM&apos;s{" "}
+          <Link
+            href="/exercises"
+            className="text-purple-500 hover:underline"
+          >
+            exercise tracker
+          </Link>.
         </p>
       </section>
       <footer className="row-start-4 flex gap-6 flex-wrap items-center justify-center">
