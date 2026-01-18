@@ -1,10 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
+@import "tailwindcss";
+@config "../tailwind.config.ts";
 
 @layer base {
   :root {
@@ -60,6 +55,10 @@ body {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 @layer base {

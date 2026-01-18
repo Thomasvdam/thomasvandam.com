@@ -16,7 +16,7 @@ export default function Home() {
 
         <p className="text-2xl row-start-3 flex flex-col gap-2">
           <span className="inline-flex">
-            I'm a stupid smelly nerd. I'm currently working at
+            I&apos;m a stupid smelly nerd. I&apos;m currently working at
           </span>
           <span className="inline-flex gap-2">
             <a
