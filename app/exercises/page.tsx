@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,40 +16,32 @@ import { Dumbbell, Calendar, Trophy, Settings, Play, History, BarChart3, ArrowRi
 function ExercisesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
-  const [thisWeekCount, setThisWeekCount] = useState(0);
-  const [showTemplatePicker, setShowTemplatePicker] = useState(
-    searchParams.get('showPicker') === 'true'
-  );
+  const showTemplatePicker = searchParams.get('showPicker') === 'true';
 
-  useEffect(() => {
-    const workouts = getWorkouts();
-    const sorted = workouts.sort(
+  const workouts = useMemo(() => getWorkouts(), []);
+
+  const recentWorkouts = useMemo<Workout[]>(() => {
+    const sorted = [...workouts].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
-    setRecentWorkouts(sorted.slice(0, 5));
+    return sorted.slice(0, 5);
+  }, [workouts]);
 
+  const thisWeekCount = useMemo(() => {
     const now = new Date();
     const weekStart = startOfWeek(now);
     const weekEnd = endOfWeek(now);
-    const thisWeek = workouts.filter((workout) => {
+    return workouts.filter((workout) => {
       const workoutDate = new Date(workout.date);
       return isWithinInterval(workoutDate, { start: weekStart, end: weekEnd });
-    });
-    setThisWeekCount(thisWeek.length);
-  }, []);
-
-  useEffect(() => {
-    // Update state when URL changes
-    setShowTemplatePicker(searchParams.get('showPicker') === 'true');
-  }, [searchParams]);
+    }).length;
+  }, [workouts]);
 
   const handleSelectTemplate = (templateId: string) => {
     router.push(`/exercises/log?template=${templateId}`);
   };
 
   const handleBackFromPicker = () => {
-    setShowTemplatePicker(false);
     router.push('/exercises');
   };
 
@@ -126,7 +118,7 @@ function ExercisesPageContent() {
             <CardDescription>All time</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-[hsl(262_83%_58%)]">{recentWorkouts.length > 0 ? getWorkouts().length : 0}</div>
+            <div className="text-4xl font-bold text-[hsl(262_83%_58%)]">{workouts.length}</div>
           </CardContent>
         </Card>
 

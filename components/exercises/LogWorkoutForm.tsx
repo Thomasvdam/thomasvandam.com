@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { StrengthEntryForm } from './StrengthEntryForm';
 import { CardioEntryForm } from './CardioEntryForm';
 import { Button } from '@/components/ui/button';
@@ -111,11 +111,6 @@ export function LogWorkoutForm({
   }, [template.exerciseIds, template.exerciseSets, template.lastUsedValues]);
 
   const [entries, setEntries] = useState<ExerciseEntry[]>(initialEntries);
-
-  // Sync entries when template changes
-  useEffect(() => {
-    setEntries(initialEntries);
-  }, [initialEntries]);
 
   const handleUpdateEntry = (index: number, entry: ExerciseEntry) => {
     const newEntries = [...entries];
@@ -302,7 +297,7 @@ export function LogWorkoutForm({
 
             return (
               <div
-                key={`${entry.exerciseId}-${index}`}
+                key={entry.exerciseId}
                 ref={(el) => {
                   exerciseRefs.current[index] = el;
                 }}

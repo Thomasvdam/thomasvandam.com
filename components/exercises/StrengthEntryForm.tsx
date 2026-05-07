@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ export function StrengthEntryForm({
   onChange,
   onRemove,
 }: StrengthEntryFormProps) {
-  const initializeEntry = (val: StrengthExerciseEntry | undefined): StrengthExerciseEntry => {
+  const initializeEntry = useCallback((val: StrengthExerciseEntry | undefined): StrengthExerciseEntry => {
     if (!val) {
       return {
         exerciseId: '',
@@ -39,43 +39,27 @@ export function StrengthEntryForm({
       return { ...val, setData: initialSetData };
     }
     return val;
-  };
+  }, []);
 
-  const [entry, setEntry] = useState<StrengthExerciseEntry>(() => initializeEntry(value));
   const [collapsedSets, setCollapsedSets] = useState<Set<number>>(new Set());
   const setRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  useEffect(() => {
-    if (value) {
-      const initialized = initializeEntry(value);
-      setEntry(initialized);
-    }
-  }, [value]);
+  const entry = useMemo(() => initializeEntry(value), [value, initializeEntry]);
 
-  // Ensure setData is always initialized when sets change
-  useEffect(() => {
-    if (entry.sets > 0 && (!entry.setData || entry.setData.length !== entry.sets)) {
-      const setData: SetData[] = Array.from({ length: entry.sets }, (_, index) => {
-        if (entry.setData && entry.setData[index]) {
-          return entry.setData[index];
-        }
-        return {
-          weight: entry.weight,
-          reps: entry.reps,
-          completed: false,
-        };
-      });
-      const newEntry = { ...entry, setData };
-      setEntry(newEntry);
-      onChange(newEntry);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.sets]);
+  const normalizeSetData = (next: StrengthExerciseEntry): StrengthExerciseEntry => {
+    if (next.sets <= 0) return { ...next, setData: [] };
+
+    const existing = next.setData ?? [];
+    const setData: SetData[] = Array.from({ length: next.sets }, (_, index) => {
+      if (existing[index]) return existing[index];
+      return { weight: next.weight, reps: next.reps, completed: false };
+    });
+    return { ...next, setData };
+  };
 
   const updateEntry = (updates: Partial<StrengthExerciseEntry>) => {
-    const newEntry = { ...entry, ...updates };
-    setEntry(newEntry);
-    onChange(newEntry);
+    const merged = { ...entry, ...updates };
+    onChange(normalizeSetData(merged));
   };
 
   const updateSetData = (index: number, updates: Partial<SetData>) => {
@@ -84,7 +68,6 @@ export function StrengthEntryForm({
     const wasCompleted = newSetData[index]?.completed;
     newSetData[index] = { ...newSetData[index], ...updates };
     const newEntry = { ...entry, setData: newSetData };
-    setEntry(newEntry);
     onChange(newEntry);
 
     // If set was just completed, collapse it and scroll to next set
@@ -142,26 +125,34 @@ export function StrengthEntryForm({
     updateEntry({ rpe: newRPE });
   };
 
-
-  const setData = entry.setData || [];
+  const keyedSetData = useMemo(() => {
+    const setData = entry.setData ?? [];
+    const seen = new Map<string, number>();
+    return setData.map((set) => {
+      const base = `${set.weight}-${set.reps}-${set.completed ? 1 : 0}`;
+      const n = (seen.get(base) ?? 0) + 1;
+      seen.set(base, n);
+      return { set, key: `${entry.exerciseId}-${base}-${n}` };
+    });
+  }, [entry.exerciseId, entry.setData]);
 
   return (
     <div className="space-y-4">
       {/* Sets List - Mobile First */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium">
+          <div className="text-sm font-medium">
             {entry.sets} {entry.sets === 1 ? 'Set' : 'Sets'}
-          </label>
+          </div>
         </div>
 
         {/* Individual Set Inputs */}
         <div className="space-y-4">
-          {setData.map((set, index) => {
+          {keyedSetData.map(({ set, key }, index) => {
             const isCollapsed = collapsedSets.has(index);
             return (
               <div
-                key={index}
+                key={key}
                 ref={(el) => {
                   setRefs.current[index] = el;
                 }}
