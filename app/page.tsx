@@ -126,6 +126,18 @@ export default function Home() {
 					<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
 						About
 					</h2>
+
+					<blockquote className="max-w-2xl border-l-4 border-primary/40 pl-5 py-1 my-2">
+						<p className="text-lg font-medium leading-relaxed text-foreground/95 italic">
+							&ldquo;Sucking at something is the first step to being kind of
+							good at something.&rdquo;
+						</p>
+						<cite className="mt-2 block text-sm font-normal not-italic text-muted-foreground">
+							— Jake the Dog,{" "}
+							<span className="whitespace-nowrap">Adventure Time</span>
+						</cite>
+					</blockquote>
+
 					<p className="max-w-2xl text-muted-foreground leading-relaxed">
 						I like arguing about code, arguing about the process of writing
 						code, and arguing about the process of arguing about code. When I'm
@@ -134,8 +146,15 @@ export default function Home() {
 						is mostly a playground — if something looks half-baked, that&apos;s
 						probably intentional (or I&apos;ll fix it eventually).
 					</p>
+
 					<div className="flex flex-wrap gap-2">
-						{["TypeScript", "Effect-TS", "React", "WebAssembly", "Video Streaming"].map((tech) => (
+						{[
+							"TypeScript",
+							"Effect-TS",
+							"React",
+							"WebAssembly",
+							"Video Streaming",
+						].map((tech) => (
 							<Badge key={tech} variant="secondary">
 								{tech}
 							</Badge>
@@ -189,7 +208,8 @@ export default function Home() {
 									>
 										SEDA on GitHub
 										<ExternalLink className="size-4 opacity-70" />
-									</a> for some of the code.
+									</a>{" "}
+									for some of the code.
 								</p>
 							</CardContent>
 						</Card>
@@ -240,7 +260,7 @@ export default function Home() {
 					</div>
 					<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
 						<Card className="flex flex-col">
-            <div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
+							<div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
 								<Image
 									src="/images/polar-bears.png"
 									alt=""
@@ -250,7 +270,9 @@ export default function Home() {
 								/>
 							</div>
 							<CardHeader>
-								<CardTitle className="text-lg">Ice Holes and Polar Bears</CardTitle>
+								<CardTitle className="text-lg">
+									Ice Holes and Polar Bears
+								</CardTitle>
 								<CardDescription>
 									A riddle / game thing I like to annoy people with. WIP, mean
 									in a loving way.
@@ -309,7 +331,7 @@ export default function Home() {
 						</Card>
 
 						<Card className="flex flex-col sm:col-span-2 lg:col-span-1">
-            <div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
+							<div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
 								<Image
 									src="/images/exercise-tracker.png"
 									alt=""
