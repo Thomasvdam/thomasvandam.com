@@ -1,6 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ExternalLink, Github, Mail, Sparkles } from "lucide-react";
+import {
+	ArrowRight,
+	ExternalLink,
+	Github,
+	Mail,
+	Quote,
+	Sparkles,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +50,12 @@ export default function Home() {
 							className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
 						>
 							Work
+						</a>
+						<a
+							href="#accolades"
+							className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
+						>
+							Accolades
 						</a>
 						<a
 							href="#tinkering"
@@ -140,11 +153,12 @@ export default function Home() {
 
 					<p className="max-w-2xl text-muted-foreground leading-relaxed">
 						I like arguing about code, arguing about the process of writing
-						code, and arguing about the process of arguing about code. When I'm
-						actually building/breaking things I like code that communicates
-						intent, clear error messages, and pretending I write both. This site
-						is mostly a playground — if something looks half-baked, that&apos;s
-						probably intentional (or I&apos;ll fix it eventually).
+						code, and arguing about the process of arguing about code. When
+						I&apos;m actually building/breaking things I like code that
+						communicates intent, clear error messages, and pretending I write
+						both. This site is mostly a playground — if something looks
+						half-baked, that&apos;s probably intentional (or I&apos;ll fix it
+						eventually).
 					</p>
 
 					<div className="flex flex-wrap gap-2">
@@ -240,6 +254,85 @@ export default function Home() {
 									Building JavaScript web apps, hybrid mobile apps, Chromecast
 									apps, and web video streaming. Transitioned from frontend to
 									backend, from just engineering to jointly managing the team.
+								</p>
+							</CardContent>
+						</Card>
+					</div>
+				</section>
+
+				<Separator className="my-16 bg-border/60" />
+
+				{/* Accolades — satirical “reviews” */}
+				<section id="accolades" className="scroll-mt-24 space-y-8">
+					<div>
+						<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+							Accolades
+						</h2>
+						<p className="mt-2 text-muted-foreground">
+							Hand-picked praise from people who may or may not exist. Ratings
+							are fictional; the industry subtext is not.
+						</p>
+					</div>
+					<div className="grid gap-4 md:grid-cols-2">
+						<Card className="relative overflow-hidden md:col-span-2">
+							<div className="absolute right-4 top-4 text-primary/20">
+								<Quote className="size-14" aria-hidden />
+							</div>
+							<CardHeader className="relative pb-2">
+								<div className="flex flex-wrap items-center gap-2">
+									<Badge variant="secondary">★★★★★</Badge>
+									<Badge variant="outline">Culture fit</Badge>
+								</div>
+								<CardTitle className="text-lg pt-2 font-normal leading-relaxed text-foreground">
+									&ldquo;White, male, and privileged. Ideal IT worker.&rdquo;
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="relative pt-0">
+								<p className="text-sm text-muted-foreground">
+									— The default hiring pipeline, probably
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader className="pb-2">
+								<div className="flex items-center gap-2">
+									<Quote
+										className="size-5 shrink-0 text-primary/70"
+										aria-hidden
+									/>
+									<Badge variant="outline">PR review bully</Badge>
+								</div>
+								<CardTitle className="text-base font-normal leading-relaxed pt-1">
+									&ldquo;He&apos;ll argue about the code, then argue about how we
+									argue about code — and the error messages actually get better.
+									Weird flex, but it works.&rdquo;
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="pt-0">
+								<p className="text-sm text-muted-foreground">
+									— Whoever drew the short straw on review that week
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader className="pb-2">
+								<div className="flex items-center gap-2">
+									<Quote
+										className="size-5 shrink-0 text-primary/70"
+										aria-hidden
+									/>
+									<Badge variant="outline">Staff++ vibes</Badge>
+								</div>
+								<CardTitle className="text-base font-normal leading-relaxed pt-1">
+									&ldquo;He explained the same thing three ways. I still don&apos;t
+									get it, but I respect the hustle.&rdquo;
+								</CardTitle>
+							</CardHeader>
+							<CardContent className="pt-0">
+								<p className="text-sm text-muted-foreground">
+									— A patient coworker
 								</p>
 							</CardContent>
 						</Card>
