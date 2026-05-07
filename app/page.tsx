@@ -1,80 +1,381 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight, ExternalLink, Github, Mail, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+
+const GITHUB_URL = "https://github.com/thomasvdam";
+const SEDA_URL = "https://www.seda.xyz";
+const SEDA_GITHUB_URL = "https://github.com/sedaprotocol/";
+
+const TRIPLE_URL = "https://www.wearetriple.com/en";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <h1 className="text-4xl font-bold">This is me</h1>
-        <Image
-          src="/images/catman.jpeg"
-          alt="Guy with a cat"
-          priority
-          width={500}
-          height={500}
-        />
+	return (
+		<div id="top" className="min-h-screen font-(family-name:--font-geist-sans)">
+			{/* Sticky nav */}
+			<header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-md">
+				<nav className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+					<a
+						href="#top"
+						className="text-sm font-semibold tracking-tight text-foreground hover:text-primary transition-colors"
+					>
+						Thomas van Dam
+					</a>
+					<div className="flex items-center gap-4 sm:gap-6">
+						<a
+							href="#about"
+							className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
+						>
+							About
+						</a>
+						<a
+							href="#work"
+							className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
+						>
+							Work
+						</a>
+						<a
+							href="#tinkering"
+							className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline"
+						>
+							Tinkering
+						</a>
+						<Button variant="ghost" size="icon" asChild className="shrink-0">
+							<a
+								href={GITHUB_URL}
+								target="_blank"
+								rel="noopener noreferrer"
+								aria-label="GitHub"
+							>
+								<Github className="size-5" />
+							</a>
+						</Button>
+					</div>
+				</nav>
+			</header>
 
-        <p className="text-2xl row-start-3 flex flex-col gap-2">
-          <span className="inline-flex">
-            I&apos;m a stupid smelly nerd. I&apos;m currently working at
-          </span>
-          <span className="inline-flex gap-2">
-            <a
-              href="https://www.seda.xyz"
-              className="text-purple-500 inline-flex"
-            >
-              SEDA
-            </a>
-            as a software engineer.
-          </span>
-        </p>
-      </main>
-      <section className="flex flex-col gap-8 row-start-3 items-center">
-        <p className="text-md text-center max-w-md">
-          In the meantime, consider looking at this{" "}
-          <Link href="/polar-bears" className="text-purple-500 hover:underline">
-            WIP of a game/riddle
-          </Link>{" "}
-          I like to annoy people with,{" "}
-          <Link
-            href="/you-got-this"
-            className="text-purple-500 hover:underline"
-          >
-            here
-          </Link>{" "}
-          for some motivation, or check out the LLM&apos;s{" "}
-          <Link
-            href="/exercises"
-            className="text-purple-500 hover:underline"
-          >
-            exercise tracker
-          </Link>.
-        </p>
-      </section>
-      <footer className="row-start-4 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          href="https://github.com/thomasvdam"
-          className="flex items-center gap-1"
-        >
-          Github
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="w-3 h-3"
-          >
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
-        </a>
-      </footer>
-    </div>
-  );
+			<main className="mx-auto max-w-5xl px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
+				{/* Hero */}
+				<section className="grid gap-10 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-12">
+					<div className="space-y-6">
+						<div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+							<Sparkles className="size-3.5" aria-hidden />
+							Strong opinions, loosely held.
+						</div>
+						<h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+							<span className="bg-linear-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">
+								Thomas van Dam
+							</span>
+						</h1>
+						<p className="text-lg text-muted-foreground sm:text-xl">
+							Fool Stack engineer at{" "}
+							<a
+								href={SEDA_URL}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="font-medium text-primary underline-offset-4 hover:underline"
+							>
+								SEDA
+							</a>
+							. Certified smelly nerd — I build things, break things, and
+							occasionally ship something useful.
+						</p>
+						<div className="flex flex-wrap gap-3">
+							<Button asChild size="lg" className="gap-2">
+								<a href="#work">
+									View work
+									<ArrowRight className="size-4" />
+								</a>
+							</Button>
+							<Button variant="outline" size="lg" asChild className="gap-2">
+								<a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+									<Github className="size-4" />
+									GitHub
+								</a>
+							</Button>
+						</div>
+					</div>
+					<div className="relative mx-auto w-full max-w-sm lg:max-w-xs">
+						<div className="overflow-hidden rounded-xl border border-border/70 bg-card p-1 shadow-lg ring-1 ring-primary/20">
+							<Image
+								src="/images/catman.jpeg"
+								alt="Thomas with a cat on his shoulder"
+								width={500}
+								height={500}
+								priority
+								className="aspect-square w-full rounded-lg object-cover"
+							/>
+						</div>
+					</div>
+				</section>
+
+				<Separator className="my-16 bg-border/60" />
+
+				{/* About */}
+				<section id="about" className="scroll-mt-24 space-y-6">
+					<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+						About
+					</h2>
+					<p className="max-w-2xl text-muted-foreground leading-relaxed">
+						I like arguing about code, arguing about the process of writing
+						code, and arguing about the process of arguing about code. When I'm
+						actually building/breaking things I like code that communicates
+						intent, clear error messages, and pretending I write both. This site
+						is mostly a playground — if something looks half-baked, that&apos;s
+						probably intentional (or I&apos;ll fix it eventually).
+					</p>
+					<div className="flex flex-wrap gap-2">
+						{["TypeScript", "Effect-TS", "React", "WebAssembly", "Video Streaming"].map((tech) => (
+							<Badge key={tech} variant="secondary">
+								{tech}
+							</Badge>
+						))}
+					</div>
+				</section>
+
+				<Separator className="my-16 bg-border/60" />
+
+				{/* Work */}
+				<section id="work" className="scroll-mt-24 space-y-8">
+					<div>
+						<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+							Work
+						</h2>
+						<p className="mt-2 text-muted-foreground">
+							Where I&apos;ve been paid to pretend I know what I&apos;m doing.
+						</p>
+					</div>
+					<div className="space-y-4">
+						<Card className="border-primary/20">
+							<CardHeader>
+								<div className="flex flex-wrap items-start justify-between gap-2">
+									<div>
+										<CardTitle className="text-xl">
+											<a
+												href={SEDA_URL}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
+											>
+												SEDA
+												<ExternalLink className="size-4 opacity-70" />
+											</a>
+										</CardTitle>
+										<CardDescription className="mt-1">
+											Fool Stack Engineer — 2023-present
+										</CardDescription>
+									</div>
+									<Badge variant="outline">Current</Badge>
+								</div>
+							</CardHeader>
+							<CardContent>
+								<p className="text-sm text-muted-foreground leading-relaxed">
+									Building infrastructure for data in Web3. See{" "}
+									<a
+										href={SEDA_GITHUB_URL}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
+									>
+										SEDA on GitHub
+										<ExternalLink className="size-4 opacity-70" />
+									</a> for some of the code.
+								</p>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader>
+								<div className="flex flex-wrap items-start justify-between gap-2">
+									<div>
+										<CardTitle className="text-xl">
+											<a
+												href={TRIPLE_URL}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
+											>
+												Triple (now part of Hypersolid)
+												<ExternalLink className="size-4 opacity-70" />
+											</a>
+										</CardTitle>
+										<CardDescription className="mt-1">
+											Software Engineer — 2015-2023
+										</CardDescription>
+									</div>
+								</div>
+							</CardHeader>
+							<CardContent>
+								<p className="text-sm text-muted-foreground">
+									Building JavaScript web apps, hybrid mobile apps, Chromecast
+									apps, and web video streaming. Transitioned from frontend to
+									backend, from just engineering to jointly managing the team.
+								</p>
+							</CardContent>
+						</Card>
+					</div>
+				</section>
+
+				<Separator className="my-16 bg-border/60" />
+
+				{/* Tinkering */}
+				<section id="tinkering" className="scroll-mt-24 space-y-8">
+					<div>
+						<h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+							Tinkering
+						</h2>
+						<p className="mt-2 text-muted-foreground">
+							Small experiments you can click through when you&apos;re bored.
+						</p>
+					</div>
+					<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+						<Card className="flex flex-col">
+            <div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
+								<Image
+									src="/images/polar-bears.png"
+									alt=""
+									fill
+									className="object-cover object-top"
+									sizes="(max-width: 640px) 100vw, 33vw"
+								/>
+							</div>
+							<CardHeader>
+								<CardTitle className="text-lg">Ice Holes and Polar Bears</CardTitle>
+								<CardDescription>
+									A riddle / game thing I like to annoy people with. WIP, mean
+									in a loving way.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="flex flex-wrap gap-2">
+								<Badge variant="outline">Riddle</Badge>
+								<Badge variant="outline">WIP</Badge>
+							</CardContent>
+							<CardFooter className="mt-auto pt-2">
+								<Button
+									asChild
+									variant="default"
+									className="w-full gap-2 sm:w-auto"
+								>
+									<Link href="/polar-bears">
+										Open
+										<ArrowRight className="size-4" />
+									</Link>
+								</Button>
+							</CardFooter>
+						</Card>
+
+						<Card className="flex flex-col overflow-hidden">
+							<div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
+								<Image
+									src="/images/you-got-this.png"
+									alt=""
+									fill
+									className="object-cover object-top"
+									sizes="(max-width: 640px) 100vw, 33vw"
+								/>
+							</div>
+							<CardHeader>
+								<CardTitle className="text-lg">You Got This</CardTitle>
+								<CardDescription>
+									Motivation on demand. For when the compiler is meaner than
+									your inner critic.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="flex flex-wrap gap-2">
+								<Badge variant="outline">Vibes</Badge>
+							</CardContent>
+							<CardFooter className="mt-auto pt-2">
+								<Button
+									asChild
+									variant="default"
+									className="w-full gap-2 sm:w-auto"
+								>
+									<Link href="/you-got-this">
+										Open
+										<ArrowRight className="size-4" />
+									</Link>
+								</Button>
+							</CardFooter>
+						</Card>
+
+						<Card className="flex flex-col sm:col-span-2 lg:col-span-1">
+            <div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
+								<Image
+									src="/images/exercise-tracker.png"
+									alt=""
+									fill
+									className="object-cover object-top"
+									sizes="(max-width: 640px) 100vw, 33vw"
+								/>
+							</div>
+							<CardHeader>
+								<CardTitle className="text-lg">Exercise Tracker</CardTitle>
+								<CardDescription>
+									Local-only workout log that an LLM and I argued into
+									existence. No accounts, no cloud — just you and your gains.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="flex flex-wrap gap-2">
+								<Badge variant="outline">Next.js</Badge>
+								<Badge variant="outline">Local storage</Badge>
+							</CardContent>
+							<CardFooter className="mt-auto pt-2">
+								<Button
+									asChild
+									variant="default"
+									className="w-full gap-2 sm:w-auto"
+								>
+									<Link href="/exercises">
+										Open
+										<ArrowRight className="size-4" />
+									</Link>
+								</Button>
+							</CardFooter>
+						</Card>
+					</div>
+				</section>
+			</main>
+
+			{/* Footer */}
+			<footer className="border-t border-border/40 bg-card/30">
+				<div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-4 py-10 sm:flex-row sm:px-6">
+					<div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+						<a
+							href={GITHUB_URL}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
+						>
+							<Github className="size-4" />
+							GitHub
+						</a>
+						<span className="hidden text-border sm:inline">|</span>
+						<a
+							href="mailto:hello@thomasvandam.com"
+							className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
+						>
+							<Mail className="size-4" />
+							hello@thomasvandam.com
+						</a>
+						<span className="text-xs text-muted-foreground/80">
+							(TODO: confirm email)
+						</span>
+					</div>
+					<p className="text-xs text-muted-foreground">
+						© {new Date().getFullYear()} Thomas van Dam
+					</p>
+				</div>
+			</footer>
+		</div>
+	);
 }
