@@ -4,7 +4,6 @@ import {
 	ArrowRight,
 	ExternalLink,
 	GitBranch,
-	Mail,
 	Quote,
 	Sparkles,
 } from "lucide-react";
@@ -269,8 +268,8 @@ export default function Home() {
 							Accolades
 						</h2>
 						<p className="mt-2 text-muted-foreground">
-							Hand-picked praise from people who may or may not exist. Ratings
-							are fictional; the industry subtext is not.
+							Hand-picked praise from people who may or may not exist. Don't
+							read too much into it.
 						</p>
 					</div>
 					<div className="grid gap-4 md:grid-cols-2">
@@ -304,9 +303,9 @@ export default function Home() {
 									<Badge variant="outline">PR review bully</Badge>
 								</div>
 								<CardTitle className="text-base font-normal leading-relaxed pt-1">
-									&ldquo;He&apos;ll argue about the code, then argue about how we
-									argue about code — and the error messages actually get better.
-									Weird flex, but it works.&rdquo;
+									&ldquo;He&apos;ll argue about the code, then argue about how
+									we argue about code... Yet somehow things do actually end up
+									better. Weird flex, but it works.&rdquo;
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="pt-0">
@@ -326,8 +325,8 @@ export default function Home() {
 									<Badge variant="outline">Staff++ vibes</Badge>
 								</div>
 								<CardTitle className="text-base font-normal leading-relaxed pt-1">
-									&ldquo;He explained the same thing three ways. I still don&apos;t
-									get it, but I respect the hustle.&rdquo;
+									&ldquo;He explained the same thing three ways. I still
+									don&apos;t get it, but I respect the hustle.&rdquo;
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="pt-0">
@@ -422,7 +421,6 @@ export default function Home() {
 								</Button>
 							</CardFooter>
 						</Card>
-
 					</div>
 				</section>
 			</main>
@@ -440,17 +438,6 @@ export default function Home() {
 							<GitBranch className="size-4" />
 							GitHub
 						</a>
-						<span className="hidden text-border sm:inline">|</span>
-						<a
-							href="mailto:hello@thomasvandam.com"
-							className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
-						>
-							<Mail className="size-4" />
-							hello@thomasvandam.com
-						</a>
-						<span className="text-xs text-muted-foreground/80">
-							(TODO: confirm email)
-						</span>
 					</div>
 					<p className="text-xs text-muted-foreground">
 						© {new Date().getFullYear()} Thomas van Dam
