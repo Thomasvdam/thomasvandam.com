@@ -3,7 +3,7 @@ import Link from "next/link";
 import {
 	ArrowRight,
 	ExternalLink,
-	Github,
+	GitBranch,
 	Mail,
 	Quote,
 	Sparkles,
@@ -70,7 +70,7 @@ export default function Home() {
 								rel="noopener noreferrer"
 								aria-label="GitHub"
 							>
-								<Github className="size-5" />
+								<GitBranch className="size-5" />
 							</a>
 						</Button>
 					</div>
@@ -112,7 +112,7 @@ export default function Home() {
 							</Button>
 							<Button variant="outline" size="lg" asChild className="gap-2">
 								<a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-									<Github className="size-4" />
+									<GitBranch className="size-4" />
 									GitHub
 								</a>
 							</Button>
@@ -437,7 +437,7 @@ export default function Home() {
 							rel="noopener noreferrer"
 							className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
 						>
-							<Github className="size-4" />
+							<GitBranch className="size-4" />
 							GitHub
 						</a>
 						<span className="hidden text-border sm:inline">|</span>
