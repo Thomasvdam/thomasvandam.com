@@ -351,7 +351,7 @@ export default function Home() {
 							Small experiments you can click through when you&apos;re bored.
 						</p>
 					</div>
-					<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+					<div className="grid gap-6 sm:grid-cols-2">
 						<Card className="flex flex-col">
 							<div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
 								<Image
@@ -423,40 +423,6 @@ export default function Home() {
 							</CardFooter>
 						</Card>
 
-						<Card className="flex flex-col sm:col-span-2 lg:col-span-1">
-							<div className="relative aspect-video w-full border-b border-border/70 bg-muted/30">
-								<Image
-									src="/images/exercise-tracker.png"
-									alt=""
-									fill
-									className="object-cover object-top"
-									sizes="(max-width: 640px) 100vw, 33vw"
-								/>
-							</div>
-							<CardHeader>
-								<CardTitle className="text-lg">Exercise Tracker</CardTitle>
-								<CardDescription>
-									Local-only workout log that an LLM and I argued into
-									existence. No accounts, no cloud — just you and your gains.
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="flex flex-wrap gap-2">
-								<Badge variant="outline">Next.js</Badge>
-								<Badge variant="outline">Local storage</Badge>
-							</CardContent>
-							<CardFooter className="mt-auto pt-2">
-								<Button
-									asChild
-									variant="default"
-									className="w-full gap-2 sm:w-auto"
-								>
-									<Link href="/exercises">
-										Open
-										<ArrowRight className="size-4" />
-									</Link>
-								</Button>
-							</CardFooter>
-						</Card>
 					</div>
 				</section>
 			</main>
