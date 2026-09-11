@@ -268,7 +268,7 @@ export default function Home() {
 							Accolades
 						</h2>
 						<p className="mt-2 text-muted-foreground">
-							Hand-picked praise from people who may or may not exist. Don't
+							Hand-picked praise from people who may or may not exist. Don&apos;t
 							read too much into it.
 						</p>
 					</div>
