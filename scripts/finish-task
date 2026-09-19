@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+if [[ $# != 4 || $1 != --title || $3 != --body-file || -z $2 || ! -s $4 || ! -r $4 ]]; then
+  echo 'Usage: ./scripts/finish-task --title <title> --body-file <path>' >&2
+  exit 1
+fi
+title="$2"
+body_file="$4"
+if ! git remote | grep -Fxq origin; then
+  echo 'An origin remote is required for PR delivery.' >&2
+  exit 1
+fi
+branch="$(git symbolic-ref --quiet --short HEAD || true)"
+if [[ $branch != codex/?* || -n $(git status --porcelain) ]]; then
+  echo 'Finish requires a clean, committed codex/ task branch.' >&2
+  exit 1
+fi
+head="$(git rev-parse HEAD)"
+./scripts/check
+if [[ $(git rev-parse HEAD) != "$head" || $(git symbolic-ref --quiet --short HEAD) != "$branch" || -n $(git status --porcelain) ]]; then
+  echo 'Validation changed the checkout; review and commit before retrying.' >&2
+  exit 1
+fi
+git fetch origin main
+if ! git merge-base --is-ancestor origin/main HEAD; then
+  echo 'Task must include current origin/main before publication; reconcile and validate again.' >&2
+  exit 1
+fi
+if [[ $(git rev-list --count origin/main..HEAD) == 0 ]]; then
+  echo 'No task commits to publish.' >&2
+  exit 1
+fi
+# Query before pushing so authentication failures do not masquerade as no PR.
+pr="$(gh pr list --state open --base main --head "$branch" --json url --jq '.[0].url // empty')"
+git push --set-upstream origin "$branch"
+if [[ -n $pr ]]; then
+  gh pr edit "$pr" --title "$title" --body-file "$body_file"
+  printf '%s\n' "$pr"
+else
+  gh pr create --base main --head "$branch" --title "$title" --body-file "$body_file"
+fi

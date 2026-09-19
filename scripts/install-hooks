@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+existing="$(git config --get core.hooksPath || true)"
+if [[ -n $existing && $existing != .githooks ]]; then
+  echo "Existing core.hooksPath ($existing) must be reconciled before installing repository hooks." >&2
+  exit 1
+fi
+git config --local core.hooksPath .githooks
+echo 'Git hooks installed for this checkout.'
