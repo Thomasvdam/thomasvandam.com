@@ -1,7 +1,9 @@
 [install]
 linker = "isolated"
 minimumReleaseAge = 604800 # 7 days in seconds
+# Keep the age gate enabled for every package, even if a global Bun config has exclusions.
+minimumReleaseAgeExcludes = []
 
 [install.security]
+# Socket scans packages during Bun installs. It runs in free mode without a token.
 scanner = "@socketsecurity/bun-security-scanner"
-
