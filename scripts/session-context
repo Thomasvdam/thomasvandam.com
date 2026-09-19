@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Read-only and network-free; safe on startup/resume and from subdirectories.
+set -euo pipefail
+export GIT_OPTIONAL_LOCKS=0
+cd "$(git rev-parse --show-toplevel)"
+printf 'Project: %s\n' "$PWD"
+printf 'Branch: %s\n' "$(git symbolic-ref --quiet --short HEAD || echo detached)"
+printf 'HEAD: %s\n' "$(git rev-parse --short HEAD 2>/dev/null || echo unborn)"
+if git remote | grep -Fxq origin; then
+  echo 'Mode: origin configured (not contacted).'
+  if git rev-parse --verify origin/main >/dev/null 2>&1; then
+    printf 'Cached origin/main: %s (not fetched)\n' "$(git rev-parse --short origin/main)"
+    printf 'Ahead/behind cached main: %s\n' "$(git rev-list --left-right --count HEAD...origin/main)"
+  fi
+else
+  echo 'Mode: local-only; do not create a remote or attempt PR delivery.'
+fi
+if [[ -n $(git status --porcelain) ]]; then
+  echo 'Worktree has changes; inspect git status before editing.'
+else
+  echo 'Worktree: clean'
+fi
+printf 'Bun: %s\n' "$(command -v bun || echo missing)"
+printf 'GitHub CLI: %s\n' "$(command -v gh || echo missing)"
+printf 'Git hooks: %s\n' "$(git config --get core.hooksPath || echo 'not installed')"
+cat <<'CONTEXT'
+Read AGENTS.md and docs/agent-workflow.md before implementation.
+For a new implementation task: ./scripts/start-task <slug>.
+The primary agent owns branch, commit, hook, validation, and delivery operations;
+delegated agents implement only their bounded scope. Preserve uncommitted work.
+Validate with ./scripts/check; finish with ./scripts/finish-task.
+CONTEXT

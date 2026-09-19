@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+for script in scripts/* .githooks/*; do
+  if [[ -f $script ]]; then
+    bash -n "$script"
+  fi
+done
+./scripts/test-workflow
+bun install --frozen-lockfile
+bun run lint
+bun run build
+git diff --check
+git diff --cached --check
+if git rev-parse --verify origin/main >/dev/null 2>&1 && git merge-base origin/main HEAD >/dev/null 2>&1; then
+  git diff --check origin/main...HEAD
+fi
