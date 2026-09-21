@@ -33,7 +33,10 @@ git diff --check
 
 There is currently no automated test suite. For every change, run lint and the production build. Then manually verify the affected route and behavior. Do not treat a successful build as proof of client-side behavior.
 
-## Agent workflow
+## Conversation workflow
+
+This repository uses the personal [`conversation-workflow` skill](https://github.com/Thomasvdam/codex-workflow)
+and `~/.local/bin/codex-workflow`. Project validation remains `./scripts/check`.
 
 The primary agent orchestrates each implementation task and remains responsible
 for the task branch, hook installation, commits, validation, and delivery. When
@@ -41,11 +44,3 @@ delegation is requested or useful, it assigns bounded implementation or
 investigation scopes to subagents. Delegated agents preserve unrelated work and
 do not run competing branch, commit, push, hook, or pull-request lifecycle
 operations.
-
-For a new implementation task, start from a clean checkout with
-`./scripts/start-task <slug>`, then validate with `./scripts/check` before each
-scoped conventional commit. Sequential user tasks remain separate commits on
-the orchestrator's task branch. Use `./scripts/finish-task` for pull-request
-delivery after the branch is clean and committed. Read
-[`docs/agent-workflow.md`](docs/agent-workflow.md) for the complete lifecycle
-and hook behavior.
