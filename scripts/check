@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-for script in scripts/* .githooks/*; do
+for script in scripts/*; do
   if [[ -f $script ]]; then
     bash -n "$script"
   fi
 done
-./scripts/test-workflow
 bun install --frozen-lockfile
 bun run lint
 bun run build

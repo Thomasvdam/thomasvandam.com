@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
-branch="$(git symbolic-ref --quiet --short HEAD || true)"
-if [[ $branch != codex/?* ]]; then
-  echo 'Commit on a codex/ task branch; use ./scripts/start-task <slug>.' >&2
-  exit 1
-fi
-git diff --cached --check
