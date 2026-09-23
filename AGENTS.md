@@ -5,7 +5,7 @@ This is a Bun-managed Next.js 16 App Router site using React 19, strict TypeScri
 ## Where things live
 
 - `app/layout.tsx` owns global metadata, fonts, and the always-dark root shell.
-- `app/page.tsx` is the personal homepage. Keep its section anchors in sync with the sticky navigation.
+- `app/(personal)/page.tsx` is the personal homepage; `app/(personal)/cv/` contains the CV. Their shared layout, fonts, and scoped styles live in `app/(personal)/`. Keep homepage section anchors in sync with the sticky navigation.
 - `app/you-got-this/` and `app/polar-bears/` are standalone randomized experiments. The former is force-dynamic; the latter regenerates hourly.
 - `components/ui/` contains reusable shadcn-style primitives. Extend these before creating one-off versions; use `cn` from `lib/utils.ts` for class merging.
 - `app/globals.css` and `tailwind.config.ts` own global theme tokens and Tailwind configuration. Static images belong in `public/images/`.
