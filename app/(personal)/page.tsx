@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "@/app/(personal)/personal.module.css";
+import { Sequencer } from "@/app/(personal)/sequencer";
 
 export const metadata: Metadata = {
 	title: "Thomas van Dam — Software, sounds & side quests",
@@ -32,10 +33,7 @@ export default function Home() {
 
 			<section className={styles.opinion} aria-label="A loosely held opinion">
 				<p>Strong opinions.<br /><em>Loosely held.</em></p>
-				<details className={styles.footnote}>
-					<summary aria-label="Read the qualification"><span aria-hidden="true">*</span></summary>
-					<p>Including opinions about how loosely I hold my opinions.</p>
-				</details>
+				<Sequencer />
 			</section>
 
 			<section id="experiments" className={styles.section} aria-labelledby="experiments-heading">
