@@ -2,9 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import styles from "@/app/experiment.module.css"
 
 interface ExpanderProps {
   title: string
@@ -20,27 +18,16 @@ const Expander: React.FC<ExpanderProps> = ({ title, preview, fullText }) => {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">{isExpanded ? fullText : preview}</p>
-        <Button onClick={toggleExpand} variant="outline" className="w-full flex items-center justify-center">
-          {isExpanded ? (
-            <>
-              Show Less <ChevronUp className="ml-2 h-4 w-4" />
-            </>
-          ) : (
-            <>
-              Read More <ChevronDown className="ml-2 h-4 w-4" />
-            </>
-          )}
-        </Button>
-      </CardContent>
-    </Card>
+    <section className={styles.panel}>
+      <h2>{title}</h2>
+      <div className={styles.panelBody}>
+        <p className={styles.bodyCopy}>{isExpanded ? fullText : preview}</p>
+        <button className={styles.button} onClick={toggleExpand} aria-expanded={isExpanded}>
+          {isExpanded ? "Show less ↑" : "Read more ↓"}
+        </button>
+      </div>
+    </section>
   )
 }
 
 export default Expander
-

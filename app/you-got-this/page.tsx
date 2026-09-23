@@ -1,5 +1,7 @@
-import type { Metadata,  } from "next";
-import parts from './part';
+import type { Metadata } from "next";
+import styles from "@/app/experiment.module.css";
+import { experimentBody, experimentDisplay } from "@/app/experiment-fonts";
+import parts from "./part";
 
 const getRandomPart = (part: keyof typeof parts): string => {
     const options = parts[part];
@@ -18,11 +20,9 @@ const buildMotivation = (): string => {
 
 export default function YouGotThis() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)] bg-black text-white">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start max-w-5xl">
-        <h1 className="text-5xl sm:text-7xl font-bold uppercase text-center text-white">{buildMotivation()}</h1>
-      </main>
-    </div>
+    <main className={`${styles.experiment} ${styles.motivation} ${experimentDisplay.variable} ${experimentBody.variable}`}>
+      <h1 className={styles.motivationQuote}>{buildMotivation()}</h1>
+    </main>
   );
 }
 
