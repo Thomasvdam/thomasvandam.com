@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "@/app/(personal)/personal.module.css";
 
-const STEPS = 8;
+const STEPS = 16;
 const INITIAL_PATTERN = [
-	[true, false, false, false, true, false, false, false],
-	[false, false, true, false, false, false, true, false],
-	[true, false, true, false, true, false, true, false],
+	[true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
+	[false, false, true, false, false, false, false, false, false, false, true, false, false, false, false, false],
+	[false, false, false, false, false, false, true, false, false, false, false, false, false, false, true, false],
 ];
-const LANES = ["Kick", "Pulse", "Hat"];
+const LANES = ["Kick", "Closed hat", "Open hat"];
 
 type AudioWindow = Window & typeof globalThis & {
 	webkitAudioContext?: typeof AudioContext;
@@ -32,7 +32,7 @@ export function Sequencer() {
 	useEffect(() => {
 		if (!playing) return;
 
-		const interval = (60_000 / tempo) / 2;
+		const interval = (60_000 / tempo) / 4;
 		const tick = () => {
 			const currentStep = nextStep.current;
 			setStep(currentStep);
@@ -87,7 +87,7 @@ export function Sequencer() {
 						<span className={styles.sequencerKicker}>Patch // 01</span>
 						<h2>Make some<br /><em>noise.</em></h2>
 					</div>
-					<p>Eight steps.<br />Zero wrong answers.</p>
+					<p>Sixteen steps.<br />Zero wrong answers.</p>
 				</div>
 
 				<div className={styles.machine}>
@@ -135,43 +135,65 @@ function playStep(pattern: boolean[][], step: number, contextRef: React.RefObjec
 	output.gain.value = 0.22;
 	output.connect(context.destination);
 
-	if (pattern[0][step]) {
-		const oscillator = context.createOscillator();
-		const gain = context.createGain();
-		oscillator.frequency.setValueAtTime(135, now);
-		oscillator.frequency.exponentialRampToValueAtTime(42, now + 0.12);
-		gain.gain.setValueAtTime(0.9, now);
-		gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-		oscillator.connect(gain).connect(output);
-		oscillator.start(now);
-		oscillator.stop(now + 0.3);
-	}
+	if (pattern[0][step]) playKick(context, output, now);
+	if (pattern[2][step]) playHat(context, output, now, true);
+	else if (pattern[1][step]) playHat(context, output, now, false);
+}
 
-	if (pattern[1][step]) {
-		const oscillator = context.createOscillator();
-		const gain = context.createGain();
-		oscillator.type = "sawtooth";
-		oscillator.frequency.value = [82.41, 98, 110, 123.47][step % 4];
-		gain.gain.setValueAtTime(0.18, now);
-		gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-		oscillator.connect(gain).connect(output);
-		oscillator.start(now);
-		oscillator.stop(now + 0.18);
-	}
+function playKick(context: AudioContext, output: GainNode, now: number) {
+	const oscillator = context.createOscillator();
+	const envelope = context.createGain();
+	oscillator.frequency.setValueAtTime(110, now);
+	oscillator.frequency.exponentialRampToValueAtTime(34, now + 0.16);
+	envelope.gain.setValueAtTime(1, now);
+	envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+	oscillator.connect(envelope).connect(output);
 
-	if (pattern[2][step]) {
-		const buffer = context.createBuffer(1, context.sampleRate * 0.05, context.sampleRate);
-		const data = buffer.getChannelData(0);
-		for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
-		const noise = context.createBufferSource();
-		const filter = context.createBiquadFilter();
-		const gain = context.createGain();
-		noise.buffer = buffer;
-		filter.type = "highpass";
-		filter.frequency.value = 6500;
-		gain.gain.setValueAtTime(0.13, now);
-		gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-		noise.connect(filter).connect(gain).connect(output);
-		noise.start(now);
+	const convolver = context.createConvolver();
+	const rumbleFilter = context.createBiquadFilter();
+	const rumbleGain = context.createGain();
+	convolver.buffer = createRumbleImpulse(context, 1.15);
+	rumbleFilter.type = "lowpass";
+	rumbleFilter.frequency.value = 170;
+	rumbleFilter.Q.value = 3.5;
+	rumbleGain.gain.setValueAtTime(0.36, now);
+	rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 1.1);
+	envelope.connect(convolver).connect(rumbleFilter).connect(rumbleGain).connect(output);
+
+	oscillator.start(now);
+	oscillator.stop(now + 0.44);
+}
+
+function createRumbleImpulse(context: AudioContext, duration: number) {
+	const length = Math.floor(context.sampleRate * duration);
+	const impulse = context.createBuffer(2, length, context.sampleRate);
+	for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
+		const data = impulse.getChannelData(channel);
+		for (let index = 0; index < length; index += 1) {
+			const decay = Math.pow(1 - index / length, 3);
+			data[index] = (Math.random() * 2 - 1) * decay;
+		}
 	}
+	return impulse;
+}
+
+function playHat(context: AudioContext, output: GainNode, now: number, open: boolean) {
+	const duration = open ? 0.34 : 0.055;
+	const buffer = context.createBuffer(1, context.sampleRate * duration, context.sampleRate);
+	const data = buffer.getChannelData(0);
+	for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+	const noise = context.createBufferSource();
+	const highpass = context.createBiquadFilter();
+	const bandpass = context.createBiquadFilter();
+	const gain = context.createGain();
+	noise.buffer = buffer;
+	highpass.type = "highpass";
+	highpass.frequency.value = open ? 5200 : 7000;
+	bandpass.type = "bandpass";
+	bandpass.frequency.value = open ? 8600 : 10_500;
+	bandpass.Q.value = 0.7;
+	gain.gain.setValueAtTime(open ? 0.1 : 0.14, now);
+	gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+	noise.connect(highpass).connect(bandpass).connect(gain).connect(output);
+	noise.start(now);
 }
