@@ -2,8 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import styles from "@/app/experiment.module.css"
 
 interface RevealTextProps {
   title: string
@@ -18,23 +17,20 @@ const RevealText: React.FC<RevealTextProps> = ({ title, hiddenText }) => {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col items-center space-y-4">
+    <section className={styles.panel}>
+      <h2>{title}</h2>
+      <div className={styles.panelBody}>
         {isRevealed ? (
-          <p className="text-center text-lg font-medium">{hiddenText}</p>
+          <p className={styles.answer}>{hiddenText}</p>
         ) : (
-          <div className="w-full h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          <div className={`${styles.answer} ${styles.placeholder}`} aria-hidden="true">Hidden</div>
         )}
-        <Button onClick={handleReveal} disabled={isRevealed}>
+        <button className={styles.button} onClick={handleReveal} disabled={isRevealed}>
           {isRevealed ? "Revealed!" : "Reveal Solution"}
-        </Button>
-      </CardContent>
-    </Card>
+        </button>
+      </div>
+    </section>
   )
 }
 
 export default RevealText
-

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import Die from "@/app/polar-bears/Die";
 import RevealText from "@/app/polar-bears/RevealText";
+import styles from "@/app/experiment.module.css";
+import { experimentBody, experimentDisplay } from "@/app/experiment-fonts";
 import Expander from "@/components/Expander";
 
-const colorClasses = [
-  "bg-red-500",
-  "bg-blue-500",
-  "bg-green-500",
-  "bg-yellow-500",
-  "bg-purple-500",
-  "bg-orange-500",
-  "bg-pink-500",
-  "bg-teal-500",
+const dieColors = [
+  "hsl(50 20% 88%)",
+  "hsl(18 100% 58%)",
+  "hsl(50 20% 88%)",
+  "hsl(18 100% 58%)",
+  "hsl(50 20% 88%)",
+  "hsl(18 100% 58%)",
 ];
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -31,7 +32,7 @@ const createPuzzle = (): {
     rotation: number;
   }>;
 } => {
-  const shuffledColors = shuffleArray(colorClasses);
+  const shuffledColors = shuffleArray(dieColors);
   const rolls = Array.from({ length: 6 }, (_, index) => ({
     value: (Math.floor(Math.random() * 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6,
     color: shuffledColors[index],
@@ -63,34 +64,42 @@ export default function PolarBears() {
   const { solution, rolls } = createPuzzle();
 
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-12 row-start-2 items-center max-w-3xl w-full">
-        <h1 className="text-7xl font-bold uppercase text-center">
-          Ice Holes and Polar Bears
-        </h1>
-        <p className="text-center">
-          Today&apos;s view of the Arctic is rather pretty don&apos;t you think?
-          <br />
-          How many ice holes and polar bears do you see?
-        </p>
-        <div className="grid grid-cols-3 gap-8 sm:gap-12 w-full place-items-center">
-          {rolls.map((roll, index) => (
-            <Die key={index} {...roll} />
-          ))}
-        </div>
-        <RevealText
-          title="Solution"
-          hiddenText={`${solution.bears} bears, ${solution.iceHoles} ice holes`}
-        />
+    <div className={`${styles.experiment} ${experimentDisplay.variable} ${experimentBody.variable}`}>
+      <div className={styles.shell}>
+        <header className={styles.header}>
+          <Link href="/" className={styles.wordmark}>
+            <span className={styles.light} aria-hidden="true" />Thomas van Dam
+          </Link>
+          <p className={styles.eyebrow}>01 / A riddle</p>
+        </header>
+        <main className={styles.game}>
+          <h1 className={styles.title}>
+            Ice holes <span>&amp;</span><br />polar bears.
+          </h1>
+          <p className={styles.intro}>
+            Today&apos;s view of the Arctic is rather pretty don&apos;t you think?
+            <br />
+            How many ice holes and polar bears do you see?
+          </p>
+          <div className={styles.dice}>
+            {rolls.map((roll, index) => (
+              <Die key={index} {...roll} />
+            ))}
+          </div>
+          <RevealText
+            title="Solution"
+            hiddenText={`${solution.bears} bears, ${solution.iceHoles} ice holes`}
+          />
 
-        <Expander
-          title="What is this about?"
-          preview={"This is a simple game or riddle"}
-          fullText={
-            "This is a simple game or riddle where you guess the number of ice holes and polar bears present in a throw of the dice. While this is certainly more fun to do in person and with actual dice, I figured this would be a socially distant substitue. To inflate game length a new roll is available every hour."
-          }
-        />
-      </main>
+          <Expander
+            title="What is this about?"
+            preview={"This is a simple game or riddle"}
+            fullText={
+              "This is a simple game or riddle where you guess the number of ice holes and polar bears present in a throw of the dice. While this is certainly more fun to do in person and with actual dice, I figured this would be a socially distant substitue. To inflate game length a new roll is available every hour."
+            }
+          />
+        </main>
+      </div>
     </div>
   );
 }
