@@ -38,10 +38,38 @@
 .opinion { position: relative; border-block: 1px solid hsl(var(--border)); padding: 25px 0; }
 .opinion > p { padding-right: 65px; font: 700 clamp(32px, 4.6vw, 55px)/1 var(--font-display), sans-serif; text-transform: uppercase; }
 .opinion em { font-style: normal; color: hsl(var(--primary)); }
-.footnote summary { position: absolute; right: 0; top: 30px; display: grid; place-items: center; width: 44px; height: 44px; list-style: none; border: 1px solid hsl(var(--border)); border-radius: 50%; font-size: 24px; cursor: pointer; }
-.footnote summary::-webkit-details-marker { display: none; }
-.footnote summary:hover, .footnote[open] summary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-.footnote p { margin-top: 18px; font-size: 14px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+.sequencer summary { position: absolute; right: 0; top: 30px; display: grid; place-items: center; width: 48px; height: 44px; list-style: none; border: 1px solid hsl(var(--border)); cursor: pointer; transform: skew(-8deg); transition: background 120ms ease, color 120ms ease; }
+.sequencer summary::-webkit-details-marker { display: none; }
+.sequencer summary:hover, .sequencer[open] summary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
+.sequencerIcon { display: flex; align-items: flex-end; gap: 3px; height: 19px; transform: skew(8deg); }
+.sequencerIcon i { width: 4px; background: currentColor; }
+.sequencerIcon i:nth-child(1) { height: 9px; }
+.sequencerIcon i:nth-child(2) { height: 19px; }
+.sequencerIcon i:nth-child(3) { height: 13px; }
+.sequencerPanel { margin-top: 28px; padding: 27px; color: hsl(var(--background)); background: hsl(var(--paper)); clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
+.sequencerHeading { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+.sequencerHeading h2 { margin-top: 7px; font: 900 clamp(45px, 7vw, 76px)/.78 var(--font-display), sans-serif; letter-spacing: -1px; text-transform: uppercase; transform: rotate(-2deg); }
+.sequencerHeading h2 em { display: inline-block; padding: 3px 7px 1px; font-style: normal; color: hsl(var(--primary)); background: hsl(var(--background)); }
+.sequencerKicker, .sequencerHeading > p, .transport, .stepNumbers, .lane > span, .sequencerNote { font-family: var(--font-geist-mono), monospace; font-size: 10px; line-height: 1.5; letter-spacing: 1px; text-transform: uppercase; }
+.sequencerHeading > p { padding: 6px 32px 6px 8px; border-top: 3px solid currentColor; text-align: right; }
+.machine { position: relative; margin-top: 25px; padding: 18px; border: 3px solid hsl(var(--background)); box-shadow: 8px 8px 0 hsl(var(--primary)); background: hsl(var(--foreground)); }
+.transport { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 15px; border-bottom: 2px solid hsl(var(--background)); }
+.transport button { min-width: 88px; padding: 9px 13px; border: 0; color: hsl(var(--primary-foreground)); background: hsl(var(--primary)); font: inherit; text-transform: uppercase; cursor: pointer; }
+.transport button:hover { color: hsl(var(--foreground)); background: hsl(var(--background)); }
+.transport label { display: grid; grid-template-columns: auto minmax(80px, 190px) 72px; gap: 10px; align-items: center; }
+.transport input { accent-color: hsl(var(--primary)); cursor: grab; }
+.grid { margin-top: 14px; }
+.stepNumbers, .lane { display: grid; grid-template-columns: 64px repeat(8, 1fr); gap: 7px; align-items: center; }
+.stepNumbers { margin-bottom: 5px; text-align: center; }
+.stepNumbers i { font-style: normal; }
+.lane + .lane { margin-top: 7px; }
+.lane button { position: relative; aspect-ratio: 1.1; min-height: 31px; border: 2px solid hsl(var(--background)); background: transparent; cursor: pointer; }
+.lane button:nth-of-type(4) { margin-right: 5px; }
+.lane button:hover { background: hsl(var(--background) / .15); }
+.lane .activeStep { background: hsl(var(--background)); }
+.lane .activeStep::after { content: ""; position: absolute; inset: 26%; background: hsl(var(--paper)); transform: rotate(45deg); }
+.lane .currentStep { outline: 3px solid hsl(var(--primary)); outline-offset: 1px; }
+.sequencerNote { margin: 18px 0 2px; text-align: right; }
 .section, .personal, .site main { scroll-margin-top: 105px; }
 .sectionHeading { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 50px 0 24px; }
 .site h2 { font: 800 clamp(48px, 7vw, 80px)/.95 var(--font-display), sans-serif; text-transform: uppercase; letter-spacing: -1px; }
@@ -115,6 +143,16 @@
 	.intro > p:first-child { font-size: 18px; }
 	.scrollHint { margin-top: 26px; font-size: 10px; letter-spacing: .5px; }
 	.opinion > p { font-size: 36px; }
+	.sequencerPanel { margin-inline: -20px; padding: 24px 18px; clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); }
+	.sequencerHeading > p { display: none; }
+	.machine { padding: 12px 9px; box-shadow: 5px 5px 0 hsl(var(--primary)); }
+	.transport { align-items: flex-end; }
+	.transport label { grid-template-columns: 1fr 60px; gap: 4px 8px; flex: 1; }
+	.transport label > span { grid-column: 1 / -1; }
+	.transport input { min-width: 0; width: 100%; }
+	.stepNumbers, .lane { grid-template-columns: 42px repeat(8, minmax(0, 1fr)); gap: 3px; }
+	.lane button { min-height: 27px; border-width: 1px; }
+	.lane button:nth-of-type(4) { margin-right: 3px; }
 	.sectionHeading { align-items: flex-start; padding-top: 36px; }
 	.sectionHeading > p { max-width: 108px; text-align: right; letter-spacing: .5px; }
 	.site h2 { font-size: 48px; }
