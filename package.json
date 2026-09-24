@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "icons": "node tools/generate-icons.mjs",
     "tsc7": "node ./node_modules/typescript-7/bin/tsc --noEmit"
   },
   "dependencies": {
