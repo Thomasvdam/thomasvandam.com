@@ -2,6 +2,10 @@
 
 Don't mind me, I'm just trying things out.
 
+The [related sites brand guide](docs/related-sites-brand-guide.md) describes
+how this site and Llamateur share a visual family while keeping separate
+identities.
+
 ## Dependency security
 
 This project configures Bun's install-time security scanner with Socket's
