@@ -87,7 +87,7 @@ export function Sequencer() {
 						<span className={styles.sequencerKicker}>Patch // 01</span>
 						<h2>Make some<br /><em>noise.</em></h2>
 					</div>
-					<p>Sixteen steps.<br />Zero wrong answers.</p>
+					<p>Simple sequencer.<br />Sixteen steps.</p>
 				</div>
 
 				<div className={styles.machine}>
@@ -121,7 +121,7 @@ export function Sequencer() {
 						))}
 					</div>
 				</div>
-				<p className={styles.sequencerNote}>Headphones recommended. Neighbours optional.</p>
+				<p className={styles.sequencerNote}>Headphones recommended.</p>
 			</div>
 		</details>
 	);

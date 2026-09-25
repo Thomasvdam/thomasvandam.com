@@ -26,7 +26,7 @@ export default function Home() {
 				</figure>
 				<div className={styles.intro}>
 					<p>Software engineer.<br />Into deep techno, making things, and questioning how we make them.</p>
-					<p className={styles.current}>Currently building at <a href="https://www.seda.xyz">SEDA</a>.<br />Occasionally leaving the house.</p>
+					<p className={styles.current}>Currently building at <a href="https://www.seda.xyz">SEDA</a>.</p>
 				</div>
 				<p className={styles.scrollHint}>↓ Keep going. There are things to click.</p>
 			</section>
@@ -39,7 +39,7 @@ export default function Home() {
 			<section id="experiments" className={styles.section} aria-labelledby="experiments-heading">
 				<div className={styles.sectionHeading}>
 					<h2 id="experiments-heading">Things to<br />mess with.</h2>
-					<p>Small experiments.<br />Variable usefulness.</p>
+					<p>Small experiments.</p>
 				</div>
 				<div className={styles.experiments}>
 					<article>
@@ -54,7 +54,7 @@ export default function Home() {
 							</div>
 							<div className={styles.coverBottom}><span>01 / A riddle</span><span>Try it <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>A little game I like to annoy people with.<br />Mean in a loving way.</p>
+						<p>A little game I like to annoy people with.</p>
 					</article>
 					<article>
 						<Link href="/you-got-this" className={`${styles.cover} ${styles.motivation}`}>
