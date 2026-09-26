@@ -107,19 +107,52 @@
 .footerEasterEgg { border: 0; padding: 0; color: inherit; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .footerEasterEgg:hover { color: hsl(var(--foreground)); }
 .shellMoment { position: fixed; inset: 0; z-index: 20; pointer-events: none; }
-.blueShell { position: absolute; top: 46%; left: 50%; width: 90px; height: 90px; filter: drop-shadow(5px 8px 0 hsl(var(--background) / .5)); animation: shellStrike 1.3s ease-in forwards; }
-.shellCaption { position: absolute; top: calc(46% + 60px); left: 50%; width: max-content; max-width: calc(100vw - 32px); padding: 10px 14px; transform: translateX(-50%); border: 2px solid #287bd1; color: hsl(var(--foreground)); background: hsl(var(--background)); font: 900 clamp(22px, 6vw, 42px)/1 var(--font-display), sans-serif; letter-spacing: .02em; text-align: center; text-transform: uppercase; opacity: 0; animation: shellCaption 3.4s ease-out forwards; }
-@keyframes shellStrike {
-	0% { transform: translate(55vw, -70vh) scale(.4) rotate(25deg); opacity: 0; }
-	15% { opacity: 1; }
-	70% { transform: translate(-50%, -50%) scale(1) rotate(-15deg); opacity: 1; }
-	82% { transform: translate(-50%, -50%) scale(1.2) rotate(8deg); opacity: 1; }
-	100% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 0; }
+.shellMoment::before { content: ""; position: absolute; inset: 0; background: hsl(var(--background) / .85); animation: sceneBackdrop 3.6s both; }
+.blueShell { position: absolute; top: calc(50% - 105px); left: 50%; z-index: 1; width: 90px; height: 90px; filter: drop-shadow(5px 8px 0 hsl(var(--background) / .5)); animation: shellFlight 3.6s linear both; }
+.shellCaption { position: absolute; top: 50%; left: 50%; display: flex; flex-wrap: wrap; justify-content: center; gap: .25em; width: max-content; max-width: calc(100vw - 32px); padding: 10px 14px; transform: translate(-50%, -50%); color: hsl(var(--foreground)); font: 900 clamp(22px, 6vw, 42px)/1 var(--font-display), sans-serif; letter-spacing: .02em; text-align: center; text-transform: uppercase; }
+.shellCaption::before { content: ""; position: absolute; inset: 0; z-index: -1; border: 2px solid #287bd1; background: hsl(var(--background)); animation: quotePlate 3.6s both; }
+.shellCaption span { display: inline-block; animation: quoteWord 3.6s both; }
+.shellCaption span:nth-child(1) { --fly-x: -55px; --fly-y: -80px; --turn: -35deg; }
+.shellCaption span:nth-child(2) { --fly-x: 35px; --fly-y: -65px; --turn: 25deg; }
+.shellCaption span:nth-child(3) { --fly-x: -35px; --fly-y: 85px; --turn: 30deg; }
+.shellCaption span:nth-child(4) { --fly-x: 65px; --fly-y: 65px; --turn: -30deg; }
+.shellExplosion { position: absolute; top: 50%; left: 50%; z-index: 2; width: 200px; height: 200px; transform-origin: center; animation: shellBlast 3.6s both; }
+@keyframes shellFlight {
+	0% { transform: translate(55vw, -65vh) scale(.5) rotate(25deg); opacity: 0; }
+	4% { opacity: 1; }
+	20% { transform: translate(-50%, -50%) rotate(-15deg); }
+	26% { transform: translate(calc(-50% + 48px), -50%) rotate(8deg); }
+	32% { transform: translate(calc(-50% + 34px), calc(-50% + 34px)) rotate(5deg); }
+	38% { transform: translate(-50%, calc(-50% + 48px)); }
+	44% { transform: translate(calc(-50% - 34px), calc(-50% + 34px)) rotate(-8deg); }
+	50% { transform: translate(calc(-50% - 48px), -50%) rotate(-12deg); }
+	56% { transform: translate(calc(-50% - 34px), calc(-50% - 34px)) rotate(-5deg); }
+	62% { transform: translate(-50%, calc(-50% - 48px)); }
+	68% { transform: translate(calc(-50% + 34px), calc(-50% - 34px)) rotate(8deg); }
+	73% { transform: translate(calc(-50% + 48px), -50%) rotate(12deg); opacity: 1; }
+	77% { transform: translate(-50%, calc(-50% + 105px)) scale(.8); opacity: 1; }
+	78%, 100% { transform: translate(-50%, calc(-50% + 105px)) scale(.8); opacity: 0; }
 }
-@keyframes shellCaption {
-	0%, 28% { opacity: 0; }
-	35%, 80% { opacity: 1; }
+@keyframes sceneBackdrop {
+	0% { opacity: 0; }
+	10%, 78% { opacity: 1; }
 	100% { opacity: 0; }
+}
+@keyframes quotePlate {
+	0%, 4% { opacity: 0; }
+	8%, 77% { opacity: 1; }
+	79%, 100% { opacity: 0; }
+}
+@keyframes quoteWord {
+	0%, 4% { opacity: 0; }
+	8%, 77% { transform: none; opacity: 1; }
+	94%, 100% { transform: translate(var(--fly-x), var(--fly-y)) rotate(var(--turn)) scale(.5); opacity: 0; }
+}
+@keyframes shellBlast {
+	0%, 77% { transform: translate(-50%, -50%) scale(.1); opacity: 0; }
+	79% { opacity: 1; }
+	88% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+	100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
 }
 .cv { max-width: 900px; margin: auto; padding: 65px 0; }
 .cv h1 { font: 800 clamp(54px, 8vw, 100px)/1 var(--font-display), sans-serif; text-transform: uppercase; margin: 20px 0 30px; }
@@ -200,8 +233,18 @@
 @media (prefers-reduced-motion: reduce) {
 	.cover { transition: none; }
 	.cover:hover { transform: none; }
-	.blueShell { animation: none; transform: translate(-50%, -50%); }
-	.shellCaption { animation: shellCaption 3.4s ease-out forwards; }
+	.blueShell { animation: reducedShell 3.6s both; }
+	.shellCaption span { animation: reducedQuote 3.6s both; }
+	.shellExplosion { display: none; }
+}
+@keyframes reducedShell {
+	0%, 77% { transform: translate(-50%, -50%); opacity: 1; }
+	78%, 100% { transform: translate(-50%, -50%); opacity: 0; }
+}
+@keyframes reducedQuote {
+	0%, 4% { opacity: 0; }
+	8%, 77% { opacity: 1; }
+	79%, 100% { opacity: 0; }
 }
 @media print {
 	.site { --background: 0 0% 100%; --foreground: 0 0% 0%; --primary: 0 0% 0%; --muted-foreground: 0 0% 25%; color: #000; background: #fff; }
