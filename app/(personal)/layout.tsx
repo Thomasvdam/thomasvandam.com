@@ -1,5 +1,6 @@
 import { Barlow_Condensed, DM_Sans } from "next/font/google";
 import Link from "next/link";
+import { FooterEasterEgg } from "@/app/(personal)/footer-easter-egg";
 import styles from "@/app/(personal)/personal.module.css";
 
 const display = Barlow_Condensed({
@@ -33,7 +34,7 @@ export default function PersonalLayout({ children }: { children: React.ReactNode
 				{children}
 				<footer className={styles.footer}>
 					<Link href="/">Thomas van Dam</Link>
-					<span>Still figuring things out.</span>
+					<FooterEasterEgg />
 				</footer>
 			</div>
 		</div>
