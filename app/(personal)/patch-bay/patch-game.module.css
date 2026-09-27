@@ -1,10 +1,10 @@
 .page { max-width: 1100px; margin: 0 auto; padding: 42px 0 100px; }
-.topline, .overline, .progress, .moduleHead, .jackGroup > span, .legend, .actions button, .reward button { font-family: var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: .1em; }
+.topline, .overline, .progress, .instructions, .actions button, .reward button { font-family: var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: .08em; }
 .topline { display: flex; justify-content: space-between; gap: 20px; color: hsl(var(--muted-foreground)); font-size: 10px; }
 .intro { display: flex; align-items: end; justify-content: space-between; gap: 36px; padding: 38px 0 45px; }
 .intro h1 { margin-top: 10px; font: 900 clamp(82px, 16vw, 180px)/.75 var(--font-display), sans-serif; text-transform: uppercase; letter-spacing: -.04em; }
 .intro h1 span { color: hsl(var(--primary)); }
-.intro > p { width: 225px; padding-bottom: 6px; font-size: 15px; line-height: 1.55; color: hsl(var(--muted-foreground)); }
+.intro > p { width: 250px; padding-bottom: 6px; font-size: 15px; line-height: 1.55; color: hsl(var(--muted-foreground)); }
 .overline { font-size: 10px; line-height: 1.5; color: hsl(var(--primary)); }
 .progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 18px; font-size: 10px; }
 .progress span { padding: 10px 12px; border-top: 2px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); }
@@ -13,44 +13,58 @@
 .game { padding: 28px; border: 1px solid hsl(var(--border)); background: #20211f; box-shadow: 9px 9px 0 hsl(var(--primary)); }
 .gameHeading { display: flex; justify-content: space-between; gap: 24px; padding-bottom: 24px; }
 .gameHeading h2 { margin-top: 5px; font: 800 clamp(42px, 6vw, 66px)/.94 var(--font-display), sans-serif; text-transform: uppercase; }
-.gameHeading > p { max-width: 310px; align-self: end; color: hsl(var(--muted-foreground)); font-size: 14px; line-height: 1.5; }
-.board { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; min-height: 245px; padding: 16px; border: 2px solid #080908; background: repeating-linear-gradient(90deg, #181a18 0 2px, #1b1d1a 2px 17px); }
-.wires { position: absolute; inset: 0; z-index: 2; overflow: visible; pointer-events: none; filter: drop-shadow(2px 4px 1px #0009); }
-.module { position: relative; display: flex; flex-direction: column; min-height: 198px; padding: 14px; border: 2px solid #77786c; background: #d9d9c8; color: #171a17; box-shadow: inset 0 0 0 4px #c4c5b4, 3px 4px 0 #0b0c0a; }
-.moduleHead { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 11px; border-bottom: 2px solid currentColor; font-size: 11px; font-weight: 700; }
-.moduleHead span:last-child { color: #b94022; }
-.module > p { padding: 10px 0 16px; font-size: 12px; color: #56584e; }
-.jacks { display: flex; justify-content: space-between; gap: 8px; margin-top: auto; }
-.jackGroup { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.jackGroup:last-child { align-items: flex-end; text-align: right; }
-.jackGroup > span { font-size: 9px; color: #55594e; }
-.jack { position: relative; z-index: 3; display: inline-flex; align-items: center; gap: 6px; min-height: 31px; padding: 2px 5px; border: 1px solid transparent; background: transparent; color: #171a17; font: 700 10px/1.2 var(--font-geist-mono), monospace; cursor: pointer; white-space: nowrap; }
-.jack:hover, .jack.selected { border-color: currentColor; background: #fff9; }
-.jack:focus-visible { outline: 2px solid #111; outline-offset: 2px; }
-.jack i { flex: none; display: block; width: 20px; height: 20px; border: 4px solid #1a1c1a; border-radius: 50%; background: #242623; box-shadow: 0 0 0 3px var(--jack-color), inset 0 0 0 3px #070807; }
-.jack.selected i, .jack.connected i { background: var(--jack-color); }
-.audio { --jack-color: #ff7546; }
-.control { --jack-color: #6cbb81; }
-.gate { --jack-color: #dab64a; }
-.controls { display: flex; align-items: end; justify-content: space-between; gap: 20px; min-height: 97px; padding-top: 17px; }
-.status { font-size: 14px; line-height: 1.45; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 12px; color: hsl(var(--muted-foreground)); font-size: 9px; line-height: 1.5; }
-.audioDot { color: #ff7546; }.controlDot { color: #a7e0b0; }.gateDot { color: #e8ce84; }
-.actions { display: flex; gap: 10px; flex: none; }
-.actions button, .reward button { padding: 11px 14px; border: 1px solid hsl(var(--border)); background: transparent; color: hsl(var(--foreground)); font-size: 10px; cursor: pointer; }
+.gameHeading > p { max-width: 360px; align-self: end; color: hsl(var(--muted-foreground)); font-size: 14px; line-height: 1.5; }
+.workbench { display: grid; grid-template-columns: minmax(0, 620px) minmax(215px, 1fr); gap: 22px; align-items: start; }
+.board { display: grid; gap: 6px; width: 100%; padding: 12px; border: 2px solid #080908; background: repeating-linear-gradient(90deg, #181a18 0 2px, #1b1d1a 2px 17px); }
+.tile, .empty { position: relative; display: grid; place-items: center; min-width: 0; aspect-ratio: 1; }
+.tile { --trace: #232922; padding: 0; border: 2px solid #878a7d; background: #d9d9c8; color: #293029; box-shadow: inset 0 0 0 3px #c4c5b4; }
+button.tile { cursor: pointer; transition: background 120ms ease, transform 120ms ease; }
+button.tile:hover:not(:disabled) { transform: translateY(-2px); background: #efefdf; }
+button.tile:focus-visible { outline: 3px solid hsl(var(--primary)); outline-offset: 2px; z-index: 2; }
+button.tile:disabled { cursor: default; }
+.empty { border: 1px dashed #3a3e37; background: #141714; }
+.tileArt { width: 100%; height: 100%; overflow: visible; }
+.dialRing { fill: none; stroke: #aaaF9e; stroke-width: 1.5; stroke-dasharray: 2 5; }
+.channel { stroke: var(--trace); stroke-width: 17; stroke-linecap: square; }
+.hub { fill: var(--trace); stroke: #d9d9c8; stroke-width: 5; }
+.blockMark { fill: none; stroke: #5d6157; stroke-width: 9; }
+.tileLabel { position: absolute; display: grid; place-items: center; width: 36%; aspect-ratio: 1; border-radius: 50%; background: #d9d9c8; color: #222822; font: 900 clamp(11px, 2vw, 18px)/1 var(--font-display), sans-serif; letter-spacing: -.03em; }
+.phase .tileLabel { color: #255e44; font-size: clamp(22px, 4vw, 40px); }
+.source { border-color: #ff7546; }.source .tileLabel { color: #842d15; }
+.target { border-color: #777f70; }.target .tileLabel { border: 2px solid currentColor; }
+.targetWarm { border-color: #f36639; }.targetCool { border-color: #55a976; }
+.warm { --trace: #f36639; border-color: #f36639; box-shadow: inset 0 0 0 3px #c4c5b4, 0 0 0 2px #f3663950; }
+.cool { --trace: #55a976; border-color: #55a976; box-shadow: inset 0 0 0 3px #c4c5b4, 0 0 0 2px #55a97660; }
+.both { --trace: #bd8b60; border-color: #bd8b60; }
+.hit { background: #e8f6e4; }.wrong { background: #f4b5a2; }
+.instructions { min-height: 100%; padding: 20px; border: 1px solid hsl(var(--border)); background: #171917; color: hsl(var(--muted-foreground)); font-size: 10px; line-height: 1.6; }
+.instructions > p:nth-child(2) { margin-top: 16px; color: hsl(var(--foreground)); font-family: var(--font-personal-body), sans-serif; text-transform: none; letter-spacing: 0; font-size: 15px; line-height: 1.55; }
+.key { display: grid; grid-template-columns: 12px 1fr; gap: 6px 8px; margin: 24px 0; }
+.warmDot { color: #ff7546; }.coolDot { color: #a7e0b0; }
+.targets { border-top: 1px solid hsl(var(--border)); }
+.targets > div { display: flex; gap: 7px; padding: 10px 0; border-bottom: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); }
+.targets > div span:last-child { margin-left: auto; color: hsl(var(--muted-foreground)); }
+.targets > div .hitText { color: #a7e0b0; }
+.readout { margin-top: 24px; }.readout span { padding: 0 6px; color: hsl(var(--primary)); }
+.controls { display: flex; align-items: end; justify-content: space-between; gap: 20px; min-height: 95px; padding-top: 18px; }
+.status { font-size: 14px; line-height: 1.45; }.hint { margin-top: 6px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.5; }
+.actions { display: flex; gap: 9px; flex: none; }
+.actions button, .reward button { padding: 11px 13px; border: 1px solid hsl(var(--border)); background: transparent; color: hsl(var(--foreground)); font-size: 10px; cursor: pointer; }
 .actions button:hover, .reward button:hover { border-color: hsl(var(--foreground)); }
 .actions .primary, .reward button { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--background)); font-weight: 700; }
 .actions .primary:hover, .reward button:hover { background: hsl(var(--foreground)); color: hsl(var(--background)); }
 .reward { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; min-height: 570px; padding: 50px; border: 2px solid hsl(var(--primary)); background: #20211f; box-shadow: 9px 9px 0 hsl(var(--primary)); }
 .rewardIcon { color: hsl(var(--primary)); font-size: 100px; line-height: 1; }
 .reward h1 { max-width: 900px; margin: 20px 0 34px; font: 900 clamp(55px, 8vw, 110px)/.88 var(--font-display), sans-serif; text-transform: uppercase; }
-@media (max-width: 760px) {
+@media (max-width: 850px) {
 	.intro { display: block; padding: 34px 0; }
 	.intro > p { width: auto; max-width: 420px; margin-top: 26px; }
 	.game { padding: 16px; }
 	.gameHeading { display: block; }
 	.gameHeading > p { margin-top: 12px; }
-	.board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px; }
+	.workbench { grid-template-columns: 1fr; }
+	.board { max-width: 620px; margin-inline: auto; }
+	.instructions { min-height: 0; }
 	.controls { display: block; }
 	.actions { margin-top: 18px; }
 }
@@ -58,10 +72,11 @@
 	.page { padding-top: 25px; }
 	.topline { font-size: 8px; }
 	.intro h1 { font-size: clamp(70px, 19vw, 100px); }
-	.progress { font-size: 8px; }
-	.progress span { padding: 8px 5px; }
+	.progress { font-size: 8px; }.progress span { padding: 8px 5px; }
 	.game { margin-inline: -12px; padding: 14px; }
-	.board { grid-template-columns: 1fr; }
-	.module { min-height: 160px; }
+	.board { gap: 4px; padding: 7px; }
+	.tile { border-width: 1px; }.channel { stroke-width: 20; }
+	.instructions { padding: 14px; }
 	.reward { margin-inline: -12px; min-height: 500px; padding: 25px; }
 }
+@media (prefers-reduced-motion: reduce) { button.tile { transition: none; } }
