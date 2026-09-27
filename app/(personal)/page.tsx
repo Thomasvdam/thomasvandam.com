@@ -22,7 +22,7 @@ export default function Home() {
 				</h1>
 				<figure className={styles.gear}>
 					<Image src="/images/modular-synth.jpg" alt="My modular synthesizer, full of patch cables and possibilities" width={1280} height={720} sizes="(max-width: 650px) 80vw, (max-width: 1200px) 54vw, 600px" preload />
-					<figcaption>Some assembly required.</figcaption>
+					<figcaption><Link href="/patch-bay" aria-label="Open the hidden patch bay game">Some assembly required. ↗</Link></figcaption>
 				</figure>
 				<div className={styles.intro}>
 					<p>Software engineer.<br />Into deep techno, making things, and questioning how we make them.</p>
