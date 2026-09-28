@@ -58,7 +58,7 @@ export function PatchGame() {
 		setPulses((current) => current + 1);
 		if (result.won) {
 			setSolved(true);
-			setMessage(levelIndex === 2 ? "All three speakers are singing. Your prize awaits." : "All speakers lit. Patch complete!");
+			setMessage(levelIndex === levels.length - 1 ? "All speakers are singing. Your prize awaits." : "All speakers lit. Patch complete!");
 		} else if (result.wrong.length) {
 			setMessage(`${result.wrong.join(" and ")} received the wrong color. Try a different route.`);
 		} else {
@@ -89,7 +89,7 @@ export function PatchGame() {
 				<div><p className={styles.overline}>A small game about finding a way through</p><h1>Patch<span>bay.</span></h1></div>
 				<p>Turn the tiles. Split the signal. Change its color. Light every speaker for an extremely questionable prize.</p>
 			</header>
-			<div className={styles.progress} role="group" aria-label={`Level ${levelIndex + 1} of 3`}>
+			<div className={styles.progress} role="group" aria-label={`Level ${levelIndex + 1} of ${levels.length}`}>
 				{levels.map((item, index) => <span key={item.title} className={index === levelIndex ? styles.current : index < levelIndex ? styles.done : ""}>{String(index + 1).padStart(2, "0")} / {item.difficulty}</span>)}
 			</div>
 			<section className={styles.game} aria-labelledby="level-title">
@@ -118,7 +118,7 @@ export function PatchGame() {
 				</div>
 				<div className={styles.controls}>
 					<div><p className={styles.status} role="status">{message}</p>{showHint && <p className={styles.hint}>{level.hint}</p>}</div>
-					<div className={styles.actions}><button type="button" onClick={() => setShowHint((value) => !value)}>{showHint ? "Hide hint" : "Hint"}</button><button type="button" onClick={() => startLevel(levelIndex)}>Reset</button>{solved ? <button type="button" className={styles.primary} onClick={() => levelIndex === 2 ? setFinished(true) : startLevel(levelIndex + 1)}>{levelIndex === 2 ? "Claim reward ↗" : "Next level ↗"}</button> : <button type="button" className={styles.primary} onClick={sendPulse}>Pulse ↗</button>}</div>
+					<div className={styles.actions}><button type="button" onClick={() => setShowHint((value) => !value)}>{showHint ? "Hide hint" : "Hint"}</button><button type="button" onClick={() => startLevel(levelIndex)}>Reset</button>{solved ? <button type="button" className={styles.primary} onClick={() => levelIndex === levels.length - 1 ? setFinished(true) : startLevel(levelIndex + 1)}>{levelIndex === levels.length - 1 ? "Claim reward ↗" : "Next level ↗"}</button> : <button type="button" className={styles.primary} onClick={sendPulse}>Pulse ↗</button>}</div>
 				</div>
 			</section>
 		</>}
