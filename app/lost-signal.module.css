@@ -5,8 +5,8 @@
 .page h1 span { color: hsl(var(--primary)); }
 .description { margin-top: 40px; font-size: clamp(17px, 2vw, 22px); line-height: 1.4; }
 .instruction { margin-top: 35px; color: hsl(var(--muted-foreground)); }
-.cable { position: relative; width: calc(100% + 80px); height: 190px; margin: -10px -40px 0; }
-.cableArt { display: block; width: 100%; height: 100%; overflow: visible; }
+.cable { position: relative; width: 100vw; height: 190px; margin: -10px 0 0 calc(50% - 50vw); overflow: clip; }
+.cableArt { display: block; width: 100%; height: 100%; }
 .cableOuter, .cableCore { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .cableOuter { stroke: #090b09; stroke-width: 20; }
 .cableCore { stroke: #777c72; stroke-width: 8; transition: stroke 220ms ease, filter 220ms ease; }
@@ -23,5 +23,5 @@
 .homeLink { display: inline-block; padding: 13px 18px; color: hsl(var(--background)); background: hsl(var(--primary)); font-weight: 700; text-decoration: none; }
 .homeLink:hover { background: hsl(var(--foreground)); text-decoration: none; }
 @media (max-width: 900px) { .page h1 { font-size: clamp(105px, 20vw, 180px); } }
-@media (max-width: 650px) { .page { padding: 36px 0 45px; } .page h1 { margin-top: 40px; font-size: clamp(76px, 21vw, 130px); } .description { margin-top: 35px; } .instruction { margin-top: 26px; } .cable { width: calc(100% + 40px); height: 140px; margin: 0 -20px; } }
+@media (max-width: 650px) { .page { padding: 36px 0 45px; } .page h1 { margin-top: 40px; font-size: clamp(76px, 21vw, 130px); } .description { margin-top: 35px; } .instruction { margin-top: 26px; } .cable { height: 140px; margin-top: 0; } }
 @media (prefers-reduced-motion: reduce) { .cableCore { transition: none; } }

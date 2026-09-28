@@ -27,7 +27,8 @@ export function LostSignal() {
 		if (distance > contactDistance) return false;
 
 		const halfPlug = (14 / bounds.width) * 1000;
-		const centerX = Math.max(20 + halfPlug, Math.min(980 - halfPlug, (positions.left.x + positions.right.x) / 2));
+		const edgeX = (22 / bounds.width) * 1000;
+		const centerX = Math.max(edgeX + halfPlug, Math.min(1000 - edgeX - halfPlug, (positions.left.x + positions.right.x) / 2));
 		const centerY = (positions.left.y + positions.right.y) / 2;
 		const joined: Ends = {
 			left: { x: centerX - halfPlug, y: centerY },
@@ -42,11 +43,13 @@ export function LostSignal() {
 	}
 
 	function move(end: End, point: Point, bounds: DOMRect) {
+		const edgeX = (22 / bounds.width) * 1000;
+		const edgeY = (22 / bounds.height) * 190;
 		const next: Ends = {
 			...endsRef.current,
 			[end]: {
-				x: Math.max(20, Math.min(980, point.x)),
-				y: Math.max(23, Math.min(167, point.y)),
+				x: Math.max(edgeX, Math.min(1000 - edgeX, point.x)),
+				y: Math.max(edgeY, Math.min(190 - edgeY, point.y)),
 			},
 		};
 		if (touch(next, bounds)) return;
