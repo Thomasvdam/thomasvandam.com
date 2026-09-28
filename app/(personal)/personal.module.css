@@ -139,6 +139,25 @@
 .quoteBand blockquote { font: 700 clamp(34px, 4.5vw, 54px)/1.06 var(--font-display), sans-serif; text-transform: uppercase; }
 .quoteBand figcaption { margin-top: 20px; }
 .quoteBand cite { font-style: normal; }
+.jakeQuoteButton { display: block; width: 100%; border: 0; padding: 0; color: inherit; background: none; font: inherit; text-align: left; text-transform: inherit; cursor: pointer; }
+.jakeQuoteLine { position: relative; display: inline-block; white-space: nowrap; }
+.jakeQuoteLine > span { position: relative; z-index: 1; display: inline-block; transform-origin: left center; }
+.jakeQuoteButton:hover .jakeQuoteLine > span { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.jakeQuoteLine > .jakeStretch { animation: jakeStretch 900ms ease-in-out both; }
+.jakeFace { position: absolute; right: 0; top: 0; width: clamp(58px, 7vw, 86px); height: auto; opacity: 0; transform: translate(25%, -45%) scale(.45) rotate(15deg); pointer-events: none; }
+.jakeFaceActive { animation: jakePeek 900ms ease-in-out both; }
+@keyframes jakeStretch {
+	0%, 100% { transform: scaleX(1) skewX(0); }
+	24% { transform: scaleX(1.14) skewX(-3deg); }
+	48% { transform: scaleX(.97) skewX(2deg); }
+	66% { transform: scaleX(1.045) skewX(-1deg); }
+	82% { transform: scaleX(.99) skewX(0); }
+}
+@keyframes jakePeek {
+	0%, 8%, 78%, 100% { opacity: 0; transform: translate(25%, -45%) scale(.45) rotate(15deg); }
+	24%, 52% { opacity: 1; transform: translate(25%, -68%) scale(1) rotate(-9deg); }
+	65% { opacity: 1; transform: translate(20%, -63%) scale(.95) rotate(5deg); }
+}
 .footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 28px 0; color: hsl(var(--muted-foreground)); }
 .footerEasterEgg { border: 0; padding: 0; color: inherit; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 .footerEasterEgg:hover { color: hsl(var(--foreground)); }
@@ -270,6 +289,8 @@
 	.cover { transition: none; }
 	.cover:hover { transform: none; }
 	.pawPrint { display: none; animation: none; }
+	.jakeQuoteLine > .jakeStretch { animation: none; }
+	.jakeFaceActive { animation: none; opacity: 1; transform: translate(25%, -68%); }
 	.blueShell { animation: reducedShell 3.6s both; }
 	.shellCaption span { animation: reducedQuote 3.6s both; }
 	.shellExplosion { display: none; }
