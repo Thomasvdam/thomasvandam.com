@@ -74,13 +74,13 @@ export function PatchGame() {
 		<div className={styles.topline}><span>Hidden experiment / 03</span><span>Patch bay v.03</span></div>
 		{finished ? <section className={styles.reward} aria-live="polite">
 			<span className={styles.rewardIcon} aria-hidden="true">♛</span>
-			<p className={styles.overline}>All signals routed / all hopes raised</p>
+			<p className={styles.overline}>Well done!</p>
 			<h1>sorry, but the princess is on another website</h1>
 			<button type="button" onClick={() => { setFinished(false); startLevel(0); }}>Play again ↗</button>
 		</section> : <>
 			<header className={styles.intro}>
-				<div><p className={styles.overline}>A small game about finding a way through</p><h1>Patch<span>bay.</span></h1></div>
-				<p>Slide the tiles. Watch the signal find its way. Light every speaker for an extremely questionable prize.</p>
+				<div><p className={styles.overline}>A small game about finding a way through a</p><h1>Patch<span>bay.</span></h1></div>
+				<p>Slide the tiles. Help the signal find its way to every speaker.</p>
 			</header>
 			<div className={styles.progress} role="group" aria-label={`Level ${levelIndex + 1} of ${levels.length}`}>
 				{levels.map((item, index) => <span key={item.title} className={index === levelIndex ? styles.current : index < levelIndex ? styles.done : ""}>{String(index + 1).padStart(2, "0")} / {item.difficulty}</span>)}
