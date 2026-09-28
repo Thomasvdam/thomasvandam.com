@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "@/app/(personal)/personal.module.css";
 import { Sequencer } from "@/app/(personal)/sequencer";
+import { StudioPowerSwitch } from "@/app/(personal)/studio-power-switch";
 
 export const metadata: Metadata = {
 	title: "Thomas van Dam — Software, sounds & side quests",
@@ -17,8 +18,8 @@ export default function Home() {
 					<span>Software / sounds / side quests</span>
 					<span>A personal work in progress</span>
 				</div>
-				<h1 id="name" className={styles.name}>
-					<span>Thomas</span><span>van Dam.</span>
+				<h1 id="name" className={styles.name} aria-label="Thomas van Dam.">
+					<span>Thomas</span><span>van Dam<StudioPowerSwitch /></span>
 				</h1>
 				<figure className={styles.gear}>
 					<Image src="/images/modular-synth.jpg" alt="My modular synthesizer, full of patch cables and possibilities" width={1280} height={720} sizes="(max-width: 650px) 80vw, (max-width: 1200px) 54vw, 600px" preload />

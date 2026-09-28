@@ -1,0 +1,27 @@
+.page { min-height: calc(100svh - 160px); padding: 55px 0 60px; }
+.overline, .instruction, .homeLink { font-family: var(--font-geist-mono), monospace; font-size: 11px; line-height: 1.6; letter-spacing: 1px; text-transform: uppercase; }
+.overline { color: hsl(var(--muted-foreground)); }
+.page h1 { margin: 40px 0 0; font: 900 clamp(110px, 18vw, 230px)/.72 var(--font-display), sans-serif; letter-spacing: -.035em; text-transform: uppercase; }
+.page h1 span { color: hsl(var(--primary)); }
+.description { margin-top: 40px; font-size: clamp(17px, 2vw, 22px); line-height: 1.4; }
+.instruction { margin-top: 35px; color: hsl(var(--muted-foreground)); }
+.cable { position: relative; width: calc(100% + 80px); height: 190px; margin: -10px -40px 0; }
+.cableArt { display: block; width: 100%; height: 100%; overflow: visible; }
+.cableOuter, .cableCore { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.cableOuter { stroke: #090b09; stroke-width: 20; }
+.cableCore { stroke: #777c72; stroke-width: 8; transition: stroke 220ms ease, filter 220ms ease; }
+.connected .cableCore { stroke: hsl(var(--primary)); filter: drop-shadow(0 0 8px hsl(var(--primary))); }
+.plug { position: absolute; top: 50%; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; transform: translate(-50%, -50%); cursor: grab; touch-action: none; }
+.plug:active { cursor: grabbing; }
+.plug span { display: block; width: 25px; height: 27px; border: 4px solid #292d29; border-radius: 3px; background: hsl(var(--paper)); box-shadow: 0 0 0 2px #878d80; }
+.leftPlug span::after { content: ""; display: block; width: 12px; height: 12px; margin: 4px 0 0 17px; background: repeating-linear-gradient(to bottom, hsl(var(--primary)) 0 2px, transparent 2px 4px); }
+.rightPlug span::before { content: ""; display: block; width: 12px; height: 12px; margin: 4px 0 0 -17px; background: repeating-linear-gradient(to bottom, hsl(var(--primary)) 0 2px, transparent 2px 4px); }
+.plug:hover span, .selected span { box-shadow: 0 0 0 3px hsl(var(--primary)), 0 0 18px hsl(var(--primary) / .7); }
+.plug:disabled { cursor: default; }
+.connected .plug span { border-color: hsl(var(--primary)); }
+.reveal { min-height: 57px; }
+.homeLink { display: inline-block; padding: 13px 18px; color: hsl(var(--background)); background: hsl(var(--primary)); font-weight: 700; text-decoration: none; }
+.homeLink:hover { background: hsl(var(--foreground)); text-decoration: none; }
+@media (max-width: 900px) { .page h1 { font-size: clamp(105px, 20vw, 180px); } }
+@media (max-width: 650px) { .page { padding: 36px 0 45px; } .page h1 { margin-top: 40px; font-size: clamp(76px, 21vw, 130px); } .description { margin-top: 35px; } .instruction { margin-top: 26px; } .cable { width: calc(100% + 40px); height: 140px; margin: 0 -20px; } }
+@media (prefers-reduced-motion: reduce) { .cableCore { transition: none; } }
