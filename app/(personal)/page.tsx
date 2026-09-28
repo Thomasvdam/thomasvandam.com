@@ -6,6 +6,7 @@ import { Sequencer } from "@/app/(personal)/sequencer";
 import { StudioPowerSwitch } from "@/app/(personal)/studio-power-switch";
 import { PolarBearPawTrail } from "@/app/(personal)/polar-bear-paw-trail";
 import { VegetableEasterEgg } from "@/app/(personal)/vegetable-easter-egg";
+import { JakeQuote } from "@/app/(personal)/jake-quote";
 
 export const metadata: Metadata = {
 	title: "Thomas van Dam — Software, sounds & side quests",
@@ -72,13 +73,7 @@ export default function Home() {
 
 			<VegetableEasterEgg />
 
-			<div className={styles.quoteBand}>
-				<p className={styles.label}>A useful reminder</p>
-				<figure>
-					<blockquote>“Sucking at something is the first step to being kind of good at something.”</blockquote>
-					<figcaption>Jake the Dog / <cite>Adventure Time</cite></figcaption>
-				</figure>
-			</div>
+			<JakeQuote />
 		</main>
 	);
 }
