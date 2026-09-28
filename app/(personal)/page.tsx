@@ -5,6 +5,7 @@ import styles from "@/app/(personal)/personal.module.css";
 import { Sequencer } from "@/app/(personal)/sequencer";
 import { StudioPowerSwitch } from "@/app/(personal)/studio-power-switch";
 import { PolarBearPawTrail } from "@/app/(personal)/polar-bear-paw-trail";
+import { VegetableEasterEgg } from "@/app/(personal)/vegetable-easter-egg";
 
 export const metadata: Metadata = {
 	title: "Thomas van Dam — Software, sounds & side quests",
@@ -69,22 +70,7 @@ export default function Home() {
 				</div>
 			</section>
 
-			<section id="about" className={styles.personal} aria-labelledby="about-heading">
-				<figure className={styles.portrait}>
-					<Image src="/images/thomas-balcony.jpg" alt="Me smiling on the balcony, holding a very long green vegetable" width={1280} height={960} sizes="(max-width: 650px) 85vw, (max-width: 1200px) 40vw, 440px" />
-					<figcaption>Away from the keyboard.</figcaption>
-				</figure>
-				<div>
-					<p className={styles.label}>The person attached to the opinions</p>
-					<h2 id="about-heading">A little<br />about me.</h2>
-					<p>I’m as interested in how we build software as the software itself. Clear intent, good conversations, and the occasional argument about what makes a table a table.</p>
-					<p>Outside of that: deep techno, a growing collection of synth modules, lifting things, and eating things.</p>
-					<div className={styles.links}>
-						<a href="https://github.com/thomasvdam">Code on GitHub <span aria-hidden="true">↗</span></a>
-						<Link href="/cv">My CV <span aria-hidden="true">↗</span></Link>
-					</div>
-				</div>
-			</section>
+			<VegetableEasterEgg />
 
 			<div className={styles.quoteBand}>
 				<p className={styles.label}>A useful reminder</p>
