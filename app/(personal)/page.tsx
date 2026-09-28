@@ -4,6 +4,7 @@ import Link from "next/link";
 import styles from "@/app/(personal)/personal.module.css";
 import { Sequencer } from "@/app/(personal)/sequencer";
 import { StudioPowerSwitch } from "@/app/(personal)/studio-power-switch";
+import { PolarBearPawTrail } from "@/app/(personal)/polar-bear-paw-trail";
 
 export const metadata: Metadata = {
 	title: "Thomas van Dam — Software, sounds & side quests",
@@ -45,6 +46,7 @@ export default function Home() {
 				<div className={styles.experiments}>
 					<article>
 						<Link href="/polar-bears" className={`${styles.cover} ${styles.polar}`}>
+							<PolarBearPawTrail />
 							<h3>Ice holes &amp;<br />polar bears.</h3>
 							<div className={styles.dice} aria-hidden="true">
 								{[5, 3, 5].map((value, index) => (

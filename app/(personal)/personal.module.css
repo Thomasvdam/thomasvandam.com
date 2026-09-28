@@ -81,11 +81,24 @@
 .site .cover:hover { text-decoration: none; }
 .site .cover:focus-visible { outline-offset: 5px; }
 .polar { background: hsl(var(--paper)); color: hsl(var(--background)); }
+.pawTrail { position: absolute; inset: 0; pointer-events: none; }
+.pawPrint { position: absolute; width: 28px; height: 28px; opacity: 0; animation: pawStep 1.6s ease-in-out both; }
+.pawPrint:nth-child(1) { left: 7%; top: 66%; transform: rotate(65deg); animation-delay: 0ms; }
+.pawPrint:nth-child(2) { left: 23%; top: 58%; transform: rotate(80deg); animation-delay: 240ms; }
+.pawPrint:nth-child(3) { left: 39%; top: 65%; transform: rotate(68deg); animation-delay: 480ms; }
+.pawPrint:nth-child(4) { left: 55%; top: 55%; transform: rotate(82deg); animation-delay: 720ms; }
+.pawPrint:nth-child(5) { left: 71%; top: 62%; transform: rotate(68deg); animation-delay: 960ms; }
+.pawPrint:nth-child(6) { left: 87%; top: 52%; transform: rotate(80deg); animation-delay: 1200ms; }
+@keyframes pawStep {
+	0% { opacity: 0; }
+	25%, 60% { opacity: .32; }
+	100% { opacity: 0; }
+}
 .motivation { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .cover h3 { position: relative; z-index: 1; font: 800 clamp(52px, 6vw, 68px)/.9 var(--font-display), sans-serif; letter-spacing: -1px; text-transform: uppercase; }
 .motivation h3 { font-size: clamp(70px, 8vw, 92px); margin: 12px 0 0 12px; transform: rotate(-6deg); }
-.coverBottom { position: absolute; bottom: 19px; left: 25px; right: 25px; display: flex; justify-content: space-between; gap: 12px; }
-.dice { display: flex; gap: 14px; position: absolute; right: 28px; bottom: 57px; transform: rotate(13deg); }
+.coverBottom { position: absolute; bottom: 19px; left: 25px; right: 25px; z-index: 1; display: flex; justify-content: space-between; gap: 12px; }
+.dice { display: flex; gap: 14px; position: absolute; right: 28px; bottom: 57px; z-index: 1; transform: rotate(13deg); }
 .die { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 48px; height: 48px; border: 2px solid currentColor; border-radius: 7px; padding: 7px; }
 .pip { border-radius: 50%; background: currentColor; }
 .experiments article > p { margin: 14px 0 0; font-size: 15px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
@@ -233,6 +246,7 @@
 @media (prefers-reduced-motion: reduce) {
 	.cover { transition: none; }
 	.cover:hover { transform: none; }
+	.pawPrint { display: none; animation: none; }
 	.blueShell { animation: reducedShell 3.6s both; }
 	.shellCaption span { animation: reducedQuote 3.6s both; }
 	.shellExplosion { display: none; }
