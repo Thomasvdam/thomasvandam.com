@@ -6,7 +6,7 @@
 .intro h1 span { color: hsl(var(--primary)); }
 .intro > p { width: 250px; padding-bottom: 6px; font-size: 15px; line-height: 1.55; color: hsl(var(--muted-foreground)); }
 .overline { font-size: 10px; line-height: 1.5; color: hsl(var(--primary)); }
-.progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 18px; font-size: 10px; }
+.progress { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-bottom: 18px; font-size: 10px; }
 .progress span { padding: 10px 12px; border-top: 2px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); }
 .progress .current { border-color: hsl(var(--primary)); color: hsl(var(--foreground)); }
 .progress .done { border-color: #a7e0b0; color: #a7e0b0; }
@@ -57,6 +57,7 @@ button.tile:disabled { cursor: default; }
 .rewardIcon { color: hsl(var(--primary)); font-size: 100px; line-height: 1; }
 .reward h1 { max-width: 900px; margin: 20px 0 34px; font: 900 clamp(55px, 8vw, 110px)/.88 var(--font-display), sans-serif; text-transform: uppercase; }
 @media (max-width: 850px) {
+	.progress { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 	.intro { display: block; padding: 34px 0; }
 	.intro > p { width: auto; max-width: 420px; margin-top: 26px; }
 	.game { padding: 16px; }

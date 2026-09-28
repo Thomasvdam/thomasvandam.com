@@ -18,6 +18,17 @@ export const levels: Level[] = [
 		],
 	},
 	{
+		title: "Color detour", difficulty: "Medium", size: 4,
+		brief: "Speaker A wants green. Find a way through the phase tile without losing the route.",
+		hint: "The phase tile flips orange to green. It works like a straight tile, so the pulse must enter one end and leave the other.",
+		tiles: [
+			tile("source", 1, "OSC"), tile("elbow", 0), tile("elbow", 1), null,
+			tile("straight", 1), tile("phase", 1), tile("block"), tile("elbow", 3),
+			null, tile("elbow", 2), tile("straight", 0), tile("elbow", 0),
+			tile("straight", 0), null, tile("straight", 1), tile("target", 0, "A", "cool"),
+		],
+	},
+	{
 		title: "Split decision", difficulty: "Hard", size: 4,
 		brief: "Light both speakers. A wants orange; B wants green. The phase tile flips a pulse's color.",
 		hint: "A tee sends the pulse down every connected branch. Put the phase tile on only one branch.",
@@ -26,6 +37,18 @@ export const levels: Level[] = [
 			tile("elbow", 1), tile("phase", 1), tile("elbow", 3), tile("straight", 0),
 			null, tile("elbow", 1), tile("straight", 0), tile("elbow", 0),
 			null, tile("straight", 1), null, tile("target", 0, "B", "cool"),
+		],
+	},
+	{
+		title: "Double back", difficulty: "Hard", size: 5,
+		brief: "A wants green; B wants orange. The signal must change color twice before both can light.",
+		hint: "Send green to A after the first phase tile. A second phase tile can turn the other branch orange again.",
+		tiles: [
+			tile("source", 1, "OSC"), tile("phase", 0), tile("tee", 0), tile("straight", 0), tile("target", 3, "A", "cool"),
+			tile("elbow", 1), tile("straight", 1), tile("straight", 1), tile("elbow", 3), tile("straight", 1),
+			tile("block"), tile("elbow", 2), tile("elbow", 2), tile("phase", 0), tile("elbow", 0),
+			tile("straight", 0), tile("tee", 1), tile("straight", 1), tile("elbow", 1), tile("straight", 1),
+			null, tile("elbow", 0), tile("straight", 0), tile("block"), tile("target", 0, "B", "warm"),
 		],
 	},
 	{
@@ -38,6 +61,19 @@ export const levels: Level[] = [
 			tile("straight", 0), tile("tee", 3), tile("straight", 0), tile("elbow", 0), null,
 			tile("elbow", 0), tile("phase", 1), tile("straight", 0), tile("straight", 1), tile("elbow", 2),
 			tile("target", 1, "C", "warm"), tile("elbow", 1), tile("straight", 0), tile("elbow", 2), tile("target", 3, "B", "cool"),
+		],
+	},
+	{
+		title: "The long way home", difficulty: "Brutal", size: 6,
+		brief: "Light A orange, B green, and C orange. Four phase tiles hide in the branches; every color must arrive right.",
+		hint: "The first tee splits orange upward and right. Two flips bring A back to orange; the right branch can split green toward B and C.",
+		tiles: [
+			null, tile("elbow", 2), tile("straight", 1), tile("block"), tile("elbow", 0), null,
+			tile("straight", 1), tile("elbow", 3), tile("phase", 0), tile("target", 3, "A", "warm"), tile("straight", 0), tile("elbow", 1),
+			tile("block"), tile("phase", 1), tile("block"), tile("elbow", 0), tile("straight", 0), tile("target", 3, "B", "cool"),
+			tile("elbow", 3), tile("tee", 2), tile("phase", 0), tile("tee", 2), tile("straight", 0), tile("elbow", 0),
+			tile("straight", 1), tile("elbow", 1), tile("straight", 0), tile("block"), tile("elbow", 2), tile("phase", 1),
+			tile("source", 0, "OSC"), tile("straight", 0), tile("block"), tile("elbow", 1), tile("straight", 1), tile("target", 0, "C", "warm"),
 		],
 	},
 ];
