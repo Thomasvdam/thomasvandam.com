@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
-import { advance, layTrack, needsTrack, newRun, PHRASE, phaseAt, secondsAt, tempo, type Run } from "./rhythm";
+import { advance, layTrack, needsTrack, newRun, phaseAt, secondsAt, tempo, type Run } from "./rhythm";
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 
 const BEST_KEY = "right-on-track-best";
-const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, bpm: 84, reason: "", placed: [] as number[] };
+const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, bpm: 84, reason: "" };
 
 export function TrackGame() {
 	const host = useRef<HTMLDivElement>(null);
@@ -37,7 +37,8 @@ export function TrackGame() {
 
 		function paint() {
 			const current = run.current;
-			setView({ mode: current.mode, phase: phaseAt(current.seconds), score: current.score, bpm: tempo(current.seconds), reason: current.reason, placed: [...current.placed] });
+			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, bpm: Math.round(tempo(current.seconds)), reason: current.reason };
+			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.bpm === next.bpm && previous.reason === next.reason ? previous : next);
 			if (current.score > bestRef.current) {
 				bestRef.current = current.score; setBest(current.score);
 				try { localStorage.setItem(BEST_KEY, String(current.score)); } catch { /* Best score is optional when storage is unavailable. */ }
@@ -51,7 +52,7 @@ export function TrackGame() {
 				if (current.mode === "running") {
 					while (secondsAt(nextSound.current) < current.seconds + 0.12) {
 						const delay = secondsAt(nextSound.current) - current.seconds;
-						if (delay > -0.03) speaker.beat(delay, nextSound.current, needsTrack(nextSound.current));
+						if (delay > -0.03) speaker.beat(delay, nextSound.current, needsTrack(current, nextSound.current));
 						nextSound.current++;
 					}
 				} else speaker.stop();
@@ -69,7 +70,7 @@ export function TrackGame() {
 			if (!cleanup || contextFailed || document.hidden) return;
 			const current = run.current;
 			if (current.mode === "ready" || current.mode === "crashed") {
-				speaker.stop(); run.current = newRun(); run.current.mode = "running";
+				speaker.stop(); run.current = newRun(crypto.getRandomValues(new Uint32Array(1))[0]); run.current.mode = "running";
 				origin.current = performance.now(); nextSound.current = -4;
 				void speaker.unlock().then((ok) => { if (!disposed) { speaker.setMuted(mutedRef.current); setAudioUnavailable(!ok); } });
 			} else if (current.mode === "paused") {
@@ -117,13 +118,12 @@ export function TrackGame() {
 	}
 	const running = view.mode === "running";
 	const counting = running && view.phase < 0;
-	const beat = Math.max(0, Math.floor(view.phase));
 	const status = unavailable ? "This game needs WebGL. Try a browser with hardware acceleration enabled."
 		: !loaded ? "Preparing the railway…"
 			: view.mode === "crashed" ? view.reason
 				: view.mode === "paused" ? "Train paused. Press to continue."
 					: counting ? `Count in · ${Math.min(4, Math.floor(view.phase + 4) + 1)} / 4`
-						: running ? "Orange gap: lay track. Existing rails: let it roll." : "The train won’t wait. Find the rhythm.";
+						: running ? "Fill orange gaps as they reach the train’s front platform." : "The train won’t wait. Find the rhythm.";
 	const buttonText = view.mode === "ready" ? "Start the engine" : view.mode === "crashed" ? "Try again" : view.mode === "paused" ? "Continue" : counting ? "Listen to the count-in" : "Lay track";
 
 	return <div className={styles.page}>
@@ -138,34 +138,14 @@ export function TrackGame() {
 		</section>
 		<section className={styles.game} aria-label="Railway rhythm game">
 			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Tempo / 4:4</span><strong>{Math.round(view.bpm)} <small>BPM</small></strong></div></div>
-			<div className={styles.scene} ref={host} role="img" aria-label="A steam locomotive approaching missing railway sections in a forest valley" />
-			<div className={styles.sceneLabel} aria-hidden="true"><span>Forest line / northbound</span><span>↓ Placement line</span></div>
-			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.min(4, Math.floor(view.phase + 4) + 1)) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Listen. First gap arrives after four beats." : "One button. An open stretch of track."}</p></div>}
-			<div className={styles.timeline}>
-				<div className={styles.timelineHeading}><span>Upcoming beats →</span><span>{counting || view.mode === "ready" ? "4-beat count-in" : `Bar ${Math.floor(beat / 4) % 4 + 1} / 4`}</span></div>
-				<svg viewBox="0 0 800 68" aria-label="Beat guide: orange diamonds need track, gray bars already have rails" role="img">
-					<path d="M0 38H800" className={styles.guideLine} />
-					<rect x="111" y="10" width="18" height="53" rx="3" className={styles.hitZone} />
-					<path d="M120 3V65" className={styles.playhead} />
-					{Array.from({ length: 12 }, (_, offset) => {
-						const index = Math.floor(view.phase) - 1 + offset;
-						if (index < -4) return null;
-						const x = 120 + (index - view.phase) * 94;
-						const gap = needsTrack(index);
-						const hit = view.placed.includes(index);
-						return <g key={index} transform={`translate(${x} 38)`} className={gap ? hit ? styles.placedBeat : styles.gapBeat : styles.restBeat}>
-							{gap ? <path d="M0 -10 10 0 0 10 -10 0Z" /> : <path d="M-7 -4H7V4H-7Z" />}
-							<text y="-19" textAnchor="middle">{index < 0 ? index + 5 : index % 4 + 1}</text>
-						</g>;
-					})}
-				</svg>
-				<div className={styles.legend}><span><i /> Gap · tap</span><span><i /> Rails · rest</span><span>Hit the line on the beat</span></div>
-			</div>
+			<div className={styles.scene} ref={host} role="button" tabIndex={0} aria-label="Lay track. Watch the gaps approaching the engineer on the front of the toy train." onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onKeyDown={(event) => { if (event.key === "Enter" && !event.repeat) { event.preventDefault(); action.current(); } }} />
+			<div className={styles.sceneLabel} aria-hidden="true"><span>Forest line / northbound</span><span>Lay track at the front platform</span></div>
+			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.min(4, Math.floor(view.phase + 4) + 1)) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Listen. The railway starts after four beats." : "One button. An open stretch of track."}</p></div>}
 		</section>
 		<div className={styles.controls}>
-			<div><p role="status" className={styles.status}>{status}</p><p className={styles.help}>Space, click, or tap. Hold won’t repeat. Esc pauses.{audioUnavailable && " Audio unavailable; visual timing still works."}</p></div>
+			<div><p role="status" className={styles.status}>{status}</p><p className={styles.help}>Space, click, or tap the scene. Hold won’t repeat. Esc pauses.{audioUnavailable && " Audio unavailable; visual timing still works."}</p></div>
 			<button className={styles.action} type="button" disabled={!loaded || unavailable} onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onClick={(event) => { if (event.detail === 0) action.current(); }}>{buttonText}<span aria-hidden="true">↗</span></button>
 		</div>
-		<footer className={styles.footer}><span>Four bars. Same phrase. Faster train.</span><div className={styles.phrase} aria-label="Repeating four-bar rhythm">{PHRASE.map((gap, index) => <i key={index} className={`${gap ? styles.note : ""} ${index === beat % 16 && running && !counting ? styles.current : ""}`} />)}</div><span>Endless railway / no destination</span></footer>
+		<footer className={styles.footer}><span>New rhythm every four bars. Faster train.</span><span>Endless railway / no destination</span></footer>
 	</div>;
 }

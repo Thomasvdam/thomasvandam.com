@@ -73,7 +73,7 @@ export default function Home() {
 							<h3>Right on<br />track.</h3>
 							<div className={styles.coverBottom}><span>03 / A rhythm game</span><span>All aboard <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>One button. Four bars. Keep the train rolling.</p>
+						<p>One button. Fresh rhythms. Keep the train rolling.</p>
 					</article>
 				</div>
 			</section>
