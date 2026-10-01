@@ -1,7 +1,17 @@
-export const PHRASE_LENGTH = 16;
+export type Meter = 3 | 4;
+export type Landscape = "forest" | "autumn";
+export type Phrase = { index: number; start: number; end: number; meter: Meter; landscape: Landscape; pattern: boolean[] };
+
+// Only the fourth phrase in a group can be special; most of the journey stays in 4/4.
+export function phraseMeter(seed: number, index: number): Meter {
+	if (index % 4 !== 3) return 4;
+	let hash = Math.imul(seed ^ Math.imul(index + 1, 0x45d9f3b), 0x27d4eb2d);
+	hash = Math.imul(hash ^ hash >>> 16, 0x85ebca6b);
+	return ((hash ^ hash >>> 13) >>> 0) / 4294967296 < 0.6 ? 3 : 4;
+}
 
 // Seeded per phrase: looking ahead never changes an already visible gap.
-export function generatePhrase(seed: number, phrase: number) {
+export function generatePhrase(seed: number, phrase: number, meter: Meter = phraseMeter(seed, phrase)) {
 	let state = (seed ^ Math.imul(phrase + 1, 0x9e3779b9)) >>> 0;
 	const random = () => {
 		state = (state + 0x6d2b79f5) >>> 0;
@@ -10,16 +20,16 @@ export function generatePhrase(seed: number, phrase: number) {
 		return ((value ^ value >>> 14) >>> 0) / 4294967296;
 	};
 	return Array.from({ length: 4 }, () => {
-		const order = [0, 1, 2, 3];
-		for (let i = 3; i > 0; i--) {
+		const order = Array.from({ length: meter }, (_, i) => i);
+		for (let i = meter - 1; i > 0; i--) {
 			const j = Math.floor(random() * (i + 1));
 			[order[i], order[j]] = [order[j], order[i]];
 		}
-		const gaps = 1 + Math.floor(random() * 3);
+		const gaps = 1 + Math.floor(random() * (meter - 1));
 		return order.map((_, index) => order.slice(0, gaps).includes(index));
 	}).flat();
 }
-export const START_BPM = 84;
+export const START_BPM = 95;
 export const MAX_BPM = 180;
 const ACCELERATION = 0.16; // BPM per second, continuous across bar boundaries.
 const RAMP_SECONDS = (MAX_BPM - START_BPM) / ACCELERATION;
@@ -40,12 +50,34 @@ export function secondsAt(beat: number) {
 		: (Math.sqrt(START_BPM ** 2 + 120 * ACCELERATION * beats) - START_BPM) / ACCELERATION;
 }
 
+export function phraseAt(run: Run, beat: number): Phrase {
+	const target = Math.max(0, Math.floor(beat));
+	for (const phrase of run.phrases.values()) if (target >= phrase.start && target < phrase.end) return phrase;
+	// Normal lookahead is incremental. Old, pruned phrases can be regenerated deterministically.
+	let index = target < run.generatedThrough ? 0 : run.generatedIndex;
+	let start = target < run.generatedThrough ? 0 : run.generatedThrough;
+	while (true) {
+		const meter = phraseMeter(run.seed, index);
+		const end = start + meter * 4;
+		if (end > run.generatedThrough) { run.generatedThrough = end; run.generatedIndex = index + 1; }
+		if (target < end) {
+			const phrase: Phrase = { index, start, end, meter, landscape: meter === 3 ? "autumn" : "forest", pattern: generatePhrase(run.seed, index, meter) };
+			run.phrases.set(start, phrase); return phrase;
+		}
+		start = end; index++;
+	}
+}
+
 export function needsTrack(run: Run, beat: number) {
 	if (beat < 0) return false;
-	const index = Math.floor(beat / PHRASE_LENGTH);
-	let phrase = run.phrases.get(index);
-	if (!phrase) { phrase = generatePhrase(run.seed, index); run.phrases.set(index, phrase); }
-	return phrase[beat % PHRASE_LENGTH];
+	const phrase = phraseAt(run, beat);
+	return phrase.pattern[beat - phrase.start];
+}
+
+export function isDownbeat(run: Run, beat: number) {
+	if (beat < 0) return (beat + 4) % 4 === 0;
+	const phrase = phraseAt(run, beat);
+	return (beat - phrase.start) % phrase.meter === 0;
 }
 
 export function tolerance(beat: number) {
@@ -58,7 +90,9 @@ export function earlyTolerance(beat: number) {
 
 export type Run = {
 	seed: number;
-	phrases: Map<number, boolean[]>;
+	phrases: Map<number, Phrase>;
+	generatedThrough: number;
+	generatedIndex: number;
 	placement: { beat: number; seconds: number } | null;
 	mode: "ready" | "running" | "paused" | "crashed";
 	seconds: number;
@@ -69,7 +103,7 @@ export type Run = {
 };
 
 export function newRun(seed = 0): Run {
-	return { seed, phrases: new Map(), placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, placed: new Set(), reason: "" };
+	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, placed: new Set(), reason: "" };
 }
 
 export function advance(run: Run, seconds: number) {
@@ -83,7 +117,7 @@ export function advance(run: Run, seconds: number) {
 			return;
 		}
 		run.placed.delete(beat - 12);
-		if (beat % PHRASE_LENGTH === 0) run.phrases.delete(Math.floor(beat / PHRASE_LENGTH) - 2);
+		for (const [start, phrase] of run.phrases) if (phrase.end < beat - 12) run.phrases.delete(start);
 	}
 }
 
@@ -94,7 +128,7 @@ export function layTrack(run: Run, seconds: number) {
 	if (run.placed.has(beat)) {
 		run.reason = "Double track. One piece was enough.";
 	} else if (beat < 0 || seconds < secondsAt(beat) - earlyTolerance(beat) || seconds > secondsAt(beat) + tolerance(beat)) {
-		run.reason = "Off beat. The track landed in the wrong place.";
+		run.reason = "Too early. The track landed in the wrong place.";
 	} else if (!needsTrack(run, beat)) {
 		run.reason = "Duplicate track. That beat already had rails.";
 	} else {
