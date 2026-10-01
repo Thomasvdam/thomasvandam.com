@@ -68,6 +68,13 @@ export default function Home() {
 						</Link>
 						<p>In case you needed to hear it today.</p>
 					</article>
+					<article>
+						<Link href="/right-on-track" className={`${styles.cover} ${styles.railway}`}>
+							<h3>Right on<br />track.</h3>
+							<div className={styles.coverBottom}><span>03 / A rhythm game</span><span>All aboard <span aria-hidden="true">↗</span></span></div>
+						</Link>
+						<p>One button. Four bars. Keep the train rolling.</p>
+					</article>
 				</div>
 			</section>
 
