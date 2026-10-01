@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Landscape, type Run } from "./rhythm";
+import { earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
-import { beatForSlot, PLACEMENT_Z, sceneryOffsets, TRACK_LENGTH } from "./motion";
+import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, TRACK_LENGTH } from "./motion";
 
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void) {
 	const scene = new THREE.Scene();
@@ -83,6 +83,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 				instance.setMatrixAt(index, inverse.clone().multiply(item.matrixWorld));
 				item.removeFromParent();
 			});
+			instance.userData.treeRoots = items.map(item => item.userData.treeZ);
 			instance.castShadow = true; instance.receiveShadow = true; parent.add(instance);
 		}
 	}
@@ -223,17 +224,22 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		if (i === 21) {
 			const log = cylinder(tree, deadWood, [1.2, 0.25, 1], [0.24, 2.8, 0.24], "z"); log.rotation.y = 0.5;
 		}
+		tree.traverse(item => { if (item instanceof THREE.Mesh) item.userData.treeZ = tree.position.z; });
 		scenery.add(tree);
 	}
 	batch(scenery);
 	const sceneryTiles = [scenery.clone(), scenery, scenery.clone()];
 	scene.add(sceneryTiles[0], sceneryTiles[2]);
-	const forestCrowns: THREE.InstancedMesh[] = []; const groveCrowns: THREE.InstancedMesh[] = [];
+	const foliage: { tile: THREE.Group; mesh: THREE.InstancedMesh; roots: number[]; matrices: THREE.Matrix4[] }[] = [];
 	for (const tile of sceneryTiles) tile.traverse(object => {
-		if (!(object instanceof THREE.InstancedMesh)) return;
-		if (object.material === green) forestCrowns.push(object);
-		if (object.material === autumnLeaves) groveCrowns.push(object);
+		if (!(object instanceof THREE.InstancedMesh) || ![green, autumnLeaves, broadLeaf].includes(object.material as THREE.MeshStandardMaterial)) return;
+		const matrices = Array.from({ length: object.count }, (_, index) => {
+			const matrix = new THREE.Matrix4(); object.getMatrixAt(index, matrix); return matrix;
+		});
+		object.computeBoundingSphere();
+		foliage.push({ tile, mesh: object, roots: object.userData.treeRoots, matrices });
 	});
+	green.transparent = false; autumnLeaves.transparent = false; autumnLeaves.opacity = 1; broadLeaf.color.set("#ffffff");
 	const bird = new THREE.Group(); scene.add(bird); bird.visible = false;
 	const birdFeathers = material("#37454d");
 	sphere(bird, birdFeathers, [0, 0, 0], [0.18, 0.14, 0.32]);
@@ -276,12 +282,29 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	});
 	const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 	let crashAt = 0; let previousMode = "ready";
-	let currentLandscape: Landscape = "forest"; let paletteFrom = 0; let paletteBlend = 0; let paletteSince = 0;
-	let lastSeed = 0;
+
 	const forestSky = new THREE.Color("#aab7b5"); const autumnSky = new THREE.Color("#d7baa0");
 	const forestGround = new THREE.Color("#78806b"); const autumnGround = new THREE.Color("#a59a63");
 	const forestLeaf = new THREE.Color("#496345"); const autumnLeaf = new THREE.Color("#c48b42");
 	const forestSun = new THREE.Color("#ffddb4"); const autumnSun = new THREE.Color("#ffd09a");
+	const terrainBands = { value: Array.from({ length: 8 }, () => new THREE.Vector2(-10000, 0)) };
+	const terrainInitial = { value: 0 };
+	groundMaterial.color.set("#ffffff");
+	groundMaterial.onBeforeCompile = shader => {
+		shader.uniforms.terrainBands = terrainBands; shader.uniforms.terrainInitial = terrainInitial;
+		shader.uniforms.forestGround = { value: forestGround }; shader.uniforms.autumnGround = { value: autumnGround };
+		shader.vertexShader = "varying float terrainZ;\n" + shader.vertexShader;
+		shader.vertexShader = shader.vertexShader.replace("#include <begin_vertex>", "#include <begin_vertex>\nterrainZ = (modelMatrix * vec4(transformed, 1.0)).z;");
+		shader.fragmentShader = "varying float terrainZ; uniform vec2 terrainBands[8]; uniform float terrainInitial; uniform vec3 forestGround; uniform vec3 autumnGround;\n" + shader.fragmentShader;
+		shader.fragmentShader = shader.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>
+			float autumn = terrainInitial;
+			for (int i = 0; i < 8; i++) {
+				float amount = 1.0 - smoothstep(terrainBands[i].x - 12.0, terrainBands[i].x, terrainZ);
+				autumn = mix(autumn, terrainBands[i].y, amount);
+			}
+			diffuseColor.rgb *= mix(forestGround, autumnGround, autumn);`);
+	};
+	const foliageMatrix = new THREE.Matrix4(); const foliageScale = new THREE.Vector3(); const foliageColor = new THREE.Color();
 	const resize = () => {
 		const { width, height } = host.getBoundingClientRect();
 		camera.aspect = width / Math.max(1, height);
@@ -295,22 +318,16 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	renderer.setAnimationLoop(() => {
 		const run = onFrame(); const phase = phaseAt(run.seconds);
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
-		if (run.seed !== lastSeed || (run.mode === "running" && previousMode !== "running" && phase < 0)) {
-			lastSeed = run.seed; currentLandscape = "forest"; paletteBlend = 0; paletteFrom = 0; paletteSince = 0;
-		}
-		if (phrase.landscape !== currentLandscape) {
-			currentLandscape = phrase.landscape; paletteFrom = paletteBlend; paletteSince = secondsAt(phrase.start);
-		}
-		const blendProgress = Math.max(0, Math.min(1, (run.seconds - paletteSince) / 0.65));
-		paletteBlend = paletteFrom + ((currentLandscape === "autumn" ? 1 : 0) - paletteFrom) * blendProgress;
+		const bands = landscapeBands(run, phase);
+		const paletteBlend = landscapeBlend(bands, phase);
 		(scene.background as THREE.Color).copy(forestSky).lerp(autumnSky, paletteBlend);
 		(scene.fog as THREE.FogExp2).color.copy(scene.background as THREE.Color);
-		groundMaterial.color.copy(forestGround).lerp(autumnGround, paletteBlend);
-		broadLeaf.color.copy(forestLeaf).lerp(autumnLeaf, paletteBlend);
 		sun.color.copy(forestSun).lerp(autumnSun, paletteBlend);
-		green.opacity = 1 - paletteBlend; autumnLeaves.opacity = paletteBlend;
-		for (const crown of forestCrowns) { crown.visible = green.opacity > 0.01; crown.castShadow = green.opacity > 0.5; }
-		for (const crown of groveCrowns) { crown.visible = autumnLeaves.opacity > 0.01; crown.castShadow = autumnLeaves.opacity > 0.5; }
+		terrainInitial.value = bands.initial;
+		terrainBands.value.forEach((band, index) => {
+			const change = bands.changes[index];
+			band.set(change ? PLACEMENT_Z - (change.beat - phase) * TRACK_LENGTH : -10000, change?.value ?? 0);
+		});
 		const birdStart = secondsAt(phrase.start + phrase.meter);
 		const birdAge = run.seconds - birdStart;
 		const birdDuration = Math.min(4, (secondsAt(phrase.end) - birdStart) * 0.9);
@@ -339,9 +356,22 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		});
 		const distance = (phase + 4) * TRACK_LENGTH;
 		sceneryOffsets(distance).forEach((offset, index) => { sceneryTiles[index].position.z = offset; });
-		// Surfaces advance with the sleepers instead of sliding under a static landscape.
-		groundMaterial.map!.offset.y = -distance * 90 / 600;
-		ballast.map!.offset.y = -distance * 5 / 270;
+		// Each tree keeps the landscape of its world position as it approaches.
+		for (const item of foliage) {
+			item.matrices.forEach((matrix, index) => {
+				const z = item.tile.position.z + item.roots[index];
+				const blend = landscapeBlend(bands, phase + (PLACEMENT_Z - z) / TRACK_LENGTH);
+				const scale = item.mesh.material === green ? 1 - blend : item.mesh.material === autumnLeaves ? blend : 1;
+				foliageScale.setScalar(Math.max(0.001, scale));
+				foliageMatrix.copy(matrix).scale(foliageScale); item.mesh.setMatrixAt(index, foliageMatrix);
+				if (item.mesh.material === broadLeaf) item.mesh.setColorAt(index, foliageColor.copy(forestLeaf).lerp(autumnLeaf, blend));
+			});
+			item.mesh.instanceMatrix.needsUpdate = true;
+			if (item.mesh.instanceColor) item.mesh.instanceColor.needsUpdate = true;
+		}
+		// Positive UV scrolling moves texture features toward +Z with the sleepers.
+		groundMaterial.map!.offset.y = surfaceOffset(distance, 90, 600);
+		ballast.map!.offset.y = surfaceOffset(distance, 5, 270);
 		const upcoming = Math.max(0, Math.round(phase));
 		const inWindow = run.seconds >= secondsAt(upcoming) - earlyTolerance(upcoming) && run.seconds <= secondsAt(upcoming) + tolerance(upcoming);
 		const pulse = Math.pow(Math.max(0, Math.cos(phase * Math.PI * 2)), 12);
