@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { advance, layTrack, newRun, PHRASE, phaseAt, secondsAt, tempo, tolerance } from "./rhythm.ts";
+import { advance, layTrack, newRun, generatePhrase, needsTrack, earlyTolerance, phaseAt, secondsAt, tempo, tolerance } from "./rhythm.ts";
 
 const start = () => ({ ...newRun(), mode: "running" });
 
@@ -7,11 +7,13 @@ describe("railway rhythm", () => {
 	test("ten full phrases stay playable while track history stays bounded", () => {
 		const run = start();
 		for (let beat = 0; beat < 160; beat++) {
-			if (PHRASE[beat % 16]) layTrack(run, secondsAt(beat));
+			if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
 			advance(run, secondsAt(beat) + tolerance(beat) + 0.0001);
 			expect(run.mode).toBe("running");
 		}
-		expect(run.score).toBe(100);
+		expect(run.score).toBeGreaterThanOrEqual(40);
+		expect(run.score).toBeLessThanOrEqual(120);
+		expect(run.phrases.size).toBeLessThanOrEqual(2);
 		expect(run.placed.size).toBeLessThanOrEqual(12);
 	});
 
@@ -28,10 +30,10 @@ describe("railway rhythm", () => {
 
 	test("early placement outside the window crashes; inside it succeeds", () => {
 		const early = start();
-		layTrack(early, secondsAt(0) - tolerance(0) - 0.001);
+		layTrack(early, secondsAt(0) - earlyTolerance(0) - 0.001);
 		expect(early.mode).toBe("crashed");
 		const accepted = start();
-		layTrack(accepted, secondsAt(0) - tolerance(0) + 0.001);
+		layTrack(accepted, secondsAt(0) - earlyTolerance(0) + 0.001);
 		expect(accepted.score).toBe(1);
 		expect(accepted.mode).toBe("running");
 	});
@@ -54,6 +56,39 @@ describe("railway rhythm", () => {
 		layTrack(rest, secondsAt(0));
 		layTrack(rest, secondsAt(1));
 		expect(rest.reason).toContain("Duplicate track");
+	});
+
+	test("early tolerance is wider while late tolerance stays unchanged", () => {
+		expect(earlyTolerance(0)).toBe(0.22);
+		expect(tolerance(0)).toBe(0.095);
+		const run = start(); layTrack(run, secondsAt(0) - 0.2);
+		expect(run.score).toBe(1);
+		expect(run.placement).toEqual({ beat: 0, seconds: secondsAt(0) - 0.2 });
+	});
+
+	test("each bar has gaps and rests; phrases vary across bars and runs", () => {
+		const phrases = new Set();
+		for (let seed = 0; seed < 50; seed++) {
+			for (let phrase = 0; phrase < 8; phrase++) {
+				const pattern = generatePhrase(seed, phrase);
+				expect(pattern).toHaveLength(16);
+				for (let bar = 0; bar < 4; bar++) {
+					const gaps = pattern.slice(bar * 4, bar * 4 + 4).filter(Boolean).length;
+					expect(gaps).toBeGreaterThanOrEqual(1);
+					expect(gaps).toBeLessThanOrEqual(3);
+				}
+				phrases.add(pattern.join());
+			}
+		}
+		expect(phrases.size).toBeGreaterThan(350);
+	});
+
+	test("previewing out of order and regenerating old phrases cannot change gaps", () => {
+		const run = start();
+		const expected = generatePhrase(run.seed, 3);
+		for (let beat = 63; beat >= 48; beat--) expect(needsTrack(run, beat)).toBe(expected[beat - 48]);
+		run.phrases.clear();
+		for (let beat = 48; beat < 64; beat++) expect(needsTrack(run, beat)).toBe(expected[beat - 48]);
 	});
 
 	test("tempo increases continuously and caps at 180 BPM", () => {

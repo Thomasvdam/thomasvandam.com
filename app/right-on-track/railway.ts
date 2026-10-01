@@ -1,11 +1,13 @@
 import * as THREE from "three";
-import { needsTrack, phaseAt, type Run } from "./rhythm";
+import { earlyTolerance, needsTrack, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
+
+import { beatForSlot, PLACEMENT_Z, sceneryOffsets, TRACK_LENGTH } from "./motion";
 
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void) {
 	const scene = new THREE.Scene();
 	scene.background = new THREE.Color("#aab7b5");
 	scene.fog = new THREE.FogExp2("#aab7b5", 0.009);
-	const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 400);
+	const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 400);
 	let renderer: THREE.WebGLRenderer;
 	try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" }); }
 	catch { onUnavailable(); return () => {}; }
@@ -47,7 +49,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	}
 	const boxGeometry = new THREE.BoxGeometry(1, 1, 1); geometries.push(boxGeometry);
 	const cylinderGeometry = new THREE.CylinderGeometry(1, 1, 1, 32); geometries.push(cylinderGeometry);
-	const coneGeometry = new THREE.ConeGeometry(1, 1, 24, 8); geometries.push(coneGeometry);
+	const sphereGeometry = new THREE.SphereGeometry(1, 16, 12); geometries.push(sphereGeometry);
+	const coneGeometry = new THREE.ConeGeometry(1, 1, 16); geometries.push(coneGeometry);
 	function mesh(parent: THREE.Object3D, geometry: THREE.BufferGeometry, surface: THREE.Material, position: number[], scale: number[]) {
 		const item = new THREE.Mesh(geometry, surface); item.position.set(...position as [number, number, number]); item.scale.set(...scale as [number, number, number]);
 		item.castShadow = true; item.receiveShadow = true; parent.add(item); return item;
@@ -131,6 +134,45 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	for (const wheel of wheels) batch(wheel);
 	batch(train);
 
+	// A little engineer rides the front platform and throws each track section.
+	box(train, red, [0, 1.25, -1.35], [2.8, 0.28, 1.6]);
+	const engineer = new THREE.Group(); engineer.position.set(0, 1.4, -1.35); engineer.scale.setScalar(1.4); train.add(engineer);
+	const jacket = material("#c98745"); const trousers = material("#35546a");
+	const skin = material("#d7ac89"); const gloves = material("#e8ddbc");
+	const sphere = (parent: THREE.Object3D, surface: THREE.Material, position: number[], scale: number[]) => mesh(parent, sphereGeometry, surface, position, scale);
+	for (const x of [-0.22, 0.22]) {
+		cylinder(engineer, trousers, [x, 0.38, 0.06], [0.17, 0.72, 0.17]);
+		box(engineer, iron, [x, 0.06, -0.13], [0.38, 0.19, 0.64]);
+	}
+	sphere(engineer, jacket, [0, 1.1, 0], [0.46, 0.63, 0.31]);
+	box(engineer, trousers, [0, 0.92, -0.3], [0.48, 0.53, 0.06]);
+	for (const x of [-0.18, 0.18]) box(engineer, trousers, [x, 1.3, -0.28], [0.085, 0.49, 0.07]);
+	cylinder(engineer, skin, [0, 1.66, 0], [0.13, 0.18, 0.13]);
+	sphere(engineer, skin, [0, 1.98, -0.02], [0.34, 0.38, 0.32]);
+	sphere(engineer, skin, [0, 1.94, -0.34], [0.09, 0.1, 0.12]);
+	for (const x of [-0.14, 0.14]) sphere(engineer, iron, [x, 2.06, -0.305], [0.038, 0.044, 0.026]);
+	sphere(engineer, trousers, [0, 2.28, 0], [0.37, 0.15, 0.34]);
+	box(engineer, trousers, [0, 2.2, -0.29], [0.65, 0.065, 0.3]);
+	const arms = [-1, 1].map((side) => {
+		const arm = new THREE.Group(); arm.userData.moving = true;
+		arm.position.set(side * 0.43, 1.49, 0); engineer.add(arm);
+		cylinder(arm, jacket, [0, -0.29, 0], [0.13, 0.58, 0.13]);
+		sphere(arm, jacket, [0, -0.58, 0], [0.135, 0.135, 0.135]);
+		cylinder(arm, jacket, [0, -0.81, 0], [0.11, 0.46, 0.11]);
+		sphere(arm, gloves, [0, -1.07, 0], [0.16, 0.16, 0.13]);
+		batch(arm); return arm;
+	});
+	batch(engineer);
+	const makePiece = () => {
+		const piece = new THREE.Group();
+		for (const x of [-1, 1]) box(piece, steel, [x, 0.3, 0], [0.16, 0.2, TRACK_LENGTH]);
+		for (let j = 0; j < 7; j++) box(piece, wood, [0, 0.12, -2.6 + j * 0.86], [3.5, 0.22, 0.24]);
+		batch(piece); return piece;
+	};
+	const carriedPiece = makePiece(); engineer.add(carriedPiece);
+	carriedPiece.position.set(0, 2.65, 0); carriedPiece.scale.setScalar(0.45); carriedPiece.rotation.x = -Math.PI / 2;
+	const flyingPiece = makePiece(); scene.add(flyingPiece); flyingPiece.visible = false;
+
 	const green = material("#344c3b"); const bark = material("#514b3d");
 	const scenery = new THREE.Group(); scene.add(scenery);
 	for (let i = 0; i < 60; i++) {
@@ -142,6 +184,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		scenery.add(tree);
 	}
 	batch(scenery);
+	const sceneryTiles = [scenery.clone(), scenery, scenery.clone()];
+	scene.add(sceneryTiles[0], sceneryTiles[2]);
 	const mountain = material("#758784");
 	for (let i = 0; i < 10; i++) {
 		const hill = mesh(scene, coneGeometry, mountain, [(i - 5) * 48, 16, -180 - i % 3 * 22], [35, 60 + i % 3 * 20, 35]); hill.rotation.y = i;
@@ -155,21 +199,28 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		}
 		for (let j = 0; j < 7; j++) box(rails, wood, [0, 0.14, -2.6 + j * 0.86], [3.5, 0.22, 0.24]);
 		batch(rails);
-		const marker = box(group, gapMaterial, [0, 0.17, 0], [3.1, 0.04, 0.24]);
+		const marker = new THREE.Group(); group.add(marker);
+		for (const x of [-1.8, 1.8]) box(marker, gapMaterial, [x, 0.18, 0], [0.1, 0.05, 5.8]);
+		for (const z of [-2.9, 2.9]) box(marker, gapMaterial, [0, 0.18, z], [3.7, 0.05, 0.1]);
+		batch(marker);
 		return { group, rails, marker };
 	});
-	const target = new THREE.Group(); scene.add(target);
+	const target = new THREE.Group(); target.position.z = PLACEMENT_Z; scene.add(target);
 	for (const x of [-2.05, 2.05]) box(target, gapMaterial, [x, 0.23, 0], [0.18, 0.08, 2.2]);
 	const smokeMaterial = new THREE.MeshBasicMaterial({ color: "#d4d2c8", transparent: true, opacity: 0.16, depthWrite: false }); materials.push(smokeMaterial);
 	const smokeGeometry = new THREE.SphereGeometry(1, 12, 8); geometries.push(smokeGeometry);
-	const smoke = Array.from({ length: 10 }, () => mesh(scene, smokeGeometry, smokeMaterial, [0, 4, 0], [1, 1, 1]));
+	const smoke = Array.from({ length: 10 }, () => {
+		const surface = smokeMaterial.clone(); materials.push(surface);
+		const puff = mesh(scene, smokeGeometry, surface, [0, 4, 0], [1, 1, 1]);
+		puff.castShadow = false; return puff;
+	});
 	const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 	let crashAt = 0; let previousMode = "ready";
 	const resize = () => {
 		const { width, height } = host.getBoundingClientRect();
 		camera.aspect = width / Math.max(1, height);
-		camera.position.set(width < 600 ? 17 : 13, width < 600 ? 17 : 13, width < 600 ? 33 : 26);
-		camera.lookAt(0, 1, -8);
+		camera.position.set(width < 600 ? 15 : 12, width < 600 ? 18 : 14, width < 600 ? 27 : 21);
+		camera.lookAt(0, 1, width < 600 ? -6 : -9);
 		camera.updateProjectionMatrix(); renderer.setSize(width, height);
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
@@ -184,19 +235,48 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		train.rotation.z = crash * -0.38; train.position.x = crash * 1.8;
 		train.position.y = !reducedMotion && run.mode === "running" ? Math.sin(phase * Math.PI * 4) * 0.025 : 0;
 		for (const wheel of wheels) wheel.rotation.x = -phase * 6 / 0.69;
+		const placement = run.placement;
+		const age = placement ? run.seconds - placement.seconds : Infinity;
+		const flightDuration = Math.min(0.18, 60 / tempo(run.seconds) * 0.2);
 		const first = Math.floor(phase) - 5;
 		segments.forEach(({ group, rails, marker }, offset) => {
-			const beat = first + offset;
-			group.position.z = -(beat - phase) * 6;
-			const missing = needsTrack(beat) && !run.placed.has(beat);
-			rails.visible = !missing; marker.visible = missing;
+			const beat = beatForSlot(offset, first, segments.length);
+			group.position.z = PLACEMENT_Z - (beat - phase) * TRACK_LENGTH;
+			const missing = needsTrack(run, beat) && !run.placed.has(beat);
+			const inFlight = placement?.beat === beat && age < flightDuration;
+			rails.visible = !missing && !inFlight; marker.visible = missing || inFlight;
 		});
-		scenery.position.z = ((phase + 4) * 6) % 26;
+		const distance = (phase + 4) * TRACK_LENGTH;
+		sceneryOffsets(distance).forEach((offset, index) => { sceneryTiles[index].position.z = offset; });
+		// Surfaces advance with the sleepers instead of sliding under a static landscape.
+		groundMaterial.map!.offset.y = -distance * 90 / 600;
+		ballast.map!.offset.y = -distance * 5 / 270;
+		const upcoming = Math.max(0, Math.round(phase));
+		const inWindow = run.seconds >= secondsAt(upcoming) - earlyTolerance(upcoming) && run.seconds <= secondsAt(upcoming) + tolerance(upcoming);
+		const pulse = Math.pow(Math.max(0, Math.cos(phase * Math.PI)), 12);
+		target.scale.setScalar(1 + pulse * 0.1);
+		gapMaterial.emissiveIntensity = inWindow && needsTrack(run, upcoming) && !run.placed.has(upcoming) ? 2.4 : 0.55 + pulse * 0.3;
+		const progress = Math.min(1, age / flightDuration);
+		const swing = age < 0.36 ? Math.sin(Math.PI * Math.min(1, age / 0.36)) : 0;
+		arms.forEach((arm, side) => {
+			arm.rotation.x = Math.PI - swing * 1.65;
+			arm.rotation.z = (side ? 1 : -1) * 0.14;
+		});
+		engineer.rotation.x = -swing * 0.18;
+		carriedPiece.visible = age >= 0.36;
+		flyingPiece.visible = !!placement && age < flightDuration;
+		if (placement && flyingPiece.visible) {
+			const destination = PLACEMENT_Z - (placement.beat - phase) * TRACK_LENGTH;
+			flyingPiece.position.set(0, 5.1 * (1 - progress) + Math.sin(progress * Math.PI) * 1.6 + 0.15, -1.35 * (1 - progress) + destination * progress);
+			flyingPiece.rotation.x = -Math.PI / 2 * (1 - progress);
+			flyingPiece.scale.setScalar(0.63 + 0.37 * progress);
+		}
 		smoke.forEach((puff, i) => {
 			const age = ((run.seconds * 0.45 + i / 10) % 1);
 			puff.visible = !reducedMotion;
 			puff.position.set(-age * 2, 4 + age * 5, 0.7 + age * 7);
 			puff.scale.setScalar(0.3 + age * 1.6);
+			(puff.material as THREE.MeshBasicMaterial).opacity = 0.19 * Math.sin(Math.PI * age);
 		});
 		renderer.render(scene, camera);
 	});
