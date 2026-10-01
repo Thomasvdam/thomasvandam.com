@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
-import { advance, layTrack, needsTrack, newRun, phaseAt, secondsAt, tempo, type Run } from "./rhythm";
+import { advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, tempo, START_BPM, type Run } from "./rhythm";
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 
 const BEST_KEY = "right-on-track-best";
-const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, bpm: 84, reason: "" };
+const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, bpm: START_BPM, reason: "" };
 
 export function TrackGame() {
 	const host = useRef<HTMLDivElement>(null);
@@ -52,7 +52,7 @@ export function TrackGame() {
 				if (current.mode === "running") {
 					while (secondsAt(nextSound.current) < current.seconds + 0.12) {
 						const delay = secondsAt(nextSound.current) - current.seconds;
-						if (delay > -0.03) speaker.beat(delay, nextSound.current, needsTrack(current, nextSound.current));
+						if (delay > -0.03) speaker.beat(delay, isDownbeat(current, nextSound.current), needsTrack(current, nextSound.current));
 						nextSound.current++;
 					}
 				} else speaker.stop();
@@ -122,30 +122,30 @@ export function TrackGame() {
 		: !loaded ? "Preparing the railway…"
 			: view.mode === "crashed" ? view.reason
 				: view.mode === "paused" ? "Train paused. Press to continue."
-					: counting ? `Count in · ${Math.min(4, Math.floor(view.phase + 4) + 1)} / 4`
-						: running ? "Fill orange gaps as they reach the train’s front platform." : "The train won’t wait. Find the rhythm.";
-	const buttonText = view.mode === "ready" ? "Start the engine" : view.mode === "crashed" ? "Try again" : view.mode === "paused" ? "Continue" : counting ? "Listen to the count-in" : "Lay track";
+					: counting ? "Getting rolling…"
+						: running ? "Fill orange gaps as they reach the train’s front platform." : "The train won’t wait. Keep it rolling.";
+	const buttonText = view.mode === "ready" ? "Start the engine" : view.mode === "crashed" ? "Try again" : view.mode === "paused" ? "Continue" : counting ? "Getting rolling…" : "Lay track";
 
 	return <div className={styles.page}>
 		<header className={styles.header}>
 			<Link href="/#experiments"><ArrowLeft size={14} /> Thomas van Dam</Link>
-			<span>03 / A one-button rhythm game</span>
-			<button data-utility type="button" onClick={toggleSound} aria-label={muted ? "Unmute rhythm" : "Mute rhythm"} aria-pressed={muted}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}<span>{muted ? "Sound off" : "Sound on"}</span></button>
+			<span>03 / A one-button train game</span>
+			<button data-utility type="button" onClick={toggleSound} aria-label={muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}<span>{muted ? "Sound off" : "Sound on"}</span></button>
 		</header>
 		<section className={styles.intro}>
-			<div><p className={styles.overline}>Keep the rhythm. Keep the rails.</p><h1>Right on <span>track.</span></h1></div>
-			<p>Lay the missing track on the beat.<br />Too early, too late, or twice — derailment.</p>
+			<div><p className={styles.overline}>Keep the rails. Keep it rolling.</p><h1>Right on <span>track.</span></h1></div>
+			<p>Lay the missing track just in time.<br />Too early, too late, or twice — derailment.</p>
 		</section>
-		<section className={styles.game} aria-label="Railway rhythm game">
-			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Tempo / 4:4</span><strong>{Math.round(view.bpm)} <small>BPM</small></strong></div></div>
+		<section className={styles.game} aria-label="One-button railway game">
+			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Speed</span><strong>{(view.bpm / START_BPM).toFixed(2)}<small> ×</small></strong></div></div>
 			<div className={styles.scene} ref={host} role="button" tabIndex={0} aria-label="Lay track. Watch the gaps approaching the engineer on the front of the toy train." onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onKeyDown={(event) => { if (event.key === "Enter" && !event.repeat) { event.preventDefault(); action.current(); } }} />
-			<div className={styles.sceneLabel} aria-hidden="true"><span>Forest line / northbound</span><span>Lay track at the front platform</span></div>
-			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.min(4, Math.floor(view.phase + 4) + 1)) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Listen. The railway starts after four beats." : "One button. An open stretch of track."}</p></div>}
+			<div className={styles.sceneLabel} aria-hidden="true"><span>Northbound</span><span>Lay track at the front platform</span></div>
+			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.max(1, -Math.floor(view.phase))) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Get ready. The train is pulling away." : "One button. An open stretch of track."}</p></div>}
 		</section>
 		<div className={styles.controls}>
 			<div><p role="status" className={styles.status}>{status}</p><p className={styles.help}>Space, click, or tap the scene. Hold won’t repeat. Esc pauses.{audioUnavailable && " Audio unavailable; visual timing still works."}</p></div>
 			<button className={styles.action} type="button" disabled={!loaded || unavailable} onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onClick={(event) => { if (event.detail === 0) action.current(); }}>{buttonText}<span aria-hidden="true">↗</span></button>
 		</div>
-		<footer className={styles.footer}><span>New rhythm every four bars. Faster train.</span><span>Endless railway / no destination</span></footer>
+		<footer className={styles.footer}><span>New sights. Faster train.</span><span>Endless railway / no destination</span></footer>
 	</div>;
 }

@@ -21,12 +21,11 @@ export class BeatSound {
 		if (this.context && this.volume) this.volume.gain.setValueAtTime(muted ? 0 : 0.5, this.context.currentTime);
 	}
 
-	beat(delay: number, index: number, gap: boolean) {
+	beat(delay: number, downbeat: boolean, gap: boolean) {
 		if (!this.context || !this.volume || this.context.state !== "running") return;
 		const when = this.context.currentTime + Math.max(0, delay);
 		const oscillator = this.context.createOscillator();
 		const envelope = this.context.createGain();
-		const downbeat = ((index % 4) + 4) % 4 === 0;
 		oscillator.type = gap ? "triangle" : "sine";
 		oscillator.frequency.setValueAtTime(downbeat ? 170 : gap ? 640 : 360, when);
 		oscillator.frequency.exponentialRampToValueAtTime(downbeat ? 55 : 180, when + 0.07);

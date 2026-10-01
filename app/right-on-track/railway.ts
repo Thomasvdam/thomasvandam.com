@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { earlyTolerance, needsTrack, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
+import { earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Landscape, type Run } from "./rhythm";
 
 import { beatForSlot, PLACEMENT_Z, sceneryOffsets, TRACK_LENGTH } from "./motion";
 
@@ -174,18 +174,78 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const flyingPiece = makePiece(); scene.add(flyingPiece); flyingPiece.visible = false;
 
 	const green = material("#344c3b"); const bark = material("#514b3d");
+	const broadLeaf = material("#496345"); const paleBark = material("#b8b4a0");
+	const autumnLeaves = material("#be7c39"); autumnLeaves.transparent = true; autumnLeaves.opacity = 0;
+	green.transparent = true;
+	const deadWood = material("#81705b"); const moss = material("#66854c");
+	const mushroomStem = material("#d6cab1"); const mushroomCap = material("#bb694e");
+	const bearFur = material("#6c4933"); const bearMuzzle = material("#bd9670");
 	const scenery = new THREE.Group(); scene.add(scenery);
 	for (let i = 0; i < 60; i++) {
 		const tree = new THREE.Group();
 		const height = 6 + (Math.sin(i * 12.1) + 1) * 5;
 		tree.position.set((i % 2 ? -1 : 1) * (10 + (i * 17 % 32)), 0, -(i * 13 % 220));
-		cylinder(tree, bark, [0, height / 3, 0], [0.22, height * 0.65, 0.22]);
-		for (let j = 0; j < 4; j++) mesh(tree, coneGeometry, green, [0, height * (0.42 + j * 0.14), 0], [height * (0.23 - j * 0.045), height * 0.45, height * (0.23 - j * 0.045)]);
+		const dead = i % 19 === 7;
+		const leafy = i % 5 === 2;
+		const trunk = dead ? deadWood : leafy ? paleBark : bark;
+		cylinder(tree, trunk, [0, height / 3, 0], [leafy ? 0.3 : 0.22, height * 0.65, leafy ? 0.3 : 0.22]);
+		if (dead) {
+			for (let branch = 0; branch < 3; branch++) {
+				const twig = cylinder(tree, deadWood, [branch % 2 ? -0.65 : 0.65, height * (0.28 + branch * 0.12), 0], [0.09, height * 0.3, 0.09]);
+				twig.rotation.z = branch % 2 ? -0.75 : 0.75;
+			}
+		} else {
+			if (!leafy) for (let j = 0; j < 4; j++) mesh(tree, coneGeometry, green, [0, height * (0.42 + j * 0.14), 0], [height * (0.23 - j * 0.045), height * 0.45, height * (0.23 - j * 0.045)]);
+			for (let crown = 0; crown < 3; crown++) sphere(tree, leafy ? broadLeaf : autumnLeaves,
+				[(crown - 1) * height * 0.12, height * (0.62 + crown % 2 * 0.16), crown % 2 * height * 0.1],
+				[height * 0.23, height * 0.21, height * 0.24]);
+		}
+		// A few quiet details stay in both landscapes, not just the special section.
+		if (i % 17 === 4) for (let j = 0; j < 3; j++) {
+			const x = 0.6 + j * 0.34;
+			cylinder(tree, mushroomStem, [x, 0.2, 0.7], [0.045, 0.38, 0.045]);
+			sphere(tree, mushroomCap, [x, 0.42, 0.7], [0.18, 0.09, 0.18]);
+		}
+		if (i % 13 === 5) sphere(tree, moss, [0.2, 0.12, 0.5], [0.9, 0.13, 0.75]);
+		if (i === 8) {
+			const cub = new THREE.Group(); cub.position.set(-1.35, 0, 0.8); cub.rotation.y = -0.6; tree.add(cub);
+			sphere(cub, bearFur, [0, 0.65, 0], [0.52, 0.65, 0.42]);
+			sphere(cub, bearFur, [0, 1.35, -0.08], [0.44, 0.43, 0.4]);
+			sphere(cub, bearMuzzle, [0, 1.24, -0.42], [0.25, 0.18, 0.17]);
+			sphere(cub, iron, [0, 1.3, -0.56], [0.08, 0.07, 0.055]);
+			for (const side of [-1, 1]) {
+				sphere(cub, bearFur, [side * 0.32, 1.7, -0.05], [0.16, 0.17, 0.13]);
+				sphere(cub, iron, [side * 0.18, 1.42, -0.43], [0.035, 0.04, 0.025]);
+				sphere(cub, bearFur, [side * 0.37, 0.25, -0.4], [0.22, 0.22, 0.33]);
+				sphere(cub, bearFur, [side * 0.44, 0.68, -0.23], [0.15, 0.32, 0.16]);
+			}
+		}
+		if (i === 21) {
+			const log = cylinder(tree, deadWood, [1.2, 0.25, 1], [0.24, 2.8, 0.24], "z"); log.rotation.y = 0.5;
+		}
 		scenery.add(tree);
 	}
 	batch(scenery);
 	const sceneryTiles = [scenery.clone(), scenery, scenery.clone()];
 	scene.add(sceneryTiles[0], sceneryTiles[2]);
+	const forestCrowns: THREE.InstancedMesh[] = []; const groveCrowns: THREE.InstancedMesh[] = [];
+	for (const tile of sceneryTiles) tile.traverse(object => {
+		if (!(object instanceof THREE.InstancedMesh)) return;
+		if (object.material === green) forestCrowns.push(object);
+		if (object.material === autumnLeaves) groveCrowns.push(object);
+	});
+	const bird = new THREE.Group(); scene.add(bird); bird.visible = false;
+	const birdFeathers = material("#37454d");
+	sphere(bird, birdFeathers, [0, 0, 0], [0.18, 0.14, 0.32]);
+	sphere(bird, birdFeathers, [0, 0.11, -0.27], [0.13, 0.13, 0.15]);
+	sphere(bird, brass, [0, 0.1, -0.43], [0.04, 0.04, 0.1]);
+	const wings = [-1, 1].map(side => {
+		const wing = new THREE.Group(); bird.add(wing);
+		const feather = box(wing, birdFeathers, [side * 0.45, 0, 0.04], [0.88, 0.035, 0.3]); feather.rotation.y = side * 0.18;
+		return wing;
+	});
+	bird.rotation.y = -Math.PI / 2;
+
 	const mountain = material("#758784");
 	for (let i = 0; i < 10; i++) {
 		const hill = mesh(scene, coneGeometry, mountain, [(i - 5) * 48, 16, -180 - i % 3 * 22], [35, 60 + i % 3 * 20, 35]); hill.rotation.y = i;
@@ -216,6 +276,12 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	});
 	const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 	let crashAt = 0; let previousMode = "ready";
+	let currentLandscape: Landscape = "forest"; let paletteFrom = 0; let paletteBlend = 0; let paletteSince = 0;
+	let lastSeed = 0;
+	const forestSky = new THREE.Color("#aab7b5"); const autumnSky = new THREE.Color("#d7baa0");
+	const forestGround = new THREE.Color("#78806b"); const autumnGround = new THREE.Color("#a59a63");
+	const forestLeaf = new THREE.Color("#496345"); const autumnLeaf = new THREE.Color("#c48b42");
+	const forestSun = new THREE.Color("#ffddb4"); const autumnSun = new THREE.Color("#ffd09a");
 	const resize = () => {
 		const { width, height } = host.getBoundingClientRect();
 		camera.aspect = width / Math.max(1, height);
@@ -228,6 +294,31 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
 	renderer.setAnimationLoop(() => {
 		const run = onFrame(); const phase = phaseAt(run.seconds);
+		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
+		if (run.seed !== lastSeed || (run.mode === "running" && previousMode !== "running" && phase < 0)) {
+			lastSeed = run.seed; currentLandscape = "forest"; paletteBlend = 0; paletteFrom = 0; paletteSince = 0;
+		}
+		if (phrase.landscape !== currentLandscape) {
+			currentLandscape = phrase.landscape; paletteFrom = paletteBlend; paletteSince = secondsAt(phrase.start);
+		}
+		const blendProgress = Math.max(0, Math.min(1, (run.seconds - paletteSince) / 0.65));
+		paletteBlend = paletteFrom + ((currentLandscape === "autumn" ? 1 : 0) - paletteFrom) * blendProgress;
+		(scene.background as THREE.Color).copy(forestSky).lerp(autumnSky, paletteBlend);
+		(scene.fog as THREE.FogExp2).color.copy(scene.background as THREE.Color);
+		groundMaterial.color.copy(forestGround).lerp(autumnGround, paletteBlend);
+		broadLeaf.color.copy(forestLeaf).lerp(autumnLeaf, paletteBlend);
+		sun.color.copy(forestSun).lerp(autumnSun, paletteBlend);
+		green.opacity = 1 - paletteBlend; autumnLeaves.opacity = paletteBlend;
+		for (const crown of forestCrowns) { crown.visible = green.opacity > 0.01; crown.castShadow = green.opacity > 0.5; }
+		for (const crown of groveCrowns) { crown.visible = autumnLeaves.opacity > 0.01; crown.castShadow = autumnLeaves.opacity > 0.5; }
+		const birdStart = secondsAt(phrase.start + phrase.meter);
+		const birdAge = run.seconds - birdStart;
+		const birdDuration = Math.min(4, (secondsAt(phrase.end) - birdStart) * 0.9);
+		bird.visible = !reducedMotion && phrase.index % 5 === 1 && birdAge >= 0 && birdAge < birdDuration;
+		if (bird.visible) {
+			bird.position.set(-32 + birdAge / birdDuration * 64, 8 + Math.sin(birdAge * 1.7) * 0.4, -15 - birdAge * 2);
+			wings.forEach((wing, side) => { wing.rotation.z = (side ? 1 : -1) * Math.sin(birdAge * 17) * 0.55; });
+		}
 		const now = performance.now() / 1000;
 		if (run.mode === "crashed" && previousMode !== "crashed") crashAt = now;
 		previousMode = run.mode;
@@ -253,8 +344,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		ballast.map!.offset.y = -distance * 5 / 270;
 		const upcoming = Math.max(0, Math.round(phase));
 		const inWindow = run.seconds >= secondsAt(upcoming) - earlyTolerance(upcoming) && run.seconds <= secondsAt(upcoming) + tolerance(upcoming);
-		const pulse = Math.pow(Math.max(0, Math.cos(phase * Math.PI)), 12);
-		target.scale.setScalar(1 + pulse * 0.1);
+		const pulse = Math.pow(Math.max(0, Math.cos(phase * Math.PI * 2)), 12);
+		target.scale.setScalar(1 + pulse * (isDownbeat(run, Math.floor(phase)) ? 0.12 : 0.07));
 		gapMaterial.emissiveIntensity = inWindow && needsTrack(run, upcoming) && !run.placed.has(upcoming) ? 2.4 : 0.55 + pulse * 0.3;
 		const progress = Math.min(1, age / flightDuration);
 		const swing = age < 0.36 ? Math.sin(Math.PI * Math.min(1, age / 0.36)) : 0;

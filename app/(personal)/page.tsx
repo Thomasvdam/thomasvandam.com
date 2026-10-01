@@ -71,9 +71,9 @@ export default function Home() {
 					<article>
 						<Link href="/right-on-track" className={`${styles.cover} ${styles.railway}`}>
 							<h3>Right on<br />track.</h3>
-							<div className={styles.coverBottom}><span>03 / A rhythm game</span><span>All aboard <span aria-hidden="true">↗</span></span></div>
+							<div className={styles.coverBottom}><span>03 / A train game</span><span>All aboard <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>One button. Fresh rhythms. Keep the train rolling.</p>
+						<p>One button. An ever-faster train. Keep it rolling.</p>
 					</article>
 				</div>
 			</section>

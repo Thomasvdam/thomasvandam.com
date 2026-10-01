@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { advance, layTrack, newRun, generatePhrase, needsTrack, earlyTolerance, phaseAt, secondsAt, tempo, tolerance } from "./rhythm.ts";
+import { advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance } from "./rhythm.ts";
 
 const start = () => ({ ...newRun(), mode: "running" });
 
 describe("railway rhythm", () => {
-	test("ten full phrases stay playable while track history stays bounded", () => {
+	test("long runs stay playable across changing sections with bounded history", () => {
 		const run = start();
 		for (let beat = 0; beat < 160; beat++) {
 			if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
@@ -13,7 +13,7 @@ describe("railway rhythm", () => {
 		}
 		expect(run.score).toBeGreaterThanOrEqual(40);
 		expect(run.score).toBeLessThanOrEqual(120);
-		expect(run.phrases.size).toBeLessThanOrEqual(2);
+		expect(run.phrases.size).toBeLessThanOrEqual(3);
 		expect(run.placed.size).toBeLessThanOrEqual(12);
 	});
 
@@ -71,11 +71,12 @@ describe("railway rhythm", () => {
 		for (let seed = 0; seed < 50; seed++) {
 			for (let phrase = 0; phrase < 8; phrase++) {
 				const pattern = generatePhrase(seed, phrase);
-				expect(pattern).toHaveLength(16);
+				const meter = phraseMeter(seed, phrase);
+				expect(pattern).toHaveLength(meter * 4);
 				for (let bar = 0; bar < 4; bar++) {
-					const gaps = pattern.slice(bar * 4, bar * 4 + 4).filter(Boolean).length;
+					const gaps = pattern.slice(bar * meter, bar * meter + meter).filter(Boolean).length;
 					expect(gaps).toBeGreaterThanOrEqual(1);
-					expect(gaps).toBeLessThanOrEqual(3);
+					expect(gaps).toBeLessThanOrEqual(meter - 1);
 				}
 				phrases.add(pattern.join());
 			}
@@ -85,15 +86,64 @@ describe("railway rhythm", () => {
 
 	test("previewing out of order and regenerating old phrases cannot change gaps", () => {
 		const run = start();
-		const expected = generatePhrase(run.seed, 3);
-		for (let beat = 63; beat >= 48; beat--) expect(needsTrack(run, beat)).toBe(expected[beat - 48]);
+		const phrase = phraseAt(run, 48);
+		const expected = phrase.pattern;
+		for (let beat = phrase.end - 1; beat >= phrase.start; beat--) expect(needsTrack(run, beat)).toBe(expected[beat - phrase.start]);
 		run.phrases.clear();
-		for (let beat = 48; beat < 64; beat++) expect(needsTrack(run, beat)).toBe(expected[beat - 48]);
+		for (let beat = phrase.start; beat < phrase.end; beat++) expect(needsTrack(run, beat)).toBe(expected[beat - phrase.start]);
+	});
+
+	test("3/4 and its landscape last a full phrase, with changes only at boundaries", () => {
+		const run = start();
+		expect(phraseAt(run, 47).meter).toBe(4);
+		const special = phraseAt(run, 48);
+		expect(special.start).toBe(48);
+		expect(special.end).toBe(60);
+		for (let beat = 48; beat < 60; beat++) {
+			expect(phraseAt(run, beat).meter).toBe(3);
+			expect(phraseAt(run, beat).landscape).toBe("autumn");
+			expect(isDownbeat(run, beat)).toBe([48, 51, 54, 57].includes(beat));
+		}
+		expect(phraseAt(run, 60).meter).toBe(4);
+		expect(phraseAt(run, 60).landscape).toBe("forest");
+		expect(isDownbeat(run, 60)).toBe(true);
+		expect(phraseAt(run, phaseAt(secondsAt(48) - 0.0001)).landscape).toBe("forest");
+		expect(phraseAt(run, phaseAt(secondsAt(48) + 0.0001)).landscape).toBe("autumn");
+	});
+
+	test("special sections are occasional, never consecutive, and never start a run", () => {
+		let special = 0;
+		for (let seed = 0; seed < 50; seed++) {
+			for (let index = 0; index < 100; index++) {
+				const meter = phraseMeter(seed, index);
+				if (meter === 3) {
+					special++;
+					expect(index % 4).toBe(3);
+					expect(phraseMeter(seed, index - 1)).toBe(4);
+					expect(phraseMeter(seed, index + 1)).toBe(4);
+				}
+			}
+		}
+		expect(special).toBeGreaterThan(500);
+		expect(special).toBeLessThan(1000);
+	});
+
+	test("lookahead across variable phrase lengths agrees with the live journey", () => {
+		const run = start();
+		const expected = Array.from({ length: 500 }, (_, beat) => needsTrack(run, beat));
+		run.phrases.clear();
+		for (let beat = 0; beat < expected.length; beat++) {
+			expect(needsTrack(run, beat)).toBe(expected[beat]);
+			if (expected[beat]) layTrack(run, secondsAt(beat));
+			advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+			expect(run.mode).toBe("running");
+		}
+		expect(run.phrases.size).toBeLessThanOrEqual(3);
 	});
 
 	test("tempo increases continuously and caps at 180 BPM", () => {
-		expect(tempo(0)).toBe(84);
-		expect(tempo(100)).toBe(100);
+		expect(tempo(0)).toBe(95);
+		expect(tempo(100)).toBe(111);
 		expect(tempo(10000)).toBe(180);
 	});
 
