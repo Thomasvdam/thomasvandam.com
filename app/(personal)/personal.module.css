@@ -318,3 +318,6 @@
 	.job p:not(.label) { margin-top: 8px; }
 	.skills { break-inside: avoid; font-size: 12px; }
 }
+
+.railway { background: #414d42; color: hsl(var(--paper)); }
+.railway::after { content: ""; position: absolute; width: 180px; height: 380px; right: 25px; top: 40px; transform: perspective(240px) rotateX(35deg) rotateZ(-25deg); border-inline: 7px solid #b2b6a6; background: repeating-linear-gradient(to bottom, transparent 0 28px, #b2b6a6 28px 34px); opacity: .4; }
