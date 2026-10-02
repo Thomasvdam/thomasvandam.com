@@ -106,7 +106,7 @@ export function railwayPitch(seed: number, distance: number) {
 
 export type Junction = { beat: number; side: -1 | 1 };
 export function forkOffset(distance: number, beat: number) {
-	// The signal is ahead of the points; both routes gently rejoin 12 beats later.
+	// The chosen route bends gently without moving the distant gap preview.
 	const start = (beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
 	const progress = Math.max(0, Math.min(1, (distance - start) / 72));
 	return 4 * Math.sin(progress * Math.PI) ** 2;
@@ -116,4 +116,21 @@ export function routeCenter(distance: number, junctions: Junction[]) {
 }
 export function routeHeading(distance: number, junctions: Junction[]) {
 	return -Math.atan((routeCenter(distance + 0.1, junctions) - routeCenter(distance - 0.1, junctions)) / 0.2);
+}
+
+// The unused route keeps diverging until it is well outside the camera's view.
+export function unusedBranchOffset(distance: number, beat: number) {
+	const start = (beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
+	const progress = Math.max(0, (distance - start) / 144);
+	return 80 * progress * progress;
+}
+
+export function treeOnUnusedBranch(x: number, z: number, distance: number, junctions: Junction[]) {
+	const world = distance - z;
+	return junctions.some(junction => {
+		const start = (junction.beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
+		if (world < start - 3 || world > start + 240) return false;
+		const branch = routeCenter(world, junctions) - junction.side * (forkOffset(world, junction.beat) + unusedBranchOffset(world, junction.beat)) - routeCenter(distance, junctions);
+		return Math.abs(x - branch) < 4;
+	});
 }

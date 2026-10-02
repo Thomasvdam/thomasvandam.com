@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { activeSignal, signalsAhead, earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
-import { forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
+import { treeOnUnusedBranch, unusedBranchOffset, forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
 
 import { createHorizon } from "./horizon";
 import { configureRailwayShadows, softenDistantShadows, fadeDistantScenery } from "./shadows";
@@ -311,7 +311,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const signalPrototype = createSignal(builders);
 	const junctionSlots = Array.from({ length: 4 }, () => {
 		const signal = signalPrototype.clone(); scene.add(signal);
-		const branch = Array.from({ length: 12 }, () => { const rails = segments[0].rails.clone(); box(rails, ballast, [0, 0.08, 0], [5.8, 0.08, 6]); scene.add(rails); return rails; });
+		const branch = Array.from({ length: 40 }, () => { const rails = segments[0].rails.clone(); box(rails, ballast, [0, 0.08, 0], [5.8, 0.08, 6]); scene.add(rails); return rails; });
 		return { signal, branch };
 	});
 	const target = new THREE.Group(); target.position.z = PLACEMENT_Z; scene.add(target);
@@ -443,7 +443,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 				const laid = (!needsTrack(run, beat) || run.placed.has(beat)) && !(placement?.beat === beat && age < flightDuration);
 				for (const child of rail.children) if (child instanceof THREE.InstancedMesh) child.visible = laid;
 				const d = signalDistance + 6 + i * TRACK_LENGTH;
-				const alternate = (p: number) => center(p) - 2 * junction.side * forkOffset(p, junction.beat);
+				const alternate = (p: number) => center(p) - junction.side * (forkOffset(p, junction.beat) + unusedBranchOffset(p, junction.beat));
 				rail.position.set(alternate(d) - center(distance), railwayHeight(run.seed, d), distance - d);
 				rail.rotation.set(railwayPitch(run.seed, d), -Math.atan((alternate(d + 0.1) - alternate(d - 0.1)) / 0.2), 0);
 				rail.scale.z = 1 / Math.cos(rail.rotation.y);
@@ -472,7 +472,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			item.matrices.forEach((matrix, index) => {
 				const z = item.tile.position.z + item.roots[index];
 				const blend = landscapeBlend(bands, phase + (PLACEMENT_Z - z) / TRACK_LENGTH);
-				const overRiver = treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounters);
+				const overRiver = (treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounters) || treeOnUnusedBranch(item.rootsX[index] + item.tile.position.x, z, distance, junctions));
 				const scale = overRiver ? 0 : item.mesh.material === green ? 1 - blend : item.mesh.material === autumnLeaves ? blend : 1;
 				foliageScale.setScalar(Math.max(0.001, scale));
 				foliageMatrix.copy(matrix).scale(foliageScale); item.mesh.setMatrixAt(index, foliageMatrix);
@@ -483,7 +483,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		}
 		for (const { tile, actor } of treeActors) {
 			const z = tile.position.z + actor.userData.treeZ;
-			actor.visible = !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounters);
+			actor.visible = !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounters) && !treeOnUnusedBranch(actor.parent!.position.x + tile.position.x, z, distance, junctions);
 			if (actor.visible) animateTreeDetail(actor, actor.userData.detailKind, run.seconds, -z, reducedMotion);
 		}
 		// Positive UV scrolling moves texture features toward +Z with the sleepers.
