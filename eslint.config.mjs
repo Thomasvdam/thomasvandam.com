@@ -54,6 +54,7 @@ export default [
   {
     ignores: [
       "node_modules/**",
+      "test-results/**",
       ".next/**",
       "out/**",
       "dist/**",

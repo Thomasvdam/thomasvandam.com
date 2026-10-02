@@ -31,7 +31,7 @@ bun run build
 git diff --check
 ```
 
-There is currently no automated test suite. For every change, run lint and the production build. Then manually verify the affected route and behavior. Do not treat a successful build as proof of client-side behavior.
+`./scripts/check` runs lint, all Bun tests (`bun run test`), the production build, and diff checks. For Right on Track renderer or audio changes, also run `bun run test:browser` and open its printed URL once in the shared browser; the suite runs automatically and saves assertions/screenshots. See [the testing guide](docs/right-on-track-testing.md). Manually verify behavior not covered by automation, including input wiring and subjective visual/audio quality. Do not treat a successful build as proof of client-side behavior.
 
 ## Conversation workflow
 
