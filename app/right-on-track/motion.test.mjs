@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { newRun } from "./rhythm.ts";
 import { expect, test } from "bun:test";
-import { forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, BRIDGE_HEIGHT, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
+import { treeOnUnusedBranch, unusedBranchOffset, forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, BRIDGE_HEIGHT, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
 
 test("visible trees move continuously across scenery wrap boundaries", () => {
 	const positions = (distance) => sceneryOffsets(distance).flatMap(offset =>
@@ -149,7 +149,7 @@ test("bridge ramps share a smooth world-space elevation with a flat supported de
 	expect(railwayPitch(7, river.distance + 25)).toBeLessThan(0);
 });
 
-test("both fork routes rejoin smoothly and stay gentle enough for gap previews", () => {
+test("chosen routes stay smooth and gentle enough for gap previews", () => {
 	const beat = 24, start = (beat + 5) * 6 + 4;
 	for (const side of [-1, 1]) {
 		const junctions = [{ beat, side }];
@@ -160,5 +160,31 @@ test("both fork routes rejoin smoothly and stay gentle enough for gap previews",
 		}
 		expect(routeCenter(start + 36, junctions) - trackCenter(start + 36)).toBeCloseTo(side * 4, 8);
 		for (let d = start; d <= start + 72; d++) expect(Math.abs(routeHeading(d, junctions))).toBeLessThan(0.28);
+	}
+});
+
+test("the unused branch diverges beyond the view instead of rejoining", () => {
+	const beat = 24, start = (beat + 5) * 6 + 4;
+	expect(unusedBranchOffset(start, beat)).toBe(0);
+	for (const side of [-1, 1]) {
+		let previous = 0;
+		for (let d = start; d <= start + 240; d++) {
+			const chosen = routeCenter(d, [{ beat, side }]);
+			const unused = chosen - side * (forkOffset(d, beat) + unusedBranchOffset(d, beat));
+			const divergence = side * (trackCenter(d) - unused);
+			expect(divergence).toBeGreaterThanOrEqual(previous - 1e-8);
+			previous = divergence;
+		}
+		expect(previous).toBeGreaterThan(200);
+	}
+});
+
+test("tree clearance on the departing branch stays fixed as the train moves", () => {
+	const junctions = [{ beat: 24, side: -1 }], world = (24 + 5) * 6 + 4 + 90;
+	const branchX = trackCenter(world) + unusedBranchOffset(world, 24);
+	for (const distance of [170, 190, 210]) {
+		const x = branchX - routeCenter(distance, junctions), z = distance - world;
+		expect(treeOnUnusedBranch(x, z, distance, junctions)).toBe(true);
+		expect(treeOnUnusedBranch(x + 8, z, distance, junctions)).toBe(false);
 	}
 });
