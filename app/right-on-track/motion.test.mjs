@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { newRun } from "./rhythm.ts";
 import { expect, test } from "bun:test";
-import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, TRACK_LENGTH } from "./motion.ts";
+import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
 
 test("visible trees move continuously across scenery wrap boundaries", () => {
 	const positions = (distance) => sceneryOffsets(distance).flatMap(offset =>
@@ -59,4 +59,42 @@ test("ground and ballast texture features travel in the same direction as the tr
 		expect(dz).toBeCloseTo(10, 8);
 	}
 	geometry.dispose();
+});
+
+
+test("bends stay shallow and keep landmarks continuous as the train advances", () => {
+	for (let distance = 0; distance < 4000; distance += 13) {
+		expect(Math.abs(trackHeading(distance))).toBeLessThan(0.1);
+		expect(Math.abs(trackPosition(distance, -30))).toBeLessThan(3);
+		const worldDistance = distance + 70;
+		const before = trackPosition(distance, distance - worldDistance) + trackCenter(distance);
+		const after = trackPosition(distance + 0.1, distance + 0.1 - worldDistance) + trackCenter(distance + 0.1);
+		expect(after).toBeCloseTo(before, 8);
+		expect(Math.abs(trackHeading(distance + 6) - trackHeading(distance))).toBeLessThan(0.015);
+	}
+});
+
+test("encounters are sparse, seeded, and include empty crossings and rare bear pairs", () => {
+	const counts = { hut: 0, lumberjack: 0, crossing: 0, bears: 0, empty: 0 };
+	const cars = new Set();
+	for (let index = 0; index < 2000; index++) {
+		const encounter = encounterAt(7, index);
+		expect(encounter).toEqual(encounterAt(7, index));
+		counts[encounter.kind ?? "empty"]++;
+		if (encounter.kind === "crossing") cars.add(encounter.cars);
+		expect(encounterAt(7, index + 1).distance - encounter.distance).toBeGreaterThanOrEqual(SCENERY_LENGTH - 50);
+	}
+	expect([...cars].sort()).toEqual([0, 1, 2, 3]);
+	expect(counts.bears).toBeGreaterThan(0);
+	expect(counts.bears).toBeLessThan(70);
+	expect(counts.empty).toBeGreaterThan(600);
+	for (const kind of ["hut", "lumberjack", "crossing"]) expect(counts[kind]).toBeGreaterThan(250);
+});
+
+test("mountain parallax stays slow and continuous without a wrap", () => {
+	for (const layer of [0, 1]) for (const distance of [0, 220, 440, 10000]) {
+		const before = mountainOffset(distance - 0.01, layer), after = mountainOffset(distance + 0.01, layer);
+		expect(Math.abs(after.x - before.x)).toBeLessThan(0.001);
+		expect(Math.abs(after.z - before.z)).toBeLessThan(0.001);
+	}
 });

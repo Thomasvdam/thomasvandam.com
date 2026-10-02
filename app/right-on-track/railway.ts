@@ -1,13 +1,15 @@
 import * as THREE from "three";
 import { earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
-import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, TRACK_LENGTH } from "./motion";
+import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
+
+import { createEncounterModels } from "./encounters";
 
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void) {
 	const scene = new THREE.Scene();
 	scene.background = new THREE.Color("#aab7b5");
 	scene.fog = new THREE.FogExp2("#aab7b5", 0.009);
-	const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 400);
+	const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 1000);
 	let renderer: THREE.WebGLRenderer;
 	try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" }); }
 	catch { onUnavailable(); return () => {}; }
@@ -93,7 +95,11 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -75; sun.shadow.normalBias = 0.04;
 	scene.add(sun);
 	box(scene, groundMaterial, [0, -0.5, -100], [600, 1, 600]);
-	box(scene, ballast, [0, 0.03, -95], [5.8, 0.12, 270]);
+	const ballastGeometry = new THREE.PlaneGeometry(5.8, 270, 1, 90); geometries.push(ballastGeometry);
+	const ballastStrip = new THREE.Mesh(ballastGeometry, ballast); ballastStrip.rotation.x = -Math.PI / 2;
+	ballastStrip.position.set(0, 0.09, -95); ballastStrip.receiveShadow = true; ballastStrip.frustumCulled = false; scene.add(ballastStrip);
+	const ballastVertices = ballastGeometry.getAttribute("position");
+	const ballastOriginal = new Float32Array(ballastVertices.array);
 
 	const train = new THREE.Group(); scene.add(train);
 	box(train, iron, [0, 1.0, 3.4], [2.7, 0.4, 7.2]);
@@ -185,7 +191,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	for (let i = 0; i < 60; i++) {
 		const tree = new THREE.Group();
 		const height = 6 + (Math.sin(i * 12.1) + 1) * 5;
-		tree.position.set((i % 2 ? -1 : 1) * (10 + (i * 17 % 32)), 0, -(i * 13 % 220));
+		tree.position.set((i % 2 ? -1 : 1) * (16 + (i * 17 % 32)), 0, -(i * 13 % 220));
 		const dead = i % 19 === 7;
 		const leafy = i % 5 === 2;
 		const trunk = dead ? deadWood : leafy ? paleBark : bark;
@@ -252,10 +258,25 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	});
 	bird.rotation.y = -Math.PI / 2;
 
-	const mountain = material("#758784");
-	for (let i = 0; i < 10; i++) {
-		const hill = mesh(scene, coneGeometry, mountain, [(i - 5) * 48, 16, -180 - i % 3 * 22], [35, 60 + i % 3 * 20, 35]); hill.rotation.y = i;
-	}
+	const encounterModels = createEncounterModels({ material, box, sphere, cylinder, batch });
+	const encounterSlots = Array.from({ length: 4 }, () => {
+		const root = new THREE.Group(); scene.add(root);
+		const models = Object.fromEntries(Object.entries(encounterModels).map(([kind, model]) => {
+			const copy = model.clone(); copy.visible = false; root.add(copy); return [kind, copy];
+		})) as typeof encounterModels;
+		return { root, models };
+	});
+	// Separate ridges stay visible beyond the forest fog and drift at different depths.
+	const ridges = [0, 1].map(layer => {
+		const ridge = new THREE.Group(); scene.add(ridge);
+		const surface = new THREE.MeshBasicMaterial({ color: layer ? "#a3b1ad" : "#82958f", fog: false, transparent: true, opacity: layer ? 0.6 : 0.72 }); materials.push(surface);
+		const peakGeometry = new THREE.ConeGeometry(1, 1, 7, 1); geometries.push(peakGeometry);
+		for (let i = 0; i < 12; i++) {
+			const peak = mesh(ridge, peakGeometry, surface, [(i - 5.5) * 75, -10, -430 - layer * 150 - i % 3 * 18], [48 + i % 3 * 12, 42 + (Math.sin(i * 4.7 + layer) + 1) * 25, 38]);
+			peak.rotation.y = i * 0.7; peak.castShadow = false; peak.receiveShadow = false;
+		}
+		return ridge;
+	});
 	const gapMaterial = material("#d98c48"); gapMaterial.emissive.set("#9e4d19"); gapMaterial.emissiveIntensity = 0.5;
 	const segments = Array.from({ length: 30 }, () => {
 		const group = new THREE.Group(); const rails = new THREE.Group(); group.add(rails); scene.add(group);
@@ -309,7 +330,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		const { width, height } = host.getBoundingClientRect();
 		camera.aspect = width / Math.max(1, height);
 		camera.position.set(width < 600 ? 15 : 12, width < 600 ? 18 : 14, width < 600 ? 27 : 21);
-		camera.lookAt(0, 1, width < 600 ? -6 : -9);
+		camera.lookAt(0, 1, width < 600 ? -10 : -15);
 		camera.updateProjectionMatrix(); renderer.setSize(width, height);
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
@@ -317,6 +338,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
 	renderer.setAnimationLoop(() => {
 		const run = onFrame(); const phase = phaseAt(run.seconds);
+		const distance = (phase + 4) * TRACK_LENGTH;
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
 		const bands = landscapeBands(run, phase);
 		const paletteBlend = landscapeBlend(bands, phase);
@@ -340,7 +362,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		if (run.mode === "crashed" && previousMode !== "crashed") crashAt = now;
 		previousMode = run.mode;
 		const crash = run.mode === "crashed" ? Math.min(1, (now - crashAt) * 2) : 0;
-		train.rotation.z = crash * -0.38; train.position.x = crash * 1.8;
+		train.rotation.z = crash * -0.38; train.position.x = crash * 1.8; train.rotation.y = trackHeading(distance);
 		train.position.y = !reducedMotion && run.mode === "running" ? Math.sin(phase * Math.PI * 4) * 0.025 : 0;
 		for (const wheel of wheels) wheel.rotation.x = -phase * 6 / 0.69;
 		const placement = run.placement;
@@ -350,12 +372,31 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		segments.forEach(({ group, rails, marker }, offset) => {
 			const beat = beatForSlot(offset, first, segments.length);
 			group.position.z = PLACEMENT_Z - (beat - phase) * TRACK_LENGTH;
+			group.position.x = trackPosition(distance, group.position.z);
+			group.rotation.y = trackHeading(distance - group.position.z);
+			group.scale.z = 1 / Math.cos(group.rotation.y);
 			const missing = needsTrack(run, beat) && !run.placed.has(beat);
 			const inFlight = placement?.beat === beat && age < flightDuration;
 			rails.visible = !missing && !inFlight; marker.visible = missing || inFlight;
 		});
-		const distance = (phase + 4) * TRACK_LENGTH;
-		sceneryOffsets(distance).forEach((offset, index) => { sceneryTiles[index].position.z = offset; });
+		sceneryOffsets(distance).forEach((offset, index) => { sceneryTiles[index].position.z = offset; sceneryTiles[index].position.x = -trackCenter(distance); });
+		for (let index = 0; index < ballastVertices.count; index++) {
+			const z = -ballastOriginal[index * 3 + 1] - 95;
+			ballastVertices.setX(index, ballastOriginal[index * 3] + trackPosition(distance, z));
+		}
+		ballastVertices.needsUpdate = true;
+		target.position.x = trackPosition(distance, PLACEMENT_Z); target.rotation.y = trackHeading(distance - PLACEMENT_Z);
+		const firstEncounter = Math.max(0, Math.floor((distance - 45) / SCENERY_LENGTH));
+		encounterSlots.forEach((slot, index) => {
+			const encounter = encounterAt(run.seed, firstEncounter + index);
+			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
+			slot.root.position.set(trackCenter(encounter.distance) - trackCenter(distance) + (encounter.kind === "crossing" ? 0 : encounter.side * 10), 0, distance - encounter.distance);
+			slot.root.rotation.y = encounter.kind === "crossing" ? trackHeading(encounter.distance) : encounter.side * 0.25;
+			for (let car = 0; car < 3; car++) slot.models.crossing.getObjectByName(`waiting-car-${car}`)!.visible = car < encounter.cars;
+		});
+		ridges.forEach((ridge, layer) => {
+			const offset = mountainOffset(distance, layer); ridge.position.set(offset.x - trackCenter(distance) * 0.15, 0, offset.z);
+		});
 		// Each tree keeps the landscape of its world position as it approaches.
 		for (const item of foliage) {
 			item.matrices.forEach((matrix, index) => {
@@ -388,14 +429,15 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		flyingPiece.visible = !!placement && age < flightDuration;
 		if (placement && flyingPiece.visible) {
 			const destination = PLACEMENT_Z - (placement.beat - phase) * TRACK_LENGTH;
-			flyingPiece.position.set(0, 5.1 * (1 - progress) + Math.sin(progress * Math.PI) * 1.6 + 0.15, -1.35 * (1 - progress) + destination * progress);
+			flyingPiece.position.set((-1.35 * Math.sin(train.rotation.y)) * (1 - progress) + trackPosition(distance, destination) * progress, 5.1 * (1 - progress) + Math.sin(progress * Math.PI) * 1.6 + 0.15, -1.35 * (1 - progress) + destination * progress);
 			flyingPiece.rotation.x = -Math.PI / 2 * (1 - progress);
+			flyingPiece.rotation.y = train.rotation.y * (1 - progress) + trackHeading(distance - destination) * progress;
 			flyingPiece.scale.setScalar(0.63 + 0.37 * progress);
 		}
 		smoke.forEach((puff, i) => {
 			const age = ((run.seconds * 0.45 + i / 10) % 1);
 			puff.visible = !reducedMotion;
-			puff.position.set(-age * 2, 4 + age * 5, 0.7 + age * 7);
+			puff.position.set(trackPosition(distance, 0.7 + age * 7) - age * 2, 4 + age * 5, 0.7 + age * 7);
 			puff.scale.setScalar(0.3 + age * 1.6);
 			(puff.material as THREE.MeshBasicMaterial).opacity = 0.19 * Math.sin(Math.PI * age);
 		});

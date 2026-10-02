@@ -41,3 +41,32 @@ export function landscapeBlend(bands: ReturnType<typeof landscapeBands>, beat: n
 export function surfaceOffset(distance: number, repeats: number, length: number) {
 	return distance * repeats / length;
 }
+
+// Long, shallow bends keep the next several gaps readable.
+export function trackCenter(distance: number) {
+	return 3.2 * Math.sin(distance * Math.PI * 2 / 340) + 1.1 * Math.sin(distance * Math.PI * 2 / 190);
+}
+
+export function trackHeading(distance: number) {
+	const slope = 3.2 * Math.PI * 2 / 340 * Math.cos(distance * Math.PI * 2 / 340)
+		+ 1.1 * Math.PI * 2 / 190 * Math.cos(distance * Math.PI * 2 / 190);
+	return -Math.atan(slope);
+}
+
+export function trackPosition(distance: number, z: number) {
+	return trackCenter(distance - z) - trackCenter(distance);
+}
+
+export type EncounterKind = "hut" | "lumberjack" | "crossing" | "bears";
+export function encounterAt(seed: number, index: number) {
+	let hash = Math.imul(seed ^ Math.imul(index + 1, 0x45d9f3b), 0x27d4eb2d);
+	hash = Math.imul(hash ^ hash >>> 16, 0x85ebca6b);
+	const random = ((hash ^ hash >>> 13) >>> 0) / 4294967296;
+	const kind: EncounterKind | null = random < 0.02 ? "bears" : random < 0.22 ? "hut" : random < 0.42 ? "lumberjack" : random < 0.62 ? "crossing" : null;
+	return { kind, distance: index * SCENERY_LENGTH + 90 + ((hash >>> 8) % 51) - 25, side: hash & 1 ? -1 : 1, cars: (hash >>> 16) % 4 };
+}
+
+// Distant ridges move much more slowly than the forest; no periodic reset.
+export function mountainOffset(distance: number, layer: number) {
+	return { x: Math.sin(distance / (1400 + layer * 600)) * (16 - layer * 3), z: Math.sin(distance / (1800 + layer * 700)) * 10 };
+}
