@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "icons": "node tools/generate-icons.mjs",
-    "tsc7": "node ./node_modules/typescript-7/bin/tsc --noEmit"
+    "tsc7": "node ./node_modules/typescript-7/bin/tsc --noEmit",
+    "test": "bun test app",
+    "test:browser": "bun tools/test-right-on-track.mjs"
   },
   "dependencies": {
     "@radix-ui/react-separator": "^1.1.15",

@@ -10,7 +10,14 @@ import { cutRiverTerrain, animateRiver } from "./river";
 import { cutForkBallast, fadeForkEdges, createSignal } from "./junction";
 import { createEncounterModels } from "./encounters";
 
-export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void) {
+// Optional inspection keeps browser regressions on the actual production renderer.
+export type RailwayFrame = {
+	scene: THREE.Scene; renderer: THREE.WebGLRenderer; train: THREE.Group; carriedPiece: THREE.Group;
+	sceneryTiles: THREE.Group[];
+	forks: { signal: THREE.Group; branches: { side: -1 | 1; pieces: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group }[] }[] }[];
+	encounters: { root: THREE.Group; models: ReturnType<typeof createEncounterModels> }[];
+};
+export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void, inspect?: (frame: RailwayFrame) => void) {
 	const scene = new THREE.Scene();
 	const horizon = createHorizon();
 	scene.background = null;
@@ -554,6 +561,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		});
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);
+		inspect?.({ scene, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots });
 	});
 	return () => {
 		observer.disconnect(); renderer.setAnimationLoop(null);

@@ -1,4 +1,5 @@
 export class BeatSound {
+	constructor(private createContext: () => AudioContext = () => new AudioContext()) {}
 	private context: AudioContext | null = null;
 	private volume: GainNode | null = null;
 	private steam: AudioBuffer | null = null;
@@ -7,7 +8,7 @@ export class BeatSound {
 
 	async unlock() {
 		try {
-			this.context ??= new AudioContext();
+			this.context ??= this.createContext();
 			if (!this.volume) {
 				this.volume = this.context.createGain();
 				this.volume.gain.value = this.muted ? 0 : 0.5;
