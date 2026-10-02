@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
+import { activeSignal, signalsAhead, advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
 
 const start = () => ({ ...newRun(), mode: "running" });
 
@@ -13,7 +13,7 @@ describe("railway rhythm", () => {
 		}
 		expect(run.score).toBeGreaterThanOrEqual(40);
 		expect(run.score).toBeLessThanOrEqual(120);
-		expect(run.phrases.size).toBeLessThanOrEqual(3);
+		expect(run.phrases.size).toBeLessThanOrEqual(6);
 		expect(run.placed.size).toBeLessThanOrEqual(12);
 	});
 
@@ -138,7 +138,7 @@ describe("railway rhythm", () => {
 			advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 			expect(run.mode).toBe("running");
 		}
-		expect(run.phrases.size).toBeLessThanOrEqual(3);
+		expect(run.phrases.size).toBeLessThanOrEqual(6);
 	});
 
 	test("tempo increases continuously and caps at 180 BPM", () => {
@@ -156,3 +156,46 @@ describe("railway rhythm", () => {
 });
 
 test("decorative speed rises in km/h and stays capped", () => { expect(trainSpeed(0)).toBe(28); expect(trainSpeed(60)).toBe(40); expect(trainSpeed(10000)).toBe(96); });
+
+
+test("switch presses toggle either safe route, leave score alone, and protect the recovery beat", () => {
+	const run = newRun(0); run.mode = "running";
+	const signal = signalsAhead(run, 0)[0]; expect(signal).toBe(24);
+	for (let beat = 0; beat < signal - 2; beat++) {
+		if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+		advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+	}
+	const score = run.score;
+	for (const beat of [signal - 2, signal - 1, signal, signal + 1]) expect(needsTrack(run, beat)).toBe(false);
+	layTrack(run, secondsAt(signal - 1.9)); expect(run.switches.get(signal)).toBe(1);
+	layTrack(run, secondsAt(signal - 0.7)); expect(run.switches.get(signal)).toBe(-1);
+	expect(run.score).toBe(score); expect(run.mode).toBe("running");
+	expect(activeSignal(run, secondsAt(signal + 0.74))).toBe(signal);
+	expect(activeSignal(run, secondsAt(signal + 0.75))).toBe(null);
+	for (let beat = signal + 2; beat < signal + 30; beat++) {
+		if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+		advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+		expect(run.mode).toBe("running");
+	}
+});
+test("ignoring signals retains a safe default and switching is disabled while paused", () => {
+	const run = newRun(0); run.mode = "running";
+	for (let beat = 0; beat < 100; beat++) {
+		if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+		advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+	}
+	expect(run.mode).toBe("running"); expect(run.switches.size).toBe(0);
+	run.mode = "paused"; layTrack(run, secondsAt(23)); expect(run.switches.size).toBe(0);
+});
+
+test("signal previews and completed choices retain bounded history over an endless run", () => {
+	const run = newRun(0); run.mode = "running";
+	for (let beat = 0; beat < 5000; beat++) {
+		signalsAhead(run, beat);
+		if (activeSignal(run, secondsAt(beat)) !== null || needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+		advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+		expect(run.mode).toBe("running");
+		expect(run.phrases.size).toBeLessThanOrEqual(12);
+		expect(run.switches.size).toBeLessThanOrEqual(2);
+	}
+});

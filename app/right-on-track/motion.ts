@@ -2,7 +2,9 @@ import { phraseAt, type Run } from "./rhythm";
 
 export const TRACK_LENGTH = 6;
 export const PLACEMENT_Z = -4;
-export const SCENERY_LENGTH = 220;
+import { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
+export type { EncounterKind } from "./scenery-schedule";
+export { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
 
 // Three neighboring copies cover the view across a wrap without moving visible trees.
 export function sceneryOffsets(distance: number) {
@@ -57,15 +59,6 @@ export function trackPosition(distance: number, z: number) {
 	return trackCenter(distance - z) - trackCenter(distance);
 }
 
-export type EncounterKind = "hut" | "lumberjack" | "crossing" | "bears" | "river";
-export function encounterAt(seed: number, index: number) {
-	let hash = Math.imul(seed ^ Math.imul(index + 1, 0x45d9f3b), 0x27d4eb2d);
-	hash = Math.imul(hash ^ hash >>> 16, 0x85ebca6b);
-	const random = ((hash ^ hash >>> 13) >>> 0) / 4294967296;
-	const kind: EncounterKind | null = random < 0.02 ? "bears" : random < 0.10 ? "river" : random < 0.28 ? "hut" : random < 0.46 ? "lumberjack" : random < 0.64 ? "crossing" : null;
-	return { kind, traffic: ((hash >>> 5) % 10) < 2, detail: (Math.imul(hash ^ 0x51ed270b, 0x27d4eb2d) >>> 0), distance: index * SCENERY_LENGTH + 90 + ((hash >>> 8) % 51) - 25, side: hash & 1 ? -1 : 1, cars: (hash >>> 16) % 4 };
-}
-
 // Distant ridges move much more slowly than the forest; no periodic reset.
 export function mountainOffset(distance: number, layer: number) {
 	return { x: Math.sin(distance / (1400 + layer * 600)) * (16 - layer * 3), z: Math.sin(distance / (1800 + layer * 700)) * 10 };
@@ -92,4 +85,35 @@ export function treeOnFeature(x: number, z: number, distance: number, encounters
 		const dx = x - (trackCenter(encounter.distance) - trackCenter(distance));
 		return Math.abs(Math.sin(heading) * dx + Math.cos(heading) * dz) < 3.2;
 	});
+}
+
+// One world-space profile shared by the deck, ramps, rails, and locomotive.
+export const BRIDGE_HEIGHT = 2.4;
+export function railwayHeight(seed: number, distance: number) {
+	const index = Math.max(0, Math.floor(distance / SCENERY_LENGTH));
+	let height = 0;
+	for (let i = Math.max(0, index - 1); i <= index + 1; i++) {
+		const encounter = encounterAt(seed, i);
+		if (encounter.kind !== "river") continue;
+		const ramp = Math.max(0, Math.min(1, (43 - Math.abs(distance - encounter.distance)) / 30));
+		height = Math.max(height, BRIDGE_HEIGHT * ramp * ramp * (3 - 2 * ramp));
+	}
+	return height;
+}
+export function railwayPitch(seed: number, distance: number) {
+	return Math.atan((railwayHeight(seed, distance + 0.1) - railwayHeight(seed, distance - 0.1)) / 0.2);
+}
+
+export type Junction = { beat: number; side: -1 | 1 };
+export function forkOffset(distance: number, beat: number) {
+	// The signal is ahead of the points; both routes gently rejoin 12 beats later.
+	const start = (beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
+	const progress = Math.max(0, Math.min(1, (distance - start) / 72));
+	return 4 * Math.sin(progress * Math.PI) ** 2;
+}
+export function routeCenter(distance: number, junctions: Junction[]) {
+	return trackCenter(distance) + junctions.reduce((offset, junction) => offset + junction.side * forkOffset(distance, junction.beat), 0);
+}
+export function routeHeading(distance: number, junctions: Junction[]) {
+	return -Math.atan((routeCenter(distance + 0.1, junctions) - routeCenter(distance - 0.1, junctions)) / 0.2);
 }
