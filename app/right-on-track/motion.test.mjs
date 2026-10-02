@@ -1,3 +1,5 @@
+import { skyAt } from "./aviation.ts";
+import { cropVariant, farmMachine, pastureVariant } from "./farmland.ts";
 import * as THREE from "three";
 import { newRun } from "./rhythm.ts";
 import { expect, test } from "bun:test";
@@ -75,7 +77,7 @@ test("bends stay shallow and keep landmarks continuous as the train advances", (
 });
 
 test("encounters are sparse, seeded, and include empty crossings and rare bear pairs", () => {
-	const counts = { hut: 0, lumberjack: 0, crossing: 0, bears: 0, river: 0, empty: 0 };
+	const counts = { hut: 0, lumberjack: 0, crossing: 0, bears: 0, river: 0, crops: 0, cattle: 0, empty: 0 };
 	const cars = new Set();
 	for (let index = 0; index < 2000; index++) {
 		const encounter = encounterAt(7, index);
@@ -88,7 +90,7 @@ test("encounters are sparse, seeded, and include empty crossings and rare bear p
 	expect(counts.bears).toBeGreaterThan(0);
 	expect(counts.bears).toBeLessThan(70);
 	expect(counts.empty).toBeGreaterThan(600);
-	for (const kind of ["hut", "lumberjack", "crossing"]) expect(counts[kind]).toBeGreaterThan(250);
+	for (const kind of ["hut", "lumberjack", "crossing"]) expect(counts[kind]).toBeGreaterThan(180);
 });
 
 test("mountain parallax stays slow and continuous without a wrap", () => {
@@ -203,4 +205,29 @@ test("tree clearance follows the continuing track after a fork is archived", () 
 	const x = routeCenter(world, [], base) - routeCenter(distance, [], base), z = distance - world;
 	expect(treeOnFork(x, z, distance, [], base)).toBe(true);
 	expect(treeOnFork(x + 8, z, distance, [], base)).toBe(false);
+});
+
+test("farmland and sky variants are seeded and sparse without increasing encounter density", () => {
+	const crops = new Set(), herds = new Set(), skies = new Set(); let ground = 0, air = 0;
+	for (let seed = 0; seed < 10000; seed++) {
+		const encounter = encounterAt(seed, 0), sky = skyAt(seed, 0);
+		expect(sky).toEqual(skyAt(seed, 0));
+		if (encounter.kind) ground++;
+		if (encounter.kind === "crops") crops.add(`${cropVariant(encounter.detail)}:${farmMachine(encounter.detail)}`);
+		if (encounter.kind === "cattle") herds.add(pastureVariant(encounter.detail));
+		if (sky.kind) { air++; skies.add(sky.kind); }
+	}
+	expect(crops.size).toBe(9); expect(herds.size).toBe(3); expect(skies.size).toBe(4);
+	expect(ground).toBeGreaterThan(6000); expect(ground).toBeLessThan(6800);
+	expect(air).toBeGreaterThan(1700); expect(air).toBeLessThan(2300);
+});
+test("large field footprints clear both forks and exclude trees from the plot", () => {
+	const beat = 24, world = 230;
+	for (const side of [-1, 1]) {
+		const junctions = [{ beat, side: -1 }], x = roadsideCenter(world, side, junctions, 0, 18, 18);
+		for (let d = world - 18; d <= world + 18; d++) for (const branch of [-1, 1]) expect(side * (x - fixedBranchCenter(d, junctions[0], branch, junctions))).toBeGreaterThanOrEqual(17.999);
+		const field = { ...encounterAt(0, 0), kind: "crops", distance: world, x, heading: 0 };
+		expect(treeOnFeature(x + 13, -10, world, [field])).toBe(true);
+		expect(treeOnFeature(x + 16, -10, world, [field])).toBe(false);
+	}
 });

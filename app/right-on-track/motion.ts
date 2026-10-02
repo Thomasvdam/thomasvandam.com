@@ -81,6 +81,10 @@ export function treeOnFeature(x: number, z: number, distance: number, encounters
 	return encounters.some(encounter => {
 		const dz = z - (distance - encounter.distance);
 		if (encounter.kind === "river") return Math.abs(dz) < 13;
+		if (encounter.kind === "crops" || encounter.kind === "cattle") {
+			const dx = x - (encounter.x ?? trackCenter(encounter.distance) - trackCenter(distance));
+			return Math.abs(dx) < 15 && Math.abs(dz) < 18;
+		}
 		if (encounter.kind !== "crossing") return false;
 		const heading = encounter.heading ?? trackHeading(encounter.distance);
 		const dx = x - (encounter.x ?? trackCenter(encounter.distance) - trackCenter(distance));
@@ -136,17 +140,17 @@ export function treeOnFork(x: number, z: number, distance: number, junctions: Ju
 }
 
 // Place an entire roadside model outside both track corridors, then anchor it.
-export function roadsideCenter(world: number, side: -1 | 1, junctions: Junction[], base = 0) {
+export function roadsideCenter(world: number, side: -1 | 1, junctions: Junction[], base = 0, clearance = 10, depth = 7) {
 	let edge = side * routeCenter(world, junctions, base);
-	for (let d = world - 7; d <= world + 7; d++) {
+	for (let d = world - depth; d <= world + depth; d++) {
 		const junction = junctions.find(item => {
 			const start = (item.beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
-			return d >= start - 10 && d <= start + FORK_LENGTH + 7;
+			return d >= start - depth - 3 && d <= start + FORK_LENGTH + depth;
 		});
 		for (const branch of [-1, 1] as const) {
 			const x = junction ? fixedBranchCenter(d, junction, branch, junctions, base) : routeCenter(d, junctions, base);
 			edge = Math.max(edge, side * x);
 		}
 	}
-	return side * (edge + 10);
+	return side * (edge + clearance);
 }
