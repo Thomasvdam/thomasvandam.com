@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
-import { advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, trainSpeed, type Run } from "./rhythm";
+import { activeSignal, advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, trainSpeed, type Run } from "./rhythm";
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 
 const BEST_KEY = "right-on-track-best";
-const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), reason: "" };
+const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), switching: false, reason: "" };
 
 export function TrackGame() {
 	const host = useRef<HTMLDivElement>(null);
@@ -37,8 +37,8 @@ export function TrackGame() {
 
 		function paint() {
 			const current = run.current;
-			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, speed: trainSpeed(current.seconds), reason: current.reason };
-			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.speed === next.speed && previous.reason === next.reason ? previous : next);
+			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, speed: trainSpeed(current.seconds), switching: activeSignal(current) !== null, reason: current.reason };
+			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.speed === next.speed && previous.switching === next.switching && previous.reason === next.reason ? previous : next);
 			if (current.score > bestRef.current) {
 				bestRef.current = current.score; setBest(current.score);
 				try { localStorage.setItem(BEST_KEY, String(current.score)); } catch { /* Best score is optional when storage is unavailable. */ }
@@ -123,8 +123,8 @@ export function TrackGame() {
 			: view.mode === "crashed" ? view.reason
 				: view.mode === "paused" ? "Train paused. Press to continue."
 					: counting ? "Getting rolling…"
-						: running ? "Fill orange gaps as they reach the train’s front platform." : "The train won’t wait. Keep it rolling.";
-	const buttonText = view.mode === "ready" ? "Start the engine" : view.mode === "crashed" ? "Try again" : view.mode === "paused" ? "Continue" : counting ? "Getting rolling…" : "Lay track";
+						: running && view.switching ? "Press to switch left or right. Either route is safe." : running ? "Fill orange gaps as they reach the train’s front platform." : "The train won’t wait. Keep it rolling.";
+	const buttonText = view.mode === "ready" ? "Start the engine" : view.mode === "crashed" ? "Try again" : view.mode === "paused" ? "Continue" : counting ? "Getting rolling…" : view.switching ? "Switch route" : "Lay track";
 
 	return <div className={styles.page}>
 		<header className={styles.header}>
@@ -139,7 +139,7 @@ export function TrackGame() {
 		<section className={styles.game} aria-label="One-button railway game">
 			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Speed</span><strong>{view.speed}<small> km/h</small></strong></div></div>
 			<div className={styles.scene} ref={host} role="button" tabIndex={0} aria-label="Lay track. Watch the gaps approaching the engineer on the front of the toy train." onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onKeyDown={(event) => { if (event.key === "Enter" && !event.repeat) { event.preventDefault(); action.current(); } }} />
-			<div className={styles.sceneLabel} aria-hidden="true"><span>Northbound</span><span>Lay track at the front platform</span></div>
+			<div className={styles.sceneLabel} aria-hidden="true"><span>Northbound</span><span>{view.switching ? "Press to switch route" : "Lay track at the front platform"}</span></div>
 			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.max(1, -Math.floor(view.phase))) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Get ready. The train is pulling away." : "One button. An open stretch of track."}</p></div>}
 		</section>
 		<div className={styles.controls}>

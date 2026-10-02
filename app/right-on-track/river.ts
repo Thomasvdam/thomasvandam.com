@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Builders } from "./encounters";
-import { waterScene, type WaterScene } from "./motion";
+import { BRIDGE_HEIGHT, waterScene, type WaterScene } from "./motion";
 import { softenDistantShadows } from "./shadows";
 import { createBird, flapBird } from "./wildlife";
 
@@ -31,12 +31,18 @@ export function createRiverModel(builders: Builders) {
 	for (const side of [-1, 1]) box(river, bank, [0, -0.02, side * 10.6], [640, 0.16, 1.3]);
 	// The bridge is separate so it can follow the railway's local heading.
 	const bridge = new THREE.Group(); bridge.name = "bridge"; bridge.userData.moving = true; river.add(bridge);
-	box(bridge, stone, [0, 0.03, 0], [5.3, 0.12, 26]);
+	box(bridge, stone, [0, BRIDGE_HEIGHT - 0.2, 0], [5.3, 0.24, 26]);
 	for (const side of [-1, 1]) {
-		box(bridge, iron, [side * 2.65, 1.05, 0], [0.12, 0.15, 26]);
-		box(bridge, iron, [side * 2.65, 0.5, 0], [0.13, 0.13, 26]);
-		for (let z = -12; z <= 12; z += 3) box(bridge, iron, [side * 2.65, 0.55, z], [0.12, 1.1, 0.12]);
-		for (const z of [-8, 8]) box(bridge, stone, [side * 2, -0.7, z], [0.8, 1.5, 1]);
+		box(bridge, iron, [side * 2.65, BRIDGE_HEIGHT + 1.05, 0], [0.12, 0.15, 26]);
+		box(bridge, iron, [side * 2.65, BRIDGE_HEIGHT + 0.5, 0], [0.13, 0.13, 26]);
+		for (let z = -12; z <= 12; z += 3) box(bridge, iron, [side * 2.65, BRIDGE_HEIGHT + 0.55, z], [0.12, 1.1, 0.12]);
+		for (const z of [-11, 11]) box(bridge, stone, [side * 2, 0.95, z], [0.9, 2.7, 2]);
+		for (let i = 0; i < 20; i++) {
+			const z1 = -10 + i, z2 = z1 + 1;
+			const y1 = -0.05 + 1.95 * Math.sin(i / 20 * Math.PI), y2 = -0.05 + 1.95 * Math.sin((i + 1) / 20 * Math.PI);
+			const arch = box(bridge, stone, [side * 2, (y1 + y2) / 2, (z1 + z2) / 2], [0.8, 0.45, Math.hypot(1, y2 - y1) + 0.04]);
+			arch.rotation.x = -Math.atan2(y2 - y1, 1);
+		}
 	}
 	batch(bridge);
 	const models = {} as Record<WaterScene, THREE.Group>;

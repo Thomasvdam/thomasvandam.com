@@ -1,3 +1,5 @@
+import { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
+
 export type Meter = 3 | 4;
 export type Landscape = "forest" | "autumn";
 export type Phrase = { index: number; start: number; end: number; meter: Meter; landscape: Landscape; pattern: boolean[] };
@@ -68,9 +70,39 @@ export function phraseAt(run: Run, beat: number): Phrase {
 	}
 }
 
+// Sparse signals belong to phrases, so lookahead and replay agree.
+export function signalBeat(seed: number, index: number, start: number, meter: Meter) {
+	const hash = (Math.imul(seed ^ Math.imul(index + 1, 0x51ed270b), 0x27d4eb2d) >>> 0) / 4294967296;
+	if (index % 4 !== 1 || hash >= 0.45) return null;
+	const beat = start + meter * 2, distance = (beat + 4) * 6 + 4;
+	// Keep forks clear of river decks and their approach ramps.
+	for (let i = Math.max(0, Math.floor((distance - 43) / SCENERY_LENGTH)); i <= Math.floor((distance + 121) / SCENERY_LENGTH); i++) {
+		const encounter = encounterAt(seed, i);
+		if (encounter.kind === "river" && encounter.distance > distance - 43 && encounter.distance < distance + 121) return null;
+	}
+	return beat;
+}
+export function signalsAhead(run: Run, phase: number) {
+	const signals: number[] = [];
+	let phrase = phraseAt(run, Math.max(0, phase - 40));
+	while (phrase.start < phase + 64) {
+		const beat = signalBeat(run.seed, phrase.index, phrase.start, phrase.meter);
+		if (beat !== null) signals.push(beat);
+		phrase = phraseAt(run, phrase.end);
+	}
+	return signals;
+}
+export function activeSignal(run: Run, seconds = run.seconds) {
+	const phase = phaseAt(seconds);
+	const phrase = phraseAt(run, Math.max(0, phase));
+	const beat = signalBeat(run.seed, phrase.index, phrase.start, phrase.meter);
+	return beat !== null && seconds >= secondsAt(beat - 2) && seconds < secondsAt(beat + 0.75) ? beat : null;
+}
 export function needsTrack(run: Run, beat: number) {
 	if (beat < 0) return false;
 	const phrase = phraseAt(run, beat);
+	const signal = signalBeat(run.seed, phrase.index, phrase.start, phrase.meter);
+	if (signal !== null && beat >= signal - 2 && beat <= signal + 1) return false;
 	return phrase.pattern[beat - phrase.start];
 }
 
@@ -99,11 +131,12 @@ export type Run = {
 	checked: number;
 	score: number;
 	placed: Set<number>;
+	switches: Map<number, -1 | 1>;
 	reason: string;
 };
 
 export function newRun(seed = 0): Run {
-	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, placed: new Set(), reason: "" };
+	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, placed: new Set(), switches: new Map(), reason: "" };
 }
 
 export function advance(run: Run, seconds: number) {
@@ -117,13 +150,19 @@ export function advance(run: Run, seconds: number) {
 			return;
 		}
 		run.placed.delete(beat - 12);
-		for (const [start, phrase] of run.phrases) if (phrase.end < beat - 12) run.phrases.delete(start);
+		for (const signal of run.switches.keys()) if (signal < beat - 40) run.switches.delete(signal);
+		for (const [start, phrase] of run.phrases) if (phrase.end < beat - 48) run.phrases.delete(start);
 	}
 }
 
 export function layTrack(run: Run, seconds: number) {
 	advance(run, seconds);
 	if (run.mode !== "running") return;
+	const signal = activeSignal(run, seconds);
+	if (signal !== null) {
+		run.switches.set(signal, (run.switches.get(signal) ?? -1) === -1 ? 1 : -1);
+		return;
+	}
 	const beat = Math.round(phaseAt(seconds)) || 0;
 	if (run.placed.has(beat)) {
 		run.reason = "Double track. One piece was enough.";

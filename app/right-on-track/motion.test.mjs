@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { newRun } from "./rhythm.ts";
 import { expect, test } from "bun:test";
-import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
+import { forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, BRIDGE_HEIGHT, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
 
 test("visible trees move continuously across scenery wrap boundaries", () => {
 	const positions = (distance) => sceneryOffsets(distance).flatMap(offset =>
@@ -132,5 +132,33 @@ test("river and road clearance stays fixed in the world as the train moves", () 
 		expect(treeOnFeature(x, z + 15, distance, [river])).toBe(false);
 		expect(treeOnFeature(x, z, distance, [road])).toBe(true);
 		expect(treeOnFeature(x, z + 6, distance, [road])).toBe(false);
+	}
+});
+
+
+test("bridge ramps share a smooth world-space elevation with a flat supported deck", () => {
+	const river = encounterAt(7, 0);
+	expect(river.kind).toBe("river");
+	for (const offset of [-13, 0, 13]) expect(railwayHeight(7, river.distance + offset)).toBeCloseTo(BRIDGE_HEIGHT, 8);
+	for (const offset of [-44, 44]) expect(railwayHeight(7, river.distance + offset)).toBe(0);
+	for (let d = river.distance - 45; d < river.distance + 45; d += 0.2) {
+		expect(Math.abs(railwayHeight(7, d + 0.01) - railwayHeight(7, d))).toBeLessThan(0.002);
+		expect(Math.abs(railwayPitch(7, d))).toBeLessThan(0.13);
+	}
+	expect(railwayPitch(7, river.distance - 25)).toBeGreaterThan(0);
+	expect(railwayPitch(7, river.distance + 25)).toBeLessThan(0);
+});
+
+test("both fork routes rejoin smoothly and stay gentle enough for gap previews", () => {
+	const beat = 24, start = (beat + 5) * 6 + 4;
+	for (const side of [-1, 1]) {
+		const junctions = [{ beat, side }];
+		for (const d of [start - 1, start, start + 72, start + 73]) {
+			expect(forkOffset(d, beat)).toBeCloseTo(0, 8);
+			expect(routeCenter(d, junctions)).toBeCloseTo(trackCenter(d), 8);
+			expect(routeHeading(d, junctions)).toBeCloseTo(trackHeading(d), 3);
+		}
+		expect(routeCenter(start + 36, junctions) - trackCenter(start + 36)).toBeCloseTo(side * 4, 8);
+		for (let d = start; d <= start + 72; d++) expect(Math.abs(routeHeading(d, junctions))).toBeLessThan(0.28);
 	}
 });
