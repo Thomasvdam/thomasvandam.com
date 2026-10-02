@@ -1,3 +1,5 @@
+import { createAircraft, skyAt, animateAircraft } from "./aviation";
+import { animateFarmland } from "./farmland";
 import * as THREE from "three";
 import { branchLaid, activeSignal, signalsAhead, earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
@@ -12,10 +14,11 @@ import { createEncounterModels } from "./encounters";
 
 // Optional inspection keeps browser regressions on the actual production renderer.
 export type RailwayFrame = {
-	scene: THREE.Scene; renderer: THREE.WebGLRenderer; train: THREE.Group; carriedPiece: THREE.Group;
+	scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; train: THREE.Group; carriedPiece: THREE.Group;
 	sceneryTiles: THREE.Group[];
 	forks: { signal: THREE.Group; branches: { side: -1 | 1; pieces: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group }[] }[] }[];
 	encounters: { root: THREE.Group; models: ReturnType<typeof createEncounterModels> }[];
+	sky: { root: THREE.Group; models: ReturnType<typeof createAircraft> }[];
 };
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void, inspect?: (frame: RailwayFrame) => void) {
 	const scene = new THREE.Scene();
@@ -290,6 +293,12 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	bird.rotation.y = -Math.PI / 2;
 
 	const encounterModels = createEncounterModels(builders);
+	const aircraftModels = createAircraft(builders);
+	const skySlots = Array.from({ length: 4 }, () => {
+		const root = new THREE.Group(); scene.add(root);
+		const models = Object.fromEntries(Object.entries(aircraftModels).map(([kind, model]) => { const copy = model.clone(); root.add(copy); return [kind, copy]; })) as typeof aircraftModels;
+		return { root, models };
+	});
 	const riverPositions = { value: new THREE.Vector4(-10000, -10000, -10000, -10000) };
 	const treeActors: { tile: THREE.Group; actor: THREE.Object3D }[] = [];
 	for (const tile of sceneryTiles) tile.traverse(actor => { if (actor.userData.detailKind) treeActors.push({ tile, actor }); });
@@ -382,6 +391,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
 	let worldRun: Run | null = null;
+	const skyAnchors = new Map<number, number>();
 	const forestAnchors = new Map<number, number>(), encounterAnchors = new Map<number, { offset: number; heading: number }>();
 	const contextLost = (event: Event) => { event.preventDefault(); onUnavailable(); };
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
@@ -392,7 +402,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		const center = (d: number) => routeCenter(d, junctions, run.routeBase);
 		const heading = (d: number) => routeHeading(d, junctions, run.routeBase);
 		const position = (z: number) => center(distance - z) - center(distance);
-		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); worldRun = run; }
+		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); worldRun = run; }
 		const switching = activeSignal(run);
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
 		const bands = landscapeBands(run, phase);
@@ -493,17 +503,31 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		encounterSlots.forEach((slot, index) => {
 			const encounter = encounters[index];
 			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
-			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: (["crossing", "river"].includes(encounter.kind ?? "") ? center(encounter.distance) : roadsideCenter(encounter.distance, encounter.side as -1 | 1, junctions, run.routeBase)) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
+			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: (["crossing", "river"].includes(encounter.kind ?? "") ? center(encounter.distance) : roadsideCenter(encounter.distance, encounter.side as -1 | 1, junctions, run.routeBase, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 10, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 7)) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
 			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance), 0, distance - encounter.distance);
-			slot.root.rotation.y = encounter.kind === "crossing" ? (encounterAnchors.get(firstEncounter + index)?.heading ?? heading(encounter.distance)) : encounter.kind === "river" ? 0 : encounter.side * 0.25;
+			slot.root.rotation.y = encounter.kind === "crossing" ? (encounterAnchors.get(firstEncounter + index)?.heading ?? heading(encounter.distance)) : ["river", "crops", "cattle"].includes(encounter.kind ?? "") ? 0 : encounter.side * 0.25;
 			riverPositions.value.setComponent(index, encounter.kind === "river" ? distance - encounter.distance : -10000);
 			for (let car = 0; car < 3; car++) slot.models.crossing.getObjectByName(`waiting-car-${car}`)!.visible = car < encounter.cars;
 			const car = slot.models.crossing.getObjectByName("approach-car")!; car.visible = encounter.traffic;
 			const arrivalAge = run.seconds - secondsAt(Math.max(-4, (encounter.distance - 28) / TRACK_LENGTH - 16));
 			car.position.set(approachCar(reducedMotion ? 7 : arrivalAge), 0, -0.9);
 			slot.models.river.getObjectByName("bridge")!.rotation.y = heading(encounter.distance);
+			animateFarmland(slot.models, encounter.detail, run.seconds, reducedMotion);
 			animateRiver(slot.models.river, encounter.detail, run.seconds, encounter.distance - distance, encounter.side, reducedMotion);
 		});
+		skySlots.forEach((slot, index) => {
+			const event = skyAt(run.seed, firstEncounter + index);
+			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === event.kind;
+			if (!event.kind) return;
+			if (!skyAnchors.has(firstEncounter + index)) skyAnchors.set(firstEncounter + index, center(event.distance));
+			const age = run.seconds - secondsAt(event.distance / TRACK_LENGTH - 4);
+			const drift = reducedMotion ? 0 : event.kind === "balloon" ? Math.sin(run.seconds * 0.07 + event.detail % 8) * 6 : age * (event.kind === "jet" ? 9 : 5);
+			slot.root.position.set(skyAnchors.get(firstEncounter + index)! - center(distance) + event.side * (16 + drift), event.kind === "balloon" ? 10 : 16, distance - event.distance);
+			slot.root.visible = Math.abs(slot.root.position.x) < 180;
+			slot.root.rotation.y = event.kind === "balloon" ? 0 : -event.side * Math.PI / 2;
+			animateAircraft(slot.models[event.kind], event.kind, run.seconds, reducedMotion);
+		});
+		for (const index of skyAnchors.keys()) if (index < firstEncounter - 2) skyAnchors.delete(index);
 		const encounterClearance = encounters.map((encounter, index) => ({ ...encounter, x: encounterSlots[index].root.position.x, heading: encounterSlots[index].root.rotation.y }));
 		for (const index of encounterAnchors.keys()) if (index < firstEncounter - 2) encounterAnchors.delete(index);
 		// Each tree keeps the landscape of its world position as it approaches.
@@ -561,7 +585,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		});
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);
-		inspect?.({ scene, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots });
+		inspect?.({ scene, camera, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots });
 	});
 	return () => {
 		observer.disconnect(); renderer.setAnimationLoop(null);

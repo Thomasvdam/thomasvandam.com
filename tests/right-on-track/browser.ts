@@ -1,3 +1,5 @@
+import { animateAircraft, skyAt } from "../../app/right-on-track/aviation";
+import { animateFarmland, cropVariant, farmMachine, pastureVariant } from "../../app/right-on-track/farmland";
 import * as THREE from "three";
 import { createRailway, type RailwayFrame } from "../../app/right-on-track/railway";
 import { advance, layTrack, needsTrack, newRun, secondsAt, signalsAhead, tolerance } from "../../app/right-on-track/rhythm";
@@ -33,6 +35,7 @@ function geometry(frame: RailwayFrame) {
 	const transforms: number[] = [];
 	const append = (object: THREE.Object3D) => transforms.push(...object.position.toArray(), ...object.rotation.toArray().slice(0, 3) as number[], ...object.scale.toArray());
 	for (const branch of frame.forks[0].branches) for (const piece of branch.pieces) append(piece.group);
+	for (const sky of frame.sky) if (sky.root.visible && sky.root.position.z > -170 && sky.root.position.z < 35) append(sky.root);
 	for (const encounter of frame.encounters) if (encounter.root.position.z > -170 && encounter.root.position.z < 35) append(encounter.root);
 	for (const tile of frame.sceneryTiles) {
 		append(tile);
@@ -146,6 +149,50 @@ async function main() {
 				found.add(kind); screenshot(`river-${kind}`);
 			}
 			assert(found.size === 7, "Missing river variants");
+		});
+		await test("all crop/machine and livestock combinations render with field clearance", () => {
+			const found = new Set<string>();
+			for (let seed = 0; seed < 10000 && found.size < 12; seed++) {
+				const event = encounterAt(seed, 0);
+				if (event.kind !== "crops" && event.kind !== "cattle") continue;
+				const variant = event.kind === "crops" ? `crops-${cropVariant(event.detail)}-${farmMachine(event.detail)}` : `cattle-${pastureVariant(event.detail)}`;
+				if (found.has(variant)) continue;
+				run = newRun(seed); const frame = render((event.distance - 35) / 6 - 4), slot = frame.encounters[0];
+				assert(slot.models[event.kind].visible, "Field not visible");
+				assert(Math.abs(slot.root.position.x) >= 16, "Field too close to rails");
+				if (event.kind === "crops") {
+					assert(slot.models.crops.getObjectByName(`crop-${cropVariant(event.detail)}`)!.visible, "Wrong crop variant");
+					assert(slot.models.crops.getObjectByName("tractor")!.visible === (farmMachine(event.detail) === 1), "Wrong tractor visibility");
+					assert(slot.models.crops.getObjectByName("combine")!.visible === (farmMachine(event.detail) === 2), "Wrong combine visibility");
+				} else {
+					assert(slot.models.cattle.getObjectByName(`herd-${pastureVariant(event.detail)}`)!.visible, "Wrong herd variant");
+					const fencePieces = slot.models.cattle.children.reduce((count, object) => count + (object instanceof THREE.InstancedMesh ? object.count : 0), 0);
+					assert(fencePieces > 30, "Fence instances lost during batching");
+				}
+				animateFarmland(slot.models, event.detail, run.seconds, true);
+				assert(slot.models.crops.getObjectByName("tractor")!.position.z === -1 && slot.models.crops.getObjectByName("combine")!.position.z === -1, "Reduced motion machinery still moving");
+				render((event.distance - 35) / 6 - 4);
+				found.add(variant); screenshot(variant);
+			}
+			assert(found.size === 12, "Missing farm combinations");
+		});
+		await test("balloon and all aircraft variants render and animate", () => {
+			const found = new Set<string>();
+			for (let seed = 0; seed < 10000 && found.size < 4; seed++) {
+				const event = skyAt(seed, 0); if (!event.kind || found.has(event.kind)) continue;
+				run = newRun(seed); const frame = render((event.distance - 35) / 6 - 4), slot = frame.sky[0];
+				assert(slot.root.visible && slot.models[event.kind].visible, "Aircraft not visible");
+				const bounds = new THREE.Box3().setFromObject(slot.models[event.kind]), center = bounds.getCenter(new THREE.Vector3()).project(frame.camera);
+				assert(Math.abs(center.x) < 0.95 && Math.abs(center.y) < 0.95 && center.z < 1, "Sky decoration outside camera view");
+				animateAircraft(slot.models[event.kind], event.kind, run.seconds, true);
+				const propeller = slot.models[event.kind].getObjectByName("propeller");
+				assert(!propeller || propeller.rotation.z === 0, "Reduced motion propeller still spinning");
+				const x = slot.root.position.x; render((event.distance - 34) / 6 - 4);
+				assert(slot.root.position.x !== x, "Aircraft/world movement stalled");
+				if (event.kind === "banner") assert(slot.models.banner.getObjectByName("banner-cloth"), "Banner missing");
+				found.add(event.kind); screenshot(`sky-${event.kind}`);
+			}
+			assert(found.size === 4, "Missing sky variants");
 		});
 		await test("steam chuffs are scheduled, audible, bounded and silent after their envelopes", async () => {
 			const data = await soundBuffer();

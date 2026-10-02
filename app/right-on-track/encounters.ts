@@ -1,3 +1,4 @@
+import { createFarmland } from "./farmland";
 import * as THREE from "three";
 import { createRiverModel } from "./river";
 import type { EncounterKind } from "./motion";
@@ -95,5 +96,6 @@ export function createEncounterModels(builders: Builders) {
 		}
 	}
 	for (const model of Object.values(models)) batch(model);
+	Object.assign(models, createFarmland(builders));
 	return models;
 }
