@@ -17,3 +17,17 @@ export function createSignal({ material, box, cylinder, sphere, cone, batch }: B
 	}
 	batch(root); return root;
 }
+
+type Shader = Parameters<THREE.MeshStandardMaterial["onBeforeCompile"]>[0];
+export function cutForkBallast(shader: Shader, starts: { value: THREE.Vector4 }) {
+	shader.uniforms.forkStarts = starts;
+	shader.fragmentShader = "uniform vec4 forkStarts;\n" + shader.fragmentShader;
+	shader.fragmentShader = shader.fragmentShader.replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
+		for (int i = 0; i < 4; i++) if (shadowWorldPosition.z <= forkStarts[i] + 3.0 && shadowWorldPosition.z >= forkStarts[i] - 237.0) discard;`);
+}
+export function fadeForkEdges(shader: Shader) {
+	shader.fragmentShader = shader.fragmentShader.replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
+		float branchEdge = smoothstep(36.0, 52.0, abs(shadowWorldPosition.x));
+		float branchPixel = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
+		if (branchPixel < branchEdge) discard;`);
+}

@@ -76,9 +76,9 @@ export function signalBeat(seed: number, index: number, start: number, meter: Me
 	if (index % 4 !== 1 || hash >= 0.45) return null;
 	const beat = start + meter * 2, distance = (beat + 4) * 6 + 4;
 	// Keep forks clear of river decks and their approach ramps.
-	for (let i = Math.max(0, Math.floor((distance - 43) / SCENERY_LENGTH)); i <= Math.floor((distance + 121) / SCENERY_LENGTH); i++) {
+	for (let i = Math.max(0, Math.floor((distance - 43) / SCENERY_LENGTH)); i <= Math.floor((distance + 283) / SCENERY_LENGTH); i++) {
 		const encounter = encounterAt(seed, i);
-		if (encounter.kind === "river" && encounter.distance > distance - 43 && encounter.distance < distance + 121) return null;
+		if (encounter.kind === "river" && encounter.distance > distance - 43 && encounter.distance < distance + 283) return null;
 	}
 	return beat;
 }
@@ -87,7 +87,7 @@ export function signalsAhead(run: Run, phase: number) {
 	let phrase = phraseAt(run, Math.max(0, phase - 40));
 	while (phrase.start < phase + 64) {
 		const beat = signalBeat(run.seed, phrase.index, phrase.start, phrase.meter);
-		if (beat !== null) signals.push(beat);
+		if (beat !== null && beat > run.routeThrough) signals.push(beat);
 		phrase = phraseAt(run, phrase.end);
 	}
 	return signals;
@@ -125,18 +125,21 @@ export type Run = {
 	phrases: Map<number, Phrase>;
 	generatedThrough: number;
 	generatedIndex: number;
-	placement: { beat: number; seconds: number } | null;
+	placement: { beat: number; seconds: number; side: -1 | 1 | null } | null;
 	mode: "ready" | "running" | "paused" | "crashed";
 	seconds: number;
 	checked: number;
 	score: number;
 	placed: Set<number>;
+	placedSides: Map<number, -1 | 1>;
+	routeBase: number;
+	routeThrough: number;
 	switches: Map<number, -1 | 1>;
 	reason: string;
 };
 
 export function newRun(seed = 0): Run {
-	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, placed: new Set(), switches: new Map(), reason: "" };
+	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, placed: new Set(), placedSides: new Map(), routeBase: 0, routeThrough: -1, switches: new Map(), reason: "" };
 }
 
 export function advance(run: Run, seconds: number) {
@@ -150,7 +153,16 @@ export function advance(run: Run, seconds: number) {
 			return;
 		}
 		run.placed.delete(beat - 12);
-		for (const signal of run.switches.keys()) if (signal < beat - 40) run.switches.delete(signal);
+		run.placedSides.delete(beat - 12);
+		const oldBeat = beat - 40;
+		if (oldBeat >= 0) {
+			const oldPhrase = phraseAt(run, oldBeat);
+			const signal = signalBeat(run.seed, oldPhrase.index, oldPhrase.start, oldPhrase.meter);
+			if (signal === oldBeat) {
+				run.routeBase += (run.switches.get(signal) ?? -1) * 24;
+				run.routeThrough = signal; run.switches.delete(signal);
+			}
+		}
 		for (const [start, phrase] of run.phrases) if (phrase.end < beat - 48) run.phrases.delete(start);
 	}
 }
@@ -173,10 +185,19 @@ export function layTrack(run: Run, seconds: number) {
 	} else {
 		run.placed.add(beat);
 		run.score++;
-		run.placement = { beat, seconds };
+		const branch = branchForBeat(run, beat);
+		if (branch !== null) run.placedSides.set(beat, run.switches.get(branch) ?? -1);
+		run.placement = { beat, seconds, side: branch === null ? null : run.switches.get(branch) ?? -1 };
 		return;
 	}
 	run.mode = "crashed";
+}
+
+export function branchForBeat(run: Run, beat: number) {
+	return signalsAhead(run, beat).find(signal => beat >= signal + 1 && beat <= signal + 40) ?? null;
+}
+export function branchLaid(run: Run, beat: number, side: -1 | 1) {
+	return !needsTrack(run, beat) || (run.placed.has(beat) && run.placedSides.get(beat) === side);
 }
 
 // Decorative railway speed, independent of the world-unit scale.

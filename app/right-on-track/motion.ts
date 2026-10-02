@@ -76,13 +76,13 @@ export function waterScene(detail: number): WaterScene {
 	return random < 0.02 ? "ness" : random < 0.18 ? "cargo" : random < 0.34 ? "sail" : random < 0.5 ? "floaty" : random < 0.7 ? "ducks" : random < 0.85 ? "landing" : "takeoff";
 }
 
-export function treeOnFeature(x: number, z: number, distance: number, encounters: ReturnType<typeof encounterAt>[]) {
+export function treeOnFeature(x: number, z: number, distance: number, encounters: (ReturnType<typeof encounterAt> & { x?: number; heading?: number })[]) {
 	return encounters.some(encounter => {
 		const dz = z - (distance - encounter.distance);
 		if (encounter.kind === "river") return Math.abs(dz) < 13;
 		if (encounter.kind !== "crossing") return false;
-		const heading = trackHeading(encounter.distance);
-		const dx = x - (trackCenter(encounter.distance) - trackCenter(distance));
+		const heading = encounter.heading ?? trackHeading(encounter.distance);
+		const dx = x - (encounter.x ?? trackCenter(encounter.distance) - trackCenter(distance));
 		return Math.abs(Math.sin(heading) * dx + Math.cos(heading) * dz) < 3.2;
 	});
 }
@@ -105,32 +105,31 @@ export function railwayPitch(seed: number, distance: number) {
 }
 
 export type Junction = { beat: number; side: -1 | 1 };
+export const FORK_OFFSET = 24;
+export const FORK_LENGTH = 240;
 export function forkOffset(distance: number, beat: number) {
-	// The chosen route bends gently without moving the distant gap preview.
 	const start = (beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
-	const progress = Math.max(0, Math.min(1, (distance - start) / 72));
-	return 4 * Math.sin(progress * Math.PI) ** 2;
+	const progress = Math.max(0, Math.min(1, (distance - start) / 108));
+	return FORK_OFFSET * progress * progress * (3 - 2 * progress);
 }
-export function routeCenter(distance: number, junctions: Junction[]) {
-	return trackCenter(distance) + junctions.reduce((offset, junction) => offset + junction.side * forkOffset(distance, junction.beat), 0);
+export function routeCenter(distance: number, junctions: Junction[], base = 0) {
+	return trackCenter(distance) + base + junctions.reduce((offset, junction) => offset + junction.side * forkOffset(distance, junction.beat), 0);
 }
-export function routeHeading(distance: number, junctions: Junction[]) {
-	return -Math.atan((routeCenter(distance + 0.1, junctions) - routeCenter(distance - 0.1, junctions)) / 0.2);
+export function routeHeading(distance: number, junctions: Junction[], base = 0) {
+	return -Math.atan((routeCenter(distance + 0.1, junctions, base) - routeCenter(distance - 0.1, junctions, base)) / 0.2);
 }
-
-// The unused route keeps diverging until it is well outside the camera's view.
-export function unusedBranchOffset(distance: number, beat: number) {
-	const start = (beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
-	const progress = Math.max(0, (distance - start) / 144);
-	return 80 * progress * progress;
+// Branch side is physical; selection never changes either branch's geometry.
+export function fixedBranchCenter(distance: number, junction: Junction, side: -1 | 1, junctions: Junction[], base = 0) {
+	return routeCenter(distance, junctions, base) + (side - junction.side) * forkOffset(distance, junction.beat);
 }
-
-export function treeOnUnusedBranch(x: number, z: number, distance: number, junctions: Junction[]) {
-	const world = distance - z;
-	return junctions.some(junction => {
+export function forkAtDistance(distance: number, junctions: Junction[]) {
+	return junctions.find(junction => {
 		const start = (junction.beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
-		if (world < start - 3 || world > start + 240) return false;
-		const branch = routeCenter(world, junctions) - junction.side * (forkOffset(world, junction.beat) + unusedBranchOffset(world, junction.beat)) - routeCenter(distance, junctions);
-		return Math.abs(x - branch) < 4;
-	});
+		return distance >= start - 3 && distance <= start + FORK_LENGTH - 3;
+	}) ?? null;
+}
+export function treeOnFork(x: number, z: number, distance: number, junctions: Junction[], base = 0) {
+	const world = distance - z, junction = forkAtDistance(world, junctions);
+	if (!junction) return false;
+	return ([-1, 1] as const).some(side => Math.abs(x - (fixedBranchCenter(world, junction, side, junctions, base) - routeCenter(distance, junctions, base))) < 4);
 }
