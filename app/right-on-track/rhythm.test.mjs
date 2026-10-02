@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance } from "./rhythm.ts";
+import { advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
 
 const start = () => ({ ...newRun(), mode: "running" });
 
@@ -143,7 +143,7 @@ describe("railway rhythm", () => {
 
 	test("tempo increases continuously and caps at 180 BPM", () => {
 		expect(tempo(0)).toBe(95);
-		expect(tempo(100)).toBe(111);
+		expect(tempo(100)).toBe(119);
 		expect(tempo(10000)).toBe(180);
 	});
 
@@ -154,3 +154,5 @@ describe("railway rhythm", () => {
 		expect(run.score).toBe(0);
 	});
 });
+
+test("decorative speed rises in km/h and stays capped", () => { expect(trainSpeed(0)).toBe(28); expect(trainSpeed(60)).toBe(40); expect(trainSpeed(10000)).toBe(96); });

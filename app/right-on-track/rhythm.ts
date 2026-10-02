@@ -31,7 +31,7 @@ export function generatePhrase(seed: number, phrase: number, meter: Meter = phra
 }
 export const START_BPM = 95;
 export const MAX_BPM = 180;
-const ACCELERATION = 0.16; // BPM per second, continuous across bar boundaries.
+const ACCELERATION = 0.24; // BPM per second, continuous across bar boundaries.
 const RAMP_SECONDS = (MAX_BPM - START_BPM) / ACCELERATION;
 const RAMP_BEATS = (START_BPM * RAMP_SECONDS + ACCELERATION * RAMP_SECONDS ** 2 / 2) / 60;
 
@@ -138,4 +138,9 @@ export function layTrack(run: Run, seconds: number) {
 		return;
 	}
 	run.mode = "crashed";
+}
+
+// Decorative railway speed, independent of the world-unit scale.
+export function trainSpeed(seconds: number) {
+	return Math.round(28 + (tempo(seconds) - START_BPM) * 0.8);
 }

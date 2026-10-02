@@ -1,10 +1,12 @@
 import * as THREE from "three";
 import { earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
-import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
+import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
 
 import { createHorizon } from "./horizon";
 import { configureRailwayShadows, softenDistantShadows, fadeDistantScenery } from "./shadows";
+import { createTreeDetails, animateTreeDetail } from "./wildlife";
+import { cutRiverTerrain, animateRiver } from "./river";
 import { createEncounterModels } from "./encounters";
 
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void) {
@@ -90,6 +92,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 				item.removeFromParent();
 			});
 			instance.userData.treeRoots = items.map(item => item.userData.treeZ);
+			instance.userData.treeRootsX = items.map(item => item.userData.treeX);
 			instance.castShadow = true; instance.receiveShadow = true; parent.add(instance);
 		}
 	}
@@ -150,6 +153,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const jacket = material("#c98745"); const trousers = material("#35546a");
 	const skin = material("#d7ac89"); const gloves = material("#e8ddbc");
 	const sphere = (parent: THREE.Object3D, surface: THREE.Material, position: number[], scale: number[]) => mesh(parent, sphereGeometry, surface, position, scale);
+	const cone = (parent: THREE.Object3D, surface: THREE.Material, position: number[], scale: number[]) => mesh(parent, coneGeometry, surface, position, scale);
 	for (const x of [-0.22, 0.22]) {
 		cylinder(engineer, trousers, [x, 0.38, 0.06], [0.17, 0.72, 0.17]);
 		box(engineer, iron, [x, 0.06, -0.13], [0.38, 0.19, 0.64]);
@@ -190,13 +194,15 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const deadWood = material("#81705b"); const moss = material("#66854c");
 	const mushroomStem = material("#d6cab1"); const mushroomCap = material("#bb694e");
 	const bearFur = material("#6c4933"); const bearMuzzle = material("#bd9670");
+	const builders = { material, box, sphere, cylinder, cone, batch, textures };
+	const treeDetails = createTreeDetails(builders);
 	const scenery = new THREE.Group(); scene.add(scenery);
 	for (let i = 0; i < 60; i++) {
 		const tree = new THREE.Group();
 		const height = 6 + (Math.sin(i * 12.1) + 1) * 5;
 		tree.position.set((i % 2 ? -1 : 1) * (16 + (i * 17 % 32)), 0, -(i * 13 % 220));
 		const dead = i % 19 === 7;
-		const leafy = i % 5 === 2;
+		const leafy = i % 5 === 2 || i % 31 === 15;
 		const trunk = dead ? deadWood : leafy ? paleBark : bark;
 		cylinder(tree, trunk, [0, height / 3, 0], [leafy ? 0.3 : 0.22, height * 0.65, leafy ? 0.3 : 0.22]);
 		if (dead) {
@@ -233,20 +239,30 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		if (i === 21) {
 			const log = cylinder(tree, deadWood, [1.2, 0.25, 1], [0.24, 2.8, 0.24], "z"); log.rotation.y = 0.5;
 		}
-		tree.traverse(item => { if (item instanceof THREE.Mesh) item.userData.treeZ = tree.position.z; });
+		if (!dead) {
+			const kind = i % 29 === 9 ? "squirrel" : i % 31 === 15 ? "nest" : i % 47 === 23 ? "flock" : null;
+			if (kind) {
+				tree.position.x = Math.sign(tree.position.x) * (16 + i % 3 * 2);
+				const detail = treeDetails[kind].clone(); detail.userData.detailKind = kind;
+				detail.userData.treeZ = tree.position.z; detail.userData.treeIndex = i; detail.userData.visitor = i % 2 === 1;
+				detail.position.set(kind === "nest" ? 0.8 : kind === "flock" ? 1.5 : 0, kind === "nest" ? height * 0.3 : 0, kind === "squirrel" ? 0.3 : 0);
+				tree.add(detail);
+			}
+		}
+		tree.traverse(item => { if (item instanceof THREE.Mesh) item.userData.treeZ = tree.position.z; item.userData.treeX = tree.position.x; });
 		scenery.add(tree);
 	}
 	batch(scenery);
 	const sceneryTiles = [scenery.clone(), scenery, scenery.clone()];
 	scene.add(sceneryTiles[0], sceneryTiles[2]);
-	const foliage: { tile: THREE.Group; mesh: THREE.InstancedMesh; roots: number[]; matrices: THREE.Matrix4[] }[] = [];
+	const foliage: { tile: THREE.Group; mesh: THREE.InstancedMesh; roots: number[]; rootsX: number[]; matrices: THREE.Matrix4[] }[] = [];
 	for (const tile of sceneryTiles) tile.traverse(object => {
-		if (!(object instanceof THREE.InstancedMesh) || ![green, autumnLeaves, broadLeaf].includes(object.material as THREE.MeshStandardMaterial)) return;
+		if (!(object instanceof THREE.InstancedMesh) || !object.userData.treeRoots || object.userData.treeRoots.some((root: unknown) => typeof root !== "number")) return;
 		const matrices = Array.from({ length: object.count }, (_, index) => {
 			const matrix = new THREE.Matrix4(); object.getMatrixAt(index, matrix); return matrix;
 		});
 		object.computeBoundingSphere();
-		foliage.push({ tile, mesh: object, roots: object.userData.treeRoots, matrices });
+		foliage.push({ tile, mesh: object, roots: object.userData.treeRoots, rootsX: object.userData.treeRootsX, matrices });
 	});
 	green.transparent = false; autumnLeaves.transparent = false; autumnLeaves.opacity = 1; broadLeaf.color.set("#ffffff");
 	const bird = new THREE.Group(); scene.add(bird); bird.visible = false;
@@ -261,7 +277,10 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	});
 	bird.rotation.y = -Math.PI / 2;
 
-	const encounterModels = createEncounterModels({ material, box, sphere, cylinder, batch });
+	const encounterModels = createEncounterModels(builders);
+	const riverPositions = { value: new THREE.Vector4(-10000, -10000, -10000, -10000) };
+	const treeActors: { tile: THREE.Group; actor: THREE.Object3D }[] = [];
+	for (const tile of sceneryTiles) tile.traverse(actor => { if (actor.userData.detailKind) treeActors.push({ tile, actor }); });
 	const encounterSlots = Array.from({ length: 4 }, () => {
 		const root = new THREE.Group(); scene.add(root);
 		const models = Object.fromEntries(Object.entries(encounterModels).map(([kind, model]) => {
@@ -304,7 +323,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const terrainInitial = { value: 0 };
 	groundMaterial.color.set("#ffffff");
 	groundMaterial.onBeforeCompile = shader => {
-		softenDistantShadows(shader);
+		softenDistantShadows(shader); cutRiverTerrain(shader, riverPositions);
 		shader.uniforms.terrainBands = terrainBands; shader.uniforms.terrainInitial = terrainInitial;
 		shader.uniforms.forestGround = { value: forestGround }; shader.uniforms.autumnGround = { value: autumnGround };
 		shader.vertexShader = "varying float terrainZ;\n" + shader.vertexShader;
@@ -318,7 +337,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			}
 			diffuseColor.rgb *= mix(forestGround, autumnGround, autumn);`);
 	};
-	ballast.onBeforeCompile = softenDistantShadows;
+	ballast.onBeforeCompile = shader => { softenDistantShadows(shader); cutRiverTerrain(shader, riverPositions); };
 	const sky = forestSky.clone();
 	const foliageMatrix = new THREE.Matrix4(); const foliageScale = new THREE.Vector3(); const foliageColor = new THREE.Color();
 	const resize = () => {
@@ -383,25 +402,38 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		ballastVertices.needsUpdate = true;
 		target.position.x = trackPosition(distance, PLACEMENT_Z); target.rotation.y = trackHeading(distance - PLACEMENT_Z);
 		const firstEncounter = Math.max(0, Math.floor((distance - 45) / SCENERY_LENGTH));
+		const encounters = encounterSlots.map((_, index) => encounterAt(run.seed, firstEncounter + index));
 		encounterSlots.forEach((slot, index) => {
-			const encounter = encounterAt(run.seed, firstEncounter + index);
+			const encounter = encounters[index];
 			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
-			slot.root.position.set(trackCenter(encounter.distance) - trackCenter(distance) + (encounter.kind === "crossing" ? 0 : encounter.side * 10), 0, distance - encounter.distance);
-			slot.root.rotation.y = encounter.kind === "crossing" ? trackHeading(encounter.distance) : encounter.side * 0.25;
+			slot.root.position.set(trackCenter(encounter.distance) - trackCenter(distance) + (["crossing", "river"].includes(encounter.kind ?? "") ? 0 : encounter.side * 10), 0, distance - encounter.distance);
+			slot.root.rotation.y = encounter.kind === "crossing" ? trackHeading(encounter.distance) : encounter.kind === "river" ? 0 : encounter.side * 0.25;
+			riverPositions.value.setComponent(index, encounter.kind === "river" ? distance - encounter.distance : -10000);
 			for (let car = 0; car < 3; car++) slot.models.crossing.getObjectByName(`waiting-car-${car}`)!.visible = car < encounter.cars;
+			const car = slot.models.crossing.getObjectByName("approach-car")!; car.visible = encounter.traffic;
+			const arrivalAge = run.seconds - secondsAt(Math.max(-4, (encounter.distance - 28) / TRACK_LENGTH - 16));
+			car.position.set(approachCar(reducedMotion ? 7 : arrivalAge), 0, -0.9);
+			slot.models.river.getObjectByName("bridge")!.rotation.y = trackHeading(encounter.distance);
+			animateRiver(slot.models.river, encounter.detail, run.seconds, encounter.distance - distance, encounter.side, reducedMotion);
 		});
 		// Each tree keeps the landscape of its world position as it approaches.
 		for (const item of foliage) {
 			item.matrices.forEach((matrix, index) => {
 				const z = item.tile.position.z + item.roots[index];
 				const blend = landscapeBlend(bands, phase + (PLACEMENT_Z - z) / TRACK_LENGTH);
-				const scale = item.mesh.material === green ? 1 - blend : item.mesh.material === autumnLeaves ? blend : 1;
+				const overRiver = treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounters);
+				const scale = overRiver ? 0 : item.mesh.material === green ? 1 - blend : item.mesh.material === autumnLeaves ? blend : 1;
 				foliageScale.setScalar(Math.max(0.001, scale));
 				foliageMatrix.copy(matrix).scale(foliageScale); item.mesh.setMatrixAt(index, foliageMatrix);
 				if (item.mesh.material === broadLeaf) item.mesh.setColorAt(index, foliageColor.copy(forestLeaf).lerp(autumnLeaf, blend));
 			});
 			item.mesh.instanceMatrix.needsUpdate = true;
 			if (item.mesh.instanceColor) item.mesh.instanceColor.needsUpdate = true;
+		}
+		for (const { tile, actor } of treeActors) {
+			const z = tile.position.z + actor.userData.treeZ;
+			actor.visible = !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounters);
+			if (actor.visible) animateTreeDetail(actor, actor.userData.detailKind, run.seconds, -z, reducedMotion);
 		}
 		// Positive UV scrolling moves texture features toward +Z with the sleepers.
 		groundMaterial.map!.offset.y = surfaceOffset(distance, 90, 600);
