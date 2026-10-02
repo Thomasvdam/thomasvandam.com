@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { branchLaid, activeSignal, signalsAhead, earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
-import { treeOnFork, forkAtDistance, fixedBranchCenter, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
+import { roadsideCenter, treeOnFork, forkAtDistance, fixedBranchCenter, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
 
 import { createHorizon } from "./horizon";
 import { configureRailwayShadows, softenDistantShadows, fadeDistantScenery } from "./shadows";
@@ -486,8 +486,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		encounterSlots.forEach((slot, index) => {
 			const encounter = encounters[index];
 			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
-			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: center(encounter.distance) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
-			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance) + (["crossing", "river"].includes(encounter.kind ?? "") ? 0 : encounter.side * 10), 0, distance - encounter.distance);
+			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: (["crossing", "river"].includes(encounter.kind ?? "") ? center(encounter.distance) : roadsideCenter(encounter.distance, encounter.side as -1 | 1, junctions, run.routeBase)) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
+			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance), 0, distance - encounter.distance);
 			slot.root.rotation.y = encounter.kind === "crossing" ? (encounterAnchors.get(firstEncounter + index)?.heading ?? heading(encounter.distance)) : encounter.kind === "river" ? 0 : encounter.side * 0.25;
 			riverPositions.value.setComponent(index, encounter.kind === "river" ? distance - encounter.distance : -10000);
 			for (let car = 0; car < 3; car++) slot.models.crossing.getObjectByName(`waiting-car-${car}`)!.visible = car < encounter.cars;

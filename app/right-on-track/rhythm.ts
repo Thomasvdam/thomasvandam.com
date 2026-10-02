@@ -1,3 +1,4 @@
+import { FORK_OFFSET } from "./fork-config";
 import { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
 
 export type Meter = 3 | 4;
@@ -75,10 +76,10 @@ export function signalBeat(seed: number, index: number, start: number, meter: Me
 	const hash = (Math.imul(seed ^ Math.imul(index + 1, 0x51ed270b), 0x27d4eb2d) >>> 0) / 4294967296;
 	if (index % 4 !== 1 || hash >= 0.45) return null;
 	const beat = start + meter * 2, distance = (beat + 4) * 6 + 4;
-	// Keep forks clear of river decks and their approach ramps.
+	// Keep forks clear of river ramps and crossing gates/cars.
 	for (let i = Math.max(0, Math.floor((distance - 43) / SCENERY_LENGTH)); i <= Math.floor((distance + 283) / SCENERY_LENGTH); i++) {
 		const encounter = encounterAt(seed, i);
-		if (encounter.kind === "river" && encounter.distance > distance - 43 && encounter.distance < distance + 283) return null;
+		if ((encounter.kind === "river" || encounter.kind === "crossing") && encounter.distance > distance - 43 && encounter.distance < distance + 283) return null;
 	}
 	return beat;
 }
@@ -103,6 +104,7 @@ export function needsTrack(run: Run, beat: number) {
 	const phrase = phraseAt(run, beat);
 	const signal = signalBeat(run.seed, phrase.index, phrase.start, phrase.meter);
 	if (signal !== null && beat >= signal - 2 && beat <= signal + 1) return false;
+	if (signal !== null && beat === signal + 2) return true;
 	return phrase.pattern[beat - phrase.start];
 }
 
@@ -159,7 +161,7 @@ export function advance(run: Run, seconds: number) {
 			const oldPhrase = phraseAt(run, oldBeat);
 			const signal = signalBeat(run.seed, oldPhrase.index, oldPhrase.start, oldPhrase.meter);
 			if (signal === oldBeat) {
-				run.routeBase += (run.switches.get(signal) ?? -1) * 24;
+				run.routeBase += (run.switches.get(signal) ?? -1) * FORK_OFFSET;
 				run.routeThrough = signal; run.switches.delete(signal);
 			}
 		}
