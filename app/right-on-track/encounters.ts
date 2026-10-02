@@ -1,15 +1,18 @@
 import * as THREE from "three";
+import { createRiverModel } from "./river";
 import type { EncounterKind } from "./motion";
 
 type Shape = (parent: THREE.Object3D, surface: THREE.Material, position: number[], scale: number[]) => THREE.Mesh;
-type Builders = {
+export type Builders = {
+	textures: THREE.Texture[];
 	material: (color: string, metalness?: number, roughness?: number) => THREE.MeshStandardMaterial;
-	box: Shape; sphere: Shape;
+	box: Shape; sphere: Shape; cone: Shape;
 	cylinder: (parent: THREE.Object3D, surface: THREE.Material, position: number[], scale: number[], axis?: "x" | "z" | "y") => THREE.Mesh;
 	batch: (parent: THREE.Object3D) => void;
 };
 
-export function createEncounterModels({ material, box, sphere, cylinder, batch }: Builders) {
+export function createEncounterModels(builders: Builders) {
+	const { material, box, sphere, cylinder, batch } = builders;
 	const timber = material("#806348"), roof = material("#474e4b"), dark = material("#242c2d"), cream = material("#e0d8bc");
 	const skin = material("#c99c77"), plaid = material("#9e4b38"), denim = material("#374d62"), cutWood = material("#cda56c");
 	const silver = material("#a6acab", 0.6, 0.4), road = material("#5e625c"), white = material("#e7e6da");
@@ -47,10 +50,10 @@ export function createEncounterModels({ material, box, sphere, cylinder, batch }
 	box(lumberjack, silver, [-1.32, 1.7, 0], [0.45, 0.28, 0.07]);
 
 	const crossing = new THREE.Group(); models.crossing = crossing;
-	box(crossing, road, [0, 0.075, 0], [54, 0.08, 4.2]);
+	box(crossing, road, [0, 0.075, 0], [640, 0.08, 4.2]);
 	for (const side of [-1, 1]) {
-		box(crossing, cream, [side * 14, 0.12, -1.8], [24, 0.02, 0.08]);
-		box(crossing, cream, [side * 14, 0.12, 1.8], [24, 0.02, 0.08]);
+		box(crossing, cream, [side * 163, 0.12, -1.8], [314, 0.02, 0.08]);
+		box(crossing, cream, [side * 163, 0.12, 1.8], [314, 0.02, 0.08]);
 		cylinder(crossing, silver, [side * 4.2, 1.6, -2.4], [0.11, 3.2, 0.11]);
 		for (const angle of [-0.55, 0.55]) {
 			const sign = box(crossing, white, [side * 4.2, 2.9, -2.4], [1.7, 0.19, 0.12]); sign.rotation.z = angle;
@@ -71,6 +74,9 @@ export function createEncounterModels({ material, box, sphere, cylinder, batch }
 		for (const z of [-0.5, 0.5]) box(car, cream, [-1.78, 0.8, z], [0.05, 0.18, 0.25]);
 		batch(car);
 	}
+
+	const approaching = crossing.getObjectByName("waiting-car-0")!.clone(); approaching.name = "approach-car"; approaching.rotation.y = Math.PI; crossing.add(approaching);
+	models.river = createRiverModel(builders);
 
 	const bears = new THREE.Group(); models.bears = bears;
 	cylinder(bears, timber, [0, 0.03, 0], [1.5, 0.06, 1.5]);

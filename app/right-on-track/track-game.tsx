@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
-import { advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, tempo, START_BPM, type Run } from "./rhythm";
+import { advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, trainSpeed, type Run } from "./rhythm";
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 
 const BEST_KEY = "right-on-track-best";
-const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, bpm: START_BPM, reason: "" };
+const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), reason: "" };
 
 export function TrackGame() {
 	const host = useRef<HTMLDivElement>(null);
@@ -37,8 +37,8 @@ export function TrackGame() {
 
 		function paint() {
 			const current = run.current;
-			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, bpm: Math.round(tempo(current.seconds)), reason: current.reason };
-			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.bpm === next.bpm && previous.reason === next.reason ? previous : next);
+			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, speed: trainSpeed(current.seconds), reason: current.reason };
+			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.speed === next.speed && previous.reason === next.reason ? previous : next);
 			if (current.score > bestRef.current) {
 				bestRef.current = current.score; setBest(current.score);
 				try { localStorage.setItem(BEST_KEY, String(current.score)); } catch { /* Best score is optional when storage is unavailable. */ }
@@ -137,7 +137,7 @@ export function TrackGame() {
 			<p>Lay the missing track just in time.<br />Too early, too late, or twice — derailment.</p>
 		</section>
 		<section className={styles.game} aria-label="One-button railway game">
-			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Speed</span><strong>{(view.bpm / START_BPM).toFixed(2)}<small> ×</small></strong></div></div>
+			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Speed</span><strong>{view.speed}<small> km/h</small></strong></div></div>
 			<div className={styles.scene} ref={host} role="button" tabIndex={0} aria-label="Lay track. Watch the gaps approaching the engineer on the front of the toy train." onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onKeyDown={(event) => { if (event.key === "Enter" && !event.repeat) { event.preventDefault(); action.current(); } }} />
 			<div className={styles.sceneLabel} aria-hidden="true"><span>Northbound</span><span>Lay track at the front platform</span></div>
 			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.max(1, -Math.floor(view.phase))) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Get ready. The train is pulling away." : "One button. An open stretch of track."}</p></div>}

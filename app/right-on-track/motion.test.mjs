@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { newRun } from "./rhythm.ts";
 import { expect, test } from "bun:test";
-import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
+import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
 
 test("visible trees move continuously across scenery wrap boundaries", () => {
 	const positions = (distance) => sceneryOffsets(distance).flatMap(offset =>
@@ -75,7 +75,7 @@ test("bends stay shallow and keep landmarks continuous as the train advances", (
 });
 
 test("encounters are sparse, seeded, and include empty crossings and rare bear pairs", () => {
-	const counts = { hut: 0, lumberjack: 0, crossing: 0, bears: 0, empty: 0 };
+	const counts = { hut: 0, lumberjack: 0, crossing: 0, bears: 0, river: 0, empty: 0 };
 	const cars = new Set();
 	for (let index = 0; index < 2000; index++) {
 		const encounter = encounterAt(7, index);
@@ -96,5 +96,41 @@ test("mountain parallax stays slow and continuous without a wrap", () => {
 		const before = mountainOffset(distance - 0.01, layer), after = mountainOffset(distance + 0.01, layer);
 		expect(Math.abs(after.x - before.x)).toBeLessThan(0.001);
 		expect(Math.abs(after.z - before.z)).toBeLessThan(0.001);
+	}
+});
+
+
+test("an approaching car brakes before the crossing and stays stopped", () => {
+	let previous = approachCar(-1);
+	for (let age = 0; age <= 12; age += 0.1) {
+		const position = approachCar(age);
+		expect(position).toBeGreaterThanOrEqual(previous);
+		expect(position).toBeLessThanOrEqual(-10);
+		previous = position;
+	}
+	expect(approachCar(7)).toBe(-10); expect(approachCar(100)).toBe(-10);
+});
+
+test("rivers vary their decorations, with Ness much rarer than boats and birds", () => {
+	const counts = new Map(); let rivers = 0, traffic = 0;
+	for (let i = 0; i < 5000; i++) {
+		const encounter = encounterAt(11, i);
+		if (encounter.kind === "river") { rivers++; const kind = waterScene(encounter.detail); counts.set(kind, (counts.get(kind) ?? 0) + 1); }
+		if (encounter.kind === "crossing" && encounter.traffic) traffic++;
+	}
+	expect(rivers).toBeGreaterThan(250); expect(rivers).toBeLessThan(600);
+	expect(counts.size).toBe(7); expect(counts.get("ness")).toBeGreaterThan(0); expect(counts.get("ness")).toBeLessThan(20);
+	expect(traffic).toBeGreaterThan(100); expect(traffic).toBeLessThan(250);
+});
+
+test("river and road clearance stays fixed in the world as the train moves", () => {
+	const river = { ...encounterAt(0, 0), kind: "river", distance: 100 };
+	const road = { ...river, kind: "crossing" };
+	for (const distance of [60, 90, 110, 150]) {
+		const x = trackCenter(100) - trackCenter(distance), z = distance - 100;
+		expect(treeOnFeature(x, z, distance, [river])).toBe(true);
+		expect(treeOnFeature(x, z + 15, distance, [river])).toBe(false);
+		expect(treeOnFeature(x, z, distance, [road])).toBe(true);
+		expect(treeOnFeature(x, z + 6, distance, [road])).toBe(false);
 	}
 });
