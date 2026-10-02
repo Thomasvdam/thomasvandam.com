@@ -1,19 +1,23 @@
 import * as THREE from "three";
 import { earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
-import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
+import { beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
 
+import { createHorizon } from "./horizon";
+import { configureRailwayShadows, softenDistantShadows, fadeDistantScenery } from "./shadows";
 import { createEncounterModels } from "./encounters";
 
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void) {
 	const scene = new THREE.Scene();
-	scene.background = new THREE.Color("#aab7b5");
+	const horizon = createHorizon();
+	scene.background = null;
 	scene.fog = new THREE.FogExp2("#aab7b5", 0.009);
 	const camera = new THREE.PerspectiveCamera(54, 1, 0.1, 1000);
 	let renderer: THREE.WebGLRenderer;
 	try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" }); }
 	catch { onUnavailable(); return () => {}; }
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+	renderer.autoClear = false;
 	renderer.shadowMap.enabled = true;
 	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 	renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -23,7 +27,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const geometries: THREE.BufferGeometry[] = [];
 	const textures: THREE.Texture[] = [];
 	const material = (color: string, metalness = 0, roughness = 0.8) => {
-		const item = new THREE.MeshStandardMaterial({ color, metalness, roughness }); materials.push(item); return item;
+		const item = new THREE.MeshStandardMaterial({ color, metalness, roughness }); item.onBeforeCompile = shader => { softenDistantShadows(shader); fadeDistantScenery(shader); }; materials.push(item); return item;
 	};
 	const iron = material("#303635", 0.8, 0.35);
 	const steel = material("#9ca5a1", 0.85, 0.28);
@@ -91,9 +95,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	}
 	scene.add(new THREE.HemisphereLight("#d8e5ed", "#535343", 2.1));
 	const sun = new THREE.DirectionalLight("#ffddb4", 3.5); sun.position.set(-24, 36, 12); sun.castShadow = true;
-	sun.shadow.mapSize.set(1024, 1024); sun.shadow.camera.left = -35; sun.shadow.camera.right = 35;
-	sun.shadow.camera.top = 35; sun.shadow.camera.bottom = -75; sun.shadow.normalBias = 0.04;
-	scene.add(sun);
+	configureRailwayShadows(sun);
+	scene.add(sun, sun.target);
 	box(scene, groundMaterial, [0, -0.5, -100], [600, 1, 600]);
 	const ballastGeometry = new THREE.PlaneGeometry(5.8, 270, 1, 90); geometries.push(ballastGeometry);
 	const ballastStrip = new THREE.Mesh(ballastGeometry, ballast); ballastStrip.rotation.x = -Math.PI / 2;
@@ -266,17 +269,6 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		})) as typeof encounterModels;
 		return { root, models };
 	});
-	// Separate ridges stay visible beyond the forest fog and drift at different depths.
-	const ridges = [0, 1].map(layer => {
-		const ridge = new THREE.Group(); scene.add(ridge);
-		const surface = new THREE.MeshBasicMaterial({ color: layer ? "#a3b1ad" : "#82958f", fog: false, transparent: true, opacity: layer ? 0.6 : 0.72 }); materials.push(surface);
-		const peakGeometry = new THREE.ConeGeometry(1, 1, 7, 1); geometries.push(peakGeometry);
-		for (let i = 0; i < 12; i++) {
-			const peak = mesh(ridge, peakGeometry, surface, [(i - 5.5) * 75, -10, -430 - layer * 150 - i % 3 * 18], [48 + i % 3 * 12, 42 + (Math.sin(i * 4.7 + layer) + 1) * 25, 38]);
-			peak.rotation.y = i * 0.7; peak.castShadow = false; peak.receiveShadow = false;
-		}
-		return ridge;
-	});
 	const gapMaterial = material("#d98c48"); gapMaterial.emissive.set("#9e4d19"); gapMaterial.emissiveIntensity = 0.5;
 	const segments = Array.from({ length: 30 }, () => {
 		const group = new THREE.Group(); const rails = new THREE.Group(); group.add(rails); scene.add(group);
@@ -312,6 +304,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const terrainInitial = { value: 0 };
 	groundMaterial.color.set("#ffffff");
 	groundMaterial.onBeforeCompile = shader => {
+		softenDistantShadows(shader);
 		shader.uniforms.terrainBands = terrainBands; shader.uniforms.terrainInitial = terrainInitial;
 		shader.uniforms.forestGround = { value: forestGround }; shader.uniforms.autumnGround = { value: autumnGround };
 		shader.vertexShader = "varying float terrainZ;\n" + shader.vertexShader;
@@ -325,6 +318,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			}
 			diffuseColor.rgb *= mix(forestGround, autumnGround, autumn);`);
 	};
+	ballast.onBeforeCompile = softenDistantShadows;
+	const sky = forestSky.clone();
 	const foliageMatrix = new THREE.Matrix4(); const foliageScale = new THREE.Vector3(); const foliageColor = new THREE.Color();
 	const resize = () => {
 		const { width, height } = host.getBoundingClientRect();
@@ -342,8 +337,9 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
 		const bands = landscapeBands(run, phase);
 		const paletteBlend = landscapeBlend(bands, phase);
-		(scene.background as THREE.Color).copy(forestSky).lerp(autumnSky, paletteBlend);
-		(scene.fog as THREE.FogExp2).color.copy(scene.background as THREE.Color);
+		sky.copy(forestSky).lerp(autumnSky, paletteBlend);
+		(scene.fog as THREE.FogExp2).color.copy(sky);
+		horizon.update(camera, distance, sky, paletteBlend);
 		sun.color.copy(forestSun).lerp(autumnSun, paletteBlend);
 		terrainInitial.value = bands.initial;
 		terrainBands.value.forEach((band, index) => {
@@ -394,9 +390,6 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			slot.root.rotation.y = encounter.kind === "crossing" ? trackHeading(encounter.distance) : encounter.side * 0.25;
 			for (let car = 0; car < 3; car++) slot.models.crossing.getObjectByName(`waiting-car-${car}`)!.visible = car < encounter.cars;
 		});
-		ridges.forEach((ridge, layer) => {
-			const offset = mountainOffset(distance, layer); ridge.position.set(offset.x - trackCenter(distance) * 0.15, 0, offset.z);
-		});
 		// Each tree keeps the landscape of its world position as it approaches.
 		for (const item of foliage) {
 			item.matrices.forEach((matrix, index) => {
@@ -441,6 +434,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			puff.scale.setScalar(0.3 + age * 1.6);
 			(puff.material as THREE.MeshBasicMaterial).opacity = 0.19 * Math.sin(Math.PI * age);
 		});
+		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);
 	});
 	return () => {
@@ -450,6 +444,6 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		for (const item of geometries) item.dispose();
 		for (const item of materials) item.dispose();
 		for (const item of textures) item.dispose();
-		renderer.dispose(); renderer.domElement.remove();
+		horizon.dispose(); renderer.dispose(); renderer.domElement.remove();
 	};
 }
