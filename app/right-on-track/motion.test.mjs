@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { newRun } from "./rhythm.ts";
 import { expect, test } from "bun:test";
-import { treeOnFork, fixedBranchCenter, FORK_OFFSET, forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, BRIDGE_HEIGHT, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
+import { roadsideCenter, treeOnFork, fixedBranchCenter, FORK_OFFSET, forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, BRIDGE_HEIGHT, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
 
 test("visible trees move continuously across scenery wrap boundaries", () => {
 	const positions = (distance) => sceneryOffsets(distance).flatMap(offset =>
@@ -154,10 +154,10 @@ test("both fork paths are fixed when selection changes", () => {
 	for (let d = start - 10; d <= start + 240; d++) {
 		const left = [{ beat, side: -1 }], right = [{ beat, side: 1 }];
 		for (const side of [-1, 1]) expect(fixedBranchCenter(d, left[0], side, left)).toBeCloseTo(fixedBranchCenter(d, right[0], side, right), 8);
-		for (const chosen of [left, right]) expect(Math.abs(routeHeading(d, chosen))).toBeLessThan(0.42);
+		for (const chosen of [left, right]) expect(Math.abs(routeHeading(d, chosen))).toBeLessThan(0.72);
 	}
 	expect(forkOffset(start, beat)).toBe(0);
-	expect(forkOffset(start + 108, beat)).toBe(FORK_OFFSET);
+	expect(forkOffset(start + 84, beat)).toBe(FORK_OFFSET);
 	expect(fixedBranchCenter(start + 240, { beat, side: -1 }, 1, [{ beat, side: -1 }]) - fixedBranchCenter(start + 240, { beat, side: 1 }, -1, [{ beat, side: 1 }])).toBeCloseTo(FORK_OFFSET * 2, 8);
 });
 test("tree clearance covers both fixed branches without changing on a switch", () => {
@@ -183,4 +183,24 @@ test("road clearance follows its fixed scenery anchor after a fork", () => {
 	const road = { ...encounterAt(0, 0), kind: "crossing", distance: 100, x: 30, heading: 0.3 };
 	expect(treeOnFeature(30, -20, 80, [road])).toBe(true);
 	expect(treeOnFeature(30, -14, 80, [road])).toBe(false);
+});
+
+test("roadside models clear the whole footprint of either fork independent of selection", () => {
+	const beat = 24, start = (beat + 5) * 6 + 4;
+	for (let world = start; world < start + 240; world += 6) for (const side of [-1, 1]) {
+		const left = [{ beat, side: -1 }], right = [{ beat, side: 1 }];
+		const x = roadsideCenter(world, side, left);
+		expect(x).toBeCloseTo(roadsideCenter(world, side, right), 8);
+		for (let d = world - 7; d <= world + 7; d++) for (const branch of [-1, 1]) {
+			const path = fixedBranchCenter(d, left[0], branch, left);
+			expect(side * (x - path)).toBeGreaterThanOrEqual(9.999);
+		}
+	}
+});
+
+test("tree clearance follows the continuing track after a fork is archived", () => {
+	const distance = 430, world = 480, base = FORK_OFFSET;
+	const x = routeCenter(world, [], base) - routeCenter(distance, [], base), z = distance - world;
+	expect(treeOnFork(x, z, distance, [], base)).toBe(true);
+	expect(treeOnFork(x + 8, z, distance, [], base)).toBe(false);
 });

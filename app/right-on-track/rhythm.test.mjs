@@ -1,3 +1,4 @@
+import { FORK_OFFSET } from "./fork-config.ts";
 import { describe, expect, test } from "bun:test";
 import { branchLaid, branchForBeat, activeSignal, signalsAhead, advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
 
@@ -226,10 +227,23 @@ test("completed default and chosen routes survive pruning without retaining old 
 			if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
 			advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 		}
-		expect(run.routeBase).toBe(side * 24);
+		expect(run.routeBase).toBe(side * FORK_OFFSET);
 		expect(run.routeThrough).toBe(24);
 		expect(run.switches.has(24)).toBe(false);
 		expect(signalsAhead(run, 65)).not.toContain(24);
 		expect(run.placedSides.size).toBeLessThanOrEqual(13);
 	}
+});
+
+test("every signal has a safe first spot and a required second spot", () => {
+	let count = 0;
+	for (let seed = 0; seed < 50; seed++) {
+		const run = newRun(seed);
+		for (let phase = 0; phase < 500; phase += 64) for (const signal of signalsAhead(run, phase)) {
+			count++;
+			expect(needsTrack(run, signal + 1)).toBe(false);
+			expect(needsTrack(run, signal + 2)).toBe(true);
+		}
+	}
+	expect(count).toBeGreaterThan(100);
 });

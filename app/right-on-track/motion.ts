@@ -1,3 +1,4 @@
+import { FORK_OFFSET, FORK_SPREAD } from "./fork-config";
 import { phraseAt, type Run } from "./rhythm";
 
 export const TRACK_LENGTH = 6;
@@ -105,11 +106,11 @@ export function railwayPitch(seed: number, distance: number) {
 }
 
 export type Junction = { beat: number; side: -1 | 1 };
-export const FORK_OFFSET = 24;
+export { FORK_OFFSET } from "./fork-config";
 export const FORK_LENGTH = 240;
 export function forkOffset(distance: number, beat: number) {
 	const start = (beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
-	const progress = Math.max(0, Math.min(1, (distance - start) / 108));
+	const progress = Math.max(0, Math.min(1, (distance - start) / FORK_SPREAD));
 	return FORK_OFFSET * progress * progress * (3 - 2 * progress);
 }
 export function routeCenter(distance: number, junctions: Junction[], base = 0) {
@@ -130,6 +131,22 @@ export function forkAtDistance(distance: number, junctions: Junction[]) {
 }
 export function treeOnFork(x: number, z: number, distance: number, junctions: Junction[], base = 0) {
 	const world = distance - z, junction = forkAtDistance(world, junctions);
-	if (!junction) return false;
-	return ([-1, 1] as const).some(side => Math.abs(x - (fixedBranchCenter(world, junction, side, junctions, base) - routeCenter(distance, junctions, base))) < 4);
+	if (!junction) return Math.abs(x - (routeCenter(world, junctions, base) - routeCenter(distance, junctions, base))) < 6;
+	return ([-1, 1] as const).some(side => Math.abs(x - (fixedBranchCenter(world, junction, side, junctions, base) - routeCenter(distance, junctions, base))) < 6);
+}
+
+// Place an entire roadside model outside both track corridors, then anchor it.
+export function roadsideCenter(world: number, side: -1 | 1, junctions: Junction[], base = 0) {
+	let edge = side * routeCenter(world, junctions, base);
+	for (let d = world - 7; d <= world + 7; d++) {
+		const junction = junctions.find(item => {
+			const start = (item.beat + 5) * TRACK_LENGTH - PLACEMENT_Z;
+			return d >= start - 10 && d <= start + FORK_LENGTH + 7;
+		});
+		for (const branch of [-1, 1] as const) {
+			const x = junction ? fixedBranchCenter(d, junction, branch, junctions, base) : routeCenter(d, junctions, base);
+			edge = Math.max(edge, side * x);
+		}
+	}
+	return side * (edge + 10);
 }
