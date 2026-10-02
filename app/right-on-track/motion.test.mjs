@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { newRun } from "./rhythm.ts";
 import { expect, test } from "bun:test";
-import { treeOnUnusedBranch, unusedBranchOffset, forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, BRIDGE_HEIGHT, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
+import { treeOnFork, fixedBranchCenter, FORK_OFFSET, forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, BRIDGE_HEIGHT, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, trackHeading, trackPosition, encounterAt, approachCar, waterScene, treeOnFeature, mountainOffset, SCENERY_LENGTH, TRACK_LENGTH } from "./motion.ts";
 
 test("visible trees move continuously across scenery wrap boundaries", () => {
 	const positions = (distance) => sceneryOffsets(distance).flatMap(offset =>
@@ -149,42 +149,38 @@ test("bridge ramps share a smooth world-space elevation with a flat supported de
 	expect(railwayPitch(7, river.distance + 25)).toBeLessThan(0);
 });
 
-test("chosen routes stay smooth and gentle enough for gap previews", () => {
+test("both fork paths are fixed when selection changes", () => {
 	const beat = 24, start = (beat + 5) * 6 + 4;
-	for (const side of [-1, 1]) {
-		const junctions = [{ beat, side }];
-		for (const d of [start - 1, start, start + 72, start + 73]) {
-			expect(forkOffset(d, beat)).toBeCloseTo(0, 8);
-			expect(routeCenter(d, junctions)).toBeCloseTo(trackCenter(d), 8);
-			expect(routeHeading(d, junctions)).toBeCloseTo(trackHeading(d), 3);
+	for (let d = start - 10; d <= start + 240; d++) {
+		const left = [{ beat, side: -1 }], right = [{ beat, side: 1 }];
+		for (const side of [-1, 1]) expect(fixedBranchCenter(d, left[0], side, left)).toBeCloseTo(fixedBranchCenter(d, right[0], side, right), 8);
+		for (const chosen of [left, right]) expect(Math.abs(routeHeading(d, chosen))).toBeLessThan(0.42);
+	}
+	expect(forkOffset(start, beat)).toBe(0);
+	expect(forkOffset(start + 108, beat)).toBe(FORK_OFFSET);
+	expect(fixedBranchCenter(start + 240, { beat, side: -1 }, 1, [{ beat, side: -1 }]) - fixedBranchCenter(start + 240, { beat, side: 1 }, -1, [{ beat, side: 1 }])).toBeCloseTo(FORK_OFFSET * 2, 8);
+});
+test("tree clearance covers both fixed branches without changing on a switch", () => {
+	const beat = 24, world = (beat + 5) * 6 + 4 + 90, distance = 165;
+	for (const branchSide of [-1, 1]) {
+		const branchX = trackCenter(world) + branchSide * forkOffset(world, beat);
+		for (const side of [-1, 1]) {
+			const junctions = [{ beat, side }], x = branchX - routeCenter(distance, junctions), z = distance - world;
+			expect(treeOnFork(x, z, distance, junctions)).toBe(true);
+			expect(treeOnFork(x + branchSide * 8, z, distance, junctions)).toBe(false);
 		}
-		expect(routeCenter(start + 36, junctions) - trackCenter(start + 36)).toBeCloseTo(side * 4, 8);
-		for (let d = start; d <= start + 72; d++) expect(Math.abs(routeHeading(d, junctions))).toBeLessThan(0.28);
+	}
+});
+test("archiving a passed fork preserves the train and future track positions", () => {
+	const beat = 24;
+	for (const side of [-1, 1]) for (const d of [418, 425, 450, 600]) {
+		expect(routeCenter(d, [{ beat, side }])).toBeCloseTo(routeCenter(d, [], side * FORK_OFFSET), 8);
+		expect(routeHeading(d, [{ beat, side }])).toBeCloseTo(routeHeading(d, [], side * FORK_OFFSET), 8);
 	}
 });
 
-test("the unused branch diverges beyond the view instead of rejoining", () => {
-	const beat = 24, start = (beat + 5) * 6 + 4;
-	expect(unusedBranchOffset(start, beat)).toBe(0);
-	for (const side of [-1, 1]) {
-		let previous = 0;
-		for (let d = start; d <= start + 240; d++) {
-			const chosen = routeCenter(d, [{ beat, side }]);
-			const unused = chosen - side * (forkOffset(d, beat) + unusedBranchOffset(d, beat));
-			const divergence = side * (trackCenter(d) - unused);
-			expect(divergence).toBeGreaterThanOrEqual(previous - 1e-8);
-			previous = divergence;
-		}
-		expect(previous).toBeGreaterThan(200);
-	}
-});
-
-test("tree clearance on the departing branch stays fixed as the train moves", () => {
-	const junctions = [{ beat: 24, side: -1 }], world = (24 + 5) * 6 + 4 + 90;
-	const branchX = trackCenter(world) + unusedBranchOffset(world, 24);
-	for (const distance of [170, 190, 210]) {
-		const x = branchX - routeCenter(distance, junctions), z = distance - world;
-		expect(treeOnUnusedBranch(x, z, distance, junctions)).toBe(true);
-		expect(treeOnUnusedBranch(x + 8, z, distance, junctions)).toBe(false);
-	}
+test("road clearance follows its fixed scenery anchor after a fork", () => {
+	const road = { ...encounterAt(0, 0), kind: "crossing", distance: 100, x: 30, heading: 0.3 };
+	expect(treeOnFeature(30, -20, 80, [road])).toBe(true);
+	expect(treeOnFeature(30, -14, 80, [road])).toBe(false);
 });

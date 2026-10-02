@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { activeSignal, signalsAhead, advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
+import { branchLaid, branchForBeat, activeSignal, signalsAhead, advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
 
 const start = () => ({ ...newRun(), mode: "running" });
 
@@ -13,7 +13,7 @@ describe("railway rhythm", () => {
 		}
 		expect(run.score).toBeGreaterThanOrEqual(40);
 		expect(run.score).toBeLessThanOrEqual(120);
-		expect(run.phrases.size).toBeLessThanOrEqual(6);
+		expect(run.phrases.size).toBeLessThanOrEqual(12);
 		expect(run.placed.size).toBeLessThanOrEqual(12);
 	});
 
@@ -63,7 +63,7 @@ describe("railway rhythm", () => {
 		expect(tolerance(0)).toBe(0.095);
 		const run = start(); layTrack(run, secondsAt(0) - 0.2);
 		expect(run.score).toBe(1);
-		expect(run.placement).toEqual({ beat: 0, seconds: secondsAt(0) - 0.2 });
+		expect(run.placement).toEqual({ beat: 0, seconds: secondsAt(0) - 0.2, side: null });
 	});
 
 	test("each bar has gaps and rests; phrases vary across bars and runs", () => {
@@ -138,7 +138,7 @@ describe("railway rhythm", () => {
 			advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 			expect(run.mode).toBe("running");
 		}
-		expect(run.phrases.size).toBeLessThanOrEqual(6);
+		expect(run.phrases.size).toBeLessThanOrEqual(12);
 	});
 
 	test("tempo increases continuously and caps at 180 BPM", () => {
@@ -197,5 +197,39 @@ test("signal previews and completed choices retain bounded history over an endle
 		expect(run.mode).toBe("running");
 		expect(run.phrases.size).toBeLessThanOrEqual(12);
 		expect(run.switches.size).toBeLessThanOrEqual(2);
+	}
+});
+
+test("a placement fills only its physical branch, for either switch choice", () => {
+	for (const side of [-1, 1]) {
+		const run = newRun(0); run.mode = "running";
+		for (let beat = 0; beat <= 32; beat++) {
+			if (beat === 23 && side === 1) layTrack(run, secondsAt(beat));
+			if (needsTrack(run, beat)) {
+				layTrack(run, secondsAt(beat));
+				if (branchForBeat(run, beat) !== null) {
+					expect(branchLaid(run, beat, side)).toBe(true);
+					expect(branchLaid(run, beat, -side)).toBe(false);
+					expect(run.placement.side).toBe(side);
+				}
+			}
+			advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+		}
+		expect(run.mode).toBe("running");
+	}
+});
+test("completed default and chosen routes survive pruning without retaining old choices", () => {
+	for (const side of [-1, 1]) {
+		const run = newRun(0); run.mode = "running";
+		for (let beat = 0; beat <= 65; beat++) {
+			if (beat === 23 && side === 1) layTrack(run, secondsAt(beat));
+			if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+			advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+		}
+		expect(run.routeBase).toBe(side * 24);
+		expect(run.routeThrough).toBe(24);
+		expect(run.switches.has(24)).toBe(false);
+		expect(signalsAhead(run, 65)).not.toContain(24);
+		expect(run.placedSides.size).toBeLessThanOrEqual(13);
 	}
 });

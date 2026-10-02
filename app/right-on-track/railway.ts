@@ -1,13 +1,13 @@
 import * as THREE from "three";
-import { activeSignal, signalsAhead, earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
+import { branchLaid, activeSignal, signalsAhead, earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
-import { treeOnUnusedBranch, unusedBranchOffset, forkOffset, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
+import { treeOnFork, forkAtDistance, fixedBranchCenter, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
 
 import { createHorizon } from "./horizon";
 import { configureRailwayShadows, softenDistantShadows, fadeDistantScenery } from "./shadows";
 import { createTreeDetails, animateTreeDetail } from "./wildlife";
 import { cutRiverTerrain, animateRiver } from "./river";
-import { createSignal } from "./junction";
+import { cutForkBallast, fadeForkEdges, createSignal } from "./junction";
 import { createEncounterModels } from "./encounters";
 
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void) {
@@ -309,10 +309,25 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		return { group, rails, marker };
 	});
 	const signalPrototype = createSignal(builders);
+	const forkStarts = { value: new THREE.Vector4(-10000, -10000, -10000, -10000) };
+	const forkMaterials = new Map<THREE.MeshStandardMaterial, THREE.MeshStandardMaterial>();
+	function forkSurface(surface: THREE.MeshStandardMaterial) {
+		let copy = forkMaterials.get(surface);
+		if (!copy) {
+			copy = surface.clone(); copy.onBeforeCompile = shader => { softenDistantShadows(shader); fadeDistantScenery(shader); fadeForkEdges(shader); };
+			materials.push(copy); forkMaterials.set(surface, copy);
+		}
+		return copy;
+	}
 	const junctionSlots = Array.from({ length: 4 }, () => {
 		const signal = signalPrototype.clone(); scene.add(signal);
-		const branch = Array.from({ length: 40 }, () => { const rails = segments[0].rails.clone(); box(rails, ballast, [0, 0.08, 0], [5.8, 0.08, 6]); scene.add(rails); return rails; });
-		return { signal, branch };
+		const branches = ([-1, 1] as const).map(side => ({ side, pieces: Array.from({ length: 40 }, () => {
+			const group = new THREE.Group(), rails = segments[0].rails.clone(), marker = segments[0].marker.clone();
+			rails.traverse(item => { if (item instanceof THREE.Mesh) item.material = forkSurface(item.material as THREE.MeshStandardMaterial); });
+			group.add(rails, marker); box(group, forkSurface(ballast), [0, 0.08, 0], [5.8, 0.08, 6]); scene.add(group);
+			return { group, rails, marker };
+		}) }));
+		return { signal, branches };
 	});
 	const target = new THREE.Group(); target.position.z = PLACEMENT_Z; scene.add(target);
 	for (const x of [-2.05, 2.05]) box(target, gapMaterial, [x, 0.23, 0], [0.18, 0.08, 2.2]);
@@ -348,7 +363,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			}
 			diffuseColor.rgb *= mix(forestGround, autumnGround, autumn);`);
 	};
-	ballast.onBeforeCompile = softenDistantShadows;
+	ballast.onBeforeCompile = shader => { softenDistantShadows(shader); cutForkBallast(shader, forkStarts); };
 	const sky = forestSky.clone();
 	const foliageMatrix = new THREE.Matrix4(); const foliageScale = new THREE.Vector3(); const foliageColor = new THREE.Color();
 	const resize = () => {
@@ -359,15 +374,18 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		camera.updateProjectionMatrix(); renderer.setSize(width, height);
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
+	let worldRun: Run | null = null;
+	const forestAnchors = new Map<number, number>(), encounterAnchors = new Map<number, { offset: number; heading: number }>();
 	const contextLost = (event: Event) => { event.preventDefault(); onUnavailable(); };
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
 	renderer.setAnimationLoop(() => {
 		const run = onFrame(); const phase = phaseAt(run.seconds);
 		const distance = (phase + 4) * TRACK_LENGTH;
 		const junctions = signalsAhead(run, phase).map(beat => ({ beat, side: run.switches.get(beat) ?? -1 as const }));
-		const center = (d: number) => routeCenter(d, junctions);
-		const heading = (d: number) => routeHeading(d, junctions);
+		const center = (d: number) => routeCenter(d, junctions, run.routeBase);
+		const heading = (d: number) => routeHeading(d, junctions, run.routeBase);
 		const position = (z: number) => center(distance - z) - center(distance);
+		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); worldRun = run; }
 		const switching = activeSignal(run);
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
 		const bands = landscapeBands(run, phase);
@@ -411,9 +429,16 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			group.scale.z = 1 / Math.cos(group.rotation.y);
 			const missing = needsTrack(run, beat) && !run.placed.has(beat);
 			const inFlight = placement?.beat === beat && age < flightDuration;
+			const fork = forkAtDistance(distance - group.position.z, junctions);
+			group.visible = fork === null;
 			rails.visible = !missing && !inFlight; marker.visible = missing || inFlight;
 		});
-		sceneryOffsets(distance).forEach((offset, index) => { sceneryTiles[index].position.z = offset; sceneryTiles[index].position.x = -center(distance); });
+		sceneryOffsets(distance).forEach((offset, index) => {
+			const origin = Math.round((distance - offset) / SCENERY_LENGTH) * SCENERY_LENGTH;
+			if (!forestAnchors.has(origin)) forestAnchors.set(origin, center(origin) - trackCenter(origin));
+			sceneryTiles[index].position.z = offset; sceneryTiles[index].position.x = forestAnchors.get(origin)! - center(distance);
+		});
+		for (const origin of forestAnchors.keys()) if (Math.abs(origin - distance) > SCENERY_LENGTH * 2) forestAnchors.delete(origin);
 		for (let index = 0; index < ballastVertices.count; index++) {
 			const z = -ballastOriginal[index * 3 + 1] - 95;
 			ballastVertices.setX(index, ballastOriginal[index * 3] + position(z));
@@ -428,26 +453,30 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			rampVertices.setZ(index, height * Math.max(0, Math.min(1, (8 - Math.abs(x)) / 5)) - 0.02);
 		}
 		rampVertices.needsUpdate = true; rampGeometry.computeVertexNormals();
-		junctionSlots.forEach(({ signal, branch }, index) => {
+		junctionSlots.forEach(({ signal, branches }, index) => {
 			const junction = junctions[index]; signal.visible = !!junction;
-			branch.forEach(rail => { rail.visible = !!junction; });
+			branches.forEach(branch => branch.pieces.forEach(piece => { piece.group.visible = !!junction; }));
+			forkStarts.value.setComponent(index, junction ? distance - ((junction.beat + 5) * TRACK_LENGTH - PLACEMENT_Z) : -10000);
 			if (!junction) return;
 			const signalDistance = (junction.beat + 4) * TRACK_LENGTH - PLACEMENT_Z;
-			signal.position.set(center(signalDistance) - center(distance), railwayHeight(run.seed, signalDistance), distance - signalDistance);
+			const signalCenter = fixedBranchCenter(signalDistance, junction, -1, junctions, run.routeBase);
+			signal.position.set(signalCenter - center(distance), railwayHeight(run.seed, signalDistance), distance - signalDistance);
 			signal.rotation.y = heading(signalDistance);
 			signal.getObjectByName("left")!.visible = junction.side === -1;
 			signal.getObjectByName("right")!.visible = junction.side === 1;
 			signal.scale.setScalar(switching === junction.beat ? 1.05 + Math.sin(run.seconds * 8) * 0.025 : 1);
-			branch.forEach((rail, i) => {
+			branches.forEach(({ side, pieces }) => pieces.forEach(({ group, rails, marker }, i) => {
 				const beat = junction.beat + 1 + i;
-				const laid = (!needsTrack(run, beat) || run.placed.has(beat)) && !(placement?.beat === beat && age < flightDuration);
-				for (const child of rail.children) if (child instanceof THREE.InstancedMesh) child.visible = laid;
+				const inFlight = placement?.beat === beat && placement.side === side && age < flightDuration;
+				const missing = !branchLaid(run, beat, side);
+				rails.visible = !missing && !inFlight;
+				marker.visible = side === junction.side && (missing || inFlight);
 				const d = signalDistance + 6 + i * TRACK_LENGTH;
-				const alternate = (p: number) => center(p) - junction.side * (forkOffset(p, junction.beat) + unusedBranchOffset(p, junction.beat));
-				rail.position.set(alternate(d) - center(distance), railwayHeight(run.seed, d), distance - d);
-				rail.rotation.set(railwayPitch(run.seed, d), -Math.atan((alternate(d + 0.1) - alternate(d - 0.1)) / 0.2), 0);
-				rail.scale.z = 1 / Math.cos(rail.rotation.y);
-			});
+				const path = (p: number) => fixedBranchCenter(p, junction, side, junctions, run.routeBase);
+				group.position.set(path(d) - center(distance), railwayHeight(run.seed, d), distance - d);
+				group.rotation.set(railwayPitch(run.seed, d), -Math.atan((path(d + 0.1) - path(d - 0.1)) / 0.2), 0);
+				group.scale.z = 1 / Math.cos(group.rotation.y);
+			}));
 		});
 		target.visible = switching === null;
 		target.position.y = railwayHeight(run.seed, distance - PLACEMENT_Z); target.rotation.x = railwayPitch(run.seed, distance - PLACEMENT_Z);
@@ -457,8 +486,9 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		encounterSlots.forEach((slot, index) => {
 			const encounter = encounters[index];
 			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
-			slot.root.position.set(center(encounter.distance) - center(distance) + (["crossing", "river"].includes(encounter.kind ?? "") ? 0 : encounter.side * 10), 0, distance - encounter.distance);
-			slot.root.rotation.y = encounter.kind === "crossing" ? heading(encounter.distance) : encounter.kind === "river" ? 0 : encounter.side * 0.25;
+			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: center(encounter.distance) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
+			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance) + (["crossing", "river"].includes(encounter.kind ?? "") ? 0 : encounter.side * 10), 0, distance - encounter.distance);
+			slot.root.rotation.y = encounter.kind === "crossing" ? (encounterAnchors.get(firstEncounter + index)?.heading ?? heading(encounter.distance)) : encounter.kind === "river" ? 0 : encounter.side * 0.25;
 			riverPositions.value.setComponent(index, encounter.kind === "river" ? distance - encounter.distance : -10000);
 			for (let car = 0; car < 3; car++) slot.models.crossing.getObjectByName(`waiting-car-${car}`)!.visible = car < encounter.cars;
 			const car = slot.models.crossing.getObjectByName("approach-car")!; car.visible = encounter.traffic;
@@ -467,12 +497,14 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			slot.models.river.getObjectByName("bridge")!.rotation.y = heading(encounter.distance);
 			animateRiver(slot.models.river, encounter.detail, run.seconds, encounter.distance - distance, encounter.side, reducedMotion);
 		});
+		const encounterClearance = encounters.map((encounter, index) => ({ ...encounter, x: encounterSlots[index].root.position.x, heading: encounterSlots[index].root.rotation.y }));
+		for (const index of encounterAnchors.keys()) if (index < firstEncounter - 2) encounterAnchors.delete(index);
 		// Each tree keeps the landscape of its world position as it approaches.
 		for (const item of foliage) {
 			item.matrices.forEach((matrix, index) => {
 				const z = item.tile.position.z + item.roots[index];
 				const blend = landscapeBlend(bands, phase + (PLACEMENT_Z - z) / TRACK_LENGTH);
-				const overRiver = (treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounters) || treeOnUnusedBranch(item.rootsX[index] + item.tile.position.x, z, distance, junctions));
+				const overRiver = (treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounterClearance) || treeOnFork(item.rootsX[index] + item.tile.position.x, z, distance, junctions, run.routeBase));
 				const scale = overRiver ? 0 : item.mesh.material === green ? 1 - blend : item.mesh.material === autumnLeaves ? blend : 1;
 				foliageScale.setScalar(Math.max(0.001, scale));
 				foliageMatrix.copy(matrix).scale(foliageScale); item.mesh.setMatrixAt(index, foliageMatrix);
@@ -483,7 +515,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		}
 		for (const { tile, actor } of treeActors) {
 			const z = tile.position.z + actor.userData.treeZ;
-			actor.visible = !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounters) && !treeOnUnusedBranch(actor.parent!.position.x + tile.position.x, z, distance, junctions);
+			actor.visible = !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounterClearance) && !treeOnFork(actor.parent!.position.x + tile.position.x, z, distance, junctions, run.routeBase);
 			if (actor.visible) animateTreeDetail(actor, actor.userData.detailKind, run.seconds, -z, reducedMotion);
 		}
 		// Positive UV scrolling moves texture features toward +Z with the sleepers.
