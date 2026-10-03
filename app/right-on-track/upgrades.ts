@@ -1,3 +1,4 @@
+import type { Run } from "./rhythm";
 export const PRECISION_WINDOW = 0.05;
 export const UPGRADE_INTERVAL = 10;
 const rewards = ["A splendid top hat", "Golden trim", "Rainbow smoke · 20%", "Wagon bunting", "Golden boiler", "Rainbow smoke · 40%", "Party hat", "Wagon lanterns", "Golden cab roof", "Rainbow smoke · 60%", "Engineer’s crown", "Golden wheels", "Rainbow smoke · 80%", "Wagon rosettes", "Rainbow smoke · 100%", "Golden front bumper"];
@@ -18,4 +19,12 @@ export const RAINBOW = ["#ef687d", "#f5ad59", "#eddb6c", "#77c993", "#7ebbe4", "
 export function rainbowPuff(seed: number, puff: number, emission: number, chance: number) {
 	const hash = Math.imul(seed ^ Math.imul(puff + 1, 0x45d9f3b) ^ Math.imul(emission + 1, 0x51ed270b), 0x27d4eb2d) >>> 0;
 	return hash / 4294967296 < chance;
+}
+
+export function precisionReadout(run: Pick<Run, "precisionStreak" | "lastHit" | "seconds">) {
+	const progress = run.precisionStreak > 0 ? (run.precisionStreak - 1) % UPGRADE_INTERVAL + 1 : 0;
+	const hit = run.lastHit;
+	if (!hit || run.seconds - hit.seconds > 1.2) return { progress, feedback: "Aim for precise hits", tone: "idle" };
+	if (hit.precise) return { progress, feedback: progress === UPGRADE_INTERVAL ? "Perfect · upgrade earned!" : "Perfect!", tone: "perfect" };
+	return { progress, feedback: `${hit.offset < 0 ? "Early" : "Late"}${hit.brokeCombo ? " · combo reset" : " · aim closer"}`, tone: "loose" };
 }

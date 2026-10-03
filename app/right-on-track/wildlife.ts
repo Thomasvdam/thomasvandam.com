@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { Builders } from "./encounters";
 
 export function createBird({ material, sphere, box, batch }: Builders, water = false) {
-	const bird = new THREE.Group(); bird.userData.moving = true;
+	const bird = new THREE.Group(); bird.userData.moving = true; bird.userData.birdVoice = water ? "water" : "woodland";
 	const feathers = material(water ? "#d6d2bc" : "#5a5144"), beak = material("#c69a4f"), eye = material("#212a29");
 	sphere(bird, feathers, [0, 0, 0], water ? [0.36, 0.22, 0.5] : [0.23, 0.17, 0.32]);
 	sphere(bird, feathers, [0, 0.2, -0.3], [0.17, 0.18, 0.19]);

@@ -39,7 +39,7 @@ Assertions cover fixed visible fork/scenery transforms while switching, engineer
 stow/retrieve, both routes through 80 beats and history pruning, filling only the
 selected physical branch, guaranteed recovery gap, early divergence, rendered tree
 continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, two-phrase concert playback and left stadium approach, stomp/clap timing and rests, fairground/quarry approach cues, continuous rail seams across half-beat grid changes, independent half-track placements, double-time audio at maximum speed, reduced-motion Ferris wheel, independent wagon steering/coupling on both forks, steady normal cargo, rare yard depletion and moving crane handoff/refill, console/shader errors, audible
-steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup. Environmental audio checks match visible lumberjacks, field machinery, rivers, aircraft, birds and stadiums to their sources; render every ambient voice offline to verify quiet levels, left/right placement, distance culling, fade-out, mute and stop. Bun checks bound distance gain, overlapping voices and retiring tails, including resume after stopping.
+steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup. Environmental audio checks match visible lumberjacks, field machinery, rivers, aircraft, birds and stadiums to their sources; render every ambient voice offline to verify quiet levels, left/right placement, distance culling, fade-out, mute and stop. Bun checks bound distance gain, overlapping voices and retiring tails, including resume after stopping. Bird calls are one-shots with delayed probabilistic opportunities and a shared cooldown; checks verify family-specific signatures, natural voice cleanup, cache separation from flowing water, actual on-screen birds, and silence for nests containing only eggs.
 The terrain renderer check verifies a continuous rolling ground mesh, matching train height, field elevation and slope, and saves forest/field screenshots. Bun terrain tests cover bounded grades, seeded replay, region boundaries, planar fields, level crossings/rivers/landmarks, and bridge clearance. Meter checks cover whole two-to-four-phrase excursions, length variety, and separation from named sections.
 The existing Bun tests cover timing failures, longer runs, scenery footprints,
 bridge ramps, ground direction, parallax continuity, road braking, and rarity.
@@ -59,7 +59,7 @@ resets cosmetics. Bun checks cover the exact boundaries, streak resets, ten-hit
 milestones, switch/rest/pause handling, debug isolation, half-beat hits, and
 deterministic rainbow probability. The renderer checks all cosmetic tiers, gold
 materials, hat/wagon visibility, smoke stability, 100% rainbow and new-run reset,
-with four reward screenshots.
+with four reward screenshots. The in-scene combo meter always shows progress toward ten, including a full meter on an upgrade. Green Perfect feedback and amber Early/Late feedback explain accepted taps and combo resets. Tests cover these messages, feedback expiry, milestone rollover, held progress on pauses/switches, and absence of debug autoplay feedback.
 
 On `/right-on-track`, press **Ctrl+Alt+Shift+D** (or **⌘+Option+Shift+D** on Mac).
 On mobile, open **`/right-on-track#debug`** instead. Adding `#debug` to the current

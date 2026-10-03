@@ -8,12 +8,12 @@ import { activeSignal, advance, layTrack, newRun, phaseAt, secondsAt, trainSpeed
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 import type { DebugPreview } from "./debug";
-import { upgradeLabel, UPGRADE_INTERVAL } from "./upgrades";
+import { upgradeLabel, UPGRADE_INTERVAL, precisionReadout } from "./upgrades";
 
 const DebugMenu = dynamic(() => import("./debug-menu"), { ssr: false });
 
 const BEST_KEY = "right-on-track-best";
-const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), switching: false, reason: "", precision: 0, reward: "", upgrades: 0 };
+const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), switching: false, reason: "", precision: 0, feedback: "Aim for precise hits", tone: "idle", reward: "", upgrades: 0 };
 
 export function TrackGame() {
 	const host = useRef<HTMLDivElement>(null);
@@ -50,9 +50,9 @@ export function TrackGame() {
 		setBest(bestRef.current);
 
 		function paint() {
-			const current = run.current;
-			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, speed: trainSpeed(current.seconds), switching: activeSignal(current) !== null, reason: current.reason, precision: current.precisionStreak, upgrades: current.upgrades, reward: current.lastUpgrade && current.seconds - current.lastUpgrade.seconds < 2 ? upgradeLabel(current.lastUpgrade.level) : "" };
-			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.speed === next.speed && previous.switching === next.switching && previous.reason === next.reason && previous.precision === next.precision && previous.reward === next.reward && previous.upgrades === next.upgrades ? previous : next);
+			const current = run.current, precision = precisionReadout(current);
+			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, speed: trainSpeed(current.seconds), switching: activeSignal(current) !== null, reason: current.reason, precision: precision.progress, feedback: precision.feedback, tone: precision.tone, upgrades: current.upgrades, reward: current.lastUpgrade && current.seconds - current.lastUpgrade.seconds < 2 ? upgradeLabel(current.lastUpgrade.level) : "" };
+			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.speed === next.speed && previous.switching === next.switching && previous.reason === next.reason && previous.precision === next.precision && previous.feedback === next.feedback && previous.tone === next.tone && previous.reward === next.reward && previous.upgrades === next.upgrades ? previous : next);
 			if (!savedRun.current && current.score > bestRef.current) {
 				bestRef.current = current.score; setBest(current.score);
 				try { localStorage.setItem(BEST_KEY, String(current.score)); } catch { /* Best score is optional when storage is unavailable. */ }
@@ -97,7 +97,7 @@ export function TrackGame() {
 		previewUpgrades.current = level => {
 			if (!savedRun.current) return;
 			if (!preview.current) { triggerPreview.current("hut", level); return; }
-			run.current.upgrades = level; run.current.precisionStreak = 0; run.current.lastUpgrade = null; paint();
+			run.current.upgrades = level; run.current.precisionStreak = 0; run.current.lastUpgrade = null; run.current.lastHit = null; paint();
 		};
 		triggerPreview.current = (id, level = 0) => {
 			const request = ++previewRequest;
@@ -203,7 +203,12 @@ export function TrackGame() {
 		<section className={styles.game} aria-label="One-button railway game">
 			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Speed</span><strong>{view.speed}<small> km/h</small></strong></div></div>
 			<div className={styles.scene} ref={host} role="button" tabIndex={0} aria-label="Lay track. Watch the gaps approaching the engineer on the front of the toy train." onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onKeyDown={(event) => { if (event.key === "Enter" && !event.repeat) { event.preventDefault(); action.current(); } }} />
-			<div className={styles.sceneLabel} aria-hidden="true"><span>{view.precision > 0 ? `Precise hits ${view.precision % UPGRADE_INTERVAL}/${UPGRADE_INTERVAL}` : "Northbound"}</span><span>{view.switching ? "Press to switch route" : "Lay track at the front platform"}</span></div>
+			<div className={styles.combo} data-tone={view.tone}>
+				<div><span>Precision combo</span><strong>{view.precision}<small>/{UPGRADE_INTERVAL}</small></strong></div>
+				<div className={styles.comboDots} role="meter" aria-label="Precise hits toward the next upgrade" aria-valuemin={0} aria-valuemax={UPGRADE_INTERVAL} aria-valuenow={view.precision}>{Array.from({ length: UPGRADE_INTERVAL }, (_, i) => <i key={i} data-filled={i < view.precision} />)}</div>
+				<span key={view.score} className={styles.hitFeedback} role="status">{view.switching ? "Switching · combo held" : view.feedback}</span>
+			</div>
+			<div className={styles.sceneLabel} aria-hidden="true"><span>Northbound</span><span>{view.switching ? "Press to switch route" : "Lay track at the front platform"}</span></div>
 			{view.reward && <div className={styles.reward} aria-live="polite">{view.reward}<small>10 precise hits · upgrade unlocked</small></div>}
 			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.max(1, -Math.floor(view.phase))) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Get ready. The train is pulling away." : "One button. An open stretch of track."}</p></div>}
 		</section>
