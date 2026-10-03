@@ -1,9 +1,10 @@
+import { flourishesAhead, animateFairground } from "../../app/right-on-track/flourishes";
 import { concertsAhead } from "../../app/right-on-track/concert";
 import { animateAircraft, skyAt } from "../../app/right-on-track/aviation";
 import { animateFarmland, cropVariant, farmMachine, pastureVariant } from "../../app/right-on-track/farmland";
 import * as THREE from "three";
 import { createRailway, type RailwayFrame } from "../../app/right-on-track/railway";
-import { advance, layTrack, needsTrack, newRun, phraseAt, secondsAt, signalsAhead, tolerance } from "../../app/right-on-track/rhythm";
+import { advance, layTrack, needsTrack, newRun, phraseAt, secondsAt, signalsAhead, tolerance, branchForBeat, branchLaid } from "../../app/right-on-track/rhythm";
 import { encounterAt, waterScene } from "../../app/right-on-track/motion";
 import { BeatSound } from "../../app/right-on-track/sound";
 
@@ -51,7 +52,7 @@ function geometry(frame: RailwayFrame) {
 	return transforms;
 }
 
-async function soundBuffer(muted = false, stop = false, concert = false) {
+async function soundBuffer(muted = false, stop = false, concert = false, flourish = false) {
 	const offline = new OfflineAudioContext(1, 44100, 44100);
 	const context = new Proxy(offline, { get(target, key) {
 		if (key === "state") return "running";
@@ -64,7 +65,12 @@ async function soundBuffer(muted = false, stop = false, concert = false) {
 		assert(await sound.unlock(), "Audio setup failed");
 		sound.setMuted(muted);
 		if (concert) { sound.concert(0.1, "stomp"); sound.concert(0.3, "stomp"); sound.concert(0.5, "clap"); sound.concert(0.7, "rest"); }
-		else { sound.beat(0.1, true, true); sound.beat(0.45, false, false); }
+		else if (flourish) {
+			const journey = newRun(0); let phrase = phraseAt(journey, 0);
+			while (phrase.section !== "quarry" || phrase.start < 1100) phrase = phraseAt(journey, phrase.end);
+			const start = secondsAt(phrase.start);
+			for (let beat = phrase.start; beat < phrase.start + 2; beat += 0.5) sound.schedule(journey, beat, 0.1 + secondsAt(beat) - start);
+		} else { sound.beat(0.1, true, true); sound.beat(0.45, false, false); }
 		if (stop) sound.stop();
 		return (await offline.startRendering()).getChannelData(0);
 	} finally { sound.dispose(); }
@@ -207,7 +213,7 @@ async function main() {
 			assert(end - start === 32 && phraseAt(run, start).section === "concert" && phraseAt(run, end - 1).section === "concert" && phraseAt(run, end).section !== "concert", "Concert duration changed");
 
 			let score = 0;
-			for (let beat = 0; beat < end + 2; beat++) {
+			for (let beat = 0; beat < end + 2; beat += 0.5) {
 				if (needsTrack(run, beat)) { layTrack(run, secondsAt(beat)); if (beat >= start && beat < end) score++; }
 				advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 				assert(run.mode === "running", `Concert crash at ${beat}`);
@@ -225,6 +231,60 @@ async function main() {
 				}
 			}
 			assert(score === 24, `Concert placements ${score}`);
+		});
+		for (const kind of ["fairground", "quarry"] as const) await test(`${kind}: approaching landmark, half-track placements and section boundaries`, () => {
+			let event: ReturnType<typeof flourishesAhead>[number] | undefined;
+			for (let seed = 0; seed < 30 && !event; seed++) {
+				run = newRun(seed);
+				for (let phase = 0; phase < 650 && !event; phase += 32) event = flourishesAhead(run, phase).find(item => item.kind === kind);
+			}
+			assert(event, "No flourish fixture"); run.mode = "running";
+			const { start, end } = event!; let halfHits = 0;
+			for (let beat = 0; beat < end + 2; beat += 0.5) {
+				if (needsTrack(run, beat)) {
+					layTrack(run, secondsAt(beat));
+					if (beat >= start && beat < end && !Number.isInteger(beat)) {
+						halfHits++;
+						assert(run.placed.has(beat) && run.placement?.beat === beat, "Half placement did not target its own piece");
+						const branch = branchForBeat(run, beat);
+						if (branch !== null) { const side = run.switches.get(branch) ?? -1; assert(branchLaid(run, beat, side) && !branchLaid(run, beat, side === -1 ? 1 : -1), "Half track placed on both branches"); }
+					}
+				}
+				advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+				assert(run.mode === "running", `${kind} crash ${beat}: ${run.reason}`);
+				if (beat === start - 8 || beat === start + 8) {
+					const frame = render(beat + 0.4), landmark = frame.flourishes.find(slot => slot.start === start)!;
+					assert(landmark?.root.visible && landmark.models[kind].visible, "Approach landmark missing");
+					assert(landmark.root.position.x + 22 < -5, "Landmark overlaps railway");
+					const bounds = new THREE.Box3().setFromObject(landmark.models[kind]), projected = bounds.getCenter(new THREE.Vector3()).project(frame.camera);
+					assert(Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1 && projected.z < 1, "Landmark outside camera view");
+					const z = landmark.root.position.z, x = landmark.root.position.x;
+					screenshot(`${kind}-${beat < start ? "approach" : "section"}`); render(beat + 0.401);
+					assert(Math.abs(landmark.root.position.z - z - 0.006) < 0.00001 && Math.abs(landmark.root.position.x - x) < 0.01, "Landmark resets while moving");
+					if (kind === "fairground") {
+						const wheel = landmark.models.fairground.getObjectByName("fairground-wheel")!, cabin = wheel.getObjectByName("cabin-0")!;
+						assert(cabin.children.length > 0 && Math.abs(cabin.rotation.z + wheel.rotation.z) < 0.0001, "Moving cabin geometry missing or tilted");
+						animateFairground(landmark.models.fairground, run.seconds, true); assert(wheel.rotation.z === 0 && cabin.rotation.z === 0, "Reduced motion wheel spins");
+					}
+				}
+				if ([start - 1, start, end - 1, end].includes(beat)) {
+					const frame = render(beat + 0.4);
+					const pieces = frame.segments.flatMap(piece => [piece, piece.half]).filter(piece => piece.group.visible && Math.abs(piece.group.position.z) < 80).sort((a, b) => a.group.position.z - b.group.position.z);
+					for (let i = 1; i < pieces.length; i++) {
+						const a = pieces[i - 1].group, b = pieces[i].group;
+						const front = a.position.z + 3 * a.scale.z * Math.cos(a.rotation.y), back = b.position.z - 3 * b.scale.z * Math.cos(b.rotation.y);
+						assert(Math.abs(front - back) < 0.0001, "Rail seam has a hole or overlap at grid boundary");
+					}
+				}
+			}
+			assert(end - start === 32 && halfHits === 8, "Flourish duration/density changed");
+		});
+		await test("double-time chuffs stay audible and bounded at maximum speed, with mute and stop", async () => {
+			const buffer = await soundBuffer(false, false, false, true), peak = Math.max(...buffer.map(Math.abs));
+			assert(peak > 0.01 && peak < 1, `Double-time peak ${peak}`);
+			for (const start of [0.1, 0.1 + 1 / 6, 0.1 + 2 / 6, 0.6]) assert(buffer.slice(start * 44100, (start + 0.1) * 44100).some(sample => Math.abs(sample) > 0.005), "Missing double-time chuff");
+			assert(buffer.slice(0.81 * 44100).every(sample => sample === 0), "Double-time tail did not end");
+			for (const data of [await soundBuffer(true, false, false, true), await soundBuffer(false, true, false, true)]) assert(data.every(sample => sample === 0), "Double-time mute/stop failed");
 		});
 		await test("concert stomp/stomp/clap voices are audible, bounded, and rest stays silent", async () => {
 			const data = await soundBuffer(false, false, true), peak = Math.max(...data.map(Math.abs));
@@ -251,8 +311,9 @@ async function main() {
 	await test("renderer cleanup removes canvas and frame callbacks", () => { assert(!host.querySelector("canvas") && frames.size === 0, "Renderer resources still active"); });
 	const result = { passed: cases.every(item => item.passed), cases, errors, screenshots };
 	document.querySelector("#result")!.textContent = JSON.stringify({ ...result, screenshots: Object.keys(screenshots) }, null, 2);
-	await fetch(location.pathname + "result", { method: "POST", body: JSON.stringify(result) });
+	const response = await fetch(location.pathname + "result", { method: "POST", body: JSON.stringify(result) });
+	if (!response.ok) throw new Error(`Saving browser artifacts failed (${response.status}): ${await response.text()}`);
 }
 void main().catch(async error => {
-	await fetch(location.pathname + "result", { method: "POST", body: JSON.stringify({ passed: false, cases, errors: [...errors, String(error)], screenshots }) });
+	await fetch(location.pathname + "result", { method: "POST", body: JSON.stringify({ passed: false, cases, errors: [...errors, String(error)], screenshots: {} }) });
 });

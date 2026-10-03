@@ -1,3 +1,5 @@
+import { concertHit, phraseAt, isDownbeat, needsTrack, type Run } from "./rhythm";
+
 export class BeatSound {
 	constructor(private createContext: () => AudioContext = () => new AudioContext()) {}
 	private context: AudioContext | null = null;
@@ -25,6 +27,12 @@ export class BeatSound {
 	setMuted(muted: boolean) {
 		this.muted = muted;
 		if (this.context && this.volume) this.volume.gain.setValueAtTime(muted ? 0 : 0.5, this.context.currentTime);
+	}
+
+	schedule(run: Run, beat: number, delay: number) {
+		const phrase = phraseAt(run, Math.max(0, beat));
+		if (beat >= 0 && phrase.section === "concert") { if (Number.isInteger(beat)) this.concert(delay, concertHit(beat, phrase.start)); }
+		else if (Number.isInteger(beat) || needsTrack(run, beat)) this.beat(delay, isDownbeat(run, beat), needsTrack(run, beat));
 	}
 
 	beat(delay: number, downbeat: boolean, gap: boolean) {
