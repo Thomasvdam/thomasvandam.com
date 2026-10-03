@@ -48,6 +48,23 @@ mechanical fix and start a new attempt. Do not treat exit status alone as accept
 inspect `result.json` and the relevant screenshots. Never run competing fixture
 servers on the same port.
 
+## Hidden preview menu
+
+On `/right-on-track`, press **Ctrl+Alt+Shift+D** (or **⌘+Option+Shift+D** on Mac).
+The menu has no visible entry point, URL flag, or normal-page hint. It is available
+in published builds as well as locally. Choose a scenery variant and **Preview
+scenery**, or choose a special section and **Play section**. Retrying the same
+selection uses the same seeded encounter. Scenery lays track automatically;
+sections automatically approach their start, then hand placement back to the player.
+The switch preview hands control back at the signal window.
+
+**Return to normal run**, Escape, or the shortcut again restores the saved run
+(paused if it was running). Preview scores never update local best. There are no
+animation stepping controls. Add selectors in `app/right-on-track/debug.ts` when
+adding decorations or sections; they locate real generated content rather than
+injecting a separate model into the renderer. Bun tests exercise every selector,
+frame skips, manual handoff, deterministic retries, and paused autoplay.
+
 ## Remaining manual acceptance
 
 These checks detect regressions; they do not judge how enjoyable the rhythm feels,

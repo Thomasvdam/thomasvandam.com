@@ -1,4 +1,5 @@
 import { yardsAhead } from "../../app/right-on-track/yard";
+import { createDebugPreview, sceneryScenarios, sectionScenarios } from "../../app/right-on-track/debug";
 import { wagonPose } from "../../app/right-on-track/wagon";
 import { flourishesAhead, animateFairground } from "../../app/right-on-track/flourishes";
 import { concertsAhead } from "../../app/right-on-track/concert";
@@ -6,7 +7,7 @@ import { animateAircraft, skyAt } from "../../app/right-on-track/aviation";
 import { animateFarmland, cropVariant, farmMachine, pastureVariant } from "../../app/right-on-track/farmland";
 import * as THREE from "three";
 import { createRailway, type RailwayFrame } from "../../app/right-on-track/railway";
-import { advance, layTrack, needsTrack, newRun, phraseAt, secondsAt, signalsAhead, tolerance, branchForBeat, branchLaid } from "../../app/right-on-track/rhythm";
+import { advance, layTrack, needsTrack, newRun, phaseAt, phraseAt, secondsAt, signalsAhead, tolerance, branchForBeat, branchLaid } from "../../app/right-on-track/rhythm";
 import { encounterAt, waterScene } from "../../app/right-on-track/motion";
 import { BeatSound } from "../../app/right-on-track/sound";
 
@@ -365,6 +366,25 @@ async function main() {
 		});
 		await test("mute and stopping scheduled sources produce silence", async () => {
 			for (const data of [await soundBuffer(true), await soundBuffer(false, true)]) assert(data.every(sample => sample === 0), "Unexpected audio after mute/stop");
+		});
+		await test("debug selectors launch real scenery and playable sections in the renderer", () => {
+			for (const scenario of [...sceneryScenarios, ...sectionScenarios]) {
+				const preview = createDebugPreview(scenario.id); run = preview.run;
+				const frame = render(phaseAt(run.seconds));
+				assert(run.mode === "running", `Preview crashed: ${scenario.id}`);
+				const event = encounterAt(run.seed, 0);
+				if (sceneryScenarios.includes(scenario) && !["dead-tree", "bear-cub", "squirrel", "nest", "nest-visitor", "flock", "mushrooms", "moss", "log", "flyby", "balloon", "jet", "prop", "banner"].includes(scenario.id)) {
+					assert(event.kind && frame.encounters[0].root.visible && frame.encounters[0].models[event.kind].visible, `Requested scenery hidden: ${scenario.id}`);
+				}
+				if (["squirrel", "nest", "nest-visitor", "flock"].includes(scenario.id)) {
+					const index = { squirrel: 9, nest: 46, "nest-visitor": 15, flock: 23 }[scenario.id];
+					let visible = false;
+					for (const tile of frame.sceneryTiles) tile.traverse(actor => { if (actor.userData.treeIndex === index && actor.visible && actor.getWorldPosition(new THREE.Vector3()).z > -80 && actor.getWorldPosition(new THREE.Vector3()).z < 0) visible = true; });
+					assert(visible, `Requested wildlife hidden: ${scenario.id}`);
+				}
+				if (scenario.id === "yard") assert(frame.yards.some(slot => slot.root.visible), "Preview yard not visible ahead");
+				if (["river-ness", "nest-visitor", "yard"].includes(scenario.id)) screenshot(`debug-${scenario.id}`);
+			}
 		});
 		await test("no console or shader errors", () => { assert(errors.length === 0, errors.join("\n")); });
 	} finally {
