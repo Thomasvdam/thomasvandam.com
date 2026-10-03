@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
-import { concertHit, phraseAt, activeSignal, advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, trainSpeed, type Run } from "./rhythm";
+import { activeSignal, advance, layTrack, newRun, phaseAt, secondsAt, trainSpeed, type Run } from "./rhythm";
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 
@@ -52,12 +52,8 @@ export function TrackGame() {
 				if (current.mode === "running") {
 					while (secondsAt(nextSound.current) < current.seconds + 0.12) {
 						const delay = secondsAt(nextSound.current) - current.seconds;
-						if (delay > -0.03) {
-							const phrase = phraseAt(current, Math.max(0, nextSound.current));
-							if (nextSound.current >= 0 && phrase.section === "concert") speaker.concert(delay, concertHit(nextSound.current, phrase.start));
-							else speaker.beat(delay, isDownbeat(current, nextSound.current), needsTrack(current, nextSound.current));
-						}
-						nextSound.current++;
+						if (delay > -0.03) speaker.schedule(current, nextSound.current, delay);
+						nextSound.current += 0.5;
 					}
 				} else speaker.stop();
 			}
@@ -79,7 +75,7 @@ export function TrackGame() {
 				void speaker.unlock().then((ok) => { if (!disposed) { speaker.setMuted(mutedRef.current); setAudioUnavailable(!ok); } });
 			} else if (current.mode === "paused") {
 				origin.current = performance.now() - current.seconds * 1000;
-				nextSound.current = Math.ceil(phaseAt(current.seconds)); current.mode = "running";
+				nextSound.current = Math.ceil(phaseAt(current.seconds) * 2) / 2; current.mode = "running";
 				void speaker.unlock();
 			} else {
 				const seconds = (performance.now() - origin.current) / 1000;

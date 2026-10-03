@@ -1,4 +1,4 @@
-import { concertHit, phraseSection } from "./rhythm.ts";
+import { concertHit, phraseSection, trackStep, placementEarlyTolerance } from "./rhythm.ts";
 import { FORK_OFFSET } from "./fork-config.ts";
 import { describe, expect, test } from "bun:test";
 import { branchLaid, branchForBeat, activeSignal, signalsAhead, advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
@@ -132,11 +132,12 @@ describe("railway rhythm", () => {
 
 	test("lookahead across variable phrase lengths agrees with the live journey", () => {
 		const run = start();
-		const expected = Array.from({ length: 500 }, (_, beat) => needsTrack(run, beat));
+		const expected = Array.from({ length: 1000 }, (_, slot) => needsTrack(run, slot / 2));
 		run.phrases.clear();
-		for (let beat = 0; beat < expected.length; beat++) {
-			expect(needsTrack(run, beat)).toBe(expected[beat]);
-			if (expected[beat]) layTrack(run, secondsAt(beat));
+		for (let slot = 0; slot < expected.length; slot++) {
+			const beat = slot / 2;
+			expect(needsTrack(run, beat)).toBe(expected[slot]);
+			if (expected[slot]) layTrack(run, secondsAt(beat));
 			advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 			expect(run.mode).toBe("running");
 		}
@@ -192,7 +193,7 @@ test("ignoring signals retains a safe default and switching is disabled while pa
 
 test("signal previews and completed choices retain bounded history over an endless run", () => {
 	const run = newRun(0); run.mode = "running";
-	for (let beat = 0; beat < 5000; beat++) {
+	for (let beat = 0; beat < 5000; beat += 0.5) {
 		signalsAhead(run, beat);
 		if (activeSignal(run, secondsAt(beat)) !== null || needsTrack(run, beat)) layTrack(run, secondsAt(beat));
 		advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
@@ -272,10 +273,82 @@ test("concert sections last exactly two complete phrases with stomp-stomp-clap-r
 });
 test("concerts regenerate deterministically and remain playable through their boundaries", () => {
 	const run = newRun(0); run.mode = "running";
-	for (let beat = 0; beat < 600; beat++) {
+	for (let beat = 0; beat < 600; beat += 0.5) {
 		const expected = needsTrack(run, beat); run.phrases.clear(); expect(needsTrack(run, beat)).toBe(expected);
 		if (expected) layTrack(run, secondsAt(beat));
 		advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 		expect(run.mode).toBe("running");
+	}
+});
+
+function flourishFixture(kind) {
+	for (let seed = 0; seed < 30; seed++) {
+		const run = newRun(seed); run.mode = "running";
+		for (let beat = 0; beat < 600;) {
+			const phrase = phraseAt(run, beat);
+			if (phrase.section === kind) return { run, phrase };
+			beat = phrase.end;
+		}
+	}
+	throw new Error("Missing " + kind);
+}
+function playUntil(run, end) {
+	for (let beat = 0; beat < end; beat += 0.5) {
+		if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+		advance(run, secondsAt(beat) + tolerance(beat) + 0.0001);
+		expect(run.mode).toBe("running");
+	}
+}
+test.each(["fairground", "quarry"])("%s lasts two phrases with fixed occasional half-beat flourishes", kind => {
+	const { run, phrase } = flourishFixture(kind), end = phraseAt(run, phrase.end).end;
+	expect(phrase.start).toBeGreaterThan(100);
+	expect(end - phrase.start).toBe(32);
+	expect(phraseAt(run, end - 0.5).section).toBe(kind);
+	expect(phraseAt(run, end).section).not.toBe(kind);
+	let halves = 0;
+	for (let beat = phrase.start; beat < end; beat += 0.5) {
+		expect(trackStep(run, beat)).toBe(0.5);
+		expect(activeSignal(run, secondsAt(beat))).toBe(null);
+		const gap = needsTrack(run, beat); run.phrases.clear(); expect(needsTrack(run, beat)).toBe(gap);
+		if (!Number.isInteger(beat) && gap) halves++;
+	}
+	expect(halves).toBe(8);
+	playUntil(run, end + 2);
+});
+test("a half-beat tap fills its own piece, while skipping it crashes", () => {
+	const { run, phrase } = flourishFixture("fairground"), beat = phrase.start + 0.5;
+	playUntil(run, beat);
+	const score = run.score;
+	layTrack(run, secondsAt(beat) - placementEarlyTolerance(run, beat) + 0.001);
+	expect(run.mode).toBe("running"); expect(run.score).toBe(score + 1);
+	expect(run.placed.has(phrase.start)).toBe(true); expect(run.placed.has(beat)).toBe(true);
+	layTrack(run, secondsAt(beat)); expect(run.reason).toContain("Double track");
+	const missed = flourishFixture("fairground"); playUntil(missed.run, missed.phrase.start + 0.5);
+	advance(missed.run, secondsAt(missed.phrase.start + 0.5) + tolerance(missed.phrase.start + 0.5) + 0.001);
+	expect(missed.run.reason).toContain("Too late");
+});
+test("half-beat timing remains bounded and normal sections retain their wider early window", () => {
+	const { run, phrase } = flourishFixture("quarry");
+	for (const beat of [phrase.start, phrase.start + 0.5, phrase.start + 1, phrase.start + 1.5]) {
+		expect(phaseAt(secondsAt(beat))).toBeCloseTo(beat, 8);
+		expect(placementEarlyTolerance(run, beat)).toBeLessThan(secondsAt(beat + 0.5) - secondsAt(beat) - tolerance(beat));
+	}
+	expect(placementEarlyTolerance(run, 0)).toBe(earlyTolerance(0));
+	expect(needsTrack(run, 0.5)).toBe(false);
+});
+
+test("half-beat placements on a lingering fork fill only the selected path", () => {
+	for (const side of [-1, 1]) {
+		const run = newRun(10); run.mode = "running";
+		const beat = 440.5, signal = branchForBeat(run, beat);
+		expect(signal).toBe(404); expect(needsTrack(run, beat)).toBe(true);
+		for (let hit = 0; hit <= beat; hit += 0.5) {
+			if (hit === signal - 1 && side === 1) layTrack(run, secondsAt(hit));
+			if (needsTrack(run, hit)) layTrack(run, secondsAt(hit));
+			advance(run, secondsAt(hit) + tolerance(hit) + 0.0001);
+			expect(run.mode).toBe("running");
+		}
+		expect(branchLaid(run, beat, side)).toBe(true);
+		expect(branchLaid(run, beat, -side)).toBe(false);
 	}
 });

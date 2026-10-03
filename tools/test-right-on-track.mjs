@@ -24,7 +24,7 @@ const server = createServer(async (request, response) => {
 	} else if (request.url === `/${token}/result` && request.method === "POST" && !finished) {
 		try {
 			let body = "";
-			for await (const chunk of request) { body += chunk; if (body.length > 24000000) throw new Error("Result too large"); }
+			for await (const chunk of request) { body += chunk; if (body.length > 64000000) throw new Error("Result too large"); }
 			const result = JSON.parse(body);
 			if (typeof result.passed !== "boolean" || !Array.isArray(result.cases)) throw new Error("Invalid result");
 			for (const [name, data] of Object.entries(result.screenshots ?? {})) {

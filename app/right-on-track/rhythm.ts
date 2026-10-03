@@ -3,10 +3,17 @@ import { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
 
 export type Meter = 3 | 4;
 export type Landscape = "forest" | "autumn";
-export type Phrase = { index: number; start: number; end: number; meter: Meter; landscape: Landscape; pattern: boolean[]; section: "normal" | "concert" };
+export type Section = "normal" | "concert" | "fairground" | "quarry";
+export type Phrase = { index: number; start: number; end: number; meter: Meter; landscape: Landscape; pattern: boolean[]; section: Section };
 
 // A rare pair begins and ends on phrase boundaries, away from the opening tutorial.
-export function phraseSection(seed: number, index: number): "normal" | "concert" {
+export function phraseSection(seed: number, index: number): Section {
+	const position = index % 36;
+	if ([16, 17, 28, 29].includes(position)) {
+		const pair = position < 20 ? 16 : 28;
+		const hash = (Math.imul(seed ^ Math.imul(Math.floor(index / 36) + pair, 0x51ed270b), 0x27d4eb2d) >>> 0) / 4294967296;
+		if (hash < 0.65) return pair === 16 ? "fairground" : "quarry";
+	}
 	if (index % 12 !== 8 && index % 12 !== 9) return "normal";
 	const group = Math.floor(index / 12);
 	const hash = (Math.imul(seed ^ Math.imul(group + 1, 0x6c8e9cf5), 0x27d4eb2d) >>> 0) / 4294967296;
@@ -17,9 +24,9 @@ export function concertHit(beat: number, start: number): ConcertHit {
 	return (["stomp", "stomp", "clap", "rest"] as const)[((beat - start) % 4 + 4) % 4];
 }
 
-// Only the fourth phrase in a group can be special; most of the journey stays in 4/4.
+// Only the fourth phrase in a group can use 3/4; named sections stay in 4/4.
 export function phraseMeter(seed: number, index: number): Meter {
-	if (phraseSection(seed, index) === "concert" || index % 4 !== 3) return 4;
+	if (phraseSection(seed, index) !== "normal" || index % 4 !== 3) return 4;
 	let hash = Math.imul(seed ^ Math.imul(index + 1, 0x45d9f3b), 0x27d4eb2d);
 	hash = Math.imul(hash ^ hash >>> 16, 0x85ebca6b);
 	return ((hash ^ hash >>> 13) >>> 0) / 4294967296 < 0.6 ? 3 : 4;
@@ -27,7 +34,10 @@ export function phraseMeter(seed: number, index: number): Meter {
 
 // Seeded per phrase: looking ahead never changes an already visible gap.
 export function generatePhrase(seed: number, phrase: number, meter: Meter = phraseMeter(seed, phrase)) {
-	if (phraseSection(seed, phrase) === "concert") return Array.from({ length: 16 }, (_, beat) => concertHit(beat, 0) !== "rest");
+	const section = phraseSection(seed, phrase);
+	if (section === "fairground") return Array.from({ length: 16 }, (_, beat) => [0, 2].includes(beat % 4));
+	if (section === "quarry") return Array.from({ length: 16 }, (_, beat) => [0, 1, 3].includes(beat % 4));
+	if (section === "concert") return Array.from({ length: 16 }, (_, beat) => concertHit(beat, 0) !== "rest");
 	let state = (seed ^ Math.imul(phrase + 1, 0x9e3779b9)) >>> 0;
 	const random = () => {
 		state = (state + 0x6d2b79f5) >>> 0;
@@ -87,7 +97,7 @@ export function phraseAt(run: Run, beat: number): Phrase {
 // Sparse signals belong to phrases, so lookahead and replay agree.
 export function signalBeat(seed: number, index: number, start: number, meter: Meter) {
 	const hash = (Math.imul(seed ^ Math.imul(index + 1, 0x51ed270b), 0x27d4eb2d) >>> 0) / 4294967296;
-	if (phraseSection(seed, index) === "concert" || index % 4 !== 1 || hash >= 0.45) return null;
+	if (phraseSection(seed, index) !== "normal" || index % 4 !== 1 || hash >= 0.45) return null;
 	const beat = start + meter * 2, distance = (beat + 4) * 6 + 4;
 	// Keep forks clear of river ramps and crossing gates/cars.
 	for (let i = Math.max(0, Math.floor((distance - 43) / SCENERY_LENGTH)); i <= Math.floor((distance + 283) / SCENERY_LENGTH); i++) {
@@ -118,7 +128,29 @@ export function needsTrack(run: Run, beat: number) {
 	const signal = signalBeat(run.seed, phrase.index, phrase.start, phrase.meter);
 	if (signal !== null && beat >= signal - 2 && beat <= signal + 1) return false;
 	if (signal !== null && beat === signal + 2) return true;
-	return phrase.pattern[beat - phrase.start];
+	const offset = beat - phrase.start;
+	if (offset % 1 === 0.5) {
+		// Fairground: one quick pair per bar. Quarry: a four-hit burst every other bar.
+		return phrase.section === "fairground" ? offset % 4 === 0.5
+			: phrase.section === "quarry" && [0.5, 1.5].includes(offset % 8);
+	}
+	return Number.isInteger(offset) && phrase.pattern[offset];
+}
+
+export function trackStep(run: Run, beat: number) {
+	const section = phraseAt(run, Math.max(0, beat)).section;
+	return section === "fairground" || section === "quarry" ? 0.5 : 1;
+}
+
+export function nearestTrackBeat(run: Run, phase: number) {
+	// Choose between the grids on both sides of a phrase boundary.
+	const candidates = [Math.floor(phase), Math.ceil(phase)];
+	const half = Math.floor(phase * 2) / 2;
+	for (const beat of [half, half + 0.5]) if (trackStep(run, beat) === 0.5) candidates.push(beat);
+	return candidates.reduce((best, beat) => Math.abs(beat - phase) <= Math.abs(best - phase) ? beat : best);
+}
+export function placementEarlyTolerance(run: Run, beat: number) {
+	return trackStep(run, beat) === 0.5 || trackStep(run, beat - 0.5) === 0.5 ? Math.min(earlyTolerance(beat), 60 / tempo(secondsAt(beat)) * 0.24) : earlyTolerance(beat);
 }
 
 export function isDownbeat(run: Run, beat: number) {
@@ -160,8 +192,8 @@ export function newRun(seed = 0): Run {
 export function advance(run: Run, seconds: number) {
 	if (run.mode !== "running") return;
 	run.seconds = seconds;
-	while (seconds > secondsAt(run.checked + 1) + tolerance(run.checked + 1)) {
-		const beat = ++run.checked;
+	while (seconds > secondsAt(run.checked + 0.5) + tolerance(run.checked + 0.5)) {
+		const beat = run.checked += 0.5;
 		if (needsTrack(run, beat) && !run.placed.has(beat)) {
 			run.mode = "crashed";
 			run.reason = "Too late. The train reached a gap.";
@@ -190,10 +222,10 @@ export function layTrack(run: Run, seconds: number) {
 		run.switches.set(signal, (run.switches.get(signal) ?? -1) === -1 ? 1 : -1);
 		return;
 	}
-	const beat = Math.round(phaseAt(seconds)) || 0;
+	const beat = nearestTrackBeat(run, phaseAt(seconds)) || 0;
 	if (run.placed.has(beat)) {
 		run.reason = "Double track. One piece was enough.";
-	} else if (beat < 0 || seconds < secondsAt(beat) - earlyTolerance(beat) || seconds > secondsAt(beat) + tolerance(beat)) {
+	} else if (beat < 0 || seconds < secondsAt(beat) - placementEarlyTolerance(run, beat) || seconds > secondsAt(beat) + tolerance(beat)) {
 		run.reason = "Too early. The track landed in the wrong place.";
 	} else if (!needsTrack(run, beat)) {
 		run.reason = "Duplicate track. That beat already had rails.";

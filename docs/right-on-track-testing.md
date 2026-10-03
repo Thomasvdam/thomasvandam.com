@@ -23,7 +23,7 @@ works. It is an isolated fixture using the production railway renderer and audio
 synthesizer, not a public test route or a replacement model of the scene.
 
 The command binds port 3456 (override with `RAILWAY_TEST_PORT`), waits at most 180
-seconds, accepts one result, and exits with status 0 only when every assertion
+seconds, accepts one result (with a bounded 64 MB artifact upload), reports failed uploads immediately, and exits with status 0 only when every assertion
 passes. A closed/unavailable browser, unsupported WebGL/audio, timeout, or failed
 assertion fails the run. It never silently skips browser checks. The browser fixture
 captures animation callbacks to advance exact seeded frames synchronously, then
@@ -38,7 +38,7 @@ Each attempt has its own ignored directory under `test-results/right-on-track/`:
 Assertions cover fixed visible fork/scenery transforms while switching, engineer
 stow/retrieve, both routes through 80 beats and history pruning, filling only the
 selected physical branch, guaranteed recovery gap, early divergence, rendered tree
-continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, two-phrase concert playback and left stadium approach, stomp/clap timing and rests, console/shader errors, audible
+continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, two-phrase concert playback and left stadium approach, stomp/clap timing and rests, fairground/quarry approach cues, continuous rail seams across half-beat grid changes, independent half-track placements, double-time audio at maximum speed, reduced-motion Ferris wheel, console/shader errors, audible
 steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup.
 The existing Bun tests cover timing failures, longer runs, scenery footprints,
 bridge ramps, ground direction, parallax continuity, road braking, and rarity.

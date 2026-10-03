@@ -1,8 +1,9 @@
+import { flourishesAhead, createFlourishLandmarks, animateFairground, type FlourishKind } from "./flourishes";
 import { concertsAhead, createStadium } from "./concert";
 import { createAircraft, skyAt, animateAircraft } from "./aviation";
 import { animateFarmland } from "./farmland";
 import * as THREE from "three";
-import { branchLaid, activeSignal, signalsAhead, earlyTolerance, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
+import { branchLaid, activeSignal, signalsAhead, placementEarlyTolerance, nearestTrackBeat, trackStep, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
 import { roadsideCenter, treeOnFork, forkAtDistance, fixedBranchCenter, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
 
@@ -20,6 +21,8 @@ export type RailwayFrame = {
 	forks: { signal: THREE.Group; branches: { side: -1 | 1; pieces: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group }[] }[] }[];
 	encounters: { root: THREE.Group; models: ReturnType<typeof createEncounterModels> }[];
 	sky: { root: THREE.Group; models: ReturnType<typeof createAircraft> }[];
+	segments: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group; half: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group } }[];
+	flourishes: { root: THREE.Group; models: ReturnType<typeof createFlourishLandmarks>; kind: FlourishKind; start: number; end: number; distance: number }[];
 	concerts: { root: THREE.Group; start: number; end: number; distance: number }[];
 };
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void, inspect?: (frame: RailwayFrame) => void) {
@@ -296,6 +299,12 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 
 	const stadiumPrototype = createStadium(builders);
 	const stadiumSlots = Array.from({ length: 2 }, () => { const root = stadiumPrototype.clone(); scene.add(root); return { root, start: -1, end: -1, distance: 0 }; });
+	const flourishModels = createFlourishLandmarks(builders);
+	const flourishSlots = Array.from({ length: 2 }, () => {
+		const root = new THREE.Group(); scene.add(root);
+		const models = { fairground: flourishModels.fairground.clone(), quarry: flourishModels.quarry.clone() }; root.add(models.fairground, models.quarry);
+		return { root, models, kind: "fairground" as FlourishKind, start: -1, end: -1, distance: 0 };
+	});
 	const encounterModels = createEncounterModels(builders);
 	const aircraftModels = createAircraft(builders);
 	const skySlots = Array.from({ length: 4 }, () => {
@@ -326,7 +335,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		for (const x of [-1.8, 1.8]) box(marker, gapMaterial, [x, 0.18, 0], [0.1, 0.05, 5.8]);
 		for (const z of [-2.9, 2.9]) box(marker, gapMaterial, [0, 0.18, z], [3.7, 0.05, 0.1]);
 		batch(marker);
-		return { group, rails, marker };
+		const half = { group: new THREE.Group(), rails: rails.clone(), marker: marker.clone() }; half.group.add(half.rails, half.marker); scene.add(half.group);
+		return { group, rails, marker, half };
 	});
 	const signalPrototype = createSignal(builders);
 	const forkStarts = { value: new THREE.Vector4(-10000, -10000, -10000, -10000) };
@@ -345,7 +355,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			const group = new THREE.Group(), rails = segments[0].rails.clone(), marker = segments[0].marker.clone();
 			rails.traverse(item => { if (item instanceof THREE.Mesh) item.material = forkSurface(item.material as THREE.MeshStandardMaterial); });
 			group.add(rails, marker); box(group, forkSurface(ballast), [0, 0.08, 0], [5.8, 0.08, 6]); scene.add(group);
-			return { group, rails, marker };
+			const half = { group: new THREE.Group(), rails: rails.clone(), marker: marker.clone() }; half.group.add(half.rails, half.marker); scene.add(half.group);
+		return { group, rails, marker, half };
 		}) }));
 		return { signal, branches };
 	});
@@ -395,7 +406,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
 	let worldRun: Run | null = null;
-	const skyAnchors = new Map<number, number>(), stadiumAnchors = new Map<number, number>();
+	const skyAnchors = new Map<number, number>(), stadiumAnchors = new Map<number, number>(), flourishAnchors = new Map<number, number>();
 	const forestAnchors = new Map<number, number>(), encounterAnchors = new Map<number, { offset: number; heading: number }>();
 	const contextLost = (event: Event) => { event.preventDefault(); onUnavailable(); };
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
@@ -406,7 +417,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		const center = (d: number) => routeCenter(d, junctions, run.routeBase);
 		const heading = (d: number) => routeHeading(d, junctions, run.routeBase);
 		const position = (z: number) => center(distance - z) - center(distance);
-		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); stadiumAnchors.clear(); worldRun = run; }
+		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); stadiumAnchors.clear(); flourishAnchors.clear(); worldRun = run; }
 		const concerts = concertsAhead(run, phase);
 		stadiumSlots.forEach((slot, index) => {
 			const concert = concerts[index]; slot.root.visible = !!concert;
@@ -416,7 +427,19 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			slot.root.position.set(stadiumAnchors.get(concert.start)! - center(distance), 0, distance - concert.distance);
 		});
 		for (const start of stadiumAnchors.keys()) if (!concerts.some(concert => concert.start === start)) stadiumAnchors.delete(start);
-		const onConcertGround = (x: number, z: number, padding = 0) => stadiumSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 33 + padding && Math.abs(z - slot.root.position.z) < 51 + padding);
+		const flourishes = flourishesAhead(run, phase);
+		flourishSlots.forEach((slot, index) => {
+			const event = flourishes[index]; slot.root.visible = !!event;
+			if (!event) return;
+			slot.kind = event.kind; slot.start = event.start; slot.end = event.end; slot.distance = event.distance;
+			slot.models.fairground.visible = event.kind === "fairground"; slot.models.quarry.visible = event.kind === "quarry";
+			if (!flourishAnchors.has(event.start)) flourishAnchors.set(event.start, roadsideCenter(event.distance, -1, junctions, run.routeBase, 31, 38));
+			slot.root.position.set(flourishAnchors.get(event.start)! - center(distance), 0, distance - event.distance);
+			if (event.kind === "fairground") animateFairground(slot.models.fairground, run.seconds, reducedMotion);
+		});
+		for (const start of flourishAnchors.keys()) if (!flourishes.some(event => event.start === start)) flourishAnchors.delete(start);
+		const onFlourishGround = (x: number, z: number, padding = 0) => flourishSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 25 + padding && Math.abs(z - slot.root.position.z) < 36 + padding);
+		const onConcertGround = (x: number, z: number, padding = 0) => onFlourishGround(x, z, padding) || stadiumSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 33 + padding && Math.abs(z - slot.root.position.z) < 51 + padding);
 		const switching = activeSignal(run);
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
 		const bands = landscapeBands(run, phase);
@@ -450,19 +473,28 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		const age = placement ? run.seconds - placement.seconds : Infinity;
 		const flightDuration = Math.min(0.18, 60 / tempo(run.seconds) * 0.2);
 		const first = Math.floor(phase) - 5;
-		segments.forEach(({ group, rails, marker }, offset) => {
-			const beat = beatForSlot(offset, first, segments.length);
-			group.position.z = PLACEMENT_Z - (beat - phase) * TRACK_LENGTH;
-			group.position.x = position(group.position.z);
-			group.position.y = railwayHeight(run.seed, distance - group.position.z);
-			group.rotation.x = railwayPitch(run.seed, distance - group.position.z);
-			group.rotation.y = heading(distance - group.position.z);
-			group.scale.z = 1 / Math.cos(group.rotation.y);
-			const missing = needsTrack(run, beat) && !run.placed.has(beat);
-			const inFlight = placement?.beat === beat && age < flightDuration;
-			const fork = forkAtDistance(distance - group.position.z, junctions);
-			group.visible = fork === null;
-			rails.visible = !missing && !inFlight; marker.visible = missing || inFlight;
+		// Adjacent half pieces meet exactly; boundary pieces span the change of grid.
+		const pieceLayout = (beat: number) => {
+			const before = Number.isInteger(beat) && trackStep(run, beat - 0.5) === 1 ? 1 : 0.5;
+			const after = trackStep(run, beat);
+			return { length: (before + after) / 2, offset: (before - after) * TRACK_LENGTH / 4 };
+		};
+		segments.forEach((piece, offset) => {
+			const baseBeat = beatForSlot(offset, first, segments.length);
+			for (const [item, beat] of [[piece, baseBeat], [piece.half, baseBeat + 0.5]] as const) {
+				const { group, rails, marker } = item, layout = pieceLayout(beat);
+				group.position.z = PLACEMENT_Z - (beat - phase) * TRACK_LENGTH + layout.offset;
+				group.position.x = position(group.position.z);
+				group.position.y = railwayHeight(run.seed, distance - group.position.z);
+				group.rotation.x = railwayPitch(run.seed, distance - group.position.z);
+				group.rotation.y = heading(distance - group.position.z);
+				group.scale.z = layout.length / Math.cos(group.rotation.y);
+				const missing = needsTrack(run, beat) && !run.placed.has(beat);
+				const inFlight = placement?.beat === beat && age < flightDuration;
+				const fork = forkAtDistance(distance - group.position.z, junctions);
+				group.visible = fork === null && (Number.isInteger(beat) || trackStep(run, beat) === 0.5);
+				rails.visible = !missing && !inFlight; marker.visible = missing || inFlight;
+			}
 		});
 		sceneryOffsets(distance).forEach((offset, index) => {
 			const origin = Math.round((distance - offset) / SCENERY_LENGTH) * SCENERY_LENGTH;
@@ -486,7 +518,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		rampVertices.needsUpdate = true; rampGeometry.computeVertexNormals();
 		junctionSlots.forEach(({ signal, branches }, index) => {
 			const junction = junctions[index]; signal.visible = !!junction;
-			branches.forEach(branch => branch.pieces.forEach(piece => { piece.group.visible = !!junction; }));
+			branches.forEach(branch => branch.pieces.forEach(piece => { piece.group.visible = !!junction; piece.half.group.visible = !!junction; }));
 			forkStarts.value.setComponent(index, junction ? distance - ((junction.beat + 5) * TRACK_LENGTH - PLACEMENT_Z) : -10000);
 			if (!junction) return;
 			const signalDistance = (junction.beat + 4) * TRACK_LENGTH - PLACEMENT_Z;
@@ -496,17 +528,20 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			signal.getObjectByName("left")!.visible = junction.side === -1;
 			signal.getObjectByName("right")!.visible = junction.side === 1;
 			signal.scale.setScalar(switching === junction.beat ? 1.05 + Math.sin(run.seconds * 8) * 0.025 : 1);
-			branches.forEach(({ side, pieces }) => pieces.forEach(({ group, rails, marker }, i) => {
-				const beat = junction.beat + 1 + i;
-				const inFlight = placement?.beat === beat && placement.side === side && age < flightDuration;
-				const missing = !branchLaid(run, beat, side);
-				rails.visible = !missing && !inFlight;
-				marker.visible = side === junction.side && (missing || inFlight);
-				const d = signalDistance + 6 + i * TRACK_LENGTH;
-				const path = (p: number) => fixedBranchCenter(p, junction, side, junctions, run.routeBase);
-				group.position.set(path(d) - center(distance), railwayHeight(run.seed, d), distance - d);
-				group.rotation.set(railwayPitch(run.seed, d), -Math.atan((path(d + 0.1) - path(d - 0.1)) / 0.2), 0);
-				group.scale.z = 1 / Math.cos(group.rotation.y);
+			branches.forEach(({ side, pieces }) => pieces.forEach((piece, i) => {
+				for (const [item, beat] of [[piece, junction.beat + 1 + i], [piece.half, junction.beat + 1.5 + i]] as const) {
+					const { group, rails, marker } = item, layout = pieceLayout(beat);
+					group.visible = Number.isInteger(beat) || trackStep(run, beat) === 0.5;
+					const inFlight = placement?.beat === beat && placement.side === side && age < flightDuration;
+					const missing = !branchLaid(run, beat, side);
+					rails.visible = !missing && !inFlight;
+					marker.visible = side === junction.side && (missing || inFlight);
+					const d = signalDistance + (beat - junction.beat) * TRACK_LENGTH - layout.offset;
+					const path = (p: number) => fixedBranchCenter(p, junction, side, junctions, run.routeBase);
+					group.position.set(path(d) - center(distance), railwayHeight(run.seed, d), distance - d);
+					group.rotation.set(railwayPitch(run.seed, d), -Math.atan((path(d + 0.1) - path(d - 0.1)) / 0.2), 0);
+					group.scale.z = layout.length / Math.cos(group.rotation.y);
+				}
 			}));
 		});
 		target.visible = switching === null;
@@ -567,8 +602,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		// Positive UV scrolling moves texture features toward +Z with the sleepers.
 		groundMaterial.map!.offset.y = surfaceOffset(distance, 90, 600);
 		ballast.map!.offset.y = surfaceOffset(distance, 5, 270);
-		const upcoming = Math.max(0, Math.round(phase));
-		const inWindow = run.seconds >= secondsAt(upcoming) - earlyTolerance(upcoming) && run.seconds <= secondsAt(upcoming) + tolerance(upcoming);
+		const upcoming = Math.max(0, nearestTrackBeat(run, phase));
+		const inWindow = run.seconds >= secondsAt(upcoming) - placementEarlyTolerance(run, upcoming) && run.seconds <= secondsAt(upcoming) + tolerance(upcoming);
 		const pulse = Math.pow(Math.max(0, Math.cos(phase * Math.PI * 2)), 12);
 		target.scale.setScalar(1 + pulse * (isDownbeat(run, Math.floor(phase)) ? 0.12 : 0.07));
 		gapMaterial.emissiveIntensity = inWindow && needsTrack(run, upcoming) && !run.placed.has(upcoming) ? 2.4 : 0.55 + pulse * 0.3;
@@ -583,6 +618,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		engineer.rotation.x = -swing * 0.18;
 		carriedPiece.visible = age >= 0.36 && stow < 0.99;
 		carriedPiece.position.y = 2.65 - stow * 2.1;
+		carriedPiece.scale.z = trackStep(run, Math.max(0, phase));
 		flyingPiece.visible = !!placement && age < flightDuration;
 		if (placement && flyingPiece.visible) {
 			const destination = PLACEMENT_Z - (placement.beat - phase) * TRACK_LENGTH;
@@ -590,6 +626,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			flyingPiece.rotation.x = -Math.PI / 2 * (1 - progress);
 			flyingPiece.rotation.y = train.rotation.y * (1 - progress) + heading(distance - destination) * progress;
 			flyingPiece.scale.setScalar(0.63 + 0.37 * progress);
+			flyingPiece.scale.z *= trackStep(run, placement.beat);
 		}
 		smoke.forEach((puff, i) => {
 			const age = ((run.seconds * 0.45 + i / 10) % 1);
@@ -600,7 +637,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		});
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);
-		inspect?.({ scene, camera, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots, concerts: stadiumSlots });
+		inspect?.({ scene, camera, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots, concerts: stadiumSlots, flourishes: flourishSlots, segments });
 	});
 	return () => {
 		observer.disconnect(); renderer.setAnimationLoop(null);
