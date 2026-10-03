@@ -85,6 +85,32 @@ export class BeatSound {
 		source.start(when); source.stop(when + 0.18);
 	}
 
+	whistle(delay = 0) {
+		if (!this.context || !this.volume || !this.steam || this.context.state !== "running") return;
+		const context = this.context, when = context.currentTime + Math.max(0, delay);
+		// A short three-chime steam whistle, with a little air behind the pitched pipes.
+		for (const frequency of [440, 554.37, 659.25, 0]) {
+			const source = frequency ? context.createOscillator() : context.createBufferSource();
+			const filter = context.createBiquadFilter(), envelope = context.createGain();
+			if (source instanceof OscillatorNode) {
+				source.type = "triangle";
+				source.frequency.setValueAtTime(frequency * 0.96, when);
+				source.frequency.linearRampToValueAtTime(frequency, when + 0.06);
+				source.frequency.setValueAtTime(frequency, when + 0.3);
+				source.frequency.linearRampToValueAtTime(frequency * 0.94, when + 0.48);
+			} else source.buffer = this.steam;
+			filter.type = frequency ? "lowpass" : "bandpass"; filter.frequency.value = frequency ? 1800 : 2100; filter.Q.value = 0.7;
+			envelope.gain.setValueAtTime(0.0001, when);
+			envelope.gain.exponentialRampToValueAtTime(frequency ? 0.1 : 0.07, when + 0.045);
+			envelope.gain.setValueAtTime(frequency ? 0.1 : 0.07, when + 0.3);
+			envelope.gain.exponentialRampToValueAtTime(0.0001, when + 0.5);
+			source.connect(filter).connect(envelope).connect(this.volume);
+			const cleanup = () => { this.voices.delete(source); source.onended = null; source.disconnect(); filter.disconnect(); envelope.disconnect(); };
+			this.voices.set(source, cleanup); source.onended = cleanup;
+			source.start(when); source.stop(when + 0.51);
+		}
+	}
+
 	environmentFrame(sources: EnvironmentSource[], delay = 0) { this.environment?.update(sources, delay); }
 
 	stop() {
