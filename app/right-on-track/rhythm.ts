@@ -3,11 +3,23 @@ import { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
 
 export type Meter = 3 | 4;
 export type Landscape = "forest" | "autumn";
-export type Phrase = { index: number; start: number; end: number; meter: Meter; landscape: Landscape; pattern: boolean[] };
+export type Phrase = { index: number; start: number; end: number; meter: Meter; landscape: Landscape; pattern: boolean[]; section: "normal" | "concert" };
+
+// A rare pair begins and ends on phrase boundaries, away from the opening tutorial.
+export function phraseSection(seed: number, index: number): "normal" | "concert" {
+	if (index % 12 !== 8 && index % 12 !== 9) return "normal";
+	const group = Math.floor(index / 12);
+	const hash = (Math.imul(seed ^ Math.imul(group + 1, 0x6c8e9cf5), 0x27d4eb2d) >>> 0) / 4294967296;
+	return hash < 0.4 ? "concert" : "normal";
+}
+export type ConcertHit = "stomp" | "clap" | "rest";
+export function concertHit(beat: number, start: number): ConcertHit {
+	return (["stomp", "stomp", "clap", "rest"] as const)[((beat - start) % 4 + 4) % 4];
+}
 
 // Only the fourth phrase in a group can be special; most of the journey stays in 4/4.
 export function phraseMeter(seed: number, index: number): Meter {
-	if (index % 4 !== 3) return 4;
+	if (phraseSection(seed, index) === "concert" || index % 4 !== 3) return 4;
 	let hash = Math.imul(seed ^ Math.imul(index + 1, 0x45d9f3b), 0x27d4eb2d);
 	hash = Math.imul(hash ^ hash >>> 16, 0x85ebca6b);
 	return ((hash ^ hash >>> 13) >>> 0) / 4294967296 < 0.6 ? 3 : 4;
@@ -15,6 +27,7 @@ export function phraseMeter(seed: number, index: number): Meter {
 
 // Seeded per phrase: looking ahead never changes an already visible gap.
 export function generatePhrase(seed: number, phrase: number, meter: Meter = phraseMeter(seed, phrase)) {
+	if (phraseSection(seed, phrase) === "concert") return Array.from({ length: 16 }, (_, beat) => concertHit(beat, 0) !== "rest");
 	let state = (seed ^ Math.imul(phrase + 1, 0x9e3779b9)) >>> 0;
 	const random = () => {
 		state = (state + 0x6d2b79f5) >>> 0;
@@ -64,7 +77,7 @@ export function phraseAt(run: Run, beat: number): Phrase {
 		const end = start + meter * 4;
 		if (end > run.generatedThrough) { run.generatedThrough = end; run.generatedIndex = index + 1; }
 		if (target < end) {
-			const phrase: Phrase = { index, start, end, meter, landscape: meter === 3 ? "autumn" : "forest", pattern: generatePhrase(run.seed, index, meter) };
+			const phrase: Phrase = { index, start, end, meter, landscape: meter === 3 ? "autumn" : "forest", pattern: generatePhrase(run.seed, index, meter), section: phraseSection(run.seed, index) };
 			run.phrases.set(start, phrase); return phrase;
 		}
 		start = end; index++;
@@ -74,7 +87,7 @@ export function phraseAt(run: Run, beat: number): Phrase {
 // Sparse signals belong to phrases, so lookahead and replay agree.
 export function signalBeat(seed: number, index: number, start: number, meter: Meter) {
 	const hash = (Math.imul(seed ^ Math.imul(index + 1, 0x51ed270b), 0x27d4eb2d) >>> 0) / 4294967296;
-	if (index % 4 !== 1 || hash >= 0.45) return null;
+	if (phraseSection(seed, index) === "concert" || index % 4 !== 1 || hash >= 0.45) return null;
 	const beat = start + meter * 2, distance = (beat + 4) * 6 + 4;
 	// Keep forks clear of river ramps and crossing gates/cars.
 	for (let i = Math.max(0, Math.floor((distance - 43) / SCENERY_LENGTH)); i <= Math.floor((distance + 283) / SCENERY_LENGTH); i++) {

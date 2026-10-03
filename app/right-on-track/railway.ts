@@ -1,3 +1,4 @@
+import { concertsAhead, createStadium } from "./concert";
 import { createAircraft, skyAt, animateAircraft } from "./aviation";
 import { animateFarmland } from "./farmland";
 import * as THREE from "three";
@@ -19,6 +20,7 @@ export type RailwayFrame = {
 	forks: { signal: THREE.Group; branches: { side: -1 | 1; pieces: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group }[] }[] }[];
 	encounters: { root: THREE.Group; models: ReturnType<typeof createEncounterModels> }[];
 	sky: { root: THREE.Group; models: ReturnType<typeof createAircraft> }[];
+	concerts: { root: THREE.Group; start: number; end: number; distance: number }[];
 };
 export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void, inspect?: (frame: RailwayFrame) => void) {
 	const scene = new THREE.Scene();
@@ -292,6 +294,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	});
 	bird.rotation.y = -Math.PI / 2;
 
+	const stadiumPrototype = createStadium(builders);
+	const stadiumSlots = Array.from({ length: 2 }, () => { const root = stadiumPrototype.clone(); scene.add(root); return { root, start: -1, end: -1, distance: 0 }; });
 	const encounterModels = createEncounterModels(builders);
 	const aircraftModels = createAircraft(builders);
 	const skySlots = Array.from({ length: 4 }, () => {
@@ -391,7 +395,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
 	let worldRun: Run | null = null;
-	const skyAnchors = new Map<number, number>();
+	const skyAnchors = new Map<number, number>(), stadiumAnchors = new Map<number, number>();
 	const forestAnchors = new Map<number, number>(), encounterAnchors = new Map<number, { offset: number; heading: number }>();
 	const contextLost = (event: Event) => { event.preventDefault(); onUnavailable(); };
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
@@ -402,7 +406,17 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		const center = (d: number) => routeCenter(d, junctions, run.routeBase);
 		const heading = (d: number) => routeHeading(d, junctions, run.routeBase);
 		const position = (z: number) => center(distance - z) - center(distance);
-		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); worldRun = run; }
+		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); stadiumAnchors.clear(); worldRun = run; }
+		const concerts = concertsAhead(run, phase);
+		stadiumSlots.forEach((slot, index) => {
+			const concert = concerts[index]; slot.root.visible = !!concert;
+			if (!concert) return;
+			slot.start = concert.start; slot.end = concert.end; slot.distance = concert.distance;
+			if (!stadiumAnchors.has(concert.start)) stadiumAnchors.set(concert.start, roadsideCenter(concert.distance, -1, junctions, run.routeBase, 38, 50));
+			slot.root.position.set(stadiumAnchors.get(concert.start)! - center(distance), 0, distance - concert.distance);
+		});
+		for (const start of stadiumAnchors.keys()) if (!concerts.some(concert => concert.start === start)) stadiumAnchors.delete(start);
+		const onConcertGround = (x: number, z: number, padding = 0) => stadiumSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 33 + padding && Math.abs(z - slot.root.position.z) < 51 + padding);
 		const switching = activeSignal(run);
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
 		const bands = landscapeBands(run, phase);
@@ -505,6 +519,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
 			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: (["crossing", "river"].includes(encounter.kind ?? "") ? center(encounter.distance) : roadsideCenter(encounter.distance, encounter.side as -1 | 1, junctions, run.routeBase, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 10, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 7)) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
 			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance), 0, distance - encounter.distance);
+			slot.root.visible = !onConcertGround(slot.root.position.x, slot.root.position.z, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 5);
 			slot.root.rotation.y = encounter.kind === "crossing" ? (encounterAnchors.get(firstEncounter + index)?.heading ?? heading(encounter.distance)) : ["river", "crops", "cattle"].includes(encounter.kind ?? "") ? 0 : encounter.side * 0.25;
 			riverPositions.value.setComponent(index, encounter.kind === "river" ? distance - encounter.distance : -10000);
 			for (let car = 0; car < 3; car++) slot.models.crossing.getObjectByName(`waiting-car-${car}`)!.visible = car < encounter.cars;
@@ -535,7 +550,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			item.matrices.forEach((matrix, index) => {
 				const z = item.tile.position.z + item.roots[index];
 				const blend = landscapeBlend(bands, phase + (PLACEMENT_Z - z) / TRACK_LENGTH);
-				const overRiver = (treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounterClearance) || treeOnFork(item.rootsX[index] + item.tile.position.x, z, distance, junctions, run.routeBase));
+				const overRiver = (onConcertGround(item.rootsX[index] + item.tile.position.x, z) || treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounterClearance) || treeOnFork(item.rootsX[index] + item.tile.position.x, z, distance, junctions, run.routeBase));
 				const scale = overRiver ? 0 : item.mesh.material === green ? 1 - blend : item.mesh.material === autumnLeaves ? blend : 1;
 				foliageScale.setScalar(Math.max(0.001, scale));
 				foliageMatrix.copy(matrix).scale(foliageScale); item.mesh.setMatrixAt(index, foliageMatrix);
@@ -546,7 +561,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		}
 		for (const { tile, actor } of treeActors) {
 			const z = tile.position.z + actor.userData.treeZ;
-			actor.visible = !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounterClearance) && !treeOnFork(actor.parent!.position.x + tile.position.x, z, distance, junctions, run.routeBase);
+			actor.visible = !onConcertGround(actor.parent!.position.x + tile.position.x, z) && !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounterClearance) && !treeOnFork(actor.parent!.position.x + tile.position.x, z, distance, junctions, run.routeBase);
 			if (actor.visible) animateTreeDetail(actor, actor.userData.detailKind, run.seconds, -z, reducedMotion);
 		}
 		// Positive UV scrolling moves texture features toward +Z with the sleepers.
@@ -585,7 +600,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		});
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);
-		inspect?.({ scene, camera, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots });
+		inspect?.({ scene, camera, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots, concerts: stadiumSlots });
 	});
 	return () => {
 		observer.disconnect(); renderer.setAnimationLoop(null);

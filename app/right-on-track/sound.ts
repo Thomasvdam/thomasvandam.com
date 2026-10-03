@@ -53,6 +53,27 @@ export class BeatSound {
 		}
 	}
 
+	concert(delay: number, hit: "stomp" | "clap" | "rest") {
+		if (hit === "rest" || !this.context || !this.volume || !this.steam || this.context.state !== "running") return;
+		const context = this.context, when = context.currentTime + Math.max(0, delay);
+		const source = hit === "stomp" ? context.createOscillator() : context.createBufferSource();
+		const filter = context.createBiquadFilter(), envelope = context.createGain();
+		if (source instanceof OscillatorNode) { source.frequency.setValueAtTime(90, when); source.frequency.exponentialRampToValueAtTime(35, when + 0.13); }
+		else source.buffer = this.steam;
+		filter.type = hit === "clap" ? "highpass" : "lowpass"; filter.frequency.value = hit === "clap" ? 950 : 180;
+		envelope.gain.setValueAtTime(0.0001, when);
+		for (const offset of hit === "clap" ? [0, 0.012, 0.024] : [0]) {
+			envelope.gain.setValueAtTime(0.0001, when + offset);
+			envelope.gain.exponentialRampToValueAtTime(0.7, when + offset + 0.003);
+			envelope.gain.exponentialRampToValueAtTime(0.03, when + offset + 0.011);
+		}
+		envelope.gain.exponentialRampToValueAtTime(0.0001, when + 0.16);
+		source.connect(filter).connect(envelope).connect(this.volume);
+		const cleanup = () => { this.voices.delete(source); source.onended = null; source.disconnect(); filter.disconnect(); envelope.disconnect(); };
+		this.voices.set(source, cleanup); source.onended = cleanup;
+		source.start(when); source.stop(when + 0.18);
+	}
+
 	stop() {
 		for (const [voice, cleanup] of this.voices) { try { voice.stop(); } catch { /* An ended voice may already be stopped. */ } cleanup(); }
 	}

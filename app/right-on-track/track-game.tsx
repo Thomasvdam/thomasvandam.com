@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
-import { activeSignal, advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, trainSpeed, type Run } from "./rhythm";
+import { concertHit, phraseAt, activeSignal, advance, isDownbeat, layTrack, needsTrack, newRun, phaseAt, secondsAt, trainSpeed, type Run } from "./rhythm";
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 
@@ -52,7 +52,11 @@ export function TrackGame() {
 				if (current.mode === "running") {
 					while (secondsAt(nextSound.current) < current.seconds + 0.12) {
 						const delay = secondsAt(nextSound.current) - current.seconds;
-						if (delay > -0.03) speaker.beat(delay, isDownbeat(current, nextSound.current), needsTrack(current, nextSound.current));
+						if (delay > -0.03) {
+							const phrase = phraseAt(current, Math.max(0, nextSound.current));
+							if (nextSound.current >= 0 && phrase.section === "concert") speaker.concert(delay, concertHit(nextSound.current, phrase.start));
+							else speaker.beat(delay, isDownbeat(current, nextSound.current), needsTrack(current, nextSound.current));
+						}
 						nextSound.current++;
 					}
 				} else speaker.stop();
