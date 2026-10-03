@@ -9,7 +9,7 @@ import { concertsAhead, createStadium } from "./concert";
 import { createAircraft, skyAt, animateAircraft } from "./aviation";
 import { animateFarmland } from "./farmland";
 import * as THREE from "three";
-import { branchLaid, activeSignal, signalsAhead, placementEarlyTolerance, nearestTrackBeat, trackStep, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
+import { branchLaid, activeSignal, signalsAhead, placementEarlyTolerance, placementBeat, trackStep, isDownbeat, needsTrack, phraseAt, phaseAt, secondsAt, tempo, tolerance, type Run } from "./rhythm";
 
 import { roadsideCenter, treeOnFork, forkAtDistance, fixedBranchCenter, routeCenter, routeHeading, railwayHeight, railwayPitch, beatForSlot, landscapeBands, landscapeBlend, PLACEMENT_Z, sceneryOffsets, surfaceOffset, trackCenter, encounterAt, approachCar, treeOnFeature, SCENERY_LENGTH, TRACK_LENGTH } from "./motion";
 
@@ -692,10 +692,10 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		// Positive UV scrolling moves texture features toward +Z with the sleepers.
 		groundMaterial.map!.offset.y = surfaceOffset(distance, 90, 600);
 		ballast.map!.offset.y = surfaceOffset(distance, 5, 270);
-		const upcoming = Math.max(0, nearestTrackBeat(run, phase));
+		const upcoming = Math.max(0, placementBeat(run, run.seconds));
 		const inWindow = run.seconds >= secondsAt(upcoming) - placementEarlyTolerance(run, upcoming) && run.seconds <= secondsAt(upcoming) + tolerance(upcoming);
 		const pulse = Math.pow(Math.max(0, Math.cos(phase * Math.PI * 2)), 12);
-		target.scale.setScalar(1 + pulse * (isDownbeat(run, Math.floor(phase)) ? 0.12 : 0.07));
+		target.scale.setScalar(1 + pulse * (isDownbeat(run, Math.floor(phase)) ? (phrase.meter === 3 ? 0.16 : 0.12) : (phrase.meter === 3 ? 0.03 : 0.07)));
 		gapMaterial.emissiveIntensity = inWindow && needsTrack(run, upcoming) && !run.placed.has(upcoming) ? 2.4 : 0.55 + pulse * 0.3;
 		const nearestSignal = junctions.find(junction => phase >= junction.beat - 2.4 && phase <= junction.beat + 1.15);
 		const stow = nearestSignal ? Math.max(0, Math.min(1, (phase - nearestSignal.beat + 2.4) / 0.4, (nearestSignal.beat + 1.15 - phase) / 0.4)) : 0;

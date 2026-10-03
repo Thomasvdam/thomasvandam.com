@@ -1,5 +1,5 @@
 import type { Run } from "./rhythm";
-export const PRECISION_WINDOW = 0.05;
+export const PRECISION_WINDOW = 0.06;
 export const UPGRADE_INTERVAL = 10;
 const rewards = ["A splendid top hat", "Golden trim", "Rainbow smoke · 20%", "Wagon bunting", "Golden boiler", "Rainbow smoke · 40%", "Party hat", "Wagon lanterns", "Golden cab roof", "Rainbow smoke · 60%", "Engineer’s crown", "Golden wheels", "Rainbow smoke · 80%", "Wagon rosettes", "Rainbow smoke · 100%", "Golden front bumper"];
 export function upgradeLabel(level: number) {

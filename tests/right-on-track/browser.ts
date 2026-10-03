@@ -1,7 +1,7 @@
 import type { BirdVoice } from "../../app/right-on-track/bird-calls";
 import { type EnvironmentSource, type EnvironmentKind } from "../../app/right-on-track/ambience";
 import { yardsAhead } from "../../app/right-on-track/yard";
-import { createDebugPreview, sceneryScenarios, sectionScenarios } from "../../app/right-on-track/debug";
+import { advancePreview, createDebugPreview, sceneryScenarios, sectionScenarios } from "../../app/right-on-track/debug";
 import { terrainHeight, terrainPitch } from "../../app/right-on-track/terrain";
 import { upgradeAppearance } from "../../app/right-on-track/upgrades";
 import { railwayHeight } from "../../app/right-on-track/motion";
@@ -61,7 +61,7 @@ function geometry(frame: RailwayFrame) {
 	return transforms;
 }
 
-async function soundBuffer(muted = false, stop = false, concert = false, flourish = false, whistle = false) {
+async function soundBuffer(muted = false, stop = false, concert = false, flourish = false, whistle = false, waltz = false) {
 	const offline = new OfflineAudioContext(1, 44100, 44100);
 	const context = new Proxy(offline, { get(target, key) {
 		if (key === "state") return "running";
@@ -73,7 +73,10 @@ async function soundBuffer(muted = false, stop = false, concert = false, flouris
 	try {
 		assert(await sound.unlock(), "Audio setup failed");
 		sound.setMuted(muted);
-		if (whistle) { sound.whistle(0.1); sound.beat(0.1, true, true); }
+		if (waltz) {
+			const preview = createDebugPreview("autumn"), phrase = phraseAt(preview.run, preview.autoUntil);
+			for (let i = 0; i < 3; i++) sound.schedule(preview.run, phrase.start + i, 0.1 + i * 0.3);
+		} else if (whistle) { sound.whistle(0.1); sound.beat(0.1, true, true); }
 		else if (concert) { sound.concert(0.1, "stomp"); sound.concert(0.3, "stomp"); sound.concert(0.5, "clap"); sound.concert(0.7, "rest"); }
 		else if (flourish) {
 			const journey = newRun(0); let phrase = phraseAt(journey, 0);
@@ -424,6 +427,28 @@ async function main() {
 				calls.push(data);
 			}
 			assert(calls[0].some((sample, i) => sample !== calls[1][i]) && calls[1].some((sample, i) => sample !== calls[2][i]), "Bird families share a call");
+		});
+
+		await test("3/4 sounds a strong low first beat and two lighter puffs with mute and stop", async () => {
+			const data = await soundBuffer(false, false, false, false, false, true);
+			const energy = (start: number) => data.slice(start * 44100, (start + 0.18) * 44100).reduce((sum, sample) => sum + sample * sample, 0);
+			assert(energy(0.1) > energy(0.4) * 3 && energy(0.1) > energy(0.7) * 3, "Waltz downbeat has no clear accent");
+			assert(energy(0.4) > 0.001 && energy(0.7) > 0.001, "Waltz light beats missing");
+			assert(Math.max(...data.map(Math.abs)) < 1, "Waltz audio clips");
+			for (const silent of [await soundBuffer(true, false, false, false, false, true), await soundBuffer(false, true, false, false, false, true)]) assert(silent.every(sample => sample === 0), "Waltz mute/stop failed");
+		});
+		await test("four irregular quarry taps fill four visible pieces without a duplicate crash", () => {
+			const preview = createDebugPreview("quarry"); run = preview.run;
+			const start = preview.autoUntil;
+			advancePreview(run, secondsAt(start - 0.4), start); const before = run.score;
+			for (const offset of [0.13, 0.13, 0.7, 1.2]) layTrack(run, secondsAt(start + offset));
+			advance(run, secondsAt(start + 1.8));
+			assert(run.mode === "running" && run.score === before + 4, "Irregular quarry taps crash or lose a placement");
+			for (const beat of [start, start + 0.5, start + 1, start + 1.5]) assert(run.placed.has(beat), `Quarry gap ${beat} missing`);
+			assert(run.placement?.beat === start + 1.5, "Fourth tap targets a filled slot");
+			const frame = render(start + 1.8);
+			assert(frame.flourishes.some(slot => slot.root.visible && slot.kind === "quarry"), "Quarry landmark missing");
+			screenshot("quarry-irregular-four-taps");
 		});
 
 		await test("upgrade whistle stays brief and bounded over a chuff, and obeys mute and stop", async () => {

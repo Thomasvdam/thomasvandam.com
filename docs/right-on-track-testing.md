@@ -40,7 +40,7 @@ stow/retrieve, both routes through 80 beats and history pruning, filling only th
 selected physical branch, guaranteed recovery gap, early divergence, rendered tree
 continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, two-phrase concert playback and left stadium approach, stomp/clap timing and rests, fairground/quarry approach cues, continuous rail seams across half-beat grid changes, independent half-track placements, double-time audio at maximum speed, reduced-motion Ferris wheel, independent wagon steering/coupling on both forks, steady normal cargo, rare yard depletion and moving crane handoff/refill, console/shader errors, audible
 steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup. Environmental audio checks match visible lumberjacks, field machinery, rivers, aircraft, birds and stadiums to their sources; render every ambient voice offline to verify quiet levels, left/right placement, distance culling, fade-out, mute and stop. Bun checks bound distance gain, overlapping voices and retiring tails, including resume after stopping. Bird calls are one-shots with delayed probabilistic opportunities and a shared cooldown; checks verify family-specific signatures, natural voice cleanup, cache separation from flowing water, actual on-screen birds, and silence for nests containing only eggs.
-The terrain renderer check verifies a continuous rolling ground mesh, matching train height, field elevation and slope, and saves forest/field screenshots. Bun terrain tests cover bounded grades, seeded replay, region boundaries, planar fields, level crossings/rivers/landmarks, and bridge clearance. Meter checks cover whole two-to-four-phrase excursions, length variety, and separation from named sections.
+The terrain renderer check verifies a continuous rolling ground mesh, matching train height, field elevation and slope, and saves forest/field screenshots. Bun terrain tests cover bounded grades, seeded replay, region boundaries, planar fields, level crossings/rivers/landmarks, and bridge clearance. Meter checks cover whole two-to-four-phrase excursions, length variety, and separation from named sections. 3/4 phrases anchor every bar on its first beat and choose a second or third pickup, preserving a rest. Audio checks verify the low accented first beat and two lighter steam puffs, clipping headroom, mute and stop. Double-time early windows now use the regular-piece tolerance; overlapping taps target the first unfilled eligible gap. Checks exercise two taps in an overlap, four uneven quarry taps, extra-tap/miss failures, independent branch ownership and rendered quarry recovery.
 The existing Bun tests cover timing failures, longer runs, scenery footprints,
 bridge ramps, ground direction, parallax continuity, road braking, and rarity.
 
@@ -51,11 +51,11 @@ servers on the same port.
 
 ## Hidden preview menu
 
-Precision rewards use a ±50 ms window for every player placement, including
+Precision rewards use a ±60 ms window for every player placement, including
 half-beat flourishes. Each ten-hit block unlocks another cosmetic tier; a looser
 accepted hit resets the streak but preserves earned upgrades. Rests, pauses,
 switch toggles and debug autoplay do not award or break the streak. A new run
-resets cosmetics. Bun checks cover the exact boundaries, streak resets, ten-hit
+resets cosmetics. Bun checks cover the exact boundaries, including full-speed late acceptance, streak resets, ten-hit
 milestones, switch/rest/pause handling, debug isolation, half-beat hits, and
 deterministic rainbow probability. The renderer checks all cosmetic tiers, gold
 materials, hat/wagon visibility, smoke stability, 100% rainbow and new-run reset,

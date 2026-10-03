@@ -1,4 +1,4 @@
-import { concertHit, phraseSection, trackStep, placementEarlyTolerance } from "./rhythm.ts";
+import { concertHit, phraseSection, trackStep, placementEarlyTolerance, placementBeat } from "./rhythm.ts";
 import { FORK_OFFSET } from "./fork-config.ts";
 import { describe, expect, test } from "bun:test";
 import { branchLaid, branchForBeat, activeSignal, signalsAhead, advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
@@ -69,7 +69,7 @@ describe("railway rhythm", () => {
 	});
 
 	test("each bar has gaps and rests; phrases vary across bars and runs", () => {
-		const phrases = new Set();
+		const phrases = new Set(), regularPhrases = new Set();
 		for (let seed = 0; seed < 50; seed++) {
 			for (let phrase = 0; phrase < 8; phrase++) {
 				const pattern = generatePhrase(seed, phrase);
@@ -81,9 +81,12 @@ describe("railway rhythm", () => {
 					expect(gaps).toBeLessThanOrEqual(meter - 1);
 				}
 				phrases.add(pattern.join());
+				regularPhrases.add(generatePhrase(seed, phrase, 4).join());
 			}
 		}
-		expect(phrases.size).toBeGreaterThan(350);
+		// Waltz phrases deliberately use a smaller, recognizable vocabulary.
+		expect(phrases.size).toBeGreaterThan(300);
+		expect(regularPhrases.size).toBeGreaterThan(350);
 	});
 
 	test("previewing out of order and regenerating old phrases cannot change gaps", () => {
@@ -332,11 +335,12 @@ test("a half-beat tap fills its own piece, while skipping it crashes", () => {
 	advance(missed.run, secondsAt(missed.phrase.start + 0.5) + tolerance(missed.phrase.start + 0.5) + 0.001);
 	expect(missed.run.reason).toContain("Too late");
 });
-test("half-beat timing remains bounded and normal sections retain their wider early window", () => {
+test("half-beat windows use regular tolerance and overlap without changing normal timing", () => {
 	const { run, phrase } = flourishFixture("quarry");
 	for (const beat of [phrase.start, phrase.start + 0.5, phrase.start + 1, phrase.start + 1.5]) {
 		expect(phaseAt(secondsAt(beat))).toBeCloseTo(beat, 8);
-		expect(placementEarlyTolerance(run, beat)).toBeLessThan(secondsAt(beat + 0.5) - secondsAt(beat) - tolerance(beat));
+		expect(placementEarlyTolerance(run, beat)).toBe(earlyTolerance(beat));
+		expect(placementEarlyTolerance(run, beat)).toBeGreaterThan(secondsAt(beat + 0.5) - secondsAt(beat) - tolerance(beat));
 	}
 	expect(placementEarlyTolerance(run, 0)).toBe(earlyTolerance(0));
 	expect(needsTrack(run, 0.5)).toBe(false);
@@ -358,4 +362,45 @@ test("half-beat placements on a lingering fork fill only the selected path", () 
 		expect(branchLaid(run, beat, side)).toBe(true);
 		expect(branchLaid(run, beat, -side)).toBe(false);
 	}
+});
+
+
+test.each(["fairground", "quarry"])("%s overlapping windows fill the first empty half-beat gap", kind => {
+	const { run, phrase } = flourishFixture(kind); playUntil(run, phrase.start);
+	const b = phrase.start, overlap = secondsAt(b + 0.13);
+	layTrack(run, overlap); expect(run.placement.beat).toBe(b);
+	expect(placementBeat(run, overlap)).toBe(b + 0.5);
+	layTrack(run, overlap); expect(run.placement.beat).toBe(b + 0.5);
+	expect(run.mode).toBe("running");
+	expect(run.placed.has(b)).toBe(true); expect(run.placed.has(b + 0.5)).toBe(true);
+});
+
+test("four irregular quarry taps fill four gaps, while extra taps and misses still fail", () => {
+	const { run, phrase } = flourishFixture("quarry"); playUntil(run, phrase.start);
+	const score = run.score, b = phrase.start;
+	for (const phase of [b + 0.13, b + 0.13, b + 0.7, b + 1.2]) layTrack(run, secondsAt(phase));
+	expect(run.mode).toBe("running"); expect(run.score).toBe(score + 4);
+	for (const beat of [b, b + 0.5, b + 1, b + 1.5]) expect(run.placed.has(beat)).toBe(true);
+	layTrack(run, secondsAt(b + 1.3)); expect(run.mode).toBe("crashed");
+	const missed = flourishFixture("quarry"); playUntil(missed.run, missed.phrase.start);
+	for (const offset of [0.13, 0.13, 0.7]) layTrack(missed.run, secondsAt(missed.phrase.start + offset));
+	advance(missed.run, secondsAt(missed.phrase.start + 1.5) + tolerance(missed.phrase.start + 1.5) + 0.001);
+	expect(missed.run.reason).toContain("Too late");
+});
+
+test("3/4 rail patterns anchor every downbeat, vary their pickup and preserve a rest", () => {
+	const patterns = new Set();
+	for (let seed = 0; seed < 40; seed++) {
+		const run = newRun(seed); let p = phraseAt(run, 0);
+		while (p.meter !== 3 && p.index < 60) p = phraseAt(run, p.end);
+		if (p.meter !== 3) continue;
+		patterns.add(p.pattern.join());
+		for (let i = 0; i < 12; i += 3) {
+			expect(p.pattern[i]).toBe(true);
+			expect(p.pattern.slice(i, i + 3).filter(Boolean)).toHaveLength(2);
+			expect(isDownbeat(run, p.start + i)).toBe(true);
+			expect(isDownbeat(run, p.start + i + 1)).toBe(false);
+		}
+	}
+	expect(patterns.size).toBeGreaterThan(3);
 });

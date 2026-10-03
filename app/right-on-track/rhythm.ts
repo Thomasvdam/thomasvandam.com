@@ -58,6 +58,11 @@ export function generatePhrase(seed: number, phrase: number, meter: Meter = phra
 		return ((value ^ value >>> 14) >>> 0) / 4294967296;
 	};
 	return Array.from({ length: 4 }, () => {
+		if (meter === 3) {
+			// An anchored ONE with a light second or third hit makes the waltz audible and playable.
+			const pickup = random() < 0.8 ? 1 : 2;
+			return [true, pickup === 1, pickup === 2];
+		}
 		const order = Array.from({ length: meter }, (_, i) => i);
 		for (let i = meter - 1; i > 0; i--) {
 			const j = Math.floor(random() * (i + 1));
@@ -175,8 +180,21 @@ export function nearestTrackBeat(run: Run, phase: number) {
 	for (const beat of [half, half + 0.5]) if (trackStep(run, beat) === 0.5) candidates.push(beat);
 	return candidates.reduce((best, beat) => Math.abs(beat - phase) <= Math.abs(best - phase) ? beat : best);
 }
-export function placementEarlyTolerance(run: Run, beat: number) {
-	return trackStep(run, beat) === 0.5 || trackStep(run, beat - 0.5) === 0.5 ? Math.min(earlyTolerance(beat), 60 / tempo(secondsAt(beat)) * 0.24) : earlyTolerance(beat);
+export function placementEarlyTolerance(_run: Run, beat: number) {
+	return earlyTolerance(beat);
+}
+
+export function placementBeat(run: Run, seconds: number) {
+	const phase = phaseAt(seconds), nearest = nearestTrackBeat(run, phase) || 0;
+	// Overlapping half-beat windows belong to the first unfilled required piece.
+	// Include normal pieces when finding the first gap so a boundary cannot skip one.
+	const first = Math.floor(phase * 2) / 2 - 0.5;
+	for (let beat = first; beat <= first + 1.5; beat += 0.5) {
+		if (beat < 0 || run.placed.has(beat) || !needsTrack(run, beat)) continue;
+		if (seconds < secondsAt(beat) - earlyTolerance(beat) - 1e-9 || seconds > secondsAt(beat) + tolerance(beat) + 1e-9) continue;
+		return trackStep(run, beat) === 0.5 ? beat : nearest;
+	}
+	return nearest;
 }
 
 export function isDownbeat(run: Run, beat: number) {
@@ -186,7 +204,7 @@ export function isDownbeat(run: Run, beat: number) {
 }
 
 export function tolerance(beat: number) {
-	return Math.min(0.095, 60 / tempo(secondsAt(Math.max(0, beat))) * 0.16);
+	return Math.max(PRECISION_WINDOW, Math.min(0.095, 60 / tempo(secondsAt(Math.max(0, beat))) * 0.16));
 }
 
 export function earlyTolerance(beat: number) {
@@ -252,7 +270,7 @@ export function layTrack(run: Run, seconds: number, earnPrecision = true) {
 		run.switches.set(signal, (run.switches.get(signal) ?? -1) === -1 ? 1 : -1);
 		return;
 	}
-	const beat = nearestTrackBeat(run, phaseAt(seconds)) || 0;
+	const beat = placementBeat(run, seconds);
 	if (run.placed.has(beat)) {
 		run.reason = "Double track. One piece was enough.";
 	} else if (beat < 0 || seconds < secondsAt(beat) - placementEarlyTolerance(run, beat) || seconds > secondsAt(beat) + tolerance(beat)) {
