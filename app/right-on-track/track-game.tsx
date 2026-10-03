@@ -164,7 +164,7 @@ export function TrackGame() {
 			if (disposed || !host.current) return;
 			cleanup = createRailway(host.current, tick, () => {
 				contextFailed = true; pause(); setUnavailable(true);
-			});
+			}, undefined, sources => speaker.environmentFrame(sources));
 			setLoaded(!contextFailed);
 		}).catch(() => { if (!disposed) setUnavailable(true); });
 		return () => {

@@ -1,3 +1,4 @@
+import { type EnvironmentSource, type EnvironmentKind } from "../../app/right-on-track/ambience";
 import { yardsAhead } from "../../app/right-on-track/yard";
 import { createDebugPreview, sceneryScenarios, sectionScenarios } from "../../app/right-on-track/debug";
 import { terrainHeight, terrainPitch } from "../../app/right-on-track/terrain";
@@ -23,6 +24,7 @@ async function test(name: string, body: () => void | Promise<void>) {
 }
 const host = document.querySelector<HTMLDivElement>("#railway")!;
 const frames = new Map<number, FrameRequestCallback>();
+let environment: EnvironmentSource[] = [];
 let frameId = 0, inspected: RailwayFrame | undefined;
 let run = newRun(0); run.mode = "running";
 const nativeRequest = window.requestAnimationFrame, nativeCancel = window.cancelAnimationFrame;
@@ -82,12 +84,30 @@ async function soundBuffer(muted = false, stop = false, concert = false, flouris
 	} finally { sound.dispose(); }
 }
 
+async function ambientBuffer(kind: EnvironmentKind, muted = false, stop = false, far = false) {
+	const offline = new OfflineAudioContext(2, 44100 * 2, 44100);
+	const context = new Proxy(offline, { get(target, key) {
+		if (key === "state") return "running";
+		if (key === "resume" || key === "close") return () => Promise.resolve();
+		const value = Reflect.get(target, key, target);
+		return typeof value === "function" ? value.bind(target) : value;
+	} }) as unknown as AudioContext;
+	const sound = new BeatSound(() => context);
+	try {
+		assert(await sound.unlock(), "Ambient audio setup failed"); sound.setMuted(muted);
+		sound.environmentFrame([{ id: "test", kind, x: -15, z: far ? -300 : 0 }]);
+		sound.environmentFrame([], 1); if (stop) sound.stop();
+		const buffer = await offline.startRendering();
+		return [buffer.getChannelData(0), buffer.getChannelData(1)];
+	} finally { sound.dispose(); }
+}
+
 async function main() {
 	window.requestAnimationFrame = callback => { frames.set(++frameId, callback); return frameId; };
 	window.cancelAnimationFrame = id => { frames.delete(id); };
 	console.error = (...args) => { errors.push(args.map(String).join(" ")); nativeError(...args); };
 	try {
-		cleanup = createRailway(host, () => run, () => { throw new Error("WebGL unavailable"); }, frame => { inspected = frame; });
+		cleanup = createRailway(host, () => run, () => { throw new Error("WebGL unavailable"); }, frame => { inspected = frame; }, sources => { environment = sources; });
 		await test("switching keeps branch geometry and all scenery transforms fixed", () => {
 			assert(signalsAhead(run, 0)[0] === 24, "Fixture signal changed");
 			for (let beat = 0; beat < 22; beat++) {
@@ -361,6 +381,26 @@ async function main() {
 			assert(data.slice(0.7 * 44100).every(sample => sample === 0), "Concert rest contains a hit");
 			for (const buffer of [await soundBuffer(true, false, true), await soundBuffer(false, true, true)]) assert(buffer.every(sample => sample === 0), "Concert mute/stop failed");
 		});
+		await test("environment sounds follow visible scenery and landmarks", () => {
+			for (const [id, kind] of [["lumberjack", "chopping"], ["tractor", "tractor"], ["combine", "tractor"], ["river-ducks", "water"], ["prop", "prop"], ["jet", "jet"], ["banner", "prop"], ["nest", "birds"], ["concert", "crowd"]] as const) {
+				const preview = createDebugPreview(id); run = preview.run;
+				render(phaseAt(run.seconds));
+				assert(environment.some(source => source.kind === kind), `${id} has no ${kind} sound`);
+				assert(environment.every(source => Number.isFinite(source.x) && Number.isFinite(source.z)), "Invalid audio positions");
+			}
+		});
+		await test("quiet stereo ambience fades away and obeys mute and stop", async () => {
+			for (const kind of ["birds", "prop", "jet", "tractor", "chopping", "water", "crowd"] as const) {
+				const [left, right] = await ambientBuffer(kind);
+				const peak = Math.max(...left.map(Math.abs));
+				assert(peak > 0.0001 && peak < 0.025, `${kind} ambient peak ${peak}`);
+				const energy = (data: Float32Array) => data.reduce((sum, sample) => sum + sample * sample, 0);
+				assert(energy(left) > energy(right), `${kind} is not positioned on the left`);
+				assert(left.slice(1.6 * 44100).every(sample => sample === 0), `${kind} keeps playing after leaving`);
+				for (const data of [await ambientBuffer(kind, true), await ambientBuffer(kind, false, true), await ambientBuffer(kind, false, false, true)]) assert(data.every(channel => channel.every(sample => sample === 0)), `${kind} mute/stop/distance failed`);
+			}
+		});
+
 		await test("steam chuffs are scheduled, audible, bounded and silent after their envelopes", async () => {
 			const data = await soundBuffer();
 			const peak = Math.max(...data.map(Math.abs));
