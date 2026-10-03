@@ -35,23 +35,23 @@ export class BeatSound {
 	schedule(run: Run, beat: number, delay: number) {
 		const phrase = phraseAt(run, Math.max(0, beat));
 		if (beat >= 0 && phrase.section === "concert") { if (Number.isInteger(beat)) this.concert(delay, concertHit(beat, phrase.start)); }
-		else if (Number.isInteger(beat) || needsTrack(run, beat)) this.beat(delay, isDownbeat(run, beat), needsTrack(run, beat));
+		else if (Number.isInteger(beat) || needsTrack(run, beat)) this.beat(delay, isDownbeat(run, beat), needsTrack(run, beat), phrase.meter === 3);
 	}
 
-	beat(delay: number, downbeat: boolean, gap: boolean) {
+	beat(delay: number, downbeat: boolean, gap: boolean, waltz = false) {
 		if (!this.context || !this.volume || !this.steam || this.context.state !== "running") return;
 		const context = this.context;
 		const when = context.currentTime + Math.max(0, delay);
 		// A piston thump beneath a filtered puff of escaping steam.
 		const piston = context.createOscillator(); piston.type = "sine";
-		piston.frequency.setValueAtTime(downbeat ? 105 : 85, when);
-		piston.frequency.exponentialRampToValueAtTime(38, when + 0.12);
+		piston.frequency.setValueAtTime(waltz ? (downbeat ? 75 : 150) : (downbeat ? 105 : 85), when);
+		piston.frequency.exponentialRampToValueAtTime(waltz && !downbeat ? 85 : 38, when + 0.12);
 		const steam = context.createBufferSource(); steam.buffer = this.steam;
 		const filter = context.createBiquadFilter(); filter.type = "bandpass"; filter.Q.value = 0.7;
-		filter.frequency.setValueAtTime(gap ? 1250 : 850, when);
-		filter.frequency.exponentialRampToValueAtTime(320, when + 0.16);
+		filter.frequency.setValueAtTime(waltz ? (downbeat ? 600 : 1700) : (gap ? 1250 : 850), when);
+		filter.frequency.exponentialRampToValueAtTime(waltz && !downbeat ? 900 : 320, when + 0.16);
 		steam.connect(filter);
-		for (const [source, output, level] of [[piston, piston, downbeat ? 0.55 : 0.38], [steam, filter, gap ? 0.75 : 0.58]] as const) {
+		for (const [source, output, level] of [[piston, piston, waltz ? (downbeat ? 0.65 : 0.09) : (downbeat ? 0.55 : 0.38)], [steam, filter, waltz ? (downbeat ? 0.38 : 0.35) : (gap ? 0.75 : 0.58)]] as const) {
 			const envelope = context.createGain();
 			envelope.gain.setValueAtTime(0.0001, when);
 			envelope.gain.exponentialRampToValueAtTime(level, when + 0.006);

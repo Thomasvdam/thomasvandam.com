@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { layTrack, newRun, needsTrack, secondsAt, advance, tolerance } from "./rhythm.ts";
+import { layTrack, newRun, needsTrack, secondsAt, advance, tolerance, phraseAt } from "./rhythm.ts";
 import { precisionReadout, PRECISION_WINDOW, rainbowPuff, upgradeAppearance } from "./upgrades.ts";
 import { advancePreview, createDebugPreview } from "./debug.ts";
 
@@ -26,7 +26,7 @@ test("each ten consecutive precise hits unlocks one persistent run upgrade", () 
 	expect(newRun().upgrades).toBe(0); expect(newRun().precisionStreak).toBe(0);
 });
 
-test.each([-1, 1])("precision includes the 50 ms boundary on side %i and rejects a looser accepted tap", side => {
+test.each([-1, 1])("precision includes the 60 ms boundary on side %i and rejects a looser accepted tap", side => {
 	const run = start(); hit(run, side * PRECISION_WINDOW);
 	expect(run.precisionStreak).toBe(1);
 	hit(run, side * (PRECISION_WINDOW + 0.001));
@@ -120,4 +120,13 @@ test("switch toggles and debug autoplay cannot create or replace hit feedback", 
 	const lastHit = run.lastHit; layTrack(run, secondsAt(23)); expect(run.lastHit).toBe(lastHit);
 	const preview = createDebugPreview("concert"); advancePreview(preview.run, secondsAt(preview.autoUntil - 0.1), preview.autoUntil);
 	expect(preview.run.lastHit).toBeNull();
+});
+
+
+test.each([-1, 1])("precision accepts 60 ms at maximum speed on side %i", side => {
+	const p = createDebugPreview("quarry"); let phrase = p.run.phrases.values().next().value;
+	while (phrase.section !== "quarry" || phrase.start < 1600) phrase = phraseAt(p.run, phrase.end);
+	p.run.seconds = secondsAt(phrase.start) - 0.2; p.run.checked = phrase.start - 0.5;
+	layTrack(p.run, secondsAt(phrase.start) + side * PRECISION_WINDOW);
+	expect(p.run.mode).toBe("running"); expect(p.run.precisionStreak).toBe(1);
 });
