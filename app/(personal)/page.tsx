@@ -75,6 +75,16 @@ export default function Home() {
 						</Link>
 						<p>One button. An ever-faster train. Keep it rolling.</p>
 					</article>
+					<article>
+						<Link href="/breakout" className={`${styles.cover} ${styles.breakout}`}>
+							<h3>Break<br />out.</h3>
+							<div className={styles.breakoutWall} aria-hidden="true">
+								{Array.from({ length: 15 }, (_, index) => <i key={index} />)}
+							</div>
+							<div className={styles.coverBottom}><span>04 / A brick breaker</span><span>Play it <span aria-hidden="true">↗</span></span></div>
+						</Link>
+						<p>A classic with a little depth. Clear the wall, catch the power-ups.</p>
+					</article>
 				</div>
 			</section>
 
