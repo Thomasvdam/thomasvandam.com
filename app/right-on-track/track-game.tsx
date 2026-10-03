@@ -86,6 +86,7 @@ export function TrackGame() {
 			previewRequest++;
 			if (savedRun.current) {
 				speaker.stop(); run.current = savedRun.current; savedRun.current = null; preview.current = null;
+				if (window.location.hash === "#debug") history.replaceState(history.state, "", window.location.pathname + window.location.search);
 				setDebugOpen(false); setPreviewLabel(""); host.current?.focus(); paint();
 			} else {
 				pause(); savedRun.current = run.current; setDebugOpen(true);
@@ -139,6 +140,9 @@ export function TrackGame() {
 			if (event.code === "Escape") { if (savedRun.current) toggleDebug.current(); else pause(); }
 		};
 		const visibility = () => { if (document.hidden) pause(); };
+		const debugFromUrl = () => { if (window.location.hash === "#debug" && !savedRun.current) toggleDebug.current(); };
+		debugFromUrl();
+		window.addEventListener("hashchange", debugFromUrl);
 		window.addEventListener("keydown", keydown);
 		window.addEventListener("blur", pause);
 		document.addEventListener("visibilitychange", visibility);
@@ -152,6 +156,7 @@ export function TrackGame() {
 		return () => {
 			disposed = true; cleanup?.(); speaker.dispose(); sound.current = null;
 			window.removeEventListener("keydown", keydown); window.removeEventListener("blur", pause);
+			window.removeEventListener("hashchange", debugFromUrl);
 			document.removeEventListener("visibilitychange", visibility);
 		};
 	}, []);
