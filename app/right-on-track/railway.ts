@@ -1,5 +1,7 @@
 import { yardsAhead, stockLayers, createYard, animateYard, type YardEvent } from "./yard";
 import { terrainHeight, terrainPitch } from "./terrain";
+import { createTrainUpgrades } from "./train-upgrades";
+import { RAINBOW, rainbowPuff, upgradeAppearance } from "./upgrades";
 import { wagonPose, WAGON_DISTANCE, WAGON_HALF_LENGTH } from "./wagon";
 import { flourishesAhead, createFlourishLandmarks, animateFairground, type FlourishKind } from "./flourishes";
 import { concertsAhead, createStadium } from "./concert";
@@ -55,6 +57,11 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const steel = material("#9ca5a1", 0.85, 0.28);
 	const red = material("#863e30", 0.45, 0.42);
 	const brass = material("#c7a56c", 0.7, 0.32);
+	const upgradeParts = [material("#c7a56c", 0.7, 0.32), material("#303635", 0.8, 0.35), material("#303635", 0.8, 0.35), material("#863e30", 0.45, 0.42), material("#863e30", 0.45, 0.42)];
+	const partNames = ["trim", "boiler", "roof", "wheels", "bumper"];
+	upgradeParts.forEach((part, i) => { part.name = `reward-gold-${partNames[i]}`; });
+	const originalParts = upgradeParts.map(part => ({ color: part.color.clone(), metalness: part.metalness, roughness: part.roughness }));
+	const rewardGold = new THREE.Color("#efc34e");
 	const glass = material("#263f43", 0.6, 0.2);
 	const wood = material("#514438");
 	const groundMaterial = material("#78806b");
@@ -137,20 +144,20 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 
 	const train = new THREE.Group(); scene.add(train);
 	box(train, iron, [0, 1.0, 3.4], [2.7, 0.4, 7.2]);
-	cylinder(train, iron, [0, 2.1, 2.1], [1.02, 4.6, 1.02], "z");
-	for (const z of [0.2, 1.4, 3.3]) cylinder(train, brass, [0, 2.1, z], [1.045, 0.07, 1.045], "z");
+	cylinder(train, upgradeParts[1], [0, 2.1, 2.1], [1.02, 4.6, 1.02], "z");
+	for (const z of [0.2, 1.4, 3.3]) cylinder(train, upgradeParts[0], [0, 2.1, z], [1.045, 0.07, 1.045], "z");
 	cylinder(train, iron, [0, 3.2, 0.65], [0.33, 1.0, 0.33]);
 	cylinder(train, iron, [0, 3.74, 0.65], [0.45, 0.14, 0.45]);
 	cylinder(train, brass, [0, 3.15, 2.3], [0.32, 0.55, 0.32]);
 	box(train, red, [0, 2.15, 5.4], [2.6, 2.6, 2.3]);
-	box(train, iron, [0, 3.58, 5.4], [3, 0.18, 2.8]);
+	box(train, upgradeParts[2], [0, 3.58, 5.4], [3, 0.18, 2.8]);
 	for (const x of [-1.31, 1.31]) {
 		box(train, glass, [x, 2.75, 5.2], [0.035, 0.8, 1.05]);
 		box(train, brass, [x * 1.01, 2.25, 5.2], [0.035, 0.05, 1.15]);
 		box(train, brass, [x * 1.01, 3.2, 5.2], [0.035, 0.05, 1.15]);
 	}
 	box(train, glass, [0, 2.8, 4.23], [1.9, 0.7, 0.04]);
-	box(train, red, [0, 0.9, -0.4], [3.0, 0.42, 0.4]);
+	box(train, upgradeParts[4], [0, 0.9, -0.4], [3.0, 0.42, 0.4]);
 	for (const x of [-1, 1]) cylinder(train, iron, [x, 0.95, -0.7], [0.25, 0.32, 0.25], "z");
 	const headlight = material("#ffe6aa", 0.2, 0.3); headlight.emissive.set("#ffce73"); headlight.emissiveIntensity = 1.3;
 	cylinder(train, brass, [0, 2.5, -0.29], [0.28, 0.2, 0.28], "z");
@@ -159,7 +166,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	for (const z of [1.2, 2.9, 4.5, 6.2]) for (const x of [-1.32, 1.32]) {
 		const wheel = new THREE.Group(); wheel.position.set(x, 0.75, z); train.add(wheel); wheels.push(wheel); wheel.userData.moving = true;
 		cylinder(wheel, iron, [0, 0, 0], [0.69, 0.19, 0.69], "x");
-		cylinder(wheel, red, [Math.sign(x) * 0.11, 0, 0], [0.56, 0.03, 0.56], "x");
+		cylinder(wheel, upgradeParts[3], [Math.sign(x) * 0.11, 0, 0], [0.56, 0.03, 0.56], "x");
 		cylinder(wheel, brass, [Math.sign(x) * 0.14, 0, 0], [0.14, 0.06, 0.14], "x");
 		for (let j = 0; j < 8; j++) {
 			const spoke = box(wheel, iron, [Math.sign(x) * 0.14, 0, 0], [0.035, 1.05, 0.07]); spoke.rotation.x = j * Math.PI / 4;
@@ -202,8 +209,9 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	sphere(engineer, skin, [0, 1.98, -0.02], [0.34, 0.38, 0.32]);
 	sphere(engineer, skin, [0, 1.94, -0.34], [0.09, 0.1, 0.12]);
 	for (const x of [-0.14, 0.14]) sphere(engineer, iron, [x, 2.06, -0.305], [0.038, 0.044, 0.026]);
-	sphere(engineer, trousers, [0, 2.28, 0], [0.37, 0.15, 0.34]);
-	box(engineer, trousers, [0, 2.2, -0.29], [0.65, 0.065, 0.3]);
+	const engineerCap = new THREE.Group(); engineerCap.name = "engineer-work-cap"; engineerCap.userData.moving = true; engineer.add(engineerCap);
+	sphere(engineerCap, trousers, [0, 2.28, 0], [0.37, 0.15, 0.34]);
+	box(engineerCap, trousers, [0, 2.2, -0.29], [0.65, 0.065, 0.3]); batch(engineerCap);
 	const arms = [-1, 1].map((side) => {
 		const arm = new THREE.Group(); arm.userData.moving = true;
 		arm.position.set(side * 0.43, 1.49, 0); engineer.add(arm);
@@ -235,6 +243,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const mushroomStem = material("#d6cab1"); const mushroomCap = material("#bb694e");
 	const bearFur = material("#6c4933"); const bearMuzzle = material("#bd9670");
 	const builders = { material, box, sphere, cylinder, cone, batch, textures };
+	const trainUpgrades = createTrainUpgrades(builders, engineer, wagon);
 	const treeDetails = createTreeDetails(builders);
 	const scenery = new THREE.Group(); scene.add(scenery);
 	for (let i = 0; i < 60; i++) {
@@ -386,9 +395,10 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	for (const x of [-2.05, 2.05]) box(target, gapMaterial, [x, 0.23, 0], [0.18, 0.08, 2.2]);
 	const smokeMaterial = new THREE.MeshBasicMaterial({ color: "#d4d2c8", transparent: true, opacity: 0.16, depthWrite: false }); materials.push(smokeMaterial);
 	const smokeGeometry = new THREE.SphereGeometry(1, 12, 8); geometries.push(smokeGeometry);
-	const smoke = Array.from({ length: 10 }, () => {
+	const smoke = Array.from({ length: 10 }, (_, index) => {
 		const surface = smokeMaterial.clone(); materials.push(surface);
 		const puff = mesh(scene, smokeGeometry, surface, [0, 4, 0], [1, 1, 1]);
+		puff.name = `steam-puff-${index}`;
 		puff.castShadow = false; return puff;
 	});
 	const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -436,6 +446,13 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
 	renderer.setAnimationLoop(() => {
 		const run = onFrame(); const phase = phaseAt(run.seconds);
+		const appearance = upgradeAppearance(run.upgrades);
+		trainUpgrades.update(run.upgrades); engineerCap.visible = run.upgrades === 0;
+		upgradeParts.forEach((part, i) => {
+		part.color.copy(i < appearance.gold ? rewardGold : originalParts[i].color);
+			part.metalness = i < appearance.gold ? 0.9 : originalParts[i].metalness;
+			part.roughness = i < appearance.gold ? 0.24 : originalParts[i].roughness;
+		});
 		const distance = (phase + 4) * TRACK_LENGTH;
 		const heights = new Map<number, number>();
 		const heightAt = (d: number) => {
@@ -693,11 +710,17 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			flyingPiece.scale.z *= trackStep(run, placement.beat);
 		}
 		smoke.forEach((puff, i) => {
-			const age = ((run.seconds * 0.45 + i / 10) % 1);
+			const emission = Math.floor(run.seconds * 0.45 + i / 10);
+			const age = (run.seconds * 0.45 + i / 10) % 1;
+			if (puff.userData.run !== run || puff.userData.emission !== emission) {
+				puff.userData.run = run; puff.userData.emission = emission;
+				puff.userData.rainbow = rainbowPuff(run.seed, i, emission, appearance.rainbow);
+				(puff.material as THREE.MeshBasicMaterial).color.set(puff.userData.rainbow ? RAINBOW[((i + emission) % 6 + 6) % 6] : "#d4d2c8");
+			}
 			puff.visible = !reducedMotion;
 			puff.position.set(position(0.7 + age * 7) - age * 2, 4 + train.position.y + age * 5, 0.7 + age * 7);
 			puff.scale.setScalar(0.3 + age * 1.6);
-			(puff.material as THREE.MeshBasicMaterial).opacity = 0.19 * Math.sin(Math.PI * age);
+			(puff.material as THREE.MeshBasicMaterial).opacity = (puff.userData.rainbow ? 0.3 : 0.19) * Math.sin(Math.PI * age);
 		});
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);

@@ -51,6 +51,16 @@ servers on the same port.
 
 ## Hidden preview menu
 
+Precision rewards use a ±50 ms window for every player placement, including
+half-beat flourishes. Each ten-hit block unlocks another cosmetic tier; a looser
+accepted hit resets the streak but preserves earned upgrades. Rests, pauses,
+switch toggles and debug autoplay do not award or break the streak. A new run
+resets cosmetics. Bun checks cover the exact boundaries, streak resets, ten-hit
+milestones, switch/rest/pause handling, debug isolation, half-beat hits, and
+deterministic rainbow probability. The renderer checks all cosmetic tiers, gold
+materials, hat/wagon visibility, smoke stability, 100% rainbow and new-run reset,
+with four reward screenshots.
+
 On `/right-on-track`, press **Ctrl+Alt+Shift+D** (or **⌘+Option+Shift+D** on Mac).
 On mobile, open **`/right-on-track#debug`** instead. Adding `#debug` to the current
 page URL also opens the menu. Closing removes that fragment without reloading.
@@ -60,6 +70,9 @@ scenery**, or choose a special section and **Play section**. Retrying the same
 selection uses the same seeded encounter. Scenery lays track automatically;
 sections automatically approach their start, then hand placement back to the player.
 The switch preview hands control back at the signal window.
+The **Train look** selector previews cumulative cosmetic tiers on the current
+preview train (or starts an automatic scenery preview). It never changes the
+saved normal run or personal best, and can restore the original train look.
 
 **Return to normal run**, Escape, or the shortcut again restores the saved run
 (paused if it was running). Preview scores never update local best. There are no

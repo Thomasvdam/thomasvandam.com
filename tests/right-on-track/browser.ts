@@ -1,6 +1,7 @@
 import { yardsAhead } from "../../app/right-on-track/yard";
 import { createDebugPreview, sceneryScenarios, sectionScenarios } from "../../app/right-on-track/debug";
 import { terrainHeight, terrainPitch } from "../../app/right-on-track/terrain";
+import { upgradeAppearance } from "../../app/right-on-track/upgrades";
 import { railwayHeight } from "../../app/right-on-track/motion";
 import { wagonPose } from "../../app/right-on-track/wagon";
 import { flourishesAhead, animateFairground } from "../../app/right-on-track/flourishes";
@@ -392,6 +393,30 @@ async function main() {
 			assert(Math.abs(fieldFrame.encounters[0].root.position.y - terrainHeight(run.seed, farm.distance)) < 0.00001, "Field not grounded");
 			assert(Math.abs(fieldFrame.encounters[0].root.rotation.x - terrainPitch(run.seed, farm.distance)) < 0.00001, "Field does not follow hillside");
 			screenshot("rolling-field");
+		});
+		await test("precision rewards render every tier, stable rainbow puffs and a clean original-train reset", () => {
+			run = newRun(12);
+			for (let level = 0; level <= 22; level++) {
+				run.upgrades = level;
+				const phase = 30 + level * 5, frame = render(phase), appearance = upgradeAppearance(level);
+				for (const hat of ["top", "party", "crown"]) assert(frame.scene.getObjectByName(`reward-hat-${hat}`)!.visible === (appearance.hat === hat), `Wrong hat at tier ${level}`);
+				assert(frame.scene.getObjectByName("engineer-work-cap")!.visible === (level === 0), "Original cap overlaps reward hat");
+				for (const [i, kind] of ["bunting", "lanterns", "rosettes"].entries()) assert(frame.scene.getObjectByName(`reward-wagon-${kind}`)!.visible === (appearance.wagon > i), `Wrong wagon decoration at tier ${level}`);
+				const found = new Set<string>();
+				frame.train.traverse(item => {
+					if (!(item instanceof THREE.Mesh) || Array.isArray(item.material) || !item.material.name.startsWith("reward-gold-")) return;
+					const kind = item.material.name.slice("reward-gold-".length), index = ["trim", "boiler", "roof", "wheels", "bumper"].indexOf(kind);
+					assert((item.material as THREE.MeshStandardMaterial).color.getHexString() === (index < appearance.gold ? "efc34e" : kind === "trim" ? "c7a56c" : ["wheels", "bumper"].includes(kind) ? "863e30" : "303635"), `Wrong gold part at tier ${level}`); found.add(kind);
+				});
+				assert(found.size === 5, "Gold upgrades lost during batching");
+				if ([1, 8, 16, 19].includes(level)) screenshot(`precision-tier-${level}`);
+				if (appearance.rainbow === 1) for (let i = 0; i < 10; i++) assert(frame.scene.getObjectByName(`steam-puff-${i}`)!.userData.rainbow, "Full rainbow tier leaves white puffs");
+				const puff = frame.scene.getObjectByName("steam-puff-0") as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>, color = puff.material.color.getHexString();
+				render(phase + 0.001); assert(puff.material.color.getHexString() === color, "Puff color flickers between frames");
+			}
+			run = newRun(12); const frame = render(30);
+			assert(frame.scene.getObjectByName("engineer-work-cap")!.visible && !frame.scene.getObjectByName("reward-hat-crown")!.visible, "New run keeps hat upgrades");
+			for (let i = 0; i < 10; i++) assert(!frame.scene.getObjectByName(`steam-puff-${i}`)!.userData.rainbow, "New run keeps rainbow smoke");
 		});
 		await test("debug selectors launch real scenery and playable sections in the renderer", () => {
 			for (const scenario of [...sceneryScenarios, ...sectionScenarios]) {

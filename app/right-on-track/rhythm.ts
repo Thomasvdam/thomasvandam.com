@@ -1,4 +1,5 @@
 import { FORK_OFFSET } from "./fork-config";
+import { PRECISION_WINDOW, UPGRADE_INTERVAL } from "./upgrades";
 import { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
 
 export type Meter = 3 | 4;
@@ -202,6 +203,9 @@ export type Run = {
 	seconds: number;
 	checked: number;
 	score: number;
+	precisionStreak: number;
+	upgrades: number;
+	lastUpgrade: { seconds: number; level: number } | null;
 	placed: Set<number>;
 	placedSides: Map<number, -1 | 1>;
 	routeBase: number;
@@ -211,7 +215,7 @@ export type Run = {
 };
 
 export function newRun(seed = 0): Run {
-	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, placed: new Set(), placedSides: new Map(), routeBase: 0, routeThrough: -1, switches: new Map(), reason: "" };
+	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, precisionStreak: 0, upgrades: 0, lastUpgrade: null, placed: new Set(), placedSides: new Map(), routeBase: 0, routeThrough: -1, switches: new Map(), reason: "" };
 }
 
 export function advance(run: Run, seconds: number) {
@@ -239,7 +243,7 @@ export function advance(run: Run, seconds: number) {
 	}
 }
 
-export function layTrack(run: Run, seconds: number) {
+export function layTrack(run: Run, seconds: number, earnPrecision = true) {
 	advance(run, seconds);
 	if (run.mode !== "running") return;
 	const signal = activeSignal(run, seconds);
@@ -257,6 +261,12 @@ export function layTrack(run: Run, seconds: number) {
 	} else {
 		run.placed.add(beat);
 		run.score++;
+		if (earnPrecision) {
+			run.precisionStreak = Math.abs(seconds - secondsAt(beat)) <= PRECISION_WINDOW + 1e-9 ? run.precisionStreak + 1 : 0;
+			if (run.precisionStreak > 0 && run.precisionStreak % UPGRADE_INTERVAL === 0) {
+				run.upgrades++; run.lastUpgrade = { seconds, level: run.upgrades };
+			}
+		}
 		const branch = branchForBeat(run, beat);
 		if (branch !== null) run.placedSides.set(beat, run.switches.get(branch) ?? -1);
 		run.placement = { beat, seconds, side: branch === null ? null : run.switches.get(branch) ?? -1 };

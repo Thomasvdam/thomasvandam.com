@@ -8,11 +8,12 @@ import { activeSignal, advance, layTrack, newRun, phaseAt, secondsAt, trainSpeed
 import { BeatSound } from "./sound";
 import styles from "./track-game.module.css";
 import type { DebugPreview } from "./debug";
+import { upgradeLabel, UPGRADE_INTERVAL } from "./upgrades";
 
 const DebugMenu = dynamic(() => import("./debug-menu"), { ssr: false });
 
 const BEST_KEY = "right-on-track-best";
-const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), switching: false, reason: "" };
+const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), switching: false, reason: "", precision: 0, reward: "", upgrades: 0 };
 
 export function TrackGame() {
 	const host = useRef<HTMLDivElement>(null);
@@ -23,7 +24,8 @@ export function TrackGame() {
 	const lastPaint = useRef(0);
 	const action = useRef<() => void>(() => {});
 	const toggleDebug = useRef<() => void>(() => {});
-	const triggerPreview = useRef<(id: string) => void>(() => {});
+	const triggerPreview = useRef<(id: string, upgrades?: number) => void>(() => {});
+	const previewUpgrades = useRef<(level: number) => void>(() => {});
 	const savedRun = useRef<Run | null>(null);
 	const preview = useRef<DebugPreview | null>(null);
 	const [debugOpen, setDebugOpen] = useState(false);
@@ -49,8 +51,8 @@ export function TrackGame() {
 
 		function paint() {
 			const current = run.current;
-			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, speed: trainSpeed(current.seconds), switching: activeSignal(current) !== null, reason: current.reason };
-			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.speed === next.speed && previous.switching === next.switching && previous.reason === next.reason ? previous : next);
+			const next = { mode: current.mode, phase: Math.floor(phaseAt(current.seconds)), score: current.score, speed: trainSpeed(current.seconds), switching: activeSignal(current) !== null, reason: current.reason, precision: current.precisionStreak, upgrades: current.upgrades, reward: current.lastUpgrade && current.seconds - current.lastUpgrade.seconds < 2 ? upgradeLabel(current.lastUpgrade.level) : "" };
+			setView(previous => previous.mode === next.mode && previous.phase === next.phase && previous.score === next.score && previous.speed === next.speed && previous.switching === next.switching && previous.reason === next.reason && previous.precision === next.precision && previous.reward === next.reward && previous.upgrades === next.upgrades ? previous : next);
 			if (!savedRun.current && current.score > bestRef.current) {
 				bestRef.current = current.score; setBest(current.score);
 				try { localStorage.setItem(BEST_KEY, String(current.score)); } catch { /* Best score is optional when storage is unavailable. */ }
@@ -92,12 +94,18 @@ export function TrackGame() {
 				pause(); savedRun.current = run.current; setDebugOpen(true);
 			}
 		};
-		triggerPreview.current = id => {
+		previewUpgrades.current = level => {
+			if (!savedRun.current) return;
+			if (!preview.current) { triggerPreview.current("hut", level); return; }
+			run.current.upgrades = level; run.current.precisionStreak = 0; run.current.lastUpgrade = null; paint();
+		};
+		triggerPreview.current = (id, level = 0) => {
 			const request = ++previewRequest;
 			void import("./debug").then(module => {
 				if (disposed || request !== previewRequest || !savedRun.current || !cleanup || contextFailed) return;
 				debugTools = module;
 				const next = module.createDebugPreview(id);
+				next.run.upgrades = level;
 				speaker.stop(); preview.current = next; run.current = next.run;
 				origin.current = performance.now() - next.run.seconds * 1000;
 				nextSound.current = Math.ceil(phaseAt(next.run.seconds) * 2) / 2;
@@ -195,14 +203,15 @@ export function TrackGame() {
 		<section className={styles.game} aria-label="One-button railway game">
 			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Speed</span><strong>{view.speed}<small> km/h</small></strong></div></div>
 			<div className={styles.scene} ref={host} role="button" tabIndex={0} aria-label="Lay track. Watch the gaps approaching the engineer on the front of the toy train." onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onKeyDown={(event) => { if (event.key === "Enter" && !event.repeat) { event.preventDefault(); action.current(); } }} />
-			<div className={styles.sceneLabel} aria-hidden="true"><span>Northbound</span><span>{view.switching ? "Press to switch route" : "Lay track at the front platform"}</span></div>
+			<div className={styles.sceneLabel} aria-hidden="true"><span>{view.precision > 0 ? `Precise hits ${view.precision % UPGRADE_INTERVAL}/${UPGRADE_INTERVAL}` : "Northbound"}</span><span>{view.switching ? "Press to switch route" : "Lay track at the front platform"}</span></div>
+			{view.reward && <div className={styles.reward} aria-live="polite">{view.reward}<small>10 precise hits · upgrade unlocked</small></div>}
 			{(!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.max(1, -Math.floor(view.phase))) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Get ready. The train is pulling away." : "One button. An open stretch of track."}</p></div>}
 		</section>
 		<div className={styles.controls}>
 			<div><p role="status" className={styles.status}>{status}</p><p className={styles.help}>Space, click, or tap the scene. Hold won’t repeat. Esc pauses.{audioUnavailable && " Audio unavailable; visual timing still works."}</p></div>
 			<button className={styles.action} type="button" disabled={!loaded || unavailable} onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action.current(); } }} onClick={(event) => { if (event.detail === 0) action.current(); }}>{buttonText}<span aria-hidden="true">↗</span></button>
 		</div>
-		{debugOpen && <DebugMenu onTrigger={id => triggerPreview.current(id)} onClose={() => toggleDebug.current()} preview={previewLabel} />}
+		{debugOpen && <DebugMenu onTrigger={id => triggerPreview.current(id)} onClose={() => toggleDebug.current()} preview={previewLabel} upgrades={view.upgrades} onUpgrade={level => previewUpgrades.current(level)} />}
 		<footer className={styles.footer}><span>New sights. Faster train.</span><span>Endless railway / no destination</span></footer>
 	</div>;
 }
