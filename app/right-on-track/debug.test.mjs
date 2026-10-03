@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { advancePreview, createDebugPreview, sceneryScenarios, sectionScenarios } from "./debug.ts";
-import { needsTrack, phaseAt, secondsAt, tolerance } from "./rhythm.ts";
+import { advancePreview, createDebugPreview, previewAcceptsInput, sceneryScenarios, sectionScenarios } from "./debug.ts";
+import { layTrack, needsTrack, phaseAt, placementEarlyTolerance, secondsAt, tolerance } from "./rhythm.ts";
 import { encounterAt } from "./scenery-schedule.ts";
 import { waterScene } from "./motion.ts";
 
@@ -33,6 +33,28 @@ test("rare previews select matching scenery and replay deterministically", () =>
 	expect(waterScene(event.detail)).toBe("ness");
 	expect(second.run).toEqual(first.run);
 	expect(() => createDebugPreview("invalid")).toThrow("Unknown preview");
+});
+
+test.each(sectionScenarios.map(s => [s.id]))("section %s accepts the first manual input and continues through subsequent hits", id => {
+	const preview = createDebugPreview(id), { run, autoUntil } = preview;
+	expect(previewAcceptsInput(preview, run.seconds)).toBe(false);
+	const firstTime = secondsAt(autoUntil) - (needsTrack(run, autoUntil) ? placementEarlyTolerance(run, autoUntil) * 0.8 : 0);
+	expect(previewAcceptsInput(preview, firstTime)).toBe(true);
+	advancePreview(run, firstTime, autoUntil);
+	if (needsTrack(run, autoUntil) || id === "switch") layTrack(run, firstTime);
+	for (let beat = autoUntil + 0.5; beat < autoUntil + 8; beat += 0.5) {
+		const seconds = secondsAt(beat);
+		advancePreview(run, seconds, autoUntil);
+		if (needsTrack(run, beat)) layTrack(run, seconds);
+	}
+	expect(run.mode).toBe("running");
+	expect(run.score).toBeGreaterThan(0);
+	expect(createDebugPreview(preview.id)).toEqual(createDebugPreview(id));
+});
+
+test("scenery previews keep autoplay input protection", () => {
+	const preview = createDebugPreview("hut");
+	expect(previewAcceptsInput(preview, preview.run.seconds + 60)).toBe(false);
 });
 
 test("preview autoplay respects pause and never places twice at a frame boundary", () => {

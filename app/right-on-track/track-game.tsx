@@ -110,7 +110,9 @@ export function TrackGame() {
 			if (!cleanup || contextFailed || document.hidden) return;
 			const current = run.current;
 			if (savedRun.current && !preview.current) return;
-			if (preview.current && (current.mode === "ready" || current.mode === "crashed")) return;
+			if (preview.current && (current.mode === "ready" || current.mode === "crashed")) {
+				triggerPreview.current(preview.current.id); return;
+			}
 			if (current.mode === "ready" || current.mode === "crashed") {
 				speaker.stop(); run.current = newRun(crypto.getRandomValues(new Uint32Array(1))[0]); run.current.mode = "running";
 				origin.current = performance.now(); nextSound.current = -4;
@@ -121,7 +123,11 @@ export function TrackGame() {
 				void speaker.unlock();
 			} else {
 				const seconds = (performance.now() - origin.current) / 1000;
-				if (preview.current && phaseAt(seconds) < preview.current.autoUntil) return;
+				if (preview.current && debugTools) {
+					if (!debugTools.previewAcceptsInput(preview.current, seconds)) return;
+					// Finish any approach placements before handling the first player tap.
+					update(seconds);
+				}
 				// The count-in teaches the pulse without consuming a track piece.
 				if (phaseAt(seconds) < -0.5) return;
 				layTrack(current, seconds);
