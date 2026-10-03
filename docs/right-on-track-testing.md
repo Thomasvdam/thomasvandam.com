@@ -38,7 +38,7 @@ Each attempt has its own ignored directory under `test-results/right-on-track/`:
 Assertions cover fixed visible fork/scenery transforms while switching, engineer
 stow/retrieve, both routes through 80 beats and history pruning, filling only the
 selected physical branch, guaranteed recovery gap, early divergence, rendered tree
-continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, console/shader errors, audible
+continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, two-phrase concert playback and left stadium approach, stomp/clap timing and rests, console/shader errors, audible
 steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup.
 The existing Bun tests cover timing failures, longer runs, scenery footprints,
 bridge ramps, ground direction, parallax continuity, road braking, and rarity.

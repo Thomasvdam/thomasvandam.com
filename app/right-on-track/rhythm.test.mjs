@@ -1,3 +1,4 @@
+import { concertHit, phraseSection } from "./rhythm.ts";
 import { FORK_OFFSET } from "./fork-config.ts";
 import { describe, expect, test } from "bun:test";
 import { branchLaid, branchForBeat, activeSignal, signalsAhead, advance, layTrack, newRun, generatePhrase, needsTrack, phraseAt, phraseMeter, isDownbeat, earlyTolerance, phaseAt, secondsAt, tempo, tolerance, trainSpeed } from "./rhythm.ts";
@@ -246,4 +247,35 @@ test("every signal has a safe first spot and a required second spot", () => {
 		}
 	}
 	expect(count).toBeGreaterThan(100);
+});
+
+test("concert sections last exactly two complete phrases with stomp-stomp-clap-rest gaps", () => {
+	let sections = 0;
+	for (let seed = 0; seed < 30; seed++) {
+		const run = newRun(seed);
+		for (let index = 0, beat = 0; index < 36; index++) {
+			const phrase = phraseAt(run, beat);
+			if (phrase.section === "concert") {
+				sections++; expect(phrase.meter).toBe(4); expect(phrase.end - phrase.start).toBe(16);
+				expect(index % 12 === 8 || index % 12 === 9).toBe(true);
+				expect(phraseSection(seed, index % 12 === 8 ? index + 1 : index - 1)).toBe("concert");
+				for (let offset = 0; offset < 16; offset++) {
+					expect(needsTrack(run, beat + offset)).toBe(offset % 4 !== 3);
+					expect(concertHit(beat + offset, beat)).toBe(["stomp", "stomp", "clap", "rest"][offset % 4]);
+					expect(activeSignal(run, secondsAt(beat + offset))).toBe(null);
+				}
+			}
+			beat = phrase.end;
+		}
+	}
+	expect(sections).toBeGreaterThan(20);
+});
+test("concerts regenerate deterministically and remain playable through their boundaries", () => {
+	const run = newRun(0); run.mode = "running";
+	for (let beat = 0; beat < 600; beat++) {
+		const expected = needsTrack(run, beat); run.phrases.clear(); expect(needsTrack(run, beat)).toBe(expected);
+		if (expected) layTrack(run, secondsAt(beat));
+		advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+		expect(run.mode).toBe("running");
+	}
 });

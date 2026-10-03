@@ -1,8 +1,9 @@
+import { concertsAhead } from "../../app/right-on-track/concert";
 import { animateAircraft, skyAt } from "../../app/right-on-track/aviation";
 import { animateFarmland, cropVariant, farmMachine, pastureVariant } from "../../app/right-on-track/farmland";
 import * as THREE from "three";
 import { createRailway, type RailwayFrame } from "../../app/right-on-track/railway";
-import { advance, layTrack, needsTrack, newRun, secondsAt, signalsAhead, tolerance } from "../../app/right-on-track/rhythm";
+import { advance, layTrack, needsTrack, newRun, phraseAt, secondsAt, signalsAhead, tolerance } from "../../app/right-on-track/rhythm";
 import { encounterAt, waterScene } from "../../app/right-on-track/motion";
 import { BeatSound } from "../../app/right-on-track/sound";
 
@@ -50,7 +51,7 @@ function geometry(frame: RailwayFrame) {
 	return transforms;
 }
 
-async function soundBuffer(muted = false, stop = false) {
+async function soundBuffer(muted = false, stop = false, concert = false) {
 	const offline = new OfflineAudioContext(1, 44100, 44100);
 	const context = new Proxy(offline, { get(target, key) {
 		if (key === "state") return "running";
@@ -62,7 +63,8 @@ async function soundBuffer(muted = false, stop = false) {
 	try {
 		assert(await sound.unlock(), "Audio setup failed");
 		sound.setMuted(muted);
-		sound.beat(0.1, true, true); sound.beat(0.45, false, false);
+		if (concert) { sound.concert(0.1, "stomp"); sound.concert(0.3, "stomp"); sound.concert(0.5, "clap"); sound.concert(0.7, "rest"); }
+		else { sound.beat(0.1, true, true); sound.beat(0.45, false, false); }
 		if (stop) sound.stop();
 		return (await offline.startRendering()).getChannelData(0);
 	} finally { sound.dispose(); }
@@ -193,6 +195,43 @@ async function main() {
 				found.add(event.kind); screenshot(`sky-${event.kind}`);
 			}
 			assert(found.size === 4, "Missing sky variants");
+		});
+		await test("two-phrase concert is playable and its stadium approaches continuously on the left", () => {
+			let event: ReturnType<typeof concertsAhead>[number] | undefined;
+			for (let seed = 0; seed < 30 && !event; seed++) {
+				run = newRun(seed);
+				for (let phase = 0; phase < 400 && !event; phase += 32) event = concertsAhead(run, phase)[0];
+			}
+			assert(event, "No concert fixture found"); run.mode = "running";
+			const start = event!.start, end = event!.end;
+			assert(end - start === 32 && phraseAt(run, start).section === "concert" && phraseAt(run, end - 1).section === "concert" && phraseAt(run, end).section !== "concert", "Concert duration changed");
+
+			let score = 0;
+			for (let beat = 0; beat < end + 2; beat++) {
+				if (needsTrack(run, beat)) { layTrack(run, secondsAt(beat)); if (beat >= start && beat < end) score++; }
+				advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+				assert(run.mode === "running", `Concert crash at ${beat}`);
+				if (beat === start - 8) {
+					const before = render(beat + 0.4).concerts.find(slot => slot.start === start)!;
+					assert(before.root.visible && before.root.position.x < -25, "Stadium is not visible ahead on the left");
+					const z = before.root.position.z, x = before.root.position.x; screenshot("concert-approach");
+					render(beat + 0.401);
+					assert(Math.abs(before.root.position.z - z - 0.006) < 0.00001 && Math.abs(before.root.position.x - x) < 0.01, "Stadium reset during travel");
+				}
+				if (beat === start + 8) {
+					const frame = render(beat + 0.4), stadium = frame.concerts.find(slot => slot.start === start)!;
+					assert(stadium.root.position.x + 28 < -5, `Stadium intrudes on track: ${stadium.root.position.x}`);
+					screenshot("concert-stadium");
+				}
+			}
+			assert(score === 24, `Concert placements ${score}`);
+		});
+		await test("concert stomp/stomp/clap voices are audible, bounded, and rest stays silent", async () => {
+			const data = await soundBuffer(false, false, true), peak = Math.max(...data.map(Math.abs));
+			assert(peak > 0.01 && peak < 1, `Concert audio peak ${peak}`);
+			for (const start of [0.1, 0.3, 0.5]) assert(data.slice(start * 44100, (start + 0.1) * 44100).some(sample => Math.abs(sample) > 0.005), "Missing concert hit");
+			assert(data.slice(0.7 * 44100).every(sample => sample === 0), "Concert rest contains a hit");
+			for (const buffer of [await soundBuffer(true, false, true), await soundBuffer(false, true, true)]) assert(buffer.every(sample => sample === 0), "Concert mute/stop failed");
 		});
 		await test("steam chuffs are scheduled, audible, bounded and silent after their envelopes", async () => {
 			const data = await soundBuffer();
