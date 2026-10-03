@@ -48,3 +48,11 @@
 	.footer > span:last-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .action:active { transform: none; } }
+.debug { margin-top: 20px; padding: 20px; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); font-size: 13px; }
+.debugHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.debug p { margin: 12px 0; color: hsl(var(--muted-foreground)); line-height: 1.6; }
+.debug button { padding: 8px 12px; background: hsl(var(--secondary)); cursor: pointer; }
+.debugRow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.debugRow label { min-width: 65px; }
+.debugRow select { flex: 1; min-width: 180px; padding: 8px; color: hsl(var(--foreground)); background: hsl(var(--background)); border: 1px solid hsl(var(--border)); }
+.debug select:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
