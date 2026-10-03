@@ -1,3 +1,5 @@
+import { yardsAhead } from "../../app/right-on-track/yard";
+import { wagonPose } from "../../app/right-on-track/wagon";
 import { flourishesAhead, animateFairground } from "../../app/right-on-track/flourishes";
 import { concertsAhead } from "../../app/right-on-track/concert";
 import { animateAircraft, skyAt } from "../../app/right-on-track/aviation";
@@ -278,6 +280,67 @@ async function main() {
 				}
 			}
 			assert(end - start === 32 && halfHits === 8, "Flourish duration/density changed");
+		});
+		for (const side of [-1, 1] as const) await test(`wagon follows ${side} curve independently with a connected coupling`, () => {
+			run = newRun(0); run.mode = "running";
+			for (let beat = 0; beat <= 30; beat += 0.5) {
+				if (beat === 23 && side === 1) layTrack(run, secondsAt(beat));
+				if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+				advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+			}
+			const frame = render(30.4), distance = (30.4 + 4) * 6;
+			const pose = wagonPose(run.seed, distance, [{ beat: 24, side }], run.routeBase);
+			assert(frame.wagon.parent === frame.scene && Math.abs(frame.wagon.rotation.y - frame.train.rotation.y) > 0.025, "Wagon inherits engine rotation");
+			assert(Math.abs(frame.wagon.position.x - pose.x) < 0.0001 && Math.abs(frame.wagon.rotation.y - pose.yaw) < 0.0001, "Wagon does not follow its axles");
+			const front = frame.train.localToWorld(new THREE.Vector3(0, 0.95, 7)), rear = frame.wagon.localToWorld(new THREE.Vector3(0, 0.95, -2.6));
+			const axis = new THREE.Vector3(0, frame.coupling.scale.y / 2, 0).applyQuaternion(frame.coupling.quaternion);
+			assert(frame.coupling.position.clone().sub(axis).distanceTo(front) < 0.0001 && frame.coupling.position.clone().add(axis).distanceTo(rear) < 0.0001, "Coupling does not connect both vehicles");
+			assert(frame.trackStack.filter(piece => piece.visible).length === 8, "Ordinary travel consumes decorative stock");
+			screenshot(`wagon-turn-${side === -1 ? "left" : "right"}`);
+		});
+		await test("rare yard depletes the wagon and lowers a matching pile onto the moving cart", () => {
+			run = newRun(2); run.mode = "running"; const event = yardsAhead(run, 540)[0];
+			assert(event && event.end - event.start === 32, "Yard fixture changed");
+			for (let beat = 0; beat < event.end + 2; beat += 0.5) {
+				if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+				advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+				assert(run.mode === "running", `Yard crash at ${beat}: ${run.reason}`);
+				if ([event.start - 8, event.start + 16, event.start + 19.5, event.start + 20].includes(beat)) {
+					const phase = beat === event.start + 19.5 ? event.start + 19.999 : beat + 0.01;
+					const frame = render(phase), yard = frame.yards.find(slot => slot.event?.start === event.start)!;
+					assert(yard?.root.visible && yard.root.position.x + 22 < -5, "Yard missing ahead or overlaps track");
+					const stock = frame.trackStack.filter(piece => piece.visible).length, load = yard.root.getObjectByName("crane-track-load")!;
+					if (beat === event.start - 8) { assert(stock === 8 && load.visible, "Stock low before yard"); screenshot("yard-approach"); }
+					if (beat === event.start + 16) { assert(stock === 1 && load.visible, "Stock fails to run low"); screenshot("yard-low-stock"); }
+					if (beat === event.start + 19.5) {
+						assert(stock === 1 && load.visible, "Delivery not visible");
+						const expected = frame.wagon.localToWorld(new THREE.Vector3(0, 1.61, 0));
+						assert(load.getWorldPosition(new THREE.Vector3()).distanceTo(expected) < 0.001, "Load misses moving wagon at handoff");
+						assert(Math.abs(load.getWorldQuaternion(new THREE.Quaternion()).dot(frame.wagon.quaternion)) > 0.99999, "Load not aligned with wagon");
+						screenshot("yard-delivery");
+					}
+					if (beat === event.start + 20) { assert(stock === 8 && !load.visible, "Refill not transferred to wagon"); screenshot("yard-refilled"); }
+					const z = yard.root.position.z; render(phase + 0.001);
+					assert(Math.abs(yard.root.position.z - z - 0.006) < 0.00001, "Yard resets during travel");
+				}
+			}
+		});
+		await test("yard anchors after a preceding switch and keeps the crane within reach", () => {
+			run = newRun(9); run.mode = "running"; const event = yardsAhead(run, 540)[0];
+			assert(event?.start === 560 && signalsAhead(run, 510).includes(524), "Switched yard fixture changed");
+			for (let beat = 0; beat <= event.start + 20; beat += 0.5) {
+				if (beat === 523) layTrack(run, secondsAt(beat));
+				if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
+				advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
+				assert(run.mode === "running", "Switched yard approach crashed");
+				if (beat === event.start - 64 || beat === 523 || beat >= event.start + 16) {
+					const frame = render(beat + 0.01), yard = frame.yards.find(slot => slot.event?.start === event.start)!;
+					if (beat >= event.start + 16 && beat < event.start + 20) {
+						const load = yard.root.getObjectByName("crane-track-load")!.getWorldPosition(new THREE.Vector3()), pivot = yard.root.getObjectByName("crane-slew")!.getWorldPosition(new THREE.Vector3());
+						assert(Math.hypot(load.x - pivot.x, load.z - pivot.z) < 43, "Crane cannot reach wagon after switch");
+					}
+				}
+			}
 		});
 		await test("double-time chuffs stay audible and bounded at maximum speed, with mute and stop", async () => {
 			const buffer = await soundBuffer(false, false, false, true), peak = Math.max(...buffer.map(Math.abs));
