@@ -39,7 +39,7 @@ Assertions cover fixed visible fork/scenery transforms while switching, engineer
 stow/retrieve, both routes through 80 beats and history pruning, filling only the
 selected physical branch, guaranteed recovery gap, early divergence, rendered tree
 continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, two-phrase concert playback and left stadium approach, stomp/clap timing and rests, fairground/quarry approach cues, continuous rail seams across half-beat grid changes, independent half-track placements, double-time audio at maximum speed, reduced-motion Ferris wheel, independent wagon steering/coupling on both forks, steady normal cargo, rare yard depletion and moving crane handoff/refill, console/shader errors, audible
-steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup.
+steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup. Environmental audio checks match visible lumberjacks, field machinery, rivers, aircraft, birds and stadiums to their sources; render every ambient voice offline to verify quiet levels, left/right placement, distance culling, fade-out, mute and stop. Bun checks bound distance gain, overlapping voices and retiring tails, including resume after stopping.
 The terrain renderer check verifies a continuous rolling ground mesh, matching train height, field elevation and slope, and saves forest/field screenshots. Bun terrain tests cover bounded grades, seeded replay, region boundaries, planar fields, level crossings/rivers/landmarks, and bridge clearance. Meter checks cover whole two-to-four-phrase excursions, length variety, and separation from named sections.
 The existing Bun tests cover timing failures, longer runs, scenery footprints,
 bridge ramps, ground direction, parallax continuity, road braking, and rarity.
@@ -84,7 +84,7 @@ frame skips, manual handoff, deterministic retries, and paused autoplay.
 ## Remaining manual acceptance
 
 These checks detect regressions; they do not judge how enjoyable the rhythm feels,
-how natural scenery looks, whether the chuff sounds convincing, or perceived smoothness
+how natural scenery looks, whether the chuff and quiet environmental mix sound convincing, or perceived smoothness
 on a user's hardware. Use the actual game for those judgments. This fixture does
 not test React input wiring, touch gestures, mobile layout, real-time audio latency,
 or subjective shadow/horizon quality. Screenshots are review artifacts, not

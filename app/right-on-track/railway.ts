@@ -1,3 +1,4 @@
+import type { EnvironmentSource, EnvironmentKind } from "./ambience";
 import { yardsAhead, stockLayers, createYard, animateYard, type YardEvent } from "./yard";
 import { terrainHeight, terrainPitch } from "./terrain";
 import { createTrainUpgrades } from "./train-upgrades";
@@ -31,7 +32,7 @@ export type RailwayFrame = {
 	flourishes: { root: THREE.Group; models: ReturnType<typeof createFlourishLandmarks>; kind: FlourishKind; start: number; end: number; distance: number }[];
 	concerts: { root: THREE.Group; start: number; end: number; distance: number }[];
 };
-export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void, inspect?: (frame: RailwayFrame) => void) {
+export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavailable: () => void, inspect?: (frame: RailwayFrame) => void, onEnvironment?: (sources: EnvironmentSource[]) => void) {
 	const scene = new THREE.Scene();
 	const horizon = createHorizon();
 	scene.background = null;
@@ -722,6 +723,28 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			puff.scale.setScalar(0.3 + age * 1.6);
 			(puff.material as THREE.MeshBasicMaterial).opacity = (puff.userData.rainbow ? 0.3 : 0.19) * Math.sin(Math.PI * age);
 		});
+		if (onEnvironment && run.mode === "running") {
+			const sources: EnvironmentSource[] = [];
+			const add = (id: string, kind: EnvironmentKind, object: THREE.Object3D) => {
+				if (object.visible) sources.push({ id, kind, x: object.position.x, z: object.position.z });
+			};
+			encounterSlots.forEach((slot, index) => {
+				const event = encounters[index], id = `encounter-${firstEncounter + index}`;
+				if (!slot.root.visible) return;
+				if (event.kind === "river") add(id, "water", slot.root);
+				if (event.kind === "lumberjack") add(id, "chopping", slot.root);
+				if (event.kind === "crops" && Math.floor(event.detail / 3) % 3 !== 0) add(id, "tractor", slot.root);
+			});
+			skySlots.forEach((slot, index) => {
+				const event = skyAt(run.seed, firstEncounter + index);
+				if (event.kind && event.kind !== "balloon") add(`sky-${firstEncounter + index}`, event.kind === "jet" ? "jet" : "prop", slot.root);
+			});
+			stadiumSlots.forEach(slot => add(`stadium-${slot.start}`, "crowd", slot.root));
+			// Audible nests/flocks share one nearby source to avoid a chorus of identical loops.
+			const birds = treeActors.filter(({ actor }) => actor.visible && ["nest", "flock"].includes(actor.userData.detailKind)).map(({ tile, actor }) => ({ id: "woodland-birds", kind: "birds" as const, x: tile.position.x + actor.parent!.position.x, z: tile.position.z + actor.userData.treeZ })).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
+			if (birds[0]) sources.push(birds[0]);
+			onEnvironment(sources);
+		}
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);
 		inspect?.({ scene, camera, renderer, train, wagon, coupling, trackStack, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots, concerts: stadiumSlots, flourishes: flourishSlots, yards: yardSlots, segments });
