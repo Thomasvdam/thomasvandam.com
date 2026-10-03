@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { layTrack, newRun, needsTrack, secondsAt, advance, tolerance } from "./rhythm.ts";
-import { PRECISION_WINDOW, rainbowPuff, upgradeAppearance } from "./upgrades.ts";
+import { precisionReadout, PRECISION_WINDOW, rainbowPuff, upgradeAppearance } from "./upgrades.ts";
 import { advancePreview, createDebugPreview } from "./debug.ts";
 
 function hit(run, offset = 0) {
@@ -93,4 +93,31 @@ test("rainbow chance is deterministic and reaches all emitted puffs", () => {
 		if (rainbowPuff(4, puff, emission, 0.2)) colored++;
 	}
 	expect(colored).toBeGreaterThan(150); expect(colored).toBeLessThan(250);
+});
+
+
+test("precision feedback distinguishes perfect hits and early/late combo resets", () => {
+	const run = start(); hit(run);
+	expect(precisionReadout(run)).toMatchObject({ progress: 1, feedback: "Perfect!", tone: "perfect" });
+	hit(run, -0.08);
+	expect(precisionReadout(run)).toMatchObject({ progress: 0, feedback: "Early · combo reset", tone: "loose" });
+	hit(run); hit(run, 0.08);
+	expect(precisionReadout(run).feedback).toBe("Late · combo reset");
+	run.seconds += 2; expect(precisionReadout(run).tone).toBe("idle");
+});
+
+test("ten-hit feedback fills the meter and preserves upgrade progress through pauses", () => {
+	const run = start(); for (let i = 0; i < 10; i++) hit(run);
+	expect(precisionReadout(run)).toMatchObject({ progress: 10, feedback: "Perfect · upgrade earned!" });
+	run.mode = "paused"; expect(precisionReadout(run).progress).toBe(10); run.mode = "running";
+	hit(run); expect(precisionReadout(run).progress).toBe(1);
+	hit(run, 0.08); expect(run.upgrades).toBe(1); expect(precisionReadout(run).progress).toBe(0);
+	expect(precisionReadout(newRun()).progress).toBe(0);
+});
+
+test("switch toggles and debug autoplay cannot create or replace hit feedback", () => {
+	const run = start(); for (let beat = 0; beat < 22; beat += 0.5) { if (needsTrack(run, beat)) layTrack(run, secondsAt(beat)); advance(run, secondsAt(beat) + tolerance(beat) + 0.001); }
+	const lastHit = run.lastHit; layTrack(run, secondsAt(23)); expect(run.lastHit).toBe(lastHit);
+	const preview = createDebugPreview("concert"); advancePreview(preview.run, secondsAt(preview.autoUntil - 0.1), preview.autoUntil);
+	expect(preview.run.lastHit).toBeNull();
 });

@@ -1,3 +1,4 @@
+import type { BirdVoice } from "../../app/right-on-track/bird-calls";
 import { type EnvironmentSource, type EnvironmentKind } from "../../app/right-on-track/ambience";
 import { yardsAhead } from "../../app/right-on-track/yard";
 import { createDebugPreview, sceneryScenarios, sectionScenarios } from "../../app/right-on-track/debug";
@@ -84,7 +85,7 @@ async function soundBuffer(muted = false, stop = false, concert = false, flouris
 	} finally { sound.dispose(); }
 }
 
-async function ambientBuffer(kind: EnvironmentKind, muted = false, stop = false, far = false) {
+async function ambientBuffer(kind: EnvironmentKind, muted = false, stop = false, far = false, bird: BirdVoice = "woodland") {
 	const offline = new OfflineAudioContext(2, 44100 * 2, 44100);
 	const context = new Proxy(offline, { get(target, key) {
 		if (key === "state") return "running";
@@ -92,10 +93,11 @@ async function ambientBuffer(kind: EnvironmentKind, muted = false, stop = false,
 		const value = Reflect.get(target, key, target);
 		return typeof value === "function" ? value.bind(target) : value;
 	} }) as unknown as AudioContext;
-	const sound = new BeatSound(() => context);
+	const sound = new BeatSound(() => context, () => 0);
 	try {
 		assert(await sound.unlock(), "Ambient audio setup failed"); sound.setMuted(muted);
-		sound.environmentFrame([{ id: "test", kind, x: -15, z: far ? -300 : 0 }]);
+		sound.environmentFrame([{ id: "test", kind, bird, x: -15, z: far ? -300 : 0 }]);
+		if (kind === "birds") sound.environmentFrame([{ id: "test", kind, bird, x: -15, z: far ? -300 : 0 }], 0.5);
 		sound.environmentFrame([], 1); if (stop) sound.stop();
 		const buffer = await offline.startRendering();
 		return [buffer.getChannelData(0), buffer.getChannelData(1)];
@@ -382,13 +384,24 @@ async function main() {
 			for (const buffer of [await soundBuffer(true, false, true), await soundBuffer(false, true, true)]) assert(buffer.every(sample => sample === 0), "Concert mute/stop failed");
 		});
 		await test("environment sounds follow visible scenery and landmarks", () => {
-			for (const [id, kind] of [["lumberjack", "chopping"], ["tractor", "tractor"], ["combine", "tractor"], ["river-ducks", "water"], ["prop", "prop"], ["jet", "jet"], ["banner", "prop"], ["nest", "birds"], ["concert", "crowd"]] as const) {
+			for (const [id, kind] of [["lumberjack", "chopping"], ["tractor", "tractor"], ["combine", "tractor"], ["river-ducks", "water"], ["prop", "prop"], ["jet", "jet"], ["banner", "prop"], ["concert", "crowd"]] as const) {
 				const preview = createDebugPreview(id); run = preview.run;
 				render(phaseAt(run.seconds));
 				assert(environment.some(source => source.kind === kind), `${id} has no ${kind} sound`);
 				assert(environment.every(source => Number.isFinite(source.x) && Number.isFinite(source.z)), "Invalid audio positions");
 			}
 		});
+		await test("only visible birds offer their own family call, never empty nests", () => {
+			for (const [id, voice] of [["nest-visitor", "woodland"], ["flock", "woodland"], ["flyby", "flyby"], ["river-ducks", "water"]] as const) {
+				const preview = createDebugPreview(id); run = preview.run;
+				render(phaseAt(run.seconds) + (id === "flyby" ? 4 : 6));
+				assert(environment.some(source => source.kind === "birds" && source.bird === voice), `${id} has no relevant ${voice} call`);
+				assert(environment.filter(source => source.kind === "birds").every(source => source.bird && Math.hypot(source.x, source.z) <= 80), "Invalid or distant bird call");
+			}
+			const empty = createDebugPreview("nest"); run = empty.run; render(phaseAt(run.seconds) + 6);
+			assert(!environment.some(source => source.id.startsWith("tree-bird-46-")), "Egg-only nest chirps");
+		});
+
 		await test("quiet stereo ambience fades away and obeys mute and stop", async () => {
 			for (const kind of ["birds", "prop", "jet", "tractor", "chopping", "water", "crowd"] as const) {
 				const [left, right] = await ambientBuffer(kind);
@@ -399,6 +412,17 @@ async function main() {
 				assert(left.slice(1.6 * 44100).every(sample => sample === 0), `${kind} keeps playing after leaving`);
 				for (const data of [await ambientBuffer(kind, true), await ambientBuffer(kind, false, true), await ambientBuffer(kind, false, false, true)]) assert(data.every(channel => channel.every(sample => sample === 0)), `${kind} mute/stop/distance failed`);
 			}
+		});
+
+		await test("all three bird families have quiet distinctive one-shot audio", async () => {
+			const calls: Float32Array[] = [];
+			for (const bird of ["woodland", "flyby", "water"] as const) {
+				const [data] = await ambientBuffer("birds", false, false, false, bird);
+				assert(data.some(sample => Math.abs(sample) > 0.0001), `${bird} call is silent`);
+				assert(data.slice(1.6 * 44100).every(sample => sample === 0), `${bird} call loops`);
+				calls.push(data);
+			}
+			assert(calls[0].some((sample, i) => sample !== calls[1][i]) && calls[1].some((sample, i) => sample !== calls[2][i]), "Bird families share a call");
 		});
 
 		await test("steam chuffs are scheduled, audible, bounded and silent after their envelopes", async () => {

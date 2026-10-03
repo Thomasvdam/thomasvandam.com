@@ -205,6 +205,7 @@ export type Run = {
 	score: number;
 	precisionStreak: number;
 	upgrades: number;
+	lastHit: { seconds: number; precise: boolean; offset: number; brokeCombo: boolean } | null;
 	lastUpgrade: { seconds: number; level: number } | null;
 	placed: Set<number>;
 	placedSides: Map<number, -1 | 1>;
@@ -215,7 +216,7 @@ export type Run = {
 };
 
 export function newRun(seed = 0): Run {
-	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, precisionStreak: 0, upgrades: 0, lastUpgrade: null, placed: new Set(), placedSides: new Map(), routeBase: 0, routeThrough: -1, switches: new Map(), reason: "" };
+	return { seed, phrases: new Map(), generatedThrough: 0, generatedIndex: 0, placement: null, mode: "ready", seconds: 0, checked: -1, score: 0, precisionStreak: 0, upgrades: 0, lastHit: null, lastUpgrade: null, placed: new Set(), placedSides: new Map(), routeBase: 0, routeThrough: -1, switches: new Map(), reason: "" };
 }
 
 export function advance(run: Run, seconds: number) {
@@ -262,7 +263,9 @@ export function layTrack(run: Run, seconds: number, earnPrecision = true) {
 		run.placed.add(beat);
 		run.score++;
 		if (earnPrecision) {
-			run.precisionStreak = Math.abs(seconds - secondsAt(beat)) <= PRECISION_WINDOW + 1e-9 ? run.precisionStreak + 1 : 0;
+			const offset = seconds - secondsAt(beat), precise = Math.abs(offset) <= PRECISION_WINDOW + 1e-9;
+			run.lastHit = { seconds, precise, offset, brokeCombo: !precise && run.precisionStreak > 0 };
+			run.precisionStreak = precise ? run.precisionStreak + 1 : 0;
 			if (run.precisionStreak > 0 && run.precisionStreak % UPGRADE_INTERVAL === 0) {
 				run.upgrades++; run.lastUpgrade = { seconds, level: run.upgrades };
 			}

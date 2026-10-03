@@ -2,7 +2,7 @@ import { EnvironmentSound, type EnvironmentSource } from "./ambience";
 import { concertHit, phraseAt, isDownbeat, needsTrack, type Run } from "./rhythm";
 
 export class BeatSound {
-	constructor(private createContext: () => AudioContext = () => new AudioContext()) {}
+	constructor(private createContext: () => AudioContext = () => new AudioContext(), private random: () => number = Math.random) {}
 	private context: AudioContext | null = null;
 	private volume: GainNode | null = null;
 	private environment: EnvironmentSound | null = null;
@@ -17,7 +17,7 @@ export class BeatSound {
 				this.volume = this.context.createGain();
 				this.volume.gain.value = this.muted ? 0 : 0.5;
 				this.volume.connect(this.context.destination);
-				this.environment = new EnvironmentSound(this.context, this.volume);
+				this.environment = new EnvironmentSound(this.context, this.volume, this.random);
 				this.steam = this.context.createBuffer(1, this.context.sampleRate, this.context.sampleRate);
 				const samples = this.steam.getChannelData(0);
 				for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;

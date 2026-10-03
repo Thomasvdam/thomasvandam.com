@@ -16,6 +16,7 @@ import { roadsideCenter, treeOnFork, forkAtDistance, fixedBranchCenter, routeCen
 import { createHorizon } from "./horizon";
 import { configureRailwayShadows, softenDistantShadows, fadeDistantScenery } from "./shadows";
 import { createTreeDetails, animateTreeDetail } from "./wildlife";
+import { waterScene } from "./motion";
 import { cutRiverTerrain, animateRiver } from "./river";
 import { cutForkBallast, fadeForkEdges, createSignal } from "./junction";
 import { createEncounterModels } from "./encounters";
@@ -315,7 +316,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		foliage.push({ tile, mesh: object, roots: object.userData.treeRoots, rootsX: object.userData.treeRootsX, matrices });
 	});
 	green.transparent = false; autumnLeaves.transparent = false; autumnLeaves.opacity = 1; broadLeaf.color.set("#ffffff");
-	const bird = new THREE.Group(); scene.add(bird); bird.visible = false;
+	const bird = new THREE.Group(); scene.add(bird); bird.visible = false; bird.userData.birdVoice = "flyby";
 	const birdFeathers = material("#37454d");
 	sphere(bird, birdFeathers, [0, 0, 0], [0.18, 0.14, 0.32]);
 	sphere(bird, birdFeathers, [0, 0.11, -0.27], [0.13, 0.13, 0.15]);
@@ -740,9 +741,29 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 				if (event.kind && event.kind !== "balloon") add(`sky-${firstEncounter + index}`, event.kind === "jet" ? "jet" : "prop", slot.root);
 			});
 			stadiumSlots.forEach(slot => add(`stadium-${slot.start}`, "crowd", slot.root));
-			// Audible nests/flocks share one nearby source to avoid a chorus of identical loops.
-			const birds = treeActors.filter(({ actor }) => actor.visible && ["nest", "flock"].includes(actor.userData.detailKind)).map(({ tile, actor }) => ({ id: "woodland-birds", kind: "birds" as const, x: tile.position.x + actor.parent!.position.x, z: tile.position.z + actor.userData.treeZ })).sort((a, b) => Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z));
-			if (birds[0]) sources.push(birds[0]);
+			// Only actual visible birds can offer a call: eggs and departed flocks stay silent.
+			camera.updateMatrixWorld();
+			const addBird = (id: string, object: THREE.Object3D) => {
+				for (let parent: THREE.Object3D | null = object; parent; parent = parent.parent) if (!parent.visible) return;
+				const point = object.getWorldPosition(new THREE.Vector3());
+				if (Math.hypot(point.x, point.z) > 80) return;
+				const projected = point.clone().project(camera);
+				if (Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1 || Math.abs(projected.z) > 1) return;
+				sources.push({ id, kind: "birds", bird: object.userData.birdVoice, x: point.x, z: point.z });
+			};
+			for (const { tile, actor } of treeActors) {
+				const actual = actor.userData.detailKind === "nest" ? actor.getObjectByName("nest-bird") : actor.userData.detailKind === "flock" ? actor.children.find(child => child.visible) : null;
+				if (actual) addBird(`tree-bird-${actor.userData.treeIndex}-${Math.round(distance - tile.position.z - actor.userData.treeZ)}`, actual);
+			}
+			encounterSlots.forEach((slot, index) => {
+				if (encounters[index].kind !== "river") return;
+				const kind = waterScene(encounters[index].detail);
+				if (!["ducks", "landing", "takeoff"].includes(kind)) return;
+				const group = slot.models.river.getObjectByName(`water-${kind}`)!;
+				const actual = group.children.find(child => child.visible);
+				if (actual) addBird(`river-bird-${firstEncounter + index}`, actual);
+			});
+			addBird(`flyby-${phrase.index}`, bird);
 			onEnvironment(sources);
 		}
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
