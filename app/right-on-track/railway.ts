@@ -403,6 +403,13 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		puff.name = `steam-puff-${index}`;
 		puff.castShadow = false; return puff;
 	});
+	const fireworks = new THREE.Group(); fireworks.name = "upgrade-fireworks"; train.add(fireworks);
+	fireworks.position.set(0, 3.85, 0.65);
+	const sparks = Array.from({ length: 16 }, (_, index) => {
+		const surface = new THREE.MeshBasicMaterial({ color: RAINBOW[index % RAINBOW.length], transparent: true, depthWrite: false, toneMapped: false }); materials.push(surface);
+		const spark = mesh(fireworks, smokeGeometry, surface, [0, 0, 0], [0.04, 0.04, 0.04]);
+		spark.castShadow = false; spark.receiveShadow = false; return spark;
+	});
 	const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 	let crashAt = 0; let previousMode = "ready";
 
@@ -724,6 +731,15 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			puff.scale.setScalar(0.3 + age * 1.6);
 			(puff.material as THREE.MeshBasicMaterial).opacity = (puff.userData.rainbow ? 0.3 : 0.19) * Math.sin(Math.PI * age);
 		});
+		const celebrationAge = run.lastUpgrade ? run.seconds - run.lastUpgrade.seconds : -1;
+		fireworks.visible = !reducedMotion && celebrationAge >= 0 && celebrationAge < 0.8;
+		if (fireworks.visible) sparks.forEach((spark, i) => {
+			const angle = i * 2.39996, spread = 0.6 + i % 4 * 0.18;
+			spark.position.set(Math.cos(angle) * spread * celebrationAge, (2.5 + i % 3 * 0.35) * celebrationAge - 1.8 * celebrationAge ** 2, Math.sin(angle) * spread * celebrationAge);
+			spark.scale.setScalar(0.07 * (1 - celebrationAge / 0.8));
+			(spark.material as THREE.MeshBasicMaterial).opacity = Math.min(1, celebrationAge * 25) * (1 - celebrationAge / 0.8);
+		});
+
 		if (onEnvironment && run.mode === "running") {
 			const sources: EnvironmentSource[] = [];
 			const add = (id: string, kind: EnvironmentKind, object: THREE.Object3D) => {

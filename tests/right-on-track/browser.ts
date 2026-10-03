@@ -61,7 +61,7 @@ function geometry(frame: RailwayFrame) {
 	return transforms;
 }
 
-async function soundBuffer(muted = false, stop = false, concert = false, flourish = false) {
+async function soundBuffer(muted = false, stop = false, concert = false, flourish = false, whistle = false) {
 	const offline = new OfflineAudioContext(1, 44100, 44100);
 	const context = new Proxy(offline, { get(target, key) {
 		if (key === "state") return "running";
@@ -73,7 +73,8 @@ async function soundBuffer(muted = false, stop = false, concert = false, flouris
 	try {
 		assert(await sound.unlock(), "Audio setup failed");
 		sound.setMuted(muted);
-		if (concert) { sound.concert(0.1, "stomp"); sound.concert(0.3, "stomp"); sound.concert(0.5, "clap"); sound.concert(0.7, "rest"); }
+		if (whistle) { sound.whistle(0.1); sound.beat(0.1, true, true); }
+		else if (concert) { sound.concert(0.1, "stomp"); sound.concert(0.3, "stomp"); sound.concert(0.5, "clap"); sound.concert(0.7, "rest"); }
 		else if (flourish) {
 			const journey = newRun(0); let phrase = phraseAt(journey, 0);
 			while (phrase.section !== "quarry" || phrase.start < 1100) phrase = phraseAt(journey, phrase.end);
@@ -425,6 +426,15 @@ async function main() {
 			assert(calls[0].some((sample, i) => sample !== calls[1][i]) && calls[1].some((sample, i) => sample !== calls[2][i]), "Bird families share a call");
 		});
 
+		await test("upgrade whistle stays brief and bounded over a chuff, and obeys mute and stop", async () => {
+			const data = await soundBuffer(false, false, false, false, true);
+			const peak = Math.max(...data.map(Math.abs));
+			assert(peak > 0.015 && peak < 1, `Whistle and chuff peak ${peak}`);
+			assert(data.slice(0.35 * 44100, 0.4 * 44100).some(sample => Math.abs(sample) > 0.005), "Whistle missing after chuff ends");
+			assert(data.slice(0.65 * 44100).every(sample => sample === 0), "Upgrade whistle runs on");
+			for (const silent of [await soundBuffer(true, false, false, false, true), await soundBuffer(false, true, false, false, true)]) assert(silent.every(sample => sample === 0), "Whistle mute/stop failed");
+		});
+
 		await test("steam chuffs are scheduled, audible, bounded and silent after their envelopes", async () => {
 			const data = await soundBuffer();
 			const peak = Math.max(...data.map(Math.abs));
@@ -482,6 +492,23 @@ async function main() {
 			assert(frame.scene.getObjectByName("engineer-work-cap")!.visible && !frame.scene.getObjectByName("reward-hat-crown")!.visible, "New run keeps hat upgrades");
 			for (let i = 0; i < 10; i++) assert(!frame.scene.getObjectByName(`steam-puff-${i}`)!.userData.rainbow, "New run keeps rainbow smoke");
 		});
+		await test("upgrade sparks start at the chimney, stay small and expire without repeating", () => {
+			run = newRun(12); run.mode = "running";
+			const event = secondsAt(30); run.lastUpgrade = { seconds: event, level: 1 }; run.upgrades = 1;
+			const frame = render(phaseAt(event + 0.3));
+			const burst = frame.scene.getObjectByName("upgrade-fireworks")!;
+			assert(burst.visible && burst.parent === frame.train && burst.children.length === 16, "Chimney burst missing");
+			assert(burst.position.distanceTo(new THREE.Vector3(0, 3.85, 0.65)) < 0.00001, "Fireworks detached from chimney");
+			for (const spark of burst.children) {
+				assert(spark.position.length() < 1.5 && spark.scale.x < 0.1 && !spark.castShadow, "Fireworks obscure scenery");
+				assert((spark as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>).material.opacity > 0, "Invisible fireworks");
+			}
+			screenshot("upgrade-chimney-sparks");
+			render(phaseAt(event + 0.9)); assert(!burst.visible, "Burst does not expire");
+			render(phaseAt(event + 1.1)); assert(!burst.visible, "Burst repeats on later frames");
+			run = newRun(12); render(31); assert(!burst.visible, "New run inherits upgrade burst");
+		});
+
 		await test("debug selectors launch real scenery and playable sections in the renderer", () => {
 			for (const scenario of [...sceneryScenarios, ...sectionScenarios]) {
 				const preview = createDebugPreview(scenario.id); run = preview.run;

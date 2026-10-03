@@ -59,7 +59,7 @@ resets cosmetics. Bun checks cover the exact boundaries, streak resets, ten-hit
 milestones, switch/rest/pause handling, debug isolation, half-beat hits, and
 deterministic rainbow probability. The renderer checks all cosmetic tiers, gold
 materials, hat/wagon visibility, smoke stability, 100% rainbow and new-run reset,
-with four reward screenshots. The in-scene combo meter always shows progress toward ten, including a full meter on an upgrade. Green Perfect feedback and amber Early/Late feedback explain accepted taps and combo resets. Tests cover these messages, feedback expiry, milestone rollover, held progress on pauses/switches, and absence of debug autoplay feedback.
+with four reward screenshots. A small bottom-edge indicator shows ten dots and the current count, with a subtle green fill and amber reset. It has no panel, hit popups or upgrade-name banner; detailed timing feedback remains in the meter’s accessible description. An earned upgrade plays a brief three-chime steam whistle and emits a small, fading burst of sixteen colored sparks from the chimney. The whistle shares mute/stop controls and only fires from an input that actually earns a tier. Renderer checks cover the chimney attachment, bounded particle size, expiry without repeating, new-run reset and a saved burst screenshot; offline audio checks cover whistle/chuff headroom, duration, mute and stop. Sparks are disabled for reduced motion. Logic tests cover timing descriptions, feedback expiry, milestone rollover, held progress on pauses/switches, and absence of debug autoplay feedback.
 
 On `/right-on-track`, press **Ctrl+Alt+Shift+D** (or **⌘+Option+Shift+D** on Mac).
 On mobile, open **`/right-on-track#debug`** instead. Adding `#debug` to the current
