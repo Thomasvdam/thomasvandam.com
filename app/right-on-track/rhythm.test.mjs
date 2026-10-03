@@ -106,28 +106,33 @@ describe("railway rhythm", () => {
 			expect(phraseAt(run, beat).landscape).toBe("autumn");
 			expect(isDownbeat(run, beat)).toBe([48, 51, 54, 57].includes(beat));
 		}
-		expect(phraseAt(run, 60).meter).toBe(4);
-		expect(phraseAt(run, 60).landscape).toBe("forest");
-		expect(isDownbeat(run, 60)).toBe(true);
+		let end = special.end;
+		while (phraseAt(run, end).meter === 3) end = phraseAt(run, end).end;
+		expect(end - special.start).toBeGreaterThanOrEqual(24);
+		expect(end - special.start).toBeLessThanOrEqual(48);
+		expect(phraseAt(run, end).landscape).toBe("forest");
+		expect(isDownbeat(run, end)).toBe(true);
 		expect(phraseAt(run, phaseAt(secondsAt(48) - 0.0001)).landscape).toBe("forest");
 		expect(phraseAt(run, phaseAt(secondsAt(48) + 0.0001)).landscape).toBe("autumn");
 	});
 
-	test("special sections are occasional, never consecutive, and never start a run", () => {
-		let special = 0;
+	test("3/4 excursions use two to four whole normal phrases without overlapping named sections", () => {
+		const lengths = new Map();
 		for (let seed = 0; seed < 50; seed++) {
+			expect(phraseMeter(seed, 0)).toBe(4);
 			for (let index = 0; index < 100; index++) {
 				const meter = phraseMeter(seed, index);
-				if (meter === 3) {
-					special++;
-					expect(index % 4).toBe(3);
-					expect(phraseMeter(seed, index - 1)).toBe(4);
-					expect(phraseMeter(seed, index + 1)).toBe(4);
+				if (meter === 3 && phraseMeter(seed, index - 1) === 4) {
+					let count = 0;
+					while (phraseMeter(seed, index + count) === 3) { expect(phraseSection(seed, index + count)).toBe("normal"); count++; }
+					expect([2, 3, 4]).toContain(count);
+					lengths.set(count, (lengths.get(count) ?? 0) + 1);
 				}
 			}
 		}
-		expect(special).toBeGreaterThan(500);
-		expect(special).toBeLessThan(1000);
+		for (const count of [2, 3, 4]) expect(lengths.get(count)).toBeGreaterThan(0);
+		expect(lengths.get(2)).toBeGreaterThan(lengths.get(3));
+		expect(lengths.get(3)).toBeGreaterThan(lengths.get(4));
 	});
 
 	test("lookahead across variable phrase lengths agrees with the live journey", () => {
@@ -339,9 +344,11 @@ test("half-beat timing remains bounded and normal sections retain their wider ea
 
 test("half-beat placements on a lingering fork fill only the selected path", () => {
 	for (const side of [-1, 1]) {
-		const run = newRun(10); run.mode = "running";
-		const beat = 440.5, signal = branchForBeat(run, beat);
-		expect(signal).toBe(404); expect(needsTrack(run, beat)).toBe(true);
+		const run = newRun(0); run.mode = "running";
+		// Exercise branch ownership independently of the current section spacing.
+		const phrase = phraseAt(run, 32); phrase.section = "quarry";
+		const beat = phrase.start + 0.5, signal = branchForBeat(run, beat);
+		expect(signal).not.toBeNull(); expect(needsTrack(run, beat)).toBe(true);
 		for (let hit = 0; hit <= beat; hit += 0.5) {
 			if (hit === signal - 1 && side === 1) layTrack(run, secondsAt(hit));
 			if (needsTrack(run, hit)) layTrack(run, secondsAt(hit));

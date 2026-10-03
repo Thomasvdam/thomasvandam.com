@@ -34,7 +34,7 @@ test("landscape stretches approach the train without changing a tree's world ide
 	const before = landscapeBands(run, 40);
 	expect(landscapeBlend(before, 40)).toBe(0);
 	expect(landscapeBlend(before, 52)).toBe(1);
-	expect(landscapeBlend(before, 64)).toBe(0);
+	expect(landscapeBlend(before, 64)).toBe(1);
 	for (const worldBeat of [47, 48, 49, 50, 59, 60, 61, 62]) {
 		const values = [40, 44, 48, 52, 60].map(phase => {
 			const z = PLACEMENT_Z - (worldBeat - phase) * TRACK_LENGTH;

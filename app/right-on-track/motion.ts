@@ -1,5 +1,6 @@
 import { FORK_OFFSET, FORK_SPREAD } from "./fork-config";
 import { phraseAt, type Run } from "./rhythm";
+import { terrainHeight } from "./terrain";
 
 export const TRACK_LENGTH = 6;
 export const PLACEMENT_Z = -4;
@@ -103,7 +104,7 @@ export function railwayHeight(seed: number, distance: number) {
 		const ramp = Math.max(0, Math.min(1, (43 - Math.abs(distance - encounter.distance)) / 30));
 		height = Math.max(height, BRIDGE_HEIGHT * ramp * ramp * (3 - 2 * ramp));
 	}
-	return height;
+	return terrainHeight(seed, distance) + height;
 }
 export function railwayPitch(seed: number, distance: number) {
 	return Math.atan((railwayHeight(seed, distance + 0.1) - railwayHeight(seed, distance - 0.1)) / 0.2);

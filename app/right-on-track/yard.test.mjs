@@ -4,7 +4,7 @@ import { stockLayers, yardsAhead } from "./yard.ts";
 import { wagonPose, WAGON_DISTANCE } from "./wagon.ts";
 import { encounterAt, railwayHeight, routeCenter, SCENERY_LENGTH } from "./motion.ts";
 
-const fixture = () => { const run = newRun(2); run.mode = "running"; return { run, event: yardsAhead(run, 540)[0] }; };
+const fixture = () => { const run = newRun(3); run.mode = "running"; return { run, event: yardsAhead(run, 540)[0] }; };
 
 test("yard sections are rare seeded pairs with a distinct tap-rest-tap-tap pattern", () => {
 	let pairs = 0, blocked = 0;

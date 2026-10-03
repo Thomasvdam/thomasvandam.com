@@ -28,12 +28,18 @@ export function concertHit(beat: number, start: number): ConcertHit {
 	return (["stomp", "stomp", "clap", "rest"] as const)[((beat - start) % 4 + 4) % 4];
 }
 
-// Only the fourth phrase in a group can use 3/4; named sections stay in 4/4.
+// Occasional two-to-four-phrase excursions; reserve the entire block before starting.
 export function phraseMeter(seed: number, index: number): Meter {
-	if (phraseSection(seed, index) !== "normal" || index % 4 !== 3) return 4;
-	let hash = Math.imul(seed ^ Math.imul(index + 1, 0x45d9f3b), 0x27d4eb2d);
+	if (index < 3) return 4;
+	const start = Math.floor((index - 3) / 12) * 12 + 3;
+	let hash = Math.imul(seed ^ Math.imul(start + 1, 0x45d9f3b), 0x27d4eb2d);
 	hash = Math.imul(hash ^ hash >>> 16, 0x85ebca6b);
-	return ((hash ^ hash >>> 13) >>> 0) / 4294967296 < 0.6 ? 3 : 4;
+	if (((hash ^ hash >>> 13) >>> 0) / 4294967296 >= 0.6) return 4;
+	const lengthRoll = (hash >>> 8) % 100;
+	const length = lengthRoll < 65 ? 2 : lengthRoll < 90 ? 3 : 4;
+	if (index >= start + length) return 4;
+	for (let i = start; i < start + length; i++) if (phraseSection(seed, i) !== "normal") return 4;
+	return 3;
 }
 
 // Seeded per phrase: looking ahead never changes an already visible gap.
