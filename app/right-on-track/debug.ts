@@ -1,4 +1,4 @@
-import { advance, layTrack, needsTrack, newRun, phaseAt, phraseAt, secondsAt, signalsAhead, type Run, type Section } from "./rhythm";
+import { advance, layTrack, needsTrack, newRun, phaseAt, phraseAt, placementEarlyTolerance, secondsAt, signalsAhead, type Run, type Section } from "./rhythm";
 import { encounterAt } from "./scenery-schedule";
 import { skyAt } from "./aviation";
 import { cropVariant, farmMachine, pastureVariant } from "./farmland";
@@ -57,7 +57,12 @@ export const sectionScenarios: Scenario[] = [
 	{ id: "switch", label: "Track switch", locate(seed) { const beat = signalsAhead(newRun(seed), 0)[0]; return beat === undefined ? null : { start: beat - 8, playFrom: beat - 2 }; } },
 ];
 
-export type DebugPreview = { run: Run; autoUntil: number; label: string };
+export type DebugPreview = { id: string; run: Run; autoUntil: number; label: string };
+export function previewAcceptsInput(preview: DebugPreview, seconds: number) {
+	if (!Number.isFinite(preview.autoUntil)) return false;
+	const early = needsTrack(preview.run, preview.autoUntil) ? placementEarlyTolerance(preview.run, preview.autoUntil) : 0;
+	return seconds >= secondsAt(preview.autoUntil) - early;
+}
 export function advancePreview(run: Run, seconds: number, autoUntil: number) {
 	if (run.mode !== "running") return;
 	// Real placements at their real deadlines, even when a frame spans several hits.
@@ -75,7 +80,7 @@ export function createDebugPreview(id: string): DebugPreview {
 		const run = newRun(seed); run.mode = "running";
 		advancePreview(run, secondsAt(Math.max(-4, target.start)), Infinity);
 		run.score = 0;
-		return { run, autoUntil: target.playFrom ?? Infinity, label: scenario.label };
+		return { id, run, autoUntil: target.playFrom ?? Infinity, label: scenario.label };
 	}
 	throw new Error("No matching preview found");
 }
