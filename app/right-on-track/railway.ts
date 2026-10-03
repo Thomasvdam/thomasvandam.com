@@ -1,3 +1,5 @@
+import { yardsAhead, stockLayers, createYard, animateYard, type YardEvent } from "./yard";
+import { wagonPose, WAGON_DISTANCE, WAGON_HALF_LENGTH } from "./wagon";
 import { flourishesAhead, createFlourishLandmarks, animateFairground, type FlourishKind } from "./flourishes";
 import { concertsAhead, createStadium } from "./concert";
 import { createAircraft, skyAt, animateAircraft } from "./aviation";
@@ -16,12 +18,13 @@ import { createEncounterModels } from "./encounters";
 
 // Optional inspection keeps browser regressions on the actual production renderer.
 export type RailwayFrame = {
-	scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; train: THREE.Group; carriedPiece: THREE.Group;
+	scene: THREE.Scene; camera: THREE.PerspectiveCamera; renderer: THREE.WebGLRenderer; train: THREE.Group; wagon: THREE.Group; coupling: THREE.Mesh; trackStack: THREE.Group[]; carriedPiece: THREE.Group;
 	sceneryTiles: THREE.Group[];
 	forks: { signal: THREE.Group; branches: { side: -1 | 1; pieces: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group }[] }[] }[];
 	encounters: { root: THREE.Group; models: ReturnType<typeof createEncounterModels> }[];
 	sky: { root: THREE.Group; models: ReturnType<typeof createAircraft> }[];
 	segments: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group; half: { group: THREE.Group; rails: THREE.Group; marker: THREE.Group } }[];
+	yards: { root: THREE.Group; event: YardEvent | undefined }[];
 	flourishes: { root: THREE.Group; models: ReturnType<typeof createFlourishLandmarks>; kind: FlourishKind; start: number; end: number; distance: number }[];
 	concerts: { root: THREE.Group; start: number; end: number; distance: number }[];
 };
@@ -158,11 +161,20 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		}
 	}
 	for (const x of [-1.5, 1.5]) box(train, steel, [x, 0.7, 2.85], [0.07, 0.13, 3.5]);
-	// Coal tender behind the engine.
-	box(train, iron, [0, 1.25, 9.3], [2.6, 1.3, 3.5]);
-	box(train, red, [0, 2, 9.3], [2.7, 1.0, 3.5]);
-	box(train, iron, [0, 2.53, 9.3], [2.35, 0.18, 3.15]);
-	for (const z of [8.4, 10.2]) for (const x of [-1.3, 1.3]) cylinder(train, iron, [x, 0.6, z], [0.52, 0.2, 0.52], "x");
+	const wagon = new THREE.Group(); scene.add(wagon);
+	box(wagon, iron, [0, 0.85, 0], [2.8, 0.4, 5.2]);
+	box(wagon, wood, [0, 1.1, 0], [2.7, 0.15, 5.1]);
+	for (const x of [-1.4, 1.4]) box(wagon, red, [x, 1.45, 0], [0.14, 0.65, 5.2]);
+	for (const z of [-2.6, 2.6]) box(wagon, red, [0, 1.35, z], [2.9, 0.45, 0.14]);
+	const wagonWheels = [] as THREE.Group[];
+	for (const z of [-1.8, 1.8]) for (const x of [-1.4, 1.4]) {
+		const wheel = new THREE.Group(); wheel.position.set(x, 0.6, z); wheel.userData.moving = true; wagon.add(wheel); wagonWheels.push(wheel);
+		cylinder(wheel, iron, [0, 0, 0], [0.52, 0.2, 0.52], "x");
+		cylinder(wheel, steel, [Math.sign(x) * 0.12, 0, 0], [0.18, 0.04, 0.18], "x"); batch(wheel);
+	}
+	batch(wagon);
+	const coupling = cylinder(scene, iron, [0, 0.95, 7.1], [0.09, 0.7, 0.09]);
+	const engineHitch = new THREE.Vector3(), wagonHitch = new THREE.Vector3(), couplingDirection = new THREE.Vector3(), couplingUp = new THREE.Vector3(0, 1, 0);
 
 	for (const wheel of wheels) batch(wheel);
 	batch(train);
@@ -206,6 +218,9 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const carriedPiece = makePiece(); engineer.add(carriedPiece);
 	carriedPiece.position.set(0, 2.65, 0); carriedPiece.scale.setScalar(0.45); carriedPiece.rotation.x = -Math.PI / 2;
 	const flyingPiece = makePiece(); scene.add(flyingPiece); flyingPiece.visible = false;
+	const trackStack = Array.from({ length: 8 }, (_, i) => {
+		const piece = makePiece(); piece.scale.setScalar(0.68); piece.position.set(0, 1.35 + i * 0.26, 0); wagon.add(piece); return piece;
+	});
 
 	const green = material("#344c3b"); const bark = material("#514b3d");
 	const broadLeaf = material("#496345"); const paleBark = material("#b8b4a0");
@@ -297,6 +312,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	});
 	bird.rotation.y = -Math.PI / 2;
 
+	const yardPrototype = createYard(builders, makePiece);
+	const yardSlots = Array.from({ length: 2 }, () => { const root = yardPrototype.clone(); scene.add(root); return { root, event: undefined as YardEvent | undefined }; });
 	const stadiumPrototype = createStadium(builders);
 	const stadiumSlots = Array.from({ length: 2 }, () => { const root = stadiumPrototype.clone(); scene.add(root); return { root, start: -1, end: -1, distance: 0 }; });
 	const flourishModels = createFlourishLandmarks(builders);
@@ -406,7 +423,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
 	let worldRun: Run | null = null;
-	const skyAnchors = new Map<number, number>(), stadiumAnchors = new Map<number, number>(), flourishAnchors = new Map<number, number>();
+	const skyAnchors = new Map<number, number>(), stadiumAnchors = new Map<number, number>(), flourishAnchors = new Map<number, number>(), yardAnchors = new Map<number, number>();
 	const forestAnchors = new Map<number, number>(), encounterAnchors = new Map<number, { offset: number; heading: number }>();
 	const contextLost = (event: Event) => { event.preventDefault(); onUnavailable(); };
 	renderer.domElement.addEventListener("webglcontextlost", contextLost);
@@ -417,7 +434,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		const center = (d: number) => routeCenter(d, junctions, run.routeBase);
 		const heading = (d: number) => routeHeading(d, junctions, run.routeBase);
 		const position = (z: number) => center(distance - z) - center(distance);
-		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); stadiumAnchors.clear(); flourishAnchors.clear(); worldRun = run; }
+		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); stadiumAnchors.clear(); flourishAnchors.clear(); yardAnchors.clear(); worldRun = run; }
 		const concerts = concertsAhead(run, phase);
 		stadiumSlots.forEach((slot, index) => {
 			const concert = concerts[index]; slot.root.visible = !!concert;
@@ -438,8 +455,19 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			if (event.kind === "fairground") animateFairground(slot.models.fairground, run.seconds, reducedMotion);
 		});
 		for (const start of flourishAnchors.keys()) if (!flourishes.some(event => event.start === start)) flourishAnchors.delete(start);
+		const yards = yardsAhead(run, phase);
+		yardSlots.forEach((slot, index) => {
+			const event = yards[index]; slot.event = event; slot.root.visible = !!event;
+			if (!event) return;
+			const anchor = roadsideCenter(event.distance, -1, junctions, run.routeBase, 31, 39);
+			// Commit after prior switches are settled, while the yard is still beyond the fog.
+			if (!yardAnchors.has(event.start) && Math.abs(event.distance - distance) < 260) yardAnchors.set(event.start, anchor);
+			slot.root.position.set((yardAnchors.get(event.start) ?? anchor) - center(distance), 0, distance - event.distance);
+		});
+		for (const start of yardAnchors.keys()) if (!yards.some(event => event.start === start)) yardAnchors.delete(start);
+		const onYardGround = (x: number, z: number, padding = 0) => yardSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 25 + padding && Math.abs(z - slot.root.position.z) < 37 + padding);
 		const onFlourishGround = (x: number, z: number, padding = 0) => flourishSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 25 + padding && Math.abs(z - slot.root.position.z) < 36 + padding);
-		const onConcertGround = (x: number, z: number, padding = 0) => onFlourishGround(x, z, padding) || stadiumSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 33 + padding && Math.abs(z - slot.root.position.z) < 51 + padding);
+		const onConcertGround = (x: number, z: number, padding = 0) => onYardGround(x, z, padding) || onFlourishGround(x, z, padding) || stadiumSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 33 + padding && Math.abs(z - slot.root.position.z) < 51 + padding);
 		const switching = activeSignal(run);
 		const phrase = phraseAt(run, Math.max(0, Math.floor(phase)));
 		const bands = landscapeBands(run, phase);
@@ -469,6 +497,18 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		train.rotation.z = crash * -0.38; train.position.x = crash * 1.8; train.rotation.y = heading(distance);
 		train.position.y = railwayHeight(run.seed, distance) + (!reducedMotion && run.mode === "running" ? Math.sin(phase * Math.PI * 4) * 0.025 : 0);
 		for (const wheel of wheels) wheel.rotation.x = -phase * 6 / 0.69;
+		const cart = wagonPose(run.seed, distance, junctions, run.routeBase);
+		wagon.position.set(cart.x + crash * 1.8, cart.y, cart.z); wagon.rotation.set(cart.pitch, cart.yaw, crash * -0.2);
+		for (const wheel of wagonWheels) wheel.rotation.x = -(distance - WAGON_DISTANCE) / 0.52;
+		train.updateMatrixWorld(true); wagon.updateMatrixWorld(true);
+		engineHitch.set(0, 0.95, 7).applyMatrix4(train.matrixWorld);
+		wagonHitch.set(0, 0.95, -WAGON_HALF_LENGTH).applyMatrix4(wagon.matrixWorld);
+		coupling.position.copy(engineHitch).add(wagonHitch).multiplyScalar(0.5);
+		couplingDirection.copy(wagonHitch).sub(engineHitch);
+		coupling.scale.y = couplingDirection.length(); coupling.quaternion.setFromUnitVectors(couplingUp, couplingDirection.normalize());
+		const stock = stockLayers(run, yards.find(event => phase >= event.start && phase < event.end), phase);
+		trackStack.forEach((piece, i) => { piece.visible = i < stock; });
+		for (const slot of yardSlots) if (slot.event) { slot.root.updateMatrixWorld(true); animateYard(slot.root, slot.event, phase, wagon); }
 		const placement = run.placement;
 		const age = placement ? run.seconds - placement.seconds : Infinity;
 		const flightDuration = Math.min(0.18, 60 / tempo(run.seconds) * 0.2);
@@ -637,7 +677,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		});
 		renderer.clear(); renderer.render(horizon.scene, horizon.camera); renderer.clearDepth();
 		renderer.render(scene, camera);
-		inspect?.({ scene, camera, renderer, train, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots, concerts: stadiumSlots, flourishes: flourishSlots, segments });
+		inspect?.({ scene, camera, renderer, train, wagon, coupling, trackStack, carriedPiece, sceneryTiles, forks: junctionSlots, encounters: encounterSlots, sky: skySlots, concerts: stadiumSlots, flourishes: flourishSlots, yards: yardSlots, segments });
 	});
 	return () => {
 		observer.disconnect(); renderer.setAnimationLoop(null);

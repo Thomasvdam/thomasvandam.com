@@ -3,11 +3,15 @@ import { encounterAt, SCENERY_LENGTH } from "./scenery-schedule";
 
 export type Meter = 3 | 4;
 export type Landscape = "forest" | "autumn";
-export type Section = "normal" | "concert" | "fairground" | "quarry";
+export type Section = "normal" | "concert" | "fairground" | "quarry" | "yard";
 export type Phrase = { index: number; start: number; end: number; meter: Meter; landscape: Landscape; pattern: boolean[]; section: Section };
 
 // A rare pair begins and ends on phrase boundaries, away from the opening tutorial.
 export function phraseSection(seed: number, index: number): Section {
+	if (index % 48 === 36 || index % 48 === 37) {
+		const hash = (Math.imul(seed ^ Math.imul(Math.floor(index / 48) + 1, 0x39a74e1b), 0x27d4eb2d) >>> 0) / 4294967296;
+		if (hash < 0.25) return "yard";
+	}
 	const position = index % 36;
 	if ([16, 17, 28, 29].includes(position)) {
 		const pair = position < 20 ? 16 : 28;
@@ -35,6 +39,7 @@ export function phraseMeter(seed: number, index: number): Meter {
 // Seeded per phrase: looking ahead never changes an already visible gap.
 export function generatePhrase(seed: number, phrase: number, meter: Meter = phraseMeter(seed, phrase)) {
 	const section = phraseSection(seed, phrase);
+	if (section === "yard") return Array.from({ length: 16 }, (_, beat) => beat % 4 !== 1);
 	if (section === "fairground") return Array.from({ length: 16 }, (_, beat) => [0, 2].includes(beat % 4));
 	if (section === "quarry") return Array.from({ length: 16 }, (_, beat) => [0, 1, 3].includes(beat % 4));
 	if (section === "concert") return Array.from({ length: 16 }, (_, beat) => concertHit(beat, 0) !== "rest");
@@ -87,11 +92,25 @@ export function phraseAt(run: Run, beat: number): Phrase {
 		const end = start + meter * 4;
 		if (end > run.generatedThrough) { run.generatedThrough = end; run.generatedIndex = index + 1; }
 		if (target < end) {
-			const phrase: Phrase = { index, start, end, meter, landscape: meter === 3 ? "autumn" : "forest", pattern: generatePhrase(run.seed, index, meter), section: phraseSection(run.seed, index) };
+			let section = phraseSection(run.seed, index);
+			if (section === "yard" && !yardGroundClear(run.seed, start - (index % 48 === 37 ? 16 : 0))) section = "normal";
+			const pattern = section === "normal" && phraseSection(run.seed, index) === "yard"
+				? generatePhrase(run.seed, index + 2, meter) : generatePhrase(run.seed, index, meter);
+			const phrase: Phrase = { index, start, end, meter, landscape: meter === 3 ? "autumn" : "forest", pattern, section };
 			run.phrases.set(start, phrase); return phrase;
 		}
 		start = end; index++;
 	}
+}
+
+export function yardGroundClear(seed: number, start: number) {
+	const dock = (start + 24) * 6 - 9.8;
+	const index = Math.floor(dock / SCENERY_LENGTH);
+	for (let i = Math.max(0, index - 1); i <= index + 1; i++) {
+		const feature = encounterAt(seed, i);
+		if ((feature.kind === "river" || feature.kind === "crossing") && Math.abs(feature.distance - dock) < 66) return false;
+	}
+	return true;
 }
 
 // Sparse signals belong to phrases, so lookahead and replay agree.
