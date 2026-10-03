@@ -67,7 +67,7 @@ export function advancePreview(run: Run, seconds: number, autoUntil: number) {
 	if (run.mode !== "running") return;
 	// Real placements at their real deadlines, even when a frame spans several hits.
 	for (let beat = Math.max(0, Math.ceil((phaseAt(run.seconds) - 1e-7) * 2) / 2); beat < autoUntil && secondsAt(beat) <= seconds; beat += 0.5) {
-		if (needsTrack(run, beat) && !run.placed.has(beat)) layTrack(run, secondsAt(beat));
+		if (needsTrack(run, beat) && !run.placed.has(beat)) layTrack(run, secondsAt(beat), false);
 	}
 	advance(run, seconds);
 }
