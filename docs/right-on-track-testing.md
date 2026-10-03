@@ -51,7 +51,9 @@ servers on the same port.
 ## Hidden preview menu
 
 On `/right-on-track`, press **Ctrl+Alt+Shift+D** (or **⌘+Option+Shift+D** on Mac).
-The menu has no visible entry point, URL flag, or normal-page hint. It is available
+On mobile, open **`/right-on-track#debug`** instead. Adding `#debug` to the current
+page URL also opens the menu. Closing removes that fragment without reloading.
+The menu has no visible entry point or normal-page hint. It is available
 in published builds as well as locally. Choose a scenery variant and **Preview
 scenery**, or choose a special section and **Play section**. Retrying the same
 selection uses the same seeded encounter. Scenery lays track automatically;
