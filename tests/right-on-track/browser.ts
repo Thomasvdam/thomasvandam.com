@@ -1,5 +1,7 @@
 import { yardsAhead } from "../../app/right-on-track/yard";
 import { createDebugPreview, sceneryScenarios, sectionScenarios } from "../../app/right-on-track/debug";
+import { terrainHeight, terrainPitch } from "../../app/right-on-track/terrain";
+import { railwayHeight } from "../../app/right-on-track/motion";
 import { wagonPose } from "../../app/right-on-track/wagon";
 import { flourishesAhead, animateFairground } from "../../app/right-on-track/flourishes";
 import { concertsAhead } from "../../app/right-on-track/concert";
@@ -300,7 +302,7 @@ async function main() {
 			screenshot(`wagon-turn-${side === -1 ? "left" : "right"}`);
 		});
 		await test("rare yard depletes the wagon and lowers a matching pile onto the moving cart", () => {
-			run = newRun(2); run.mode = "running"; const event = yardsAhead(run, 540)[0];
+			run = newRun(3); run.mode = "running"; const event = yardsAhead(run, 540)[0];
 			assert(event && event.end - event.start === 32, "Yard fixture changed");
 			for (let beat = 0; beat < event.end + 2; beat += 0.5) {
 				if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
@@ -328,13 +330,14 @@ async function main() {
 		});
 		await test("yard anchors after a preceding switch and keeps the crane within reach", () => {
 			run = newRun(9); run.mode = "running"; const event = yardsAhead(run, 540)[0];
-			assert(event?.start === 560 && signalsAhead(run, 510).includes(524), "Switched yard fixture changed");
+			const signal = signalsAhead(run, event.start - 40).filter(beat => beat < event.start).at(-1)!;
+			assert(event && signal !== undefined, "Switched yard fixture changed");
 			for (let beat = 0; beat <= event.start + 20; beat += 0.5) {
-				if (beat === 523) layTrack(run, secondsAt(beat));
+				if (beat === signal - 1) layTrack(run, secondsAt(beat));
 				if (needsTrack(run, beat)) layTrack(run, secondsAt(beat));
 				advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 				assert(run.mode === "running", "Switched yard approach crashed");
-				if (beat === event.start - 64 || beat === 523 || beat >= event.start + 16) {
+				if (beat === event.start - 64 || beat === signal - 1 || beat >= event.start + 16) {
 					const frame = render(beat + 0.01), yard = frame.yards.find(slot => slot.event?.start === event.start)!;
 					if (beat >= event.start + 16 && beat < event.start + 20) {
 						const load = yard.root.getObjectByName("crane-track-load")!.getWorldPosition(new THREE.Vector3()), pivot = yard.root.getObjectByName("crane-slew")!.getWorldPosition(new THREE.Vector3());
@@ -366,6 +369,29 @@ async function main() {
 		});
 		await test("mute and stopping scheduled sources produce silence", async () => {
 			for (const data of [await soundBuffer(true), await soundBuffer(false, true)]) assert(data.every(sample => sample === 0), "Unexpected audio after mute/stop");
+		});
+		await test("rolling terrain, track, trees and sloping fields remain grounded and continuous", () => {
+			run = newRun(12);
+			const distance = 300, frame = render(distance / 6 - 4);
+			const ground = frame.scene.getObjectByName("rolling-ground") as THREE.Mesh<THREE.PlaneGeometry>;
+			assert(ground, "Rolling ground missing");
+			const positions = ground.geometry.getAttribute("position"), normals = ground.geometry.getAttribute("normal");
+			let low = Infinity, high = -Infinity;
+			for (let row = 0; row <= 120; row++) {
+				const index = row * 61, world = distance + positions.getY(index) + 100;
+				assert(Math.abs(positions.getZ(index) - terrainHeight(run.seed, world)) < 0.00001, "Ground differs from world height profile");
+				low = Math.min(low, positions.getZ(index)); high = Math.max(high, positions.getZ(index));
+			}
+			assert(high - low > 2 && Math.abs(normals.getY(61 * 50)) > 0.001, "Terrain remains visually flat");
+			assert(Math.abs(frame.train.position.y - railwayHeight(run.seed, distance)) < 0.00001, "Train floats above rolling track");
+			screenshot("rolling-forest");
+			const height = positions.getZ(61 * 60); render(distance / 6 - 4 + 0.001);
+			assert(Math.abs(positions.getZ(61 * 60) - height) < 0.001, "Terrain jumps between frames");
+			const preview = createDebugPreview("corn"); run = preview.run;
+			const farm = encounterAt(run.seed, 0), fieldFrame = render((farm.distance - 35) / 6 - 4);
+			assert(Math.abs(fieldFrame.encounters[0].root.position.y - terrainHeight(run.seed, farm.distance)) < 0.00001, "Field not grounded");
+			assert(Math.abs(fieldFrame.encounters[0].root.rotation.x - terrainPitch(run.seed, farm.distance)) < 0.00001, "Field does not follow hillside");
+			screenshot("rolling-field");
 		});
 		await test("debug selectors launch real scenery and playable sections in the renderer", () => {
 			for (const scenario of [...sceneryScenarios, ...sectionScenarios]) {

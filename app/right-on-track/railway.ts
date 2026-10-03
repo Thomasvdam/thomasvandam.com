@@ -1,4 +1,5 @@
 import { yardsAhead, stockLayers, createYard, animateYard, type YardEvent } from "./yard";
+import { terrainHeight, terrainPitch } from "./terrain";
 import { wagonPose, WAGON_DISTANCE, WAGON_HALF_LENGTH } from "./wagon";
 import { flourishesAhead, createFlourishLandmarks, animateFairground, type FlourishKind } from "./flourishes";
 import { concertsAhead, createStadium } from "./concert";
@@ -119,7 +120,11 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const sun = new THREE.DirectionalLight("#ffddb4", 3.5); sun.position.set(-24, 36, 12); sun.castShadow = true;
 	configureRailwayShadows(sun);
 	scene.add(sun, sun.target);
-	box(scene, groundMaterial, [0, -0.5, -100], [600, 1, 600]);
+	const groundGeometry = new THREE.PlaneGeometry(600, 600, 60, 120); geometries.push(groundGeometry);
+	const ground = new THREE.Mesh(groundGeometry, groundMaterial); ground.rotation.x = -Math.PI / 2;
+	ground.name = "rolling-ground";
+	ground.position.z = -100; ground.receiveShadow = true; ground.frustumCulled = false; scene.add(ground);
+	const groundVertices = groundGeometry.getAttribute("position"), groundOriginal = new Float32Array(groundVertices.array);
 	const ballastGeometry = new THREE.PlaneGeometry(5.8, 270, 1, 90); geometries.push(ballastGeometry);
 	const ballastStrip = new THREE.Mesh(ballastGeometry, ballast); ballastStrip.rotation.x = -Math.PI / 2;
 	ballastStrip.position.set(0, 0.09, -95); ballastStrip.receiveShadow = true; ballastStrip.frustumCulled = false; scene.add(ballastStrip);
@@ -414,10 +419,12 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	ballast.onBeforeCompile = shader => { softenDistantShadows(shader); cutForkBallast(shader, forkStarts); };
 	const sky = forestSky.clone();
 	const foliageMatrix = new THREE.Matrix4(); const foliageScale = new THREE.Vector3(); const foliageColor = new THREE.Color();
+	let cameraHeight = 14;
 	const resize = () => {
 		const { width, height } = host.getBoundingClientRect();
 		camera.aspect = width / Math.max(1, height);
 		camera.position.set(width < 600 ? 15 : 12, width < 600 ? 18 : 14, width < 600 ? 27 : 21);
+		cameraHeight = camera.position.y;
 		camera.lookAt(0, 1, width < 600 ? -10 : -15);
 		camera.updateProjectionMatrix(); renderer.setSize(width, height);
 	};
@@ -430,6 +437,18 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	renderer.setAnimationLoop(() => {
 		const run = onFrame(); const phase = phaseAt(run.seconds);
 		const distance = (phase + 4) * TRACK_LENGTH;
+		const heights = new Map<number, number>();
+		const heightAt = (d: number) => {
+			const cached = heights.get(d); if (cached !== undefined) return cached;
+			const height = terrainHeight(run.seed, d); heights.set(d, height); return height;
+		};
+		camera.position.y = cameraHeight + railwayHeight(run.seed, distance); camera.updateMatrixWorld();
+		for (let row = 0; row <= 120; row++) {
+			const first = row * 61, z = -groundOriginal[first * 3 + 1] - 100;
+			const height = heightAt(distance - z);
+			for (let col = 0; col < 61; col++) groundVertices.setZ(first + col, height);
+		}
+		groundVertices.needsUpdate = true; groundGeometry.computeVertexNormals();
 		const junctions = signalsAhead(run, phase).map(beat => ({ beat, side: run.switches.get(beat) ?? -1 as const }));
 		const center = (d: number) => routeCenter(d, junctions, run.routeBase);
 		const heading = (d: number) => routeHeading(d, junctions, run.routeBase);
@@ -553,7 +572,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			const x = rampOriginal[index * 3], z = -rampOriginal[index * 3 + 1] - 95;
 			const height = railwayHeight(run.seed, distance - z);
 			rampVertices.setX(index, x + position(z));
-			rampVertices.setZ(index, height * Math.max(0, Math.min(1, (8 - Math.abs(x)) / 5)) - 0.02);
+			const base = heightAt(distance - z);
+			rampVertices.setZ(index, base + (height - base) * Math.max(0, Math.min(1, (8 - Math.abs(x)) / 5)) - 0.02);
 		}
 		rampVertices.needsUpdate = true; rampGeometry.computeVertexNormals();
 		junctionSlots.forEach(({ signal, branches }, index) => {
@@ -593,7 +613,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			const encounter = encounters[index];
 			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
 			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: (["crossing", "river"].includes(encounter.kind ?? "") ? center(encounter.distance) : roadsideCenter(encounter.distance, encounter.side as -1 | 1, junctions, run.routeBase, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 10, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 7)) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
-			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance), 0, distance - encounter.distance);
+			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance), heightAt(encounter.distance), distance - encounter.distance);
+			slot.root.rotation.x = ["crops", "cattle"].includes(encounter.kind ?? "") ? terrainPitch(run.seed, encounter.distance) : 0;
 			slot.root.visible = !onConcertGround(slot.root.position.x, slot.root.position.z, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 5);
 			slot.root.rotation.y = encounter.kind === "crossing" ? (encounterAnchors.get(firstEncounter + index)?.heading ?? heading(encounter.distance)) : ["river", "crops", "cattle"].includes(encounter.kind ?? "") ? 0 : encounter.side * 0.25;
 			riverPositions.value.setComponent(index, encounter.kind === "river" ? distance - encounter.distance : -10000);
@@ -628,7 +649,9 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 				const overRiver = (onConcertGround(item.rootsX[index] + item.tile.position.x, z) || treeOnFeature(item.rootsX[index] + item.tile.position.x, z, distance, encounterClearance) || treeOnFork(item.rootsX[index] + item.tile.position.x, z, distance, junctions, run.routeBase));
 				const scale = overRiver ? 0 : item.mesh.material === green ? 1 - blend : item.mesh.material === autumnLeaves ? blend : 1;
 				foliageScale.setScalar(Math.max(0.001, scale));
-				foliageMatrix.copy(matrix).scale(foliageScale); item.mesh.setMatrixAt(index, foliageMatrix);
+				foliageMatrix.copy(matrix).scale(foliageScale);
+				foliageMatrix.elements[13] += heightAt(distance - z);
+				item.mesh.setMatrixAt(index, foliageMatrix);
 				if (item.mesh.material === broadLeaf) item.mesh.setColorAt(index, foliageColor.copy(forestLeaf).lerp(autumnLeaf, blend));
 			});
 			item.mesh.instanceMatrix.needsUpdate = true;
@@ -636,6 +659,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		}
 		for (const { tile, actor } of treeActors) {
 			const z = tile.position.z + actor.userData.treeZ;
+			actor.parent!.position.y = heightAt(distance - z);
 			actor.visible = !onConcertGround(actor.parent!.position.x + tile.position.x, z) && !treeOnFeature(actor.parent!.position.x + tile.position.x, z, distance, encounterClearance) && !treeOnFork(actor.parent!.position.x + tile.position.x, z, distance, junctions, run.routeBase);
 			if (actor.visible) animateTreeDetail(actor, actor.userData.detailKind, run.seconds, -z, reducedMotion);
 		}

@@ -40,6 +40,7 @@ stow/retrieve, both routes through 80 beats and history pruning, filling only th
 selected physical branch, guaranteed recovery gap, early divergence, rendered tree
 continuity at tile wrap, every river decoration, all nine crop/machinery combinations, three livestock pastures, four sky variants, two-phrase concert playback and left stadium approach, stomp/clap timing and rests, fairground/quarry approach cues, continuous rail seams across half-beat grid changes, independent half-track placements, double-time audio at maximum speed, reduced-motion Ferris wheel, independent wagon steering/coupling on both forks, steady normal cargo, rare yard depletion and moving crane handoff/refill, console/shader errors, audible
 steam envelopes, clipping headroom, mute, stopping sources, and renderer cleanup.
+The terrain renderer check verifies a continuous rolling ground mesh, matching train height, field elevation and slope, and saves forest/field screenshots. Bun terrain tests cover bounded grades, seeded replay, region boundaries, planar fields, level crossings/rivers/landmarks, and bridge clearance. Meter checks cover whole two-to-four-phrase excursions, length variety, and separation from named sections.
 The existing Bun tests cover timing failures, longer runs, scenery footprints,
 bridge ramps, ground direction, parallax continuity, road braking, and rarity.
 
