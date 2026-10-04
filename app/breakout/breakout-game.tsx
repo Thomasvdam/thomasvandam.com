@@ -8,6 +8,7 @@ import type { LevelDefinition } from "./level-format";
 import { BRICK_TYPES } from "./brick-types";
 import { LEVELS } from "./levels";
 import { BreakoutSound } from "./sound";
+import { bindPaddlePointer } from "./pointer-controls";
 import styles from "./breakout.module.css";
 
 const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, level: 0, total: 0, bricks: 0, balls: 1, leftHits: 0, rightHits: 0, sight: 0, top: 0, stun: 0, queued: [] as BallPower[] };
@@ -45,12 +46,12 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 				else if (kind === "pause" && game.current.mode === "paused") { game.current.mode = "playing"; void sound.unlock().then(enabled => { if (!disposed) setAudioUnavailable(!enabled); }); }
 				paint();
 			};
-			const pointer = (event: PointerEvent) => {
-				if (event.pointerType === "touch" && event.type === "pointermove" && !element.hasPointerCapture(event.pointerId)) return;
-				if (event.type === "pointerdown") { element.setPointerCapture(event.pointerId); element.focus(); }
-				movePaddle(game.current, scene.pointerX(event.clientX, event.clientY));
-				if (event.type === "pointerdown") action.current("launch");
-			};
+			const pointer = bindPaddlePointer(element, {
+				paddleX: () => game.current.paddleX,
+				move: x => movePaddle(game.current, x),
+				projectX: scene.pointerX,
+				press: () => action.current("launch"),
+			});
 			const down = (event: KeyboardEvent) => {
 				if ((event.target as HTMLElement)?.closest("button, a") && [" ", "Enter"].includes(event.key)) return;
 				const key = event.key.toLowerCase();
@@ -61,7 +62,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 				if (key === "p" || key === "escape") action.current("pause");
 			};
 			const up = (event: KeyboardEvent) => keys.delete(event.key.toLowerCase());
-			const blur = () => { keys.clear(); if (game.current.mode === "playing") action.current("pause"); };
+			const blur = () => { keys.clear(); pointer.cancel(); if (game.current.mode === "playing") action.current("pause"); };
 			const visibility = () => { if (document.hidden) blur(); };
 			function tick(now: number) {
 				accumulated += Math.min((now - previous) / 1000, 0.05); previous = now;
@@ -74,12 +75,11 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 				if (now - lastUI > 100) { paint(); lastUI = now; }
 				frame = requestAnimationFrame(tick);
 			}
-			element.addEventListener("pointerdown", pointer); element.addEventListener("pointermove", pointer);
 			window.addEventListener("keydown", down); window.addEventListener("keyup", up); window.addEventListener("blur", blur); document.addEventListener("visibilitychange", visibility);
 			frame = requestAnimationFrame(tick); setLoaded(true);
 			cleanup = () => {
 				cancelAnimationFrame(frame); scene.dispose();
-				element.removeEventListener("pointerdown", pointer); element.removeEventListener("pointermove", pointer);
+				pointer.dispose();
 				window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("blur", blur); document.removeEventListener("visibilitychange", visibility);
 			};
 		}).catch(() => { if (!disposed) setError("This experiment needs WebGL. Try a browser with hardware acceleration enabled."); });
@@ -92,7 +92,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 		if (!next) void sound?.unlock().then(enabled => { if (speaker.current === sound) setAudioUnavailable(!enabled); });
 	};
 	const overlay = view.mode !== "playing";
-	return <div className={styles.page}>
+	return <div className={styles.page} onDragStart={event => event.preventDefault()}>
 		<header className={styles.header}><Link href="/" className={styles.back}><ArrowLeft size={16} /> Thomas van Dam</Link><span className={styles.eyebrow}>Game experiment / 01</span></header>
 		<div className={styles.layout}>
 			<aside className={styles.intro}>
@@ -116,7 +116,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 					<span><i className={styles.homing} />H · Homing: gently steers toward the closest brick</span>
 				</div>
 				<details className={styles.brickGuide}><summary>Special bricks · learn the symbols</summary>{Object.entries(BRICK_TYPES).map(([type, spec]) => <p key={type}><i style={{ background: spec.color }} /><span>{spec.label}<small>{spec.description}</small></span></p>)}</details>
-				<p className={styles.controls}>Move your mouse or drag to steer.<br />Keyboard: ← → or A / D to move.<br />Click, tap, or Space to launch.<br />Space / P / Esc to pause. Space to advance after clearing a level.</p>
+				<p className={styles.controls}>Move your mouse to steer. Touch anywhere in the field and drag to move the paddle.<br />Keyboard: ← → or A / D to move.<br />Click, tap, or Space to launch.<br />Space / P / Esc to pause. Space to advance after clearing a level.</p>
 				<p className={styles.footnote}>{customLevel ? "Play-testing a single draft level." : `${LEVELS.length} levels. Three lives. Handmade brick patterns each round.`} No brick hits for 10 seconds? A Future Sight box drops in.</p>
 			</aside>
 			<section className={styles.game} aria-label="Breakout game">
