@@ -34,9 +34,9 @@ export function createScene(host: HTMLDivElement) {
 	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => box(WING_SEGMENT - 0.015, 0.4, 0.65, 0xb2f078, 9 + side * (1.5 + (i + 0.5) * WING_SEGMENT), 2, 0.25)));
 	const topPaddle = box(3, 0.4, 0.65, 0x59ead4, 9, FIELD.topPaddleY, 0.25);
 	const topCharge = Array.from({ length: 7 }, (_, i) => box(0.34, 0.11, 0.02, 0xeaf8ff, 9 + (i - 3) * 0.4, FIELD.topPaddleY, 0.59));
-	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a, sticky: 0xf4a8df, laser: 0xff596c, armour: 0x82aaff, shrink: 0xd78a52 };
+	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a, sticky: 0xf4a8df, laser: 0xff596c, armour: 0x82aaff, shrink: 0xd78a52, rewind: 0x72f1bf };
 	const labelGeometry = new THREE.PlaneGeometry(0.45, 0.45); geometries.push(labelGeometry);
-	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?", shock: "E", sticky: "K", laser: "R", armour: "A", shrink: "N", ...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [type, spec.symbol])) }).map(([type, glyph]) => {
+	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?", shock: "E", sticky: "K", laser: "R", armour: "A", shrink: "N", rewind: "Z", ...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [type, spec.symbol])) }).map(([type, glyph]) => {
 		const canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 128;
 		const context = canvas.getContext("2d")!;
 		context.fillStyle = "#233348"; context.font = "bold 100px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; context.fillText(glyph, 64, 69);
@@ -54,7 +54,7 @@ export function createScene(host: HTMLDivElement) {
 	const drops = new Map<number, THREE.Mesh>();
 	const sphere = new THREE.SphereGeometry(FIELD.radius, 16, 12); geometries.push(sphere);
 	const auraGeometry = new THREE.TorusGeometry(FIELD.radius * 1.45, 0.025, 6, 24); geometries.push(auraGeometry);
-	const slowAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.slow.color }), speedAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.speed.color }); materials.push(slowAura, speedAura);
+	const slowAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.slow.color }), speedAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.speed.color }); const rewindAura = new THREE.MeshBasicMaterial({ color: powerColor.rewind }); materials.push(slowAura, speedAura, rewindAura);
 	const ballMaterials = Object.fromEntries(Object.entries({ normal: 0xffffff, piercing: powerColor.piercing, fire: powerColor.fire, ghost: powerColor.ghost, homing: powerColor.homing }).map(([effect, color]) => {
 		const material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: effect === "fire" ? 0.8 : 0.35, transparent: effect === "ghost", opacity: effect === "ghost" ? 0.35 : 1, depthWrite: effect !== "ghost" });
 		materials.push(material); return [effect, material];
@@ -146,7 +146,9 @@ export function createScene(host: HTMLDivElement) {
 			mesh.material = ballMaterials[ball.effect ?? "normal"]; mesh.castShadow = ball.effect !== "ghost";
 			mesh.position.set(ball.x, ball.y, 0.42);
 			const aura = mesh.children[0] as THREE.Mesh, slowed = (ball.slowUntil ?? 0) > game.time;
-			aura.visible = slowed || (ball.speedBoost ?? 1) > 1; aura.material = slowed ? slowAura : speedAura;
+			const rewinding = (ball.rewindUntil ?? 0) > game.time;
+			aura.visible = rewinding || slowed || (ball.speedBoost ?? 1) > 1; aura.material = rewinding ? rewindAura : slowed ? slowAura : speedAura;
+			aura.scale.setScalar(rewinding ? 1.1 + 0.1 * Math.sin(game.time * 15) : 1);
 		}
 		for (const [id, mesh] of blastMeshes) if (!game.blasts.some(blast => blast.id === id)) { scene.remove(mesh); blastMeshes.delete(id); }
 		for (const blast of game.blasts) {

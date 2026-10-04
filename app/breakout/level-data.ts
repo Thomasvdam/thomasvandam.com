@@ -14,7 +14,7 @@ export const LEVELS: LevelDefinition[] = [
 			"3S2M1LI1",
 			"2O12EV23",
 			"FWTDDTWF",
-			"KR?AN?31",
+			"KR?AN?Z1",
 			"P3B23G2H"
 		]
 	},
@@ -34,7 +34,7 @@ export const LEVELS: LevelDefinition[] = [
 			"P12.12B",
 			"23...12",
 			"G23.23H",
-			"3123?23",
+			"Z123?23",
 			"23W2312",
 			".D3123.",
 			"..F31.."
@@ -57,7 +57,7 @@ export const LEVELS: LevelDefinition[] = [
 			"KB..RI",
 			"ANG231",
 			".2H12.",
-			"31?312",
+			"Z1?312",
 			"2W..31",
 			"12D123",
 			".1F31.",
