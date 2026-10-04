@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { FIELD, forecast, TOP_DURATION, WING_SEGMENT, type Game } from "./game";
+import { BRICK_TYPES } from "./brick-types";
 
 export function createScene(host: HTMLDivElement) {
 	const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -33,9 +34,9 @@ export function createScene(host: HTMLDivElement) {
 	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => box(WING_SEGMENT - 0.015, 0.4, 0.65, 0xb2f078, 9 + side * (1.5 + (i + 0.5) * WING_SEGMENT), 2, 0.25)));
 	const topPaddle = box(3, 0.4, 0.65, 0x59ead4, 9, FIELD.topPaddleY, 0.25);
 	const topCharge = Array.from({ length: 7 }, (_, i) => box(0.34, 0.11, 0.02, 0xeaf8ff, 9 + (i - 3) * 0.4, FIELD.topPaddleY, 0.59));
-	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8 };
+	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a };
 	const labelGeometry = new THREE.PlaneGeometry(0.45, 0.45); geometries.push(labelGeometry);
-	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?" }).map(([type, glyph]) => {
+	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?", shock: "E", ...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [type, spec.symbol])) }).map(([type, glyph]) => {
 		const canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 128;
 		const context = canvas.getContext("2d")!;
 		context.fillStyle = "#233348"; context.font = "bold 100px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; context.fillText(glyph, 64, 69);
@@ -52,6 +53,8 @@ export function createScene(host: HTMLDivElement) {
 	const balls = new Map<number, THREE.Mesh>();
 	const drops = new Map<number, THREE.Mesh>();
 	const sphere = new THREE.SphereGeometry(FIELD.radius, 16, 12); geometries.push(sphere);
+	const auraGeometry = new THREE.TorusGeometry(FIELD.radius * 1.45, 0.025, 6, 24); geometries.push(auraGeometry);
+	const slowAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.slow.color }), speedAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.speed.color }); materials.push(slowAura, speedAura);
 	const ballMaterials = Object.fromEntries(Object.entries({ normal: 0xffffff, piercing: powerColor.piercing, fire: powerColor.fire, ghost: powerColor.ghost, homing: powerColor.homing }).map(([effect, color]) => {
 		const material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: effect === "fire" ? 0.8 : 0.35, transparent: effect === "ghost", opacity: effect === "ghost" ? 0.35 : 1, depthWrite: effect !== "ghost" });
 		materials.push(material); return [effect, material];
@@ -63,6 +66,8 @@ export function createScene(host: HTMLDivElement) {
 		if (queued) queuedLabel.material = labelMaterials[queued];
 		const paddleMaterial = paddle.material as THREE.MeshStandardMaterial;
 		paddleMaterial.color.setHex(queued ? powerColor[queued] : 0xeaf8ff);
+		paddleMaterial.emissive.setHex(game.stunUntil > game.time ? powerColor.shock : 0x000000);
+		paddleMaterial.emissiveIntensity = game.stunUntil > game.time ? 0.5 + 0.5 * Math.sin(game.time * 45) : 0;
 		const topRemaining = Math.max(0, game.topUntil - game.time);
 		topPaddle.visible = topRemaining > 0 && (game.mode === "playing" || game.mode === "paused");
 		topPaddle.position.x = game.paddleX;
@@ -108,24 +113,33 @@ export function createScene(host: HTMLDivElement) {
 		for (const brick of game.bricks) {
 			let mesh = brickMeshes.get(brick.id);
 			if (!mesh) {
-				const color = brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
+				const color = brick.type ? new THREE.Color(BRICK_TYPES[brick.type].color).getHex() : brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
 				mesh = box(brick.width, brick.height, 0.7, color, brick.x, brick.y, 0.2); brickMeshes.set(brick.id, mesh);
 				const indicators = [];
-				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y - (brick.power ? brick.height * 0.32 : 0), 0.56));
-				if (brick.power) { const label = new THREE.Mesh(labelGeometry, labelMaterials[brick.power]); label.position.set(brick.x, brick.y + 0.05, 0.57); scene.add(label); indicators.push(label); }
+				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y - (brick.power || brick.type ? brick.height * 0.32 : 0), 0.56));
+				if (brick.power || brick.type) { const label = new THREE.Mesh(labelGeometry, labelMaterials[brick.type ?? brick.power!]); label.position.set(brick.x, brick.y + 0.05, 0.57); scene.add(label); indicators.push(label); }
 				marks.set(brick.id, indicators);
 			}
 			mesh.visible = brick.hits > 0;
-			(mesh.material as THREE.MeshStandardMaterial).opacity = 0.55 + 0.45 * brick.hits / brick.maxHits;
+			mesh.position.set(brick.x, brick.y, 0.2);
+			const phased = brick.type === "phase" && !brick.materialized;
+			mesh.castShadow = !phased;
+			(mesh.material as THREE.MeshStandardMaterial).opacity = phased ? 0.16 : 0.55 + 0.45 * brick.hits / brick.maxHits;
+			(mesh.material as THREE.MeshStandardMaterial).depthWrite = !phased;
 			(mesh.material as THREE.MeshStandardMaterial).transparent = true;
-			marks.get(brick.id)?.forEach((mark, i) => { mark.visible = brick.hits > 0 && (i < brick.hits || i >= brick.maxHits); });
+			marks.get(brick.id)?.forEach((mark, i) => {
+				mark.visible = brick.hits > 0 && (i < brick.hits || i >= brick.maxHits);
+				mark.position.set(i < brick.maxHits ? brick.x + (i - (brick.maxHits - 1) / 2) * 0.23 : brick.x, i < brick.maxHits ? brick.y - (brick.power || brick.type ? brick.height * 0.32 : 0) : brick.y + 0.05, i < brick.maxHits ? 0.56 : 0.57);
+			});
 		}
 		for (const [id, mesh] of balls) if (!game.balls.some(ball => ball.id === id)) { scene.remove(mesh); balls.delete(id); }
 		for (const ball of game.balls) {
 			let mesh = balls.get(ball.id);
-			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.castShadow = true; scene.add(mesh); balls.set(ball.id, mesh); }
+			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.castShadow = true; const aura = new THREE.Mesh(auraGeometry, speedAura); aura.position.z = 0.06; mesh.add(aura); scene.add(mesh); balls.set(ball.id, mesh); }
 			mesh.material = ballMaterials[ball.effect ?? "normal"]; mesh.castShadow = ball.effect !== "ghost";
 			mesh.position.set(ball.x, ball.y, 0.42);
+			const aura = mesh.children[0] as THREE.Mesh, slowed = (ball.slowUntil ?? 0) > game.time;
+			aura.visible = slowed || (ball.speedBoost ?? 1) > 1; aura.material = slowed ? slowAura : speedAura;
 		}
 		for (const [id, mesh] of drops) if (!game.drops.some(drop => drop.id === id)) { scene.remove(mesh); drops.delete(id); }
 		for (const drop of game.drops) {

@@ -57,3 +57,12 @@ test("simulation emits actual contacts, pickups and outcomes, while forecasts st
 	launch(g, emit); g.lives = 1; g.balls[0].y = -2; step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("lost");
 	const win = newGame(); launch(win); win.bricks.forEach(b => b.hits = 0); step(win, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("won");
 });
+
+test("special-brick and stun cues schedule bounded voices and clean up normally", async () => {
+	const { context, nodes } = fakeAudio(), sound = new BreakoutSound(() => context); await sound.unlock();
+	for (const event of ["speed", "slow", "shift", "phase", "shock", "void"]) {
+		const before = nodes.length; sound.play(event); expect(nodes.length).toBeGreaterThan(before);
+		nodes.slice(before).forEach(n => { expect(n.stops[0] - n.started).toBeLessThan(0.5); expect(n.stops[0]).toBeGreaterThan(n.started); });
+	}
+	sound.dispose(); expect(nodes.every(n => n.disconnected === 1)).toBe(true);
+});

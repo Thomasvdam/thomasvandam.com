@@ -61,6 +61,12 @@ export class BreakoutSound {
 				case "ghost": this.notes([880, 1320], 0.12); break;
 				case "homing": this.notes([494, 622, 740], 0.08); break;
 				case "apply": this.tone(600, 1200, 0.09, "sine", 0.1); break;
+				case "speed": this.tone(500, 1500, 0.15, "triangle", 0.12); break;
+				case "slow": this.tone(900, 250, 0.18, "sine", 0.12); break;
+				case "shift": this.tone(180, 380, 0.09, "triangle", 0.1); break;
+				case "phase": this.notes([660, 990], 0.06); break;
+				case "shock": this.tone(90, 650, 0.16, "sawtooth", 0.07); break;
+				case "void": this.tone(600, 80, 0.12, "sine", 0.12); break;
 				case "life": this.notes([330, 247, 165], 0.12); break;
 				case "lost": this.notes([392, 330, 247, 131], 0.16); break;
 				case "won": this.notes([523, 659, 784, 1047], 0.13); break;

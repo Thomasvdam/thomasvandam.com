@@ -1,8 +1,9 @@
 import { FIELD } from "./field";
 import type { Brick } from "./game";
 import type { Power } from "./powers";
+import { BRICK_TYPES, type BrickType } from "./brick-types";
 
-export type Cell = { label: string; hits: number; color: string; power?: Power | "random" };
+export type Cell = { label: string; hits: number; color: string; power?: Power | "random"; type?: BrickType };
 export const CELLS: Record<string, Cell> = {
 	".": { label: "Erase", hits: 0, color: "transparent" },
 	"1": { label: "One hit", hits: 1, color: "#67d4ee" },
@@ -17,6 +18,7 @@ export const CELLS: Record<string, Cell> = {
 	G: { label: "Ghost", hits: 1, color: "#b9d8ef", power: "ghost" },
 	H: { label: "Homing", hits: 1, color: "#6ca8ff", power: "homing" },
 	"?": { label: "Random reward", hits: 1, color: "#eaf1f8", power: "random" },
+	...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [spec.symbol, { ...spec, type: type as BrickType }])),
 };
 export type LevelDefinition = { name: string; width: number; height: number; columns: number; xStep: number; top: number; yStep: number; pattern: string[] };
 
@@ -28,7 +30,7 @@ export function validateLevel(value: unknown): string[] {
 	if (!Number.isInteger(level.columns) || level.columns < 1 || level.columns > 16) errors.push("Use 1–16 columns.");
 	if (!Array.isArray(level.pattern) || level.pattern.length < 1 || level.pattern.length > 20 || level.pattern.some(row => typeof row !== "string")) return [...errors, "Use 1–20 string rows."];
 	if (level.pattern.some(row => row.length !== level.columns)) errors.push("Every row must match the column count.");
-	if (level.pattern.some(row => [...row].some(cell => !Object.hasOwn(CELLS, cell)))) errors.push("Unknown cell symbol. Use ., 1, 2, 3, W, D, F, T, P, B, G, H, or ?.");
+	if (level.pattern.some(row => [...row].some(cell => !Object.hasOwn(CELLS, cell)))) errors.push(`Unknown cell symbol. Use ${Object.keys(CELLS).join(", ")}.`);
 	if (!level.pattern.some(row => [...row].some(cell => CELLS[cell]?.hits > 0))) errors.push("Paint at least one brick.");
 	if (level.xStep < level.width || level.yStep < level.height) errors.push("Spacing must be at least the brick size so bricks do not overlap.");
 	if (errors.length) return errors;
@@ -57,7 +59,7 @@ export function bricksForLevel(layout: LevelDefinition, firstId = 0): Brick[] {
 	const bricks: Brick[] = [];
 	layout.pattern.forEach((row, r) => [...row].forEach((symbol, col) => {
 		const cell = CELLS[symbol]; if (!cell.hits) return;
-		bricks.push({ id: firstId + bricks.length, x: FIELD.width / 2 + (col - (layout.columns - 1) / 2) * layout.xStep, y: layout.top - r * layout.yStep, width: layout.width, height: layout.height, hits: cell.hits, maxHits: cell.hits, power: cell.power });
+		bricks.push({ id: firstId + bricks.length, x: FIELD.width / 2 + (col - (layout.columns - 1) / 2) * layout.xStep, y: layout.top - r * layout.yStep, width: layout.width, height: layout.height, hits: cell.hits, maxHits: cell.hits, power: cell.power, ...(cell.type ? { type: cell.type } : {}) });
 	}));
 	return bricks;
 }
