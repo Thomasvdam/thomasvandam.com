@@ -86,10 +86,10 @@ export function BreakoutGame() {
 					<div><i className={styles.armored} /><span>Armored brick<small>Two or three hits · count the dots</small></span></div>
 					<div><i className={styles.wide} /><span>Wide paddle<small>Green extensions · five hits on each side</small></span></div>
 					<div><i className={styles.duplicate} /><span>Duplicate balls<small>Double every ball · up to 64 in play</small></span></div>
-					<div><i className={styles.sight} /><span>Future Sight<small>Pink box · two-second paths for 12 seconds</small></span></div>
+					<div><i className={styles.sight} /><span>Future Sight<small>Pink box · adds 12 seconds of two-second paths</small></span></div>
 				</div>
 				<p className={styles.controls}>Move your mouse or drag to steer.<br />Keyboard: ← → or A / D to move.<br />Click, tap, or Space to launch.<br />Space / P / Esc to pause.</p>
-				<p className={styles.footnote}>One level. Three lives. Forty bricks.</p>
+				<p className={styles.footnote}>One level. Three lives. Forty bricks. No brick hits for 10 seconds? A Future Sight box drops in.</p>
 			</aside>
 			<section className={styles.game} aria-label="Breakout game">
 				<div className={styles.hud}><div><small>Score</small><strong>{String(view.score).padStart(4, "0")}</strong></div><div><small>Bricks</small><strong>{view.bricks}<span> / 40</span></strong></div><div><small>Lives</small><strong aria-label={`${view.lives} lives`}>{"●".repeat(view.lives)}<span>{"○".repeat(3 - view.lives)}</span></strong></div></div>
