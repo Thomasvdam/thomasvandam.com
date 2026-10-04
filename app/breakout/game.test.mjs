@@ -61,6 +61,39 @@ describe("Breakout simulation", () => {
 		g.mode = "playing"; g.time = 12; expect(g.sightUntil > g.time).toBe(false);
 		g.balls[0].y = -2; step(g, 1 / 120); expect(g.sightUntil).toBe(0); expect(g.leftHits + g.rightHits).toBe(0);
 	});
+	test("Future Sight pickups add their full duration, including simultaneous drops and expired effects", () => {
+		const g = newGame(); launch(g);
+		g.drops.push({ id: 1000, x: g.paddleX, y: 2.1, power: "sight" }, { id: 1001, x: g.paddleX, y: 2.1, power: "sight" });
+		step(g, 1 / 120); expect(g.sightUntil - g.time).toBeCloseTo(24);
+		g.time += 2; collectPower(g, "sight"); expect(g.sightUntil - g.time).toBeCloseTo(34);
+		g.time = g.sightUntil + 5; collectPower(g, "sight"); expect(g.sightUntil - g.time).toBeCloseTo(12);
+	});
+	test("ten seconds without brick hits drops collectible Future Sight and repeats every ten seconds", () => {
+		const g = newGame(); launch(g); Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: 0 });
+		step(g, 9.99); expect(g.drops).toHaveLength(0); step(g, 0.01);
+		expect(g.drops).toHaveLength(1); expect(g.drops[0].power).toBe("sight"); expect(g.drops[0].x).toBe(g.paddleX);
+		const firstId = g.drops[0].id;
+		for (let i = 0; i < 360; i++) step(g, 1 / 120);
+		expect(g.sightUntil).toBeGreaterThan(g.time); expect(g.drops).toHaveLength(0);
+		step(g, 6.99); expect(g.drops).toHaveLength(0); step(g, 0.02);
+		expect(g.drops).toHaveLength(1); expect(g.drops[0].id).not.toBe(firstId);
+	});
+	test("any armored-brick hit restarts the idle timer, even at the drop deadline", () => {
+		const g = newGame(); launch(g); g.time = 9.99;
+		const brick = g.bricks[0]; Object.assign(g.balls[0], { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 });
+		step(g, 0.01); expect(brick.hits).toBe(2); expect(g.drops).toHaveLength(0);
+		Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: 0 }); step(g, 9.99); expect(g.drops).toHaveLength(0);
+		step(g, 0.01); expect(g.drops).toHaveLength(1);
+	});
+	test("idle assistance freezes while paused, restarts on a new life, and is absent from forecasts", () => {
+		const g = newGame(); launch(g); Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: 0 });
+		step(g, 9); g.mode = "paused"; step(g, 30); expect(g.time).toBe(9); expect(g.drops).toHaveLength(0);
+		g.mode = "playing"; const before = JSON.parse(JSON.stringify(g)); forecast(g); expect(g).toEqual(before);
+		step(g, 2, false); expect(g.drops).toHaveLength(0);
+		g.balls[0].y = -2; step(g, 1 / 120); expect(g.mode).toBe("ready"); expect(g.drops).toHaveLength(0);
+		launch(g); Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: 0 });
+		step(g, 9.99); expect(g.drops).toHaveLength(0); step(g, 0.02); expect(g.drops).toHaveLength(1);
+	});
 	test("two-second forecasts follow real wall, brick, and paddle collisions without mutating play", () => {
 		const g = newGame(); launch(g); collectPower(g, "wide");
 		Object.assign(g.balls[0], { x: 1, y: 10, vx: -7, vy: 8 });

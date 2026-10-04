@@ -4,7 +4,7 @@ export type Power = "wide" | "duplicate" | "sight";
 export type Ball = { id: number; x: number; y: number; vx: number; vy: number };
 export type Brick = { id: number; x: number; y: number; hits: number; maxHits: number; power?: Power };
 export type Drop = { id: number; x: number; y: number; power: Power };
-export type Game = { mode: "ready" | "playing" | "paused" | "won" | "lost"; paddleX: number; balls: Ball[]; bricks: Brick[]; drops: Drop[]; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; time: number; nextId: number };
+export type Game = { mode: "ready" | "playing" | "paused" | "won" | "lost"; paddleX: number; balls: Ball[]; bricks: Brick[]; drops: Drop[]; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; nextSightDropAt: number; time: number; nextId: number };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 export function newGame(): Game {
 	const bricks: Brick[] = [];
@@ -14,10 +14,11 @@ export function newGame(): Game {
 		const hits = row < 2 ? 3 - row : 1;
 		bricks.push({ id: bricks.length, x: 2 + col * 2, y: 22.5 - row * 1.25, hits, maxHits: hits, power });
 	}
-	return { mode: "ready", paddleX: 9, balls: [{ id: 40, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, time: 0, nextId: 41 };
+	return { mode: "ready", paddleX: 9, balls: [{ id: 40, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, nextSightDropAt: 10, time: 0, nextId: 41 };
 }
 export const MAX_BALLS = 64;
 export const SIGHT_DURATION = 12;
+export const SIGHT_IDLE_INTERVAL = 10;
 export const WING_SEGMENT = 0.16;
 export function paddleBounds(game: Game) {
 	return { left: game.paddleX - 1.5 - game.leftHits * WING_SEGMENT, right: game.paddleX + 1.5 + game.rightHits * WING_SEGMENT };
@@ -30,11 +31,12 @@ export function movePaddle(game: Game, x: number) {
 export function launch(game: Game) {
 	if (game.mode !== "ready") return;
 	game.mode = "playing";
+	game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
 	game.balls[0].vx = 3.4; game.balls[0].vy = 10;
 }
 export function collectPower(game: Game, power: Power) {
 	if (power === "wide") { game.leftHits = 5; game.rightHits = 5; movePaddle(game, game.paddleX); }
-	else if (power === "sight") game.sightUntil = game.time + SIGHT_DURATION;
+	else if (power === "sight") game.sightUntil = Math.max(game.time, game.sightUntil) + SIGHT_DURATION;
 	else {
 		// Snapshot the originals so a single pickup duplicates each ball exactly once.
 		for (const source of [...game.balls]) {
@@ -71,6 +73,7 @@ export function step(game: Game, dt: number, powerDrops = true) {
 			if (Math.abs(ball.x - brick.x) >= hw || Math.abs(ball.y - brick.y) >= hh) continue;
 			if (Math.abs(oldX - brick.x) >= hw) { ball.vx *= -1; ball.x = brick.x + Math.sign(oldX - brick.x) * hw; }
 			else { ball.vy *= -1; ball.y = brick.y + Math.sign(oldY - brick.y) * hh; }
+			game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
 			brick.hits--; game.score += brick.hits ? 10 : 50;
 			if (powerDrops && !brick.hits && brick.power) game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: brick.power });
 			break;
@@ -87,6 +90,10 @@ export function step(game: Game, dt: number, powerDrops = true) {
 		game.lives--; game.drops = []; game.leftHits = 0; game.rightHits = 0; game.sightUntil = 0;
 		if (!game.lives) game.mode = "lost";
 		else { game.mode = "ready"; game.balls = [{ id: game.nextId++, x: game.paddleX, y: 2.65, vx: 0, vy: 0 }]; }
+	}
+	if (powerDrops && game.mode === "playing" && game.time >= game.nextSightDropAt) {
+		game.drops.push({ id: game.nextId++, x: game.paddleX, y: FIELD.height / 2, power: "sight" });
+		game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
 	}
 }
 
