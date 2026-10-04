@@ -1,6 +1,7 @@
 import type { EnvironmentSource, EnvironmentKind } from "./ambience";
 import { yardsAhead, stockLayers, createYard, animateYard, type YardEvent } from "./yard";
 import { terrainHeight, terrainPitch } from "./terrain";
+import { createTerrainMeshes } from "./terrain-mesh";
 import { createTrainUpgrades } from "./train-upgrades";
 import { RAINBOW, rainbowPuff, upgradeAppearance } from "./upgrades";
 import { wagonPose, WAGON_DISTANCE, WAGON_HALF_LENGTH } from "./wagon";
@@ -129,20 +130,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	const sun = new THREE.DirectionalLight("#ffddb4", 3.5); sun.position.set(-24, 36, 12); sun.castShadow = true;
 	configureRailwayShadows(sun);
 	scene.add(sun, sun.target);
-	const groundGeometry = new THREE.PlaneGeometry(600, 600, 60, 120); geometries.push(groundGeometry);
-	const ground = new THREE.Mesh(groundGeometry, groundMaterial); ground.rotation.x = -Math.PI / 2;
-	ground.name = "rolling-ground";
-	ground.position.z = -100; ground.receiveShadow = true; ground.frustumCulled = false; scene.add(ground);
-	const groundVertices = groundGeometry.getAttribute("position"), groundOriginal = new Float32Array(groundVertices.array);
-	const ballastGeometry = new THREE.PlaneGeometry(5.8, 270, 1, 90); geometries.push(ballastGeometry);
-	const ballastStrip = new THREE.Mesh(ballastGeometry, ballast); ballastStrip.rotation.x = -Math.PI / 2;
-	ballastStrip.position.set(0, 0.09, -95); ballastStrip.receiveShadow = true; ballastStrip.frustumCulled = false; scene.add(ballastStrip);
-	const ballastVertices = ballastGeometry.getAttribute("position");
-	const ballastOriginal = new Float32Array(ballastVertices.array);
-	const rampGeometry = new THREE.PlaneGeometry(16, 270, 8, 90); geometries.push(rampGeometry);
-	const ramp = new THREE.Mesh(rampGeometry, groundMaterial); ramp.rotation.x = -Math.PI / 2;
-	ramp.position.set(0, 0, -95); ramp.receiveShadow = true; ramp.frustumCulled = false; scene.add(ramp);
-	const rampVertices = rampGeometry.getAttribute("position"), rampOriginal = new Float32Array(rampVertices.array);
+	const terrain = createTerrainMeshes(scene, groundMaterial, ballast);
+	geometries.push(...terrain.geometries);
 
 	const train = new THREE.Group(); scene.add(train);
 	box(train, iron, [0, 1.0, 3.4], [2.7, 0.4, 7.2]);
@@ -449,6 +438,8 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
 	let worldRun: Run | null = null;
+	const heights = new Map<number, number>();
+	const birdPoint = new THREE.Vector3(), birdProjected = new THREE.Vector3();
 	const skyAnchors = new Map<number, number>(), stadiumAnchors = new Map<number, number>(), flourishAnchors = new Map<number, number>(), yardAnchors = new Map<number, number>();
 	const forestAnchors = new Map<number, number>(), encounterAnchors = new Map<number, { offset: number; heading: number }>();
 	const contextLost = (event: Event) => { event.preventDefault(); onUnavailable(); };
@@ -463,22 +454,19 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			part.roughness = i < appearance.gold ? 0.24 : originalParts[i].roughness;
 		});
 		const distance = (phase + 4) * TRACK_LENGTH;
-		const heights = new Map<number, number>();
+		heights.clear();
 		const heightAt = (d: number) => {
 			const cached = heights.get(d); if (cached !== undefined) return cached;
 			const height = terrainHeight(run.seed, d); heights.set(d, height); return height;
 		};
 		camera.position.y = cameraHeight + railwayHeight(run.seed, distance); camera.updateMatrixWorld();
-		for (let row = 0; row <= 120; row++) {
-			const first = row * 61, z = -groundOriginal[first * 3 + 1] - 100;
-			const height = heightAt(distance - z);
-			for (let col = 0; col < 61; col++) groundVertices.setZ(first + col, height);
-		}
-		groundVertices.needsUpdate = true; groundGeometry.computeVertexNormals();
+
 		const junctions = signalsAhead(run, phase).map(beat => ({ beat, side: run.switches.get(beat) ?? -1 as const }));
 		const center = (d: number) => routeCenter(d, junctions, run.routeBase);
 		const heading = (d: number) => routeHeading(d, junctions, run.routeBase);
-		const position = (z: number) => center(distance - z) - center(distance);
+		const trainCenter = center(distance);
+		const position = (z: number) => center(distance - z) - trainCenter;
+		terrain.update(run.seed, distance, junctions, run.routeBase, heightAt);
 		if (worldRun !== run) { forestAnchors.clear(); encounterAnchors.clear(); skyAnchors.clear(); stadiumAnchors.clear(); flourishAnchors.clear(); yardAnchors.clear(); worldRun = run; }
 		const concerts = concertsAhead(run, phase);
 		stadiumSlots.forEach((slot, index) => {
@@ -486,7 +474,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			if (!concert) return;
 			slot.start = concert.start; slot.end = concert.end; slot.distance = concert.distance;
 			if (!stadiumAnchors.has(concert.start)) stadiumAnchors.set(concert.start, roadsideCenter(concert.distance, -1, junctions, run.routeBase, 38, 50));
-			slot.root.position.set(stadiumAnchors.get(concert.start)! - center(distance), 0, distance - concert.distance);
+			slot.root.position.set(stadiumAnchors.get(concert.start)! - trainCenter, 0, distance - concert.distance);
 		});
 		for (const start of stadiumAnchors.keys()) if (!concerts.some(concert => concert.start === start)) stadiumAnchors.delete(start);
 		const flourishes = flourishesAhead(run, phase);
@@ -496,7 +484,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			slot.kind = event.kind; slot.start = event.start; slot.end = event.end; slot.distance = event.distance;
 			slot.models.fairground.visible = event.kind === "fairground"; slot.models.quarry.visible = event.kind === "quarry";
 			if (!flourishAnchors.has(event.start)) flourishAnchors.set(event.start, roadsideCenter(event.distance, -1, junctions, run.routeBase, 31, 38));
-			slot.root.position.set(flourishAnchors.get(event.start)! - center(distance), 0, distance - event.distance);
+			slot.root.position.set(flourishAnchors.get(event.start)! - trainCenter, 0, distance - event.distance);
 			if (event.kind === "fairground") animateFairground(slot.models.fairground, run.seconds, reducedMotion);
 		});
 		for (const start of flourishAnchors.keys()) if (!flourishes.some(event => event.start === start)) flourishAnchors.delete(start);
@@ -507,7 +495,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			const anchor = roadsideCenter(event.distance, -1, junctions, run.routeBase, 31, 39);
 			// Commit after prior switches are settled, while the yard is still beyond the fog.
 			if (!yardAnchors.has(event.start) && Math.abs(event.distance - distance) < 260) yardAnchors.set(event.start, anchor);
-			slot.root.position.set((yardAnchors.get(event.start) ?? anchor) - center(distance), 0, distance - event.distance);
+			slot.root.position.set((yardAnchors.get(event.start) ?? anchor) - trainCenter, 0, distance - event.distance);
 		});
 		for (const start of yardAnchors.keys()) if (!yards.some(event => event.start === start)) yardAnchors.delete(start);
 		const onYardGround = (x: number, z: number, padding = 0) => yardSlots.some(slot => slot.root.visible && Math.abs(x - slot.root.position.x) < 25 + padding && Math.abs(z - slot.root.position.z) < 37 + padding);
@@ -584,24 +572,10 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 		sceneryOffsets(distance).forEach((offset, index) => {
 			const origin = Math.round((distance - offset) / SCENERY_LENGTH) * SCENERY_LENGTH;
 			if (!forestAnchors.has(origin)) forestAnchors.set(origin, center(origin) - trackCenter(origin));
-			sceneryTiles[index].position.z = offset; sceneryTiles[index].position.x = forestAnchors.get(origin)! - center(distance);
+			sceneryTiles[index].position.z = offset; sceneryTiles[index].position.x = forestAnchors.get(origin)! - trainCenter;
 		});
 		for (const origin of forestAnchors.keys()) if (Math.abs(origin - distance) > SCENERY_LENGTH * 2) forestAnchors.delete(origin);
-		for (let index = 0; index < ballastVertices.count; index++) {
-			const z = -ballastOriginal[index * 3 + 1] - 95;
-			ballastVertices.setX(index, ballastOriginal[index * 3] + position(z));
-			ballastVertices.setZ(index, railwayHeight(run.seed, distance - z));
-		}
-		ballastVertices.needsUpdate = true;
-		ballastGeometry.computeVertexNormals();
-		for (let index = 0; index < rampVertices.count; index++) {
-			const x = rampOriginal[index * 3], z = -rampOriginal[index * 3 + 1] - 95;
-			const height = railwayHeight(run.seed, distance - z);
-			rampVertices.setX(index, x + position(z));
-			const base = heightAt(distance - z);
-			rampVertices.setZ(index, base + (height - base) * Math.max(0, Math.min(1, (8 - Math.abs(x)) / 5)) - 0.02);
-		}
-		rampVertices.needsUpdate = true; rampGeometry.computeVertexNormals();
+
 		junctionSlots.forEach(({ signal, branches }, index) => {
 			const junction = junctions[index]; signal.visible = !!junction;
 			branches.forEach(branch => branch.pieces.forEach(piece => { piece.group.visible = !!junction; piece.half.group.visible = !!junction; }));
@@ -609,7 +583,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			if (!junction) return;
 			const signalDistance = (junction.beat + 4) * TRACK_LENGTH - PLACEMENT_Z;
 			const signalCenter = fixedBranchCenter(signalDistance, junction, -1, junctions, run.routeBase);
-			signal.position.set(signalCenter - center(distance), railwayHeight(run.seed, signalDistance), distance - signalDistance);
+			signal.position.set(signalCenter - trainCenter, railwayHeight(run.seed, signalDistance), distance - signalDistance);
 			signal.rotation.y = heading(signalDistance);
 			signal.getObjectByName("left")!.visible = junction.side === -1;
 			signal.getObjectByName("right")!.visible = junction.side === 1;
@@ -624,7 +598,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 					marker.visible = side === junction.side && (missing || inFlight);
 					const d = signalDistance + (beat - junction.beat) * TRACK_LENGTH - layout.offset;
 					const path = (p: number) => fixedBranchCenter(p, junction, side, junctions, run.routeBase);
-					group.position.set(path(d) - center(distance), railwayHeight(run.seed, d), distance - d);
+					group.position.set(path(d) - trainCenter, railwayHeight(run.seed, d), distance - d);
 					group.rotation.set(railwayPitch(run.seed, d), -Math.atan((path(d + 0.1) - path(d - 0.1)) / 0.2), 0);
 					group.scale.z = layout.length / Math.cos(group.rotation.y);
 				}
@@ -639,7 +613,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			const encounter = encounters[index];
 			for (const [kind, model] of Object.entries(slot.models)) model.visible = kind === encounter.kind;
 			if (!encounterAnchors.has(firstEncounter + index) && Math.abs(encounter.distance - distance) < 260) encounterAnchors.set(firstEncounter + index, { offset: (["crossing", "river"].includes(encounter.kind ?? "") ? center(encounter.distance) : roadsideCenter(encounter.distance, encounter.side as -1 | 1, junctions, run.routeBase, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 10, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 7)) - trackCenter(encounter.distance), heading: heading(encounter.distance) });
-			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - center(distance), heightAt(encounter.distance), distance - encounter.distance);
+			slot.root.position.set(trackCenter(encounter.distance) + (encounterAnchors.get(firstEncounter + index)?.offset ?? center(encounter.distance) - trackCenter(encounter.distance)) - trainCenter, heightAt(encounter.distance), distance - encounter.distance);
 			slot.root.rotation.x = ["crops", "cattle"].includes(encounter.kind ?? "") ? terrainPitch(run.seed, encounter.distance) : 0;
 			slot.root.visible = !onConcertGround(slot.root.position.x, slot.root.position.z, ["crops", "cattle"].includes(encounter.kind ?? "") ? 18 : 5);
 			slot.root.rotation.y = encounter.kind === "crossing" ? (encounterAnchors.get(firstEncounter + index)?.heading ?? heading(encounter.distance)) : ["river", "crops", "cattle"].includes(encounter.kind ?? "") ? 0 : encounter.side * 0.25;
@@ -659,7 +633,7 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			if (!skyAnchors.has(firstEncounter + index)) skyAnchors.set(firstEncounter + index, center(event.distance));
 			const age = run.seconds - secondsAt(event.distance / TRACK_LENGTH - 4);
 			const drift = reducedMotion ? 0 : event.kind === "balloon" ? Math.sin(run.seconds * 0.07 + event.detail % 8) * 6 : age * (event.kind === "jet" ? 9 : 5);
-			slot.root.position.set(skyAnchors.get(firstEncounter + index)! - center(distance) + event.side * (16 + drift), event.kind === "balloon" ? 10 : 16, distance - event.distance);
+			slot.root.position.set(skyAnchors.get(firstEncounter + index)! - trainCenter + event.side * (16 + drift), event.kind === "balloon" ? 10 : 16, distance - event.distance);
 			slot.root.visible = Math.abs(slot.root.position.x) < 180;
 			slot.root.rotation.y = event.kind === "balloon" ? 0 : -event.side * Math.PI / 2;
 			animateAircraft(slot.models[event.kind], event.kind, run.seconds, reducedMotion);
@@ -761,9 +735,9 @@ export function createRailway(host: HTMLDivElement, onFrame: () => Run, onUnavai
 			camera.updateMatrixWorld();
 			const addBird = (id: string, object: THREE.Object3D) => {
 				for (let parent: THREE.Object3D | null = object; parent; parent = parent.parent) if (!parent.visible) return;
-				const point = object.getWorldPosition(new THREE.Vector3());
+				const point = object.getWorldPosition(birdPoint);
 				if (Math.hypot(point.x, point.z) > 80) return;
-				const projected = point.clone().project(camera);
+				const projected = birdProjected.copy(point).project(camera);
 				if (Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1 || Math.abs(projected.z) > 1) return;
 				sources.push({ id, kind: "birds", bird: object.userData.birdVoice, x: point.x, z: point.z });
 			};

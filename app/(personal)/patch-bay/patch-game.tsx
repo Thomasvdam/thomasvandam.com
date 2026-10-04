@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { adjacentIndices, directions, isFixed, levels, ports, scrambleLevel, slideTile, traceSignal, type Board, type Tile, type Tone } from "./patch-puzzle";
 import styles from "./patch-game.module.css";
 
@@ -40,7 +40,7 @@ export function PatchGame() {
 	const [showHint, setShowHint] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
 	const level = levels[levelIndex];
-	const pulse = traceSignal(level, board);
+	const pulse = useMemo(() => traceSignal(level, board), [level, board]);
 	const gap = board.indexOf(null);
 	const neighbors = adjacentIndices(gap, level.size);
 	const targets = level.tiles.filter((tile) => tile?.type === "target");
