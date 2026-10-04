@@ -3,19 +3,19 @@ import { bindPaddlePointer } from "./pointer-controls";
 import { collectPower, movePaddle, newGame, step } from "./game";
 
 function harness() {
-	const game = newGame(), captures = new Set(); let presses = 0, focusOptions;
+	const game = newGame(), captures = new Set(); let presses = 0, releases = 0, focusOptions;
 	const element = new globalThis.EventTarget();
 	element.setPointerCapture = id => captures.add(id);
 	element.hasPointerCapture = id => captures.has(id);
 	element.releasePointerCapture = id => captures.delete(id);
 	element.focus = options => { focusOptions = options; };
-	const binding = bindPaddlePointer(element, { paddleX: () => game.paddleX, move: x => movePaddle(game, x), projectX: x => x / 20, press: () => { presses++; } });
+	const binding = bindPaddlePointer(element, { paddleX: () => game.paddleX, move: x => movePaddle(game, x), projectX: x => x / 20, press: () => { presses++; }, release: () => { releases++; } });
 	const send = (type, props = {}) => {
 		const event = new globalThis.Event(type, { cancelable: true });
 		Object.assign(event, { pointerType: "touch", isPrimary: true, pointerId: 1, button: 0, clientX: 40, clientY: 300, ...props });
 		element.dispatchEvent(event); return event;
 	};
-	return { game, captures, binding, send, presses: () => presses, focus: () => focusOptions };
+	return { game, captures, binding, send, presses: () => presses, releases: () => releases, focus: () => focusOptions };
 }
 
 test("touch down launches without moving the paddle; dragging uses finger deltas and fresh origins", () => {
@@ -56,4 +56,12 @@ test("blur cancellation and disposal release touch capture and remove input/cont
 	h.send("pointerdown"); h.binding.dispose(); expect(h.captures.size).toBe(0);
 	h.send("pointerdown", { clientX: 200 }); h.send("pointermove", { pointerType: "mouse", clientX: 200 }); expect(h.game.paddleX).toBe(9);
 	expect(h.send("contextmenu").defaultPrevented).toBe(false);
+});
+
+test("mouse and finger releases trigger Sticky release exactly once; cancellations do not", () => {
+	for (const pointerType of ["touch", "mouse"]) {
+		const h = harness(); h.send("pointerup", { pointerType }); expect(h.releases()).toBe(0);
+		h.send("pointerdown", { pointerType }); h.send("pointerup", { pointerType }); expect(h.releases()).toBe(1);
+		h.send("pointerup", { pointerType }); h.send("pointercancel", { pointerType }); h.send("lostpointercapture", { pointerType }); expect(h.releases()).toBe(1); h.binding.dispose();
+	}
 });

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
-import { launch, movePaddle, newGame, nextLevel, step, type Game, type BallPower } from "./game";
+import { launch, movePaddle, newGame, nextLevel, releaseBalls, destructible, step, type Game, type BallPower } from "./game";
 import type { LevelDefinition } from "./level-format";
 import { BRICK_TYPES } from "./brick-types";
 import { LEVELS } from "./levels";
@@ -11,7 +11,7 @@ import { BreakoutSound } from "./sound";
 import { bindPaddlePointer } from "./pointer-controls";
 import styles from "./breakout.module.css";
 
-const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, level: 0, total: 0, bricks: 0, balls: 1, leftHits: 0, rightHits: 0, sight: 0, top: 0, stun: 0, queued: [] as BallPower[] };
+const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, level: 0, total: 0, bricks: 0, balls: 1, leftHits: 0, rightHits: 0, sight: 0, top: 0, stun: 0, sticky: 0, laser: 0, shrink: 0, armour: false, attached: 0, queued: [] as BallPower[] };
 export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } = {}) {
 	const host = useRef<HTMLDivElement>(null);
 	const game = useRef(newGame(customLevel));
@@ -19,7 +19,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 	const action = useRef<(kind: "launch" | "pause" | "reset" | "next") => void>(() => {});
 	const [muted, setMuted] = useState(false);
 	const [audioUnavailable, setAudioUnavailable] = useState(false);
-	const [view, setView] = useState(() => { const count = newGame(customLevel).bricks.length; return { ...initial, total: count, bricks: count }; });
+	const [view, setView] = useState(() => { const count = newGame(customLevel).bricks.filter(destructible).length; return { ...initial, total: count, bricks: count }; });
 	const [loaded, setLoaded] = useState(false);
 	const [error, setError] = useState("");
 	useEffect(() => {
@@ -33,7 +33,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 			const keys = new Set<string>();
 			const paint = () => {
 				const g = game.current;
-				setView({ mode: g.mode, score: g.score, lives: g.lives, level: g.level, total: g.bricks.length, bricks: g.bricks.filter(b => b.hits > 0).length, balls: g.balls.length, leftHits: g.leftHits, rightHits: g.rightHits, sight: Math.max(0, Math.ceil(g.sightUntil - g.time)), top: Math.max(0, Math.ceil(g.topUntil - g.time)), stun: Math.max(0, g.stunUntil - g.time), queued: [...g.queuedPowers] });
+				setView({ mode: g.mode, score: g.score, lives: g.lives, level: g.level, total: g.bricks.filter(destructible).length, bricks: g.bricks.filter(b => destructible(b) && b.hits > 0).length, balls: g.balls.length, leftHits: g.leftHits, rightHits: g.rightHits, sight: Math.max(0, Math.ceil(g.sightUntil - g.time)), top: Math.max(0, Math.ceil(g.topUntil - g.time)), stun: Math.max(0, g.stunUntil - g.time), sticky: Math.max(0, Math.ceil(g.stickyUntil - g.time)), laser: Math.max(0, Math.ceil(g.laserUntil - g.time)), shrink: Math.max(0, Math.ceil(g.shrinkUntil - g.time)), armour: g.armour, attached: g.balls.filter(b => b.attachedOffset !== undefined).length, queued: [...g.queuedPowers] });
 			};
 			action.current = kind => {
 				if (kind === "reset") { sound.silence(); game.current = newGame(customLevel); }
@@ -51,6 +51,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 				move: x => movePaddle(game.current, x),
 				projectX: scene.pointerX,
 				press: () => action.current("launch"),
+				release: () => { releaseBalls(game.current, event => sound.play(event)); paint(); },
 			});
 			const down = (event: KeyboardEvent) => {
 				if ((event.target as HTMLElement)?.closest("button, a") && [" ", "Enter"].includes(event.key)) return;
@@ -58,10 +59,14 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 				if (["arrowleft", "arrowright", "a", "d", " ", "p", "escape"].includes(key)) event.preventDefault();
 				keys.add(key);
 				if (event.repeat) return;
-				if (key === " ") action.current(game.current.mode === "cleared" ? "next" : game.current.mode === "ready" ? "launch" : "pause");
+				if (key === " " && !(game.current.mode === "playing" && game.current.stickyUntil > game.current.time)) action.current(game.current.mode === "cleared" ? "next" : game.current.mode === "ready" ? "launch" : "pause");
 				if (key === "p" || key === "escape") action.current("pause");
 			};
-			const up = (event: KeyboardEvent) => keys.delete(event.key.toLowerCase());
+			const up = (event: KeyboardEvent) => {
+				const key = event.key.toLowerCase();
+				if (key === " " && keys.has(key)) { releaseBalls(game.current, event => sound.play(event)); paint(); }
+				keys.delete(key);
+			};
 			const blur = () => { keys.clear(); pointer.cancel(); if (game.current.mode === "playing") action.current("pause"); };
 			const visibility = () => { if (document.hidden) blur(); };
 			function tick(now: number) {
@@ -106,6 +111,10 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 					<div><i className={styles.duplicate} /><span>Duplicate balls<small>D · double every ball · up to 64 in play</small></span></div>
 					<div><i className={styles.sight} /><span>Future Sight<small>F · pink box · adds 12 seconds of two-second paths</small></span></div>
 					<div><i className={styles.top} /><span>Top paddle<small>T · follows your paddle · seven-second charge</small></span></div>
+					<div><i className={styles.sticky} /><span>Sticky paddle<small>K · 20s · release click, Space or finger to launch attached balls</small></span></div>
+					<div><i className={styles.laser} /><span>Laser paddle<small>R · one blast per second for 10s</small></span></div>
+					<div><i className={styles.armour} /><span>Armour<small>A · absorbs one Shock or Shrink</small></span></div>
+					<div><i className={styles.shrink} /><span>Shrink hazard<small>N · smaller paddle for 15s</small></span></div>
 					<div><i className={styles.random} /><span>Mystery brick<small>? · reveals a typed pickup when broken</small></span></div>
 				</div>
 				<div className={styles.ballPowers}>
@@ -116,7 +125,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 					<span><i className={styles.homing} />H · Homing: gently steers toward the closest brick</span>
 				</div>
 				<details className={styles.brickGuide}><summary>Special bricks · learn the symbols</summary>{Object.entries(BRICK_TYPES).map(([type, spec]) => <p key={type}><i style={{ background: spec.color }} /><span>{spec.label}<small>{spec.description}</small></span></p>)}</details>
-				<p className={styles.controls}>Move your mouse to steer. Touch anywhere in the field and drag to move the paddle.<br />Keyboard: ← → or A / D to move.<br />Click, tap, or Space to launch.<br />Space / P / Esc to pause. Space to advance after clearing a level.</p>
+				<p className={styles.controls}>Move your mouse to steer. Touch anywhere in the field and drag to move the paddle.<br />Keyboard: ← → or A / D to move.<br />Click, tap, or Space to launch.<br />P / Esc to pause. Space pauses unless Sticky is active. Space to advance after clearing a level.</p>
 				<p className={styles.footnote}>{customLevel ? "Play-testing a single draft level." : `${LEVELS.length} levels. Three lives. Handmade brick patterns each round.`} No brick hits for 10 seconds? A Future Sight box drops in.</p>
 			</aside>
 			<section className={styles.game} aria-label="Breakout game">
@@ -131,7 +140,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 						{loaded && !error && <button onClick={() => action.current(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : view.mode === "cleared" ? "next" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : view.mode === "cleared" ? "Next level" : "Play again"}<Play size={15} /></button>}
 					</div>}
 				</div>
-				<div className={styles.toolbar}><span>{[view.stun ? `Paddle stunned ${view.stun.toFixed(1)}s` : "", view.leftHits || view.rightHits ? `Extensions L ${view.leftHits}/5 · R ${view.rightHits}/5` : "", view.sight ? `Future Sight ${view.sight}s` : "", view.top ? `Top paddle ${view.top}s` : "", view.balls > 1 ? `${view.balls} balls` : "", view.queued.length ? `Next: ${view.queued.join(" → ")}` : ""].filter(Boolean).join(" / ") || "Keep your eye on the ball"}</span><div><button onClick={toggleSound} aria-label={audioUnavailable ? "Retry sound" : muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted} title={audioUnavailable ? "Sound unavailable — click to retry" : muted ? "Unmute sound" : "Mute sound"}>{muted || audioUnavailable ? <VolumeX size={17} /> : <Volume2 size={17} />}</button><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => action.current("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => action.current("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
+				<div className={styles.toolbar}><span>{[view.attached ? `${view.attached} attached · release click / Space / finger` : "", view.sticky ? `Sticky ${view.sticky}s` : "", view.laser ? `Laser ${view.laser}s` : "", view.armour ? "Armour ready" : "", view.shrink ? `Shrunk ${view.shrink}s` : "", view.stun ? `Paddle stunned ${view.stun.toFixed(1)}s` : "", view.leftHits || view.rightHits ? `Extensions L ${view.leftHits}/5 · R ${view.rightHits}/5` : "", view.sight ? `Future Sight ${view.sight}s` : "", view.top ? `Top paddle ${view.top}s` : "", view.balls > 1 ? `${view.balls} balls` : "", view.queued.length ? `Next: ${view.queued.join(" → ")}` : ""].filter(Boolean).join(" / ") || "Keep your eye on the ball"}</span><div><button onClick={toggleSound} aria-label={audioUnavailable ? "Retry sound" : muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted} title={audioUnavailable ? "Sound unavailable — click to retry" : muted ? "Unmute sound" : "Mute sound"}>{muted || audioUnavailable ? <VolumeX size={17} /> : <Volume2 size={17} />}</button><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => action.current("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => action.current("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
 			</section>
 		</div>
 	</div>;

@@ -60,7 +60,7 @@ test("simulation emits actual contacts, pickups and outcomes, while forecasts st
 
 test("special-brick and stun cues schedule bounded voices and clean up normally", async () => {
 	const { context, nodes } = fakeAudio(), sound = new BreakoutSound(() => context); await sound.unlock();
-	for (const event of ["speed", "slow", "shift", "phase", "shock", "void"]) {
+	for (const event of ["speed", "slow", "shift", "phase", "shock", "void", "sticky", "laser", "armour", "shrink", "stick", "release", "blast", "shield"]) {
 		const before = nodes.length; sound.play(event); expect(nodes.length).toBeGreaterThan(before);
 		nodes.slice(before).forEach(n => { expect(n.stops[0] - n.started).toBeLessThan(0.5); expect(n.stops[0]).toBeGreaterThan(n.started); });
 	}
