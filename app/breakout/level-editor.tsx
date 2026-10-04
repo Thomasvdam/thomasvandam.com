@@ -79,7 +79,7 @@ export default function LevelEditor() {
 			</section>
 			<section className={styles.panel} aria-label="Level export">
 				<h2>Source export</h2><p>Paste this object into the <code>LEVELS</code> array in <code>app/breakout/level-data.ts</code>. New entries automatically join the campaign.</p>
-				<p>Symbols specify every brick’s strength or reward. Dots are gaps. Nothing is generated from the level’s position in the array.</p>
+				<p>Symbols specify every brick’s strength, behavior or reward. Dots are gaps. Nothing is generated from the level’s position in the array.</p>
 				<div className={styles.actions}><button disabled={!!errors.length} onClick={copy}>Copy source</button><button disabled={!!errors.length} onClick={download}>Download JSON</button></div>
 				<textarea className={styles.source} aria-label="Exported level source" readOnly value={source} onFocus={e => e.target.select()} />
 				<p role="status">{notice || "Drafts stay in this tab’s memory. Export before leaving or reloading."}</p>

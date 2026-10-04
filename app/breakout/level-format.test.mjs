@@ -17,7 +17,7 @@ test("every brush encodes exactly its displayed hit count and reward; gaps remai
 		if (symbol === ".") continue;
 		const level = { name: "Brush test", width: 2, height: 1, columns: 2, xStep: 3, top: 20, yStep: 2, pattern: [symbol + "."] };
 		const bricks = bricksForLevel(parseLevel(exportLevel(level)), 500);
-		expect(bricks).toHaveLength(1); expect(bricks[0].hits).toBe(cell.hits); expect(bricks[0].power).toBe(cell.power); expect(bricks[0].id).toBe(500);
+		expect(bricks).toHaveLength(1); expect(bricks[0].hits).toBe(cell.hits); expect(bricks[0].power).toBe(cell.power); expect(bricks[0].type).toBe(cell.type); expect(bricks[0].id).toBe(500);
 	}
 });
 
