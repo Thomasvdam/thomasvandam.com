@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { collectPower, forecast, launch, MAX_BALLS, movePaddle, newGame, paddleBounds, paddleWidth, POWER_TYPES, step } from "./game";
+import { collectPower, forecast, launch, MAX_BALLS, movePaddle, newGame, paddleBounds, paddleWidth, BALL_POWER_TYPES, POWER_TYPES, step } from "./game";
 
 describe("Breakout simulation", () => {
 	test("level contains all brick types and a ball follows the paddle before launch", () => {
 		const g = newGame(); expect(g.bricks).toHaveLength(40);
 		expect(new Set(g.bricks.map(b => b.maxHits))).toEqual(new Set([1, 2, 3]));
-		expect(new Set(g.bricks.filter(b => b.power).map(b => b.power))).toEqual(new Set(["sight", "wide", "duplicate", "top", "random"]));
+		expect(new Set(g.bricks.filter(b => b.power).map(b => b.power))).toEqual(new Set([...POWER_TYPES, "random"]));
 		movePaddle(g, -100); expect(g.balls[0].x).toBe(g.paddleX); expect(g.paddleX).toBeGreaterThan(1.5);
 		launch(g); expect(g.mode).toBe("playing"); expect(g.balls[0].vy).toBeGreaterThan(0);
 	});
@@ -119,6 +119,7 @@ describe("Breakout simulation", () => {
 			Object.assign(g.balls[0], { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 });
 			let rolls = 0; step(g, 1 / 120, true, () => { rolls++; return (index + 0.5) / POWER_TYPES.length; });
 			expect(rolls).toBe(1); expect(g.drops).toHaveLength(1); expect(g.drops[0].power).toBe(power);
+			Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: 0 });
 			g.drops[0].x = g.paddleX; g.drops[0].y = 2.1; step(g, 1 / 120);
 			expect(g.drops).toHaveLength(0);
 			if (power === "top") expect(g.topUntil - g.time).toBe(7);
@@ -129,6 +130,71 @@ describe("Breakout simulation", () => {
 		Object.assign(g.balls[0], { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 });
 		step(g, 1 / 120, false, () => { throw new Error("Forecast rolled a reward"); });
 		expect(brick.hits).toBe(0); expect(g.drops).toHaveLength(0);
+	});
+	test("ball pickups queue in order and one charge transfers only at a lower-paddle hit", () => {
+		const g = newGame(); launch(g); collectPower(g, "fire"); collectPower(g, "piercing");
+		expect(g.queuedPowers).toEqual(["fire", "piercing"]); expect(g.balls[0].effect).toBeUndefined();
+		collectPower(g, "top"); Object.assign(g.balls[0], { x: 9, y: 23.5, vx: 0, vy: 10 }); step(g, 1 / 120);
+		expect(g.queuedPowers).toHaveLength(2); expect(g.balls[0].effect).toBeUndefined();
+		Object.assign(g.balls[0], { x: 9, y: 2.5, vx: 0, vy: -10 }); step(g, 1 / 120);
+		expect(g.balls[0].effect).toBe("fire"); expect(g.queuedPowers).toEqual(["piercing"]);
+		Object.assign(g.balls[0], { x: 9, y: 2.5, vx: 0, vy: -10 }); step(g, 1 / 120);
+		expect(g.balls[0].effect).toBe("piercing"); expect(g.queuedPowers).toHaveLength(0);
+	});
+	test("a single stored charge goes to just one of two balls arriving together", () => {
+		const g = newGame(); launch(g); collectPower(g, "duplicate"); collectPower(g, "homing");
+		g.balls.forEach(b => Object.assign(b, { x: 9, y: 2.5, vx: 0, vy: -10 })); step(g, 1 / 120);
+		expect(g.balls.filter(b => b.effect === "homing")).toHaveLength(1); expect(g.queuedPowers).toHaveLength(0);
+	});
+	test("piercing deals one damage per passage without reflecting, then can hit again on re-entry", () => {
+		const g = newGame(); launch(g); const brick = g.bricks[0], ball = g.balls[0];
+		Object.assign(ball, { effect: "piercing", x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 }); step(g, 1 / 120);
+		expect(brick.hits).toBe(2); expect(ball.vy).toBe(10);
+		for (let i = 0; i < 10; i++) step(g, 1 / 120);
+		expect(brick.hits).toBe(2);
+		for (let i = 0; i < 10; i++) step(g, 1 / 120);
+		ball.vy = -10; for (let i = 0; i < 10; i++) step(g, 1 / 120);
+		expect(brick.hits).toBe(1); expect(ball.vy).toBe(-10);
+	});
+	test("fire deals two brick damage and two damage to the extension it hits, without negatives", () => {
+		const g = newGame(); launch(g); const brick = g.bricks[0], ball = g.balls[0];
+		Object.assign(ball, { effect: "fire", x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 }); step(g, 1 / 120);
+		expect(brick.hits).toBe(1); expect(ball.vy).toBeLessThan(0);
+		collectPower(g, "wide"); Object.assign(ball, { x: g.paddleX - 2, y: 2.5, vx: 0, vy: -10 }); step(g, 1 / 120);
+		expect(g.leftHits).toBe(3); expect(g.rightHits).toBe(5);
+		g.rightHits = 1; Object.assign(ball, { x: paddleBounds(g).right - 0.08, y: 2.5, vx: 0, vy: -10 }); step(g, 1 / 120);
+		expect(g.rightHits).toBe(0);
+		Object.assign(ball, { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 }); step(g, 1 / 120); expect(brick.hits).toBe(0);
+	});
+	test("ghost passes through bricks without damage and becomes normal only when fully above the highest live row", () => {
+		const g = newGame(); launch(g); const ball = g.balls[0], brick = g.bricks[0];
+		Object.assign(ball, { effect: "ghost", x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 }); step(g, 1 / 120);
+		expect(brick.hits).toBe(3); expect(ball.vy).toBe(10); expect(ball.effect).toBe("ghost");
+		for (let i = 0; i < 18; i++) step(g, 1 / 120); expect(ball.effect).toBeUndefined(); expect(brick.hits).toBe(3);
+		Object.assign(ball, { x: brick.x, y: brick.y + 0.7, vx: 0, vy: -10 }); step(g, 1 / 120); expect(brick.hits).toBe(2); expect(ball.vy).toBeGreaterThan(0);
+	});
+	test("homing selects the closest live brick, turns gently, and preserves speed", () => {
+		const g = newGame(); launch(g); g.bricks.forEach(b => b.hits = 0); g.bricks[0].hits = 3;
+		Object.assign(g.bricks[0], { x: 12, y: 15 }); Object.assign(g.bricks[1], { x: 2, y: 22, hits: 2 }); Object.assign(g.bricks[2], { x: 8, y: 10, hits: 0 }); const ball = g.balls[0];
+		Object.assign(ball, { effect: "homing", x: 9, y: 10, vx: 0, vy: 10 }); step(g, 1 / 120);
+		expect(ball.vx).toBeGreaterThan(0); expect(ball.vx).toBeLessThan(0.04); expect(Math.hypot(ball.vx, ball.vy)).toBeCloseTo(10);
+	});
+	test("duplication preserves ball modifiers and independent contact history; life loss clears stored charges", () => {
+		const g = newGame(); launch(g); Object.assign(g.balls[0], { effect: "piercing", contacts: [0] }); collectPower(g, "duplicate");
+		expect(g.balls[1].effect).toBe("piercing"); expect(g.balls[1].contacts).toEqual([0]); expect(g.balls[1].contacts).not.toBe(g.balls[0].contacts);
+		collectPower(g, "fire"); g.balls.forEach(b => b.y = -2); step(g, 1 / 120); expect(g.queuedPowers).toHaveLength(0); expect(g.balls[0].effect).toBeUndefined();
+	});
+	test("forecasts match modified trajectories and queued paddle transfers without consuming live charges", () => {
+		for (const effect of BALL_POWER_TYPES) {
+			const g = newGame(); launch(g); Object.assign(g.balls[0], { effect, x: 2, y: 20, vx: 0, vy: 10 });
+			collectPower(g, "fire"); const before = JSON.parse(JSON.stringify(g)), path = forecast(g)[0]; expect(g).toEqual(before);
+			for (let i = 0; i < path.points.length - 1; i++) step(before, 1 / 120, false);
+			expect(path.points.at(-1).x).toBeCloseTo(before.balls[0].x, 10); expect(path.points.at(-1).y).toBeCloseTo(before.balls[0].y, 10);
+		}
+		const g = newGame(); launch(g); collectPower(g, "ghost"); Object.assign(g.balls[0], { x: 9, y: 3, vx: 0, vy: -10 });
+		const before = JSON.parse(JSON.stringify(g)), path = forecast(g)[0]; expect(g.queuedPowers).toEqual(["ghost"]);
+		for (let i = 0; i < path.points.length - 1; i++) step(before, 1 / 120, false);
+		expect(before.queuedPowers).toHaveLength(0); expect(path.points.at(-1).y).toBeCloseTo(before.balls[0].y, 10);
 	});
 	test("two-second forecasts follow real wall, brick, and paddle collisions without mutating play", () => {
 		const g = newGame(); launch(g); collectPower(g, "wide");
