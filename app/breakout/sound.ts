@@ -67,6 +67,14 @@ export class BreakoutSound {
 				case "phase": this.notes([660, 990], 0.06); break;
 				case "shock": this.tone(90, 650, 0.16, "sawtooth", 0.07); break;
 				case "void": this.tone(600, 80, 0.12, "sine", 0.12); break;
+				case "sticky": this.notes([330, 500, 660], 0.08); break;
+				case "laser": this.notes([440, 880], 0.08); break;
+				case "armour": this.notes([392, 784], 0.1); break;
+				case "shrink": this.tone(500, 160, 0.2, "triangle", 0.12); break;
+				case "stick": this.tone(360, 180, 0.07, "sine", 0.1); break;
+				case "release": this.tone(300, 650, 0.08, "triangle", 0.1); break;
+				case "blast": this.tone(1500, 250, 0.07, "sawtooth", 0.06); break;
+				case "shield": this.notes([880, 1175], 0.06); break;
 				case "life": this.notes([330, 247, 165], 0.12); break;
 				case "lost": this.notes([392, 330, 247, 131], 0.16); break;
 				case "won": this.notes([523, 659, 784, 1047], 0.13); break;

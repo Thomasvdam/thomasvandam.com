@@ -9,23 +9,24 @@ export { FIELD } from "./field";
 // Simulation coordinates are on the XY plane; rendering owns depth and projection.
 export { BALL_POWER_TYPES, POWER_TYPES } from "./powers";
 export type { BallPower, Power } from "./powers";
-export type GameEvent = Power | "launch" | "wall" | "paddle" | "topBounce" | "chip" | "hit" | "break" | "drop" | "life" | "lost" | "won" | "apply" | "speed" | "slow" | "shift" | "phase" | "shock" | "void";
+export type GameEvent = Power | "launch" | "wall" | "paddle" | "topBounce" | "chip" | "hit" | "break" | "drop" | "life" | "lost" | "won" | "apply" | "speed" | "slow" | "shift" | "phase" | "shock" | "void" | "stick" | "release" | "blast" | "shield";
 export type EventSink = (event: GameEvent) => void;
 type PhaseEntry = { id: number; axis: "x" | "y"; direction: number };
-export type Ball = { id: number; x: number; y: number; vx: number; vy: number; effect?: BallPower; contacts?: number[]; speedBoost?: number; slowUntil?: number; phaseEntries?: PhaseEntry[] };
+export type Ball = { id: number; x: number; y: number; vx: number; vy: number; effect?: BallPower; contacts?: number[]; speedBoost?: number; slowUntil?: number; phaseEntries?: PhaseEntry[]; attachedOffset?: number };
 export type Brick = { id: number; x: number; y: number; width: number; height: number; hits: number; maxHits: number; power?: Power | "random"; type?: BrickType; materialized?: boolean };
 export type Drop = { id: number; x: number; y: number; power: Power | "shock" };
-export type Game = { mode: "ready" | "playing" | "paused" | "cleared" | "won" | "lost"; level: number; customLevel?: LevelDefinition; paddleX: number; queuedPowers: BallPower[]; balls: Ball[]; bricks: Brick[]; drops: Drop[]; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; topUntil: number; stunUntil: number; nextSightDropAt: number; time: number; nextId: number };
+export type Blast = { id: number; x: number; y: number };
+export type Game = { mode: "ready" | "playing" | "paused" | "cleared" | "won" | "lost"; level: number; customLevel?: LevelDefinition; paddleX: number; queuedPowers: BallPower[]; balls: Ball[]; bricks: Brick[]; drops: Drop[]; blasts: Blast[]; stickyUntil: number; laserUntil: number; nextLaserAt: number; armour: boolean; shrinkUntil: number; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; topUntil: number; stunUntil: number; nextSightDropAt: number; time: number; nextId: number };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 export function newGame(customLevel?: LevelDefinition): Game {
 	const bricks = customLevel ? bricksForLevel(customLevel) : levelBricks(0);
-	return { ...(customLevel ? { customLevel } : {}), mode: "ready", level: 0, paddleX: 9, queuedPowers: [], balls: [{ id: bricks.length, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, topUntil: 0, stunUntil: 0, nextSightDropAt: 10, time: 0, nextId: bricks.length + 1 };
+	return { ...(customLevel ? { customLevel } : {}), mode: "ready", level: 0, paddleX: 9, queuedPowers: [], balls: [{ id: bricks.length, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], blasts: [], stickyUntil: 0, laserUntil: 0, nextLaserAt: 0, armour: false, shrinkUntil: 0, lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, topUntil: 0, stunUntil: 0, nextSightDropAt: 10, time: 0, nextId: bricks.length + 1 };
 }
 export function nextLevel(game: Game) {
 	if (game.mode !== "cleared" || game.level >= LEVELS.length - 1) return;
 	game.level++;
 	game.bricks = levelBricks(game.level, game.nextId); game.nextId += game.bricks.length;
-	game.drops = []; game.queuedPowers = [];
+	game.drops = []; game.blasts = []; game.queuedPowers = []; game.stickyUntil = 0; game.laserUntil = 0; game.nextLaserAt = 0; game.shrinkUntil = 0;
 	game.leftHits = 0; game.rightHits = 0; game.sightUntil = 0; game.topUntil = 0; game.stunUntil = 0;
 	movePaddle(game, game.paddleX);
 	game.mode = "ready";
@@ -45,14 +46,28 @@ function bounceSpeed(ball: Ball, time: number) {
 	const factor = slowFactor(ball, time);
 	return Math.min(Math.min(MAX_SPEED, 15 * (ball.speedBoost ?? 1)) * factor, Math.hypot(ball.vx, ball.vy) + 0.12 * factor);
 }
-export function paddleBounds(game: Game) {
-	return { left: game.paddleX - 1.5 - game.leftHits * WING_SEGMENT, right: game.paddleX + 1.5 + game.rightHits * WING_SEGMENT };
+export const STICKY_DURATION = 20;
+export const LASER_DURATION = 10;
+export const SHRINK_DURATION = 15;
+export function destructible(brick: Brick) { return brick.type !== "indestructible"; }
+export function paddleScale(game: Game) { return game.shrinkUntil > game.time ? 0.6 : 1; }
+export function releaseBalls(game: Game, emit?: EventSink) {
+	if (game.mode !== "playing") return;
+	let released = false;
+	for (const ball of game.balls) if (ball.attachedOffset !== undefined) { ball.attachedOffset = undefined; released = true; }
+	if (released) emit?.("release");
 }
-export function paddleWidth(game: Game) { return 3 + (game.leftHits + game.rightHits) * WING_SEGMENT; }
+export function paddleBounds(game: Game) {
+	return { left: game.paddleX - (1.5 + game.leftHits * WING_SEGMENT) * paddleScale(game), right: game.paddleX + (1.5 + game.rightHits * WING_SEGMENT) * paddleScale(game) };
+}
+export function paddleWidth(game: Game) { return (3 + (game.leftHits + game.rightHits) * WING_SEGMENT) * paddleScale(game); }
 export function movePaddle(game: Game, x: number) {
 	if (game.stunUntil > game.time) x = game.paddleX;
-	game.paddleX = clamp(x, 1.8 + game.leftHits * WING_SEGMENT, FIELD.width - 1.8 - game.rightHits * WING_SEGMENT);
-	if (game.mode === "ready") { game.balls[0].x = game.paddleX; }
+	game.paddleX = clamp(x, 0.3 + (1.5 + game.leftHits * WING_SEGMENT) * paddleScale(game), FIELD.width - 0.3 - (1.5 + game.rightHits * WING_SEGMENT) * paddleScale(game));
+	if (game.mode === "ready" && game.balls[0]) { game.balls[0].x = game.paddleX; }
+	for (const ball of game.balls) if (ball.attachedOffset !== undefined) {
+		const bounds = paddleBounds(game); ball.attachedOffset = clamp(ball.attachedOffset, bounds.left - game.paddleX, bounds.right - game.paddleX); ball.x = game.paddleX + ball.attachedOffset;
+	}
 }
 export function launch(game: Game, emit?: EventSink) {
 	if (game.mode !== "ready") return;
@@ -62,7 +77,17 @@ export function launch(game: Game, emit?: EventSink) {
 	emit?.("launch");
 }
 export function collectPower(game: Game, power: Drop["power"], emit?: EventSink) {
-	if (power === "shock") game.stunUntil = game.time + 1;
+	if (power === "shock" || power === "shrink") {
+		if (game.armour) { game.armour = false; emit?.("shield"); return; }
+		if (power === "shock") game.stunUntil = game.time + 1;
+		else { game.shrinkUntil = game.time + SHRINK_DURATION; movePaddle(game, game.paddleX); }
+	}
+	else if (power === "armour") game.armour = true;
+	else if (power === "sticky") game.stickyUntil = game.time + STICKY_DURATION;
+	else if (power === "laser") {
+		if (game.laserUntil <= game.time) game.nextLaserAt = game.time + 1;
+		game.laserUntil = game.time + LASER_DURATION;
+	}
 	else if ((BALL_POWER_TYPES as readonly string[]).includes(power)) game.queuedPowers.push(power as BallPower);
 	else if (power === "wide") { game.leftHits = 5; game.rightHits = 5; movePaddle(game, game.paddleX); }
 	else if (power === "top") game.topUntil = game.time + TOP_DURATION;
@@ -103,20 +128,38 @@ function phaseEntry(ball: Ball, oldX: number, oldY: number, brick: Brick): Phase
 	if (leave < Math.max(enter, 0) || enter > 1 || leave < 0 || enter === -Infinity) return;
 	return { id: brick.id, axis, direction: Math.sign(ball[axis] - (axis === "x" ? oldX : oldY)) || 1 };
 }
+function damageBrick(game: Game, brick: Brick, amount: number, ball: Ball | undefined, axis: "x" | "y", direction: number, powerDrops: boolean, random: () => number, emit?: EventSink) {
+	game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
+	brick.hits = Math.max(0, brick.hits - amount); emit?.(brick.hits ? "hit" : "break"); game.score += brick.hits ? 10 : 50;
+	if (brick.hits && brick.type === "moving") { shiftBrick(game, brick, axis, direction); emit?.("shift"); }
+	if (!brick.hits && brick.type === "speed" && ball) {
+		ball.speedBoost = Math.min(MAX_SPEED / 15, (ball.speedBoost ?? 1) * SPEED_FACTOR);
+		const speed = Math.hypot(ball.vx, ball.vy), factor = Math.min(SPEED_FACTOR, MAX_SPEED * slowFactor(ball, game.time) / (speed || 1));
+		ball.vx *= factor; ball.vy *= factor; emit?.("speed");
+	}
+	if (!brick.hits && brick.type === "slow" && ball) {
+		if ((ball.slowUntil ?? 0) <= game.time) { ball.vx *= SLOW_FACTOR; ball.vy *= SLOW_FACTOR; }
+		ball.slowUntil = game.time + SLOW_DURATION; emit?.("slow");
+	}
+	if (powerDrops && !brick.hits && brick.type === "shock") game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: "shock" });
+	if (powerDrops && !brick.hits && brick.power) game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: brick.power === "random" ? POWER_TYPES[Math.floor(random() * POWER_TYPES.length)] : brick.power });
+}
 export function step(game: Game, dt: number, powerDrops = true, random: () => number = Math.random, onEvent?: EventSink) {
 	if (game.mode !== "playing") return;
 	const emit = powerDrops ? onEvent : undefined;
 	game.time += dt;
+	if (game.stickyUntil && game.stickyUntil <= game.time) { releaseBalls(game, emit); game.stickyUntil = 0; }
 	movePaddle(game, game.paddleX);
 	const r = FIELD.radius;
 	for (const ball of game.balls) {
 		if (ball.slowUntil && ball.slowUntil <= game.time) { ball.vx /= SLOW_FACTOR; ball.vy /= SLOW_FACTOR; ball.slowUntil = undefined; }
+		if (ball.attachedOffset !== undefined) continue;
 		const oldX = ball.x, oldY = ball.y;
 		if (ball.effect === "homing") {
 			let target: Brick | undefined, nearest = Infinity;
 			for (const brick of game.bricks) {
 				const distance = (brick.x - ball.x) ** 2 + (brick.y - ball.y) ** 2;
-				if (brick.hits > 0 && distance < nearest) { target = brick; nearest = distance; }
+				if (brick.hits > 0 && destructible(brick) && distance < nearest) { target = brick; nearest = distance; }
 			}
 			if (target) {
 				const heading = Math.atan2(ball.vy, ball.vx), desired = Math.atan2(target.y - ball.y, target.x - ball.x);
@@ -137,11 +180,12 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 		const bounds = paddleBounds(game);
 		if (ball.vy < 0 && oldY >= FIELD.paddleY + 0.2 + r && ball.y <= FIELD.paddleY + 0.2 + r && ball.x > bounds.left - r && ball.x < bounds.right + r) {
 			const offset = clamp((ball.x - (bounds.left + bounds.right) / 2) / (paddleWidth(game) / 2), -1, 1);
-			if (ball.x < game.paddleX - 1.5 && game.leftHits > 0) { game.leftHits = Math.max(0, game.leftHits - (ball.effect === "fire" ? 2 : 1)); emit?.("chip"); }
-			else if (ball.x > game.paddleX + 1.5 && game.rightHits > 0) { game.rightHits = Math.max(0, game.rightHits - (ball.effect === "fire" ? 2 : 1)); emit?.("chip"); }
+			if (ball.x < game.paddleX - 1.5 * paddleScale(game) && game.leftHits > 0) { game.leftHits = Math.max(0, game.leftHits - (ball.effect === "fire" ? 2 : 1)); emit?.("chip"); }
+			else if (ball.x > game.paddleX + 1.5 * paddleScale(game) && game.rightHits > 0) { game.rightHits = Math.max(0, game.rightHits - (ball.effect === "fire" ? 2 : 1)); emit?.("chip"); }
 			const angle = offset * 1.05, speed = bounceSpeed(ball, game.time);
 			ball.vx = Math.sin(angle) * speed; ball.vy = Math.cos(angle) * speed; ball.y = FIELD.paddleY + 0.2 + r; emit?.("paddle");
 			if (game.queuedPowers.length) { ball.effect = game.queuedPowers.shift(); emit?.("apply"); }
+			if (game.stickyUntil > game.time) { const surface = paddleBounds(game); ball.attachedOffset = clamp(ball.x - game.paddleX, surface.left - game.paddleX, surface.right - game.paddleX); ball.x = game.paddleX + ball.attachedOffset; emit?.("stick"); continue; }
 		}
 		if (ball.effect === "ghost") {
 			const highest = game.bricks.reduce((height, brick) => brick.hits > 0 ? Math.max(height, brick.y + brick.height / 2) : height, 0);
@@ -176,37 +220,41 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 			if (!inside || (ball.effect === "ghost" && brick.type !== "void")) continue;
 			if (brick.type === "void" && ball.effect) { ball.effect = undefined; emit?.("void"); }
 			const axis = Math.abs(oldX - brick.x) >= hw ? "x" : "y", direction = Math.sign(axis === "x" ? ball.vx : ball.vy) || 1;
+			if (!destructible(brick)) {
+				if (ball.effect !== "piercing") { if (axis === "x") { ball.vx *= -1; ball.x = brick.x + Math.sign(oldX - brick.x) * hw; } else { ball.vy *= -1; ball.y = brick.y + Math.sign(oldY - brick.y) * hh; } emit?.("wall"); break; }
+				continue;
+			}
 			if (ball.effect === "piercing") { ball.contacts.push(brick.id); if (previousContacts.includes(brick.id)) continue; }
 			if (ball.effect !== "piercing") {
 				if (Math.abs(oldX - brick.x) >= hw) { ball.vx *= -1; ball.x = brick.x + Math.sign(oldX - brick.x) * hw; }
 				else { ball.vy *= -1; ball.y = brick.y + Math.sign(oldY - brick.y) * hh; }
 			}
-			game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
-			brick.hits = Math.max(0, brick.hits - (ball.effect === "fire" ? 2 : 1)); emit?.(brick.hits ? "hit" : "break"); game.score += brick.hits ? 10 : 50;
-			if (brick.hits && brick.type === "moving") { shiftBrick(game, brick, axis, direction); emit?.("shift"); }
-			if (!brick.hits && brick.type === "speed") {
-				ball.speedBoost = Math.min(MAX_SPEED / 15, (ball.speedBoost ?? 1) * SPEED_FACTOR);
-				const speed = Math.hypot(ball.vx, ball.vy), factor = Math.min(SPEED_FACTOR, MAX_SPEED * slowFactor(ball, game.time) / (speed || 1));
-				ball.vx *= factor; ball.vy *= factor; emit?.("speed");
-			}
-			if (!brick.hits && brick.type === "slow") {
-				if ((ball.slowUntil ?? 0) <= game.time) { ball.vx *= SLOW_FACTOR; ball.vy *= SLOW_FACTOR; }
-				ball.slowUntil = game.time + SLOW_DURATION; emit?.("slow");
-			}
-			if (powerDrops && !brick.hits && brick.type === "shock") game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: "shock" });
-			if (powerDrops && !brick.hits && brick.power) game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: brick.power === "random" ? POWER_TYPES[Math.floor(random() * POWER_TYPES.length)] : brick.power });
+			damageBrick(game, brick, ball.effect === "fire" ? 2 : 1, ball, axis, direction, powerDrops, random, emit);
 			if (ball.effect !== "piercing") break;
 		}
 	}
+	while (game.nextLaserAt > 0 && game.nextLaserAt <= game.laserUntil + 1e-9 && game.time + 1e-9 >= game.nextLaserAt) {
+		game.blasts.push({ id: game.nextId++, x: game.paddleX, y: FIELD.paddleY + 0.45 }); game.nextLaserAt += 1; emit?.("blast");
+	}
+	for (const blast of game.blasts) {
+		const oldY = blast.y; blast.y += dt * 32;
+		const target = game.bricks.filter(brick => brick.hits > 0 && (brick.type !== "phase" || brick.materialized) && Math.abs(blast.x - brick.x) < brick.width / 2 + 0.04 && oldY <= brick.y + brick.height / 2 && blast.y >= brick.y - brick.height / 2).sort((a, b) => a.y - a.height / 2 - (b.y - b.height / 2))[0];
+		if (target) {
+			if (destructible(target)) damageBrick(game, target, 1, undefined, "y", 1, powerDrops, random, emit);
+			else emit?.("wall");
+			blast.y = FIELD.height + 1;
+		}
+	}
+	game.blasts = game.blasts.filter(blast => blast.y < FIELD.height);
 	game.balls = game.balls.filter(ball => ball.y > -1);
 	for (const drop of powerDrops ? game.drops : []) {
 		drop.y -= dt * 4.5;
 		if (Math.abs(drop.y - FIELD.paddleY) < 0.5 && drop.x > paddleBounds(game).left - 0.35 && drop.x < paddleBounds(game).right + 0.35) { collectPower(game, drop.power, emit); drop.y = -2; }
 	}
 	game.drops = game.drops.filter(drop => drop.y > -1);
-	if (game.bricks.every(brick => brick.hits === 0)) { game.mode = game.customLevel || game.level === LEVELS.length - 1 ? "won" : "cleared"; emit?.("won"); return; }
+	if (game.bricks.every(brick => !destructible(brick) || brick.hits === 0)) { game.mode = game.customLevel || game.level === LEVELS.length - 1 ? "won" : "cleared"; emit?.("won"); return; }
 	if (!game.balls.length) {
-		game.lives--; game.drops = []; game.queuedPowers = []; game.leftHits = 0; game.rightHits = 0; game.sightUntil = 0; game.topUntil = 0; game.stunUntil = 0;
+		game.lives--; game.drops = []; game.blasts = []; game.queuedPowers = []; game.stickyUntil = 0; game.laserUntil = 0; game.nextLaserAt = 0; game.shrinkUntil = 0; game.leftHits = 0; game.rightHits = 0; game.sightUntil = 0; game.topUntil = 0; game.stunUntil = 0;
 		if (!game.lives) { game.mode = "lost"; emit?.("lost"); }
 		else { emit?.("life"); game.mode = "ready"; game.balls = [{ id: game.nextId++, x: game.paddleX, y: 2.65, vx: 0, vy: 0 }]; }
 	}
@@ -220,7 +268,7 @@ export type Forecast = { id: number; points: { x: number; y: number }[] };
 // Use the same collisions on a private snapshot, including damage from other balls.
 // The paddle stays at its current position; the next live forecast incorporates steering.
 export function forecast(game: Game, seconds = 2): Forecast[] {
-	const copy: Game = { ...game, mode: "playing", queuedPowers: [...game.queuedPowers], balls: game.balls.map(b => ({ ...b, contacts: [...(b.contacts ?? [])], phaseEntries: b.phaseEntries?.map(entry => ({ ...entry })) })), bricks: game.bricks.map(b => ({ ...b })), drops: [] };
+	const copy: Game = { ...game, mode: "playing", queuedPowers: [...game.queuedPowers], balls: game.balls.map(b => ({ ...b, contacts: [...(b.contacts ?? [])], phaseEntries: b.phaseEntries?.map(entry => ({ ...entry })) })), bricks: game.bricks.map(b => ({ ...b })), blasts: game.blasts.map(b => ({ ...b })), drops: [] };
 	const paths = game.balls.map(b => ({ id: b.id, points: [{ x: b.x, y: b.y }] }));
 	for (let i = 0; i < Math.round(seconds * 120); i++) {
 		step(copy, 1 / 120, false);

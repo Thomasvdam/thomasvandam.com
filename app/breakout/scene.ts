@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { FIELD, forecast, TOP_DURATION, WING_SEGMENT, type Game } from "./game";
+import { FIELD, forecast, TOP_DURATION, WING_SEGMENT, paddleScale, paddleWidth, type Game } from "./game";
 import { BRICK_TYPES } from "./brick-types";
 
 export function createScene(host: HTMLDivElement) {
@@ -34,9 +34,9 @@ export function createScene(host: HTMLDivElement) {
 	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => box(WING_SEGMENT - 0.015, 0.4, 0.65, 0xb2f078, 9 + side * (1.5 + (i + 0.5) * WING_SEGMENT), 2, 0.25)));
 	const topPaddle = box(3, 0.4, 0.65, 0x59ead4, 9, FIELD.topPaddleY, 0.25);
 	const topCharge = Array.from({ length: 7 }, (_, i) => box(0.34, 0.11, 0.02, 0xeaf8ff, 9 + (i - 3) * 0.4, FIELD.topPaddleY, 0.59));
-	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a };
+	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a, sticky: 0xf4a8df, laser: 0xff596c, armour: 0x82aaff, shrink: 0xd78a52 };
 	const labelGeometry = new THREE.PlaneGeometry(0.45, 0.45); geometries.push(labelGeometry);
-	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?", shock: "E", ...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [type, spec.symbol])) }).map(([type, glyph]) => {
+	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?", shock: "E", sticky: "K", laser: "R", armour: "A", shrink: "N", ...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [type, spec.symbol])) }).map(([type, glyph]) => {
 		const canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 128;
 		const context = canvas.getContext("2d")!;
 		context.fillStyle = "#233348"; context.font = "bold 100px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; context.fillText(glyph, 64, 69);
@@ -59,13 +59,20 @@ export function createScene(host: HTMLDivElement) {
 		const material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: effect === "fire" ? 0.8 : 0.35, transparent: effect === "ghost", opacity: effect === "ghost" ? 0.35 : 1, depthWrite: effect !== "ghost" });
 		materials.push(material); return [effect, material];
 	}));
+	const shield = box(3.15, 0.55, 0.08, powerColor.armour, 9, 2, 0.15);
+	const turret = box(0.18, 0.35, 0.25, powerColor.laser, 9, 2.3, 0.4);
+	const blastGeometry = new THREE.BoxGeometry(0.08, 0.65, 0.12); geometries.push(blastGeometry);
+	const blastMaterial = new THREE.MeshBasicMaterial({ color: powerColor.laser }); materials.push(blastMaterial);
+	const blastMeshes = new Map<number, THREE.Mesh>();
 	const queuedLabel = new THREE.Mesh(labelGeometry, labelMaterials.piercing); scene.add(queuedLabel);
 	function sync(game: Game) {
-		paddle.position.x = game.paddleX;
+		paddle.position.x = game.paddleX; paddle.scale.x = paddleScale(game);
+		shield.visible = game.armour; shield.position.x = game.paddleX; shield.scale.x = paddleWidth(game) / 3;
+		turret.visible = game.laserUntil > game.time; turret.position.x = game.paddleX;
 		const queued = game.queuedPowers[0]; queuedLabel.visible = !!queued; queuedLabel.position.set(game.paddleX, FIELD.paddleY, 0.59); queuedLabel.scale.setScalar(0.7);
 		if (queued) queuedLabel.material = labelMaterials[queued];
 		const paddleMaterial = paddle.material as THREE.MeshStandardMaterial;
-		paddleMaterial.color.setHex(queued ? powerColor[queued] : 0xeaf8ff);
+		paddleMaterial.color.setHex(game.shrinkUntil > game.time ? powerColor.shrink : game.stickyUntil > game.time ? powerColor.sticky : queued ? powerColor[queued] : 0xeaf8ff);
 		paddleMaterial.emissive.setHex(game.stunUntil > game.time ? powerColor.shock : 0x000000);
 		paddleMaterial.emissiveIntensity = game.stunUntil > game.time ? 0.5 + 0.5 * Math.sin(game.time * 45) : 0;
 		const topRemaining = Math.max(0, game.topUntil - game.time);
@@ -76,7 +83,7 @@ export function createScene(host: HTMLDivElement) {
 		topCharge.forEach((segment, i) => { segment.visible = topPaddle.visible && i < Math.ceil(topRemaining); segment.position.x = game.paddleX + (i - 3) * 0.4; });
 		wings.forEach((segments, side) => segments.forEach((segment, i) => {
 			segment.visible = i < (side === 0 ? game.leftHits : game.rightHits);
-			segment.position.x = game.paddleX + (side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT);
+			segment.position.x = game.paddleX + (side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT) * paddleScale(game); segment.scale.x = paddleScale(game);
 		}));
 		const sight = game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
 		for (const [id, line] of trajectories) {
@@ -140,6 +147,12 @@ export function createScene(host: HTMLDivElement) {
 			mesh.position.set(ball.x, ball.y, 0.42);
 			const aura = mesh.children[0] as THREE.Mesh, slowed = (ball.slowUntil ?? 0) > game.time;
 			aura.visible = slowed || (ball.speedBoost ?? 1) > 1; aura.material = slowed ? slowAura : speedAura;
+		}
+		for (const [id, mesh] of blastMeshes) if (!game.blasts.some(blast => blast.id === id)) { scene.remove(mesh); blastMeshes.delete(id); }
+		for (const blast of game.blasts) {
+			let mesh = blastMeshes.get(blast.id);
+			if (!mesh) { mesh = new THREE.Mesh(blastGeometry, blastMaterial); scene.add(mesh); blastMeshes.set(blast.id, mesh); }
+			mesh.position.set(blast.x, blast.y, 0.5);
 		}
 		for (const [id, mesh] of drops) if (!game.drops.some(drop => drop.id === id)) { scene.remove(mesh); drops.delete(id); }
 		for (const drop of game.drops) {

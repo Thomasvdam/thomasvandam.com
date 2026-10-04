@@ -40,3 +40,5 @@
 .level { color: #a6b6cb; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 0 12px 12px; }
 
 .brickGuide { margin: 18px 0; font-size: 11px; color: #a6b6cb; }.brickGuide summary { cursor: pointer; color: #eaf1f8; }.brickGuide p { display: flex; align-items: center; gap: 10px; margin-top: 10px; }.brickGuide i { width: 18px; height: 12px; flex-shrink: 0; border-radius: 2px; }.brickGuide small { display: block; color: #879ab3; font-size: 10px; margin-top: 3px; }
+
+.sticky { background: #f4a8df; }.laser { background: #ff596c; }.armour { background: #82aaff; }.shrink { background: #d78a52; }

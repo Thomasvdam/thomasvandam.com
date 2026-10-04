@@ -18,6 +18,10 @@ export const CELLS: Record<string, Cell> = {
 	G: { label: "Ghost", hits: 1, color: "#b9d8ef", power: "ghost" },
 	H: { label: "Homing", hits: 1, color: "#6ca8ff", power: "homing" },
 	"?": { label: "Random reward", hits: 1, color: "#eaf1f8", power: "random" },
+	K: { label: "Sticky paddle", hits: 1, color: "#f4a8df", power: "sticky" },
+	R: { label: "Laser paddle", hits: 1, color: "#ff596c", power: "laser" },
+	A: { label: "Armour", hits: 1, color: "#82aaff", power: "armour" },
+	N: { label: "Shrink hazard", hits: 1, color: "#d78a52", power: "shrink" },
 	...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [spec.symbol, { ...spec, type: type as BrickType }])),
 };
 export type LevelDefinition = { name: string; width: number; height: number; columns: number; xStep: number; top: number; yStep: number; pattern: string[] };
@@ -31,7 +35,7 @@ export function validateLevel(value: unknown): string[] {
 	if (!Array.isArray(level.pattern) || level.pattern.length < 1 || level.pattern.length > 20 || level.pattern.some(row => typeof row !== "string")) return [...errors, "Use 1–20 string rows."];
 	if (level.pattern.some(row => row.length !== level.columns)) errors.push("Every row must match the column count.");
 	if (level.pattern.some(row => [...row].some(cell => !Object.hasOwn(CELLS, cell)))) errors.push(`Unknown cell symbol. Use ${Object.keys(CELLS).join(", ")}.`);
-	if (!level.pattern.some(row => [...row].some(cell => CELLS[cell]?.hits > 0))) errors.push("Paint at least one brick.");
+	if (!level.pattern.some(row => [...row].some(cell => CELLS[cell]?.hits > 0 && CELLS[cell]?.type !== "indestructible"))) errors.push("Paint at least one destructible brick.");
 	if (level.xStep < level.width || level.yStep < level.height) errors.push("Spacing must be at least the brick size so bricks do not overlap.");
 	if (errors.length) return errors;
 	level.pattern.forEach((row, r) => [...row].forEach((cell, col) => {

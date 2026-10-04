@@ -3,6 +3,7 @@ type PaddleControls = {
 	move: (x: number) => void;
 	projectX: (clientX: number, clientY: number) => number;
 	press: () => void;
+	release?: () => void;
 };
 
 export function bindPaddlePointer(element: HTMLDivElement, controls: PaddleControls) {
@@ -33,7 +34,12 @@ export function bindPaddlePointer(element: HTMLDivElement, controls: PaddleContr
 			element.setPointerCapture(event.pointerId); element.focus({ preventScroll: true }); controls.press();
 		}
 	};
-	const end = (event: PointerEvent) => { if (touch?.id === event.pointerId) cancel(); };
+	const end = (event: PointerEvent) => {
+		const held = element.hasPointerCapture(event.pointerId);
+		if (event.type === "pointerup" && event.isPrimary && held) controls.release?.();
+		if (touch?.id === event.pointerId) cancel();
+		else if (held && event.type !== "lostpointercapture") element.releasePointerCapture(event.pointerId);
+	};
 	const contextMenu = (event: Event) => event.preventDefault();
 	element.addEventListener("pointerdown", pointer); element.addEventListener("pointermove", pointer);
 	element.addEventListener("pointerup", end); element.addEventListener("pointercancel", end); element.addEventListener("lostpointercapture", end);

@@ -11,10 +11,10 @@ export const LEVELS: LevelDefinition[] = [
 		"top": 22.5,
 		"yStep": 1.25,
 		"pattern": [
-			"3S2M1L31",
+			"3S2M1LI1",
 			"2O12EV23",
 			"FWTDDTWF",
-			"31?31?31",
+			"KR?AN?31",
 			"P3B23G2H"
 		]
 	},
@@ -30,7 +30,7 @@ export const LEVELS: LevelDefinition[] = [
 			"..3SW..",
 			".M23LD.",
 			"2O12F1E",
-			"12T12V1",
+			"KRTANVI",
 			"P12.12B",
 			"23...12",
 			"G23.23H",
@@ -54,8 +54,8 @@ export const LEVELS: LevelDefinition[] = [
 			"3OF312",
 			".3T2E.",
 			"12P1V3",
-			"3B..12",
-			"23G231",
+			"KB..RI",
+			"ANG231",
 			".2H12.",
 			"31?312",
 			"2W..31",
