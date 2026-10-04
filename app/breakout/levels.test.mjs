@@ -7,10 +7,10 @@ function advanceLevel(game) {
 }
 
 test("three levels increase brick dimensions/count and keep separated bricks inside the playfield", () => {
-	const counts = LEVELS.map((_, level) => levelBricks(level).length); expect(counts).toEqual([40, 60, 66]);
+	const counts = LEVELS.slice(0, 3).map((_, level) => levelBricks(level).length); expect(counts).toEqual([40, 60, 66]);
 	LEVELS.forEach((layout, level) => {
 		const bricks = levelBricks(level); expect(new Set(bricks.map(b => b.id)).size).toBe(bricks.length);
-		if (level) { expect(layout.width).toBeGreaterThan(LEVELS[level - 1].width); expect(layout.height).toBeGreaterThan(LEVELS[level - 1].height); }
+		if (level && level < 3) { expect(layout.width).toBeGreaterThan(LEVELS[level - 1].width); expect(layout.height).toBeGreaterThan(LEVELS[level - 1].height); }
 		for (const brick of bricks) {
 			expect(brick.x - brick.width / 2).toBeGreaterThan(0.3); expect(brick.x + brick.width / 2).toBeLessThan(FIELD.width - 0.3);
 			expect(brick.y - brick.height / 2).toBeGreaterThan(FIELD.paddleY + 2); expect(brick.y + brick.height / 2).toBeLessThan(FIELD.topPaddleY - 0.5);
@@ -31,7 +31,7 @@ test("Prism has a hollow center and tapered edges; Switchback alternates center 
 	expect(switchback.filter(b => b.y === row3).every(b => Math.abs(b.x - 9) < 5)).toBe(true);
 });
 
-test("level transitions preserve score/lives, reset equipment, and win only after the third board", () => {
+test("level transitions preserve score/lives, reset equipment, and win only after the final board", () => {
 	const g = newGame(); g.score = 1200; g.lives = 2; collectPower(g, "wide"); collectPower(g, "fire"); collectPower(g, "top");
 	launch(g); g.bricks.forEach(b => b.hits = 0); step(g, 1 / 120); expect(g.mode).toBe("cleared");
 	const time = g.time; step(g, 20); expect(g.time).toBe(time);
@@ -40,7 +40,8 @@ test("level transitions preserve score/lives, reset equipment, and win only afte
 	expect(g.bricks.every(b => !previousIds.has(b.id))).toBe(true); expect(g.leftHits + g.rightHits).toBe(0); expect(g.topUntil).toBe(0); expect(g.queuedPowers).toHaveLength(0); expect(g.balls).toHaveLength(1);
 	expect(new Set([...g.bricks.map(b => b.id), g.balls[0].id]).size).toBe(61);
 	advanceLevel(g); expect(g.level).toBe(2); expect(g.bricks).toHaveLength(66);
-	launch(g); g.bricks.forEach(b => b.hits = 0); step(g, 1 / 120); expect(g.mode).toBe("won"); nextLevel(g); expect(g.level).toBe(2); expect(g.mode).toBe("won");
+	while (g.level < LEVELS.length - 1) advanceLevel(g);
+	launch(g); g.bricks.forEach(b => b.hits = 0); step(g, 1 / 120); expect(g.mode).toBe("won"); nextLevel(g); expect(g.level).toBe(LEVELS.length - 1); expect(g.mode).toBe("won");
 	const reset = newGame(); expect(reset.level).toBe(0); expect(reset.score).toBe(0); expect(reset.lives).toBe(3); expect(reset.bricks).toHaveLength(40);
 });
 

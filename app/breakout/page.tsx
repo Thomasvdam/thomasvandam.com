@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { experimentBody, experimentDisplay } from "@/app/experiment-fonts";
-import { BreakoutGame } from "./breakout-game";
+import { BreakoutRoute } from "./breakout-route";
 
 export const metadata: Metadata = {
 	title: "Breakout — Thomas van Dam",
-	description: "A three-dimensional Breakout experiment. Three increasingly large brick patterns, eight power-ups, and a classic brought into 3D.",
+	description: "A three-dimensional Breakout experiment. Handmade brick patterns, eight power-ups, and a classic brought into 3D.",
 };
 
 export default function BreakoutPage() {
-	return <main className={`${experimentBody.variable} ${experimentDisplay.variable}`}><BreakoutGame /></main>;
+	return <main className={`${experimentBody.variable} ${experimentDisplay.variable}`}><BreakoutRoute /></main>;
 }

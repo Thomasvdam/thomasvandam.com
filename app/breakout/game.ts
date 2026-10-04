@@ -1,8 +1,11 @@
 import { BALL_POWER_TYPES, POWER_TYPES, type BallPower, type Power } from "./powers";
 import { LEVELS, levelBricks } from "./levels";
 
+import { FIELD } from "./field";
+import { bricksForLevel, type LevelDefinition } from "./level-format";
+export { FIELD } from "./field";
+
 // Simulation coordinates are on the XY plane; rendering owns depth and projection.
-export const FIELD = { width: 18, height: 26, paddleY: 2, topPaddleY: 24, radius: 0.24 };
 export { BALL_POWER_TYPES, POWER_TYPES } from "./powers";
 export type { BallPower, Power } from "./powers";
 export type GameEvent = Power | "launch" | "wall" | "paddle" | "topBounce" | "chip" | "hit" | "break" | "drop" | "life" | "lost" | "won" | "apply";
@@ -10,11 +13,11 @@ export type EventSink = (event: GameEvent) => void;
 export type Ball = { id: number; x: number; y: number; vx: number; vy: number; effect?: BallPower; contacts?: number[] };
 export type Brick = { id: number; x: number; y: number; width: number; height: number; hits: number; maxHits: number; power?: Power | "random" };
 export type Drop = { id: number; x: number; y: number; power: Power };
-export type Game = { mode: "ready" | "playing" | "paused" | "cleared" | "won" | "lost"; level: number; paddleX: number; queuedPowers: BallPower[]; balls: Ball[]; bricks: Brick[]; drops: Drop[]; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; topUntil: number; nextSightDropAt: number; time: number; nextId: number };
+export type Game = { mode: "ready" | "playing" | "paused" | "cleared" | "won" | "lost"; level: number; customLevel?: LevelDefinition; paddleX: number; queuedPowers: BallPower[]; balls: Ball[]; bricks: Brick[]; drops: Drop[]; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; topUntil: number; nextSightDropAt: number; time: number; nextId: number };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-export function newGame(): Game {
-	const bricks = levelBricks(0);
-	return { mode: "ready", level: 0, paddleX: 9, queuedPowers: [], balls: [{ id: bricks.length, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, topUntil: 0, nextSightDropAt: 10, time: 0, nextId: bricks.length + 1 };
+export function newGame(customLevel?: LevelDefinition): Game {
+	const bricks = customLevel ? bricksForLevel(customLevel) : levelBricks(0);
+	return { ...(customLevel ? { customLevel } : {}), mode: "ready", level: 0, paddleX: 9, queuedPowers: [], balls: [{ id: bricks.length, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, topUntil: 0, nextSightDropAt: 10, time: 0, nextId: bricks.length + 1 };
 }
 export function nextLevel(game: Game) {
 	if (game.mode !== "cleared" || game.level >= LEVELS.length - 1) return;
@@ -128,7 +131,7 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 		if (Math.abs(drop.y - FIELD.paddleY) < 0.5 && drop.x > paddleBounds(game).left - 0.35 && drop.x < paddleBounds(game).right + 0.35) { collectPower(game, drop.power, emit); drop.y = -2; }
 	}
 	game.drops = game.drops.filter(drop => drop.y > -1);
-	if (game.bricks.every(brick => brick.hits === 0)) { game.mode = game.level === LEVELS.length - 1 ? "won" : "cleared"; emit?.("won"); return; }
+	if (game.bricks.every(brick => brick.hits === 0)) { game.mode = game.customLevel || game.level === LEVELS.length - 1 ? "won" : "cleared"; emit?.("won"); return; }
 	if (!game.balls.length) {
 		game.lives--; game.drops = []; game.queuedPowers = []; game.leftHits = 0; game.rightHits = 0; game.sightUntil = 0; game.topUntil = 0;
 		if (!game.lives) { game.mode = "lost"; emit?.("lost"); }

@@ -4,19 +4,20 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { launch, movePaddle, newGame, nextLevel, step, type Game, type BallPower } from "./game";
+import type { LevelDefinition } from "./level-format";
 import { LEVELS } from "./levels";
 import { BreakoutSound } from "./sound";
 import styles from "./breakout.module.css";
 
-const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, level: 0, total: 40, bricks: 40, balls: 1, leftHits: 0, rightHits: 0, sight: 0, top: 0, queued: [] as BallPower[] };
-export function BreakoutGame() {
+const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, level: 0, total: 0, bricks: 0, balls: 1, leftHits: 0, rightHits: 0, sight: 0, top: 0, queued: [] as BallPower[] };
+export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } = {}) {
 	const host = useRef<HTMLDivElement>(null);
-	const game = useRef(newGame());
+	const game = useRef(newGame(customLevel));
 	const speaker = useRef<BreakoutSound | null>(null);
 	const action = useRef<(kind: "launch" | "pause" | "reset" | "next") => void>(() => {});
 	const [muted, setMuted] = useState(false);
 	const [audioUnavailable, setAudioUnavailable] = useState(false);
-	const [view, setView] = useState(initial);
+	const [view, setView] = useState(() => { const count = newGame(customLevel).bricks.length; return { ...initial, total: count, bricks: count }; });
 	const [loaded, setLoaded] = useState(false);
 	const [error, setError] = useState("");
 	useEffect(() => {
@@ -33,7 +34,7 @@ export function BreakoutGame() {
 				setView({ mode: g.mode, score: g.score, lives: g.lives, level: g.level, total: g.bricks.length, bricks: g.bricks.filter(b => b.hits > 0).length, balls: g.balls.length, leftHits: g.leftHits, rightHits: g.rightHits, sight: Math.max(0, Math.ceil(g.sightUntil - g.time)), top: Math.max(0, Math.ceil(g.topUntil - g.time)), queued: [...g.queuedPowers] });
 			};
 			action.current = kind => {
-				if (kind === "reset") { sound.silence(); game.current = newGame(); }
+				if (kind === "reset") { sound.silence(); game.current = newGame(customLevel); }
 				else if (kind === "next") { sound.silence(); nextLevel(game.current); }
 				else if (kind === "launch" && game.current.mode === "ready") {
 					const launched = game.current; launch(launched);
@@ -82,7 +83,7 @@ export function BreakoutGame() {
 			};
 		}).catch(() => { if (!disposed) setError("This experiment needs WebGL. Try a browser with hardware acceleration enabled."); });
 		return () => { disposed = true; cleanup?.(); sound.dispose(); if (speaker.current === sound) speaker.current = null; };
-	}, []);
+	}, [customLevel]);
 	const toggleSound = () => {
 		const next = audioUnavailable ? false : !muted;
 		setMuted(next); speaker.current?.setMuted(next);
@@ -114,15 +115,15 @@ export function BreakoutGame() {
 					<span><i className={styles.homing} />H · Homing: gently steers toward the closest brick</span>
 				</div>
 				<p className={styles.controls}>Move your mouse or drag to steer.<br />Keyboard: ← → or A / D to move.<br />Click, tap, or Space to launch.<br />Space / P / Esc to pause. Space to advance after clearing a level.</p>
-				<p className={styles.footnote}>Three levels. Three lives. Bigger bricks and new patterns each round. No brick hits for 10 seconds? A Future Sight box drops in.</p>
+				<p className={styles.footnote}>{customLevel ? "Play-testing a single draft level." : `${LEVELS.length} levels. Three lives. Handmade brick patterns each round.`} No brick hits for 10 seconds? A Future Sight box drops in.</p>
 			</aside>
 			<section className={styles.game} aria-label="Breakout game">
-				<p className={styles.level}>Level {view.level + 1} / {LEVELS.length} · {LEVELS[view.level].name}</p>
+				<p className={styles.level}>{customLevel ? `Play-test · ${customLevel.name}` : `Level ${view.level + 1} / ${LEVELS.length} · ${LEVELS[view.level].name}`}</p>
 				<div className={styles.hud}><div><small>Score</small><strong>{String(view.score).padStart(4, "0")}</strong></div><div><small>Bricks</small><strong>{view.bricks}<span> / {view.total}</span></strong></div><div><small>Lives</small><strong aria-label={`${view.lives} lives`}>{"●".repeat(view.lives)}<span>{"○".repeat(3 - view.lives)}</span></strong></div></div>
 				<div className={styles.arena}>
 					<div ref={host} className={styles.canvas} tabIndex={0} role="application" aria-label="Breakout playfield. Arrow keys or A and D to steer. Space to launch, pause, or advance after clearing a level." />
 					{(overlay || error || !loaded) && <div className={styles.overlay}>
-						<p className={styles.eyebrow}>{view.mode === "won" ? "All levels cleared" : view.mode === "cleared" ? "Wall cleared" : view.mode === "lost" ? "Out of lives" : `Level ${String(view.level + 1).padStart(2, "0")} · ${LEVELS[view.level].name}`}</p>
+						<p className={styles.eyebrow}>{view.mode === "won" ? customLevel ? "Test level cleared" : "All levels cleared" : view.mode === "cleared" ? "Wall cleared" : view.mode === "lost" ? "Out of lives" : `Level ${String(view.level + 1).padStart(2, "0")} · ${(customLevel?.name ?? LEVELS[view.level].name)}`}</p>
 						<h2>{error ? "No 3D support" : !loaded ? "Setting the scene…" : view.mode === "cleared" ? "On to the next." : view.mode === "won" ? "Nicely done." : view.mode === "lost" ? "One more round?" : view.mode === "paused" ? "Take a breather." : "Ready to break out?"}</h2>
 						<p>{error || (view.mode === "cleared" ? `Next: ${LEVELS[view.level + 1]?.name}. Your score and lives carry over.` : view.mode === "ready" ? "Click the field, tap, or press Space." : view.mode === "paused" ? "Your game is right where you left it." : `You scored ${view.score} points.`)}</p>
 						{loaded && !error && <button onClick={() => action.current(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : view.mode === "cleared" ? "next" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : view.mode === "cleared" ? "Next level" : "Play again"}<Play size={15} /></button>}
