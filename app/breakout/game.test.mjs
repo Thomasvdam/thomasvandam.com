@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { collectPower, forecast, launch, MAX_BALLS, movePaddle, newGame, nextLevel, paddleBounds, paddleWidth, BALL_POWER_TYPES, POWER_TYPES, step } from "./game";
+import { collectPower, forecast, launch, MAX_BALLS, movePaddle, newGame, paddleBounds, paddleWidth, BALL_POWER_TYPES, POWER_TYPES, step } from "./game";
 
 describe("Breakout simulation", () => {
 	test("level contains all brick types and a ball follows the paddle before launch", () => {
