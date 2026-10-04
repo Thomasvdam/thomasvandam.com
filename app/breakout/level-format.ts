@@ -22,6 +22,7 @@ export const CELLS: Record<string, Cell> = {
 	R: { label: "Laser paddle", hits: 1, color: "#ff596c", power: "laser" },
 	A: { label: "Armour", hits: 1, color: "#82aaff", power: "armour" },
 	N: { label: "Shrink hazard", hits: 1, color: "#d78a52", power: "shrink" },
+	Z: { label: "Rewind balls", hits: 1, color: "#72f1bf", power: "rewind" },
 	...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [spec.symbol, { ...spec, type: type as BrickType }])),
 };
 export type LevelDefinition = { name: string; width: number; height: number; columns: number; xStep: number; top: number; yStep: number; pattern: string[] };

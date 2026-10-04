@@ -12,7 +12,7 @@ export type { BallPower, Power } from "./powers";
 export type GameEvent = Power | "launch" | "wall" | "paddle" | "topBounce" | "chip" | "hit" | "break" | "drop" | "life" | "lost" | "won" | "apply" | "speed" | "slow" | "shift" | "phase" | "shock" | "void" | "stick" | "release" | "blast" | "shield";
 export type EventSink = (event: GameEvent) => void;
 type PhaseEntry = { id: number; axis: "x" | "y"; direction: number };
-export type Ball = { id: number; x: number; y: number; vx: number; vy: number; effect?: BallPower; contacts?: number[]; speedBoost?: number; slowUntil?: number; phaseEntries?: PhaseEntry[]; attachedOffset?: number };
+export type Ball = { id: number; x: number; y: number; vx: number; vy: number; effect?: BallPower; contacts?: number[]; speedBoost?: number; slowUntil?: number; phaseEntries?: PhaseEntry[]; attachedOffset?: number; rewindUntil?: number };
 export type Brick = { id: number; x: number; y: number; width: number; height: number; hits: number; maxHits: number; power?: Power | "random"; type?: BrickType; materialized?: boolean };
 export type Drop = { id: number; x: number; y: number; power: Power | "shock" };
 export type Blast = { id: number; x: number; y: number };
@@ -49,6 +49,7 @@ function bounceSpeed(ball: Ball, time: number) {
 export const STICKY_DURATION = 20;
 export const LASER_DURATION = 10;
 export const SHRINK_DURATION = 15;
+export const REWIND_DURATION = 5;
 export function destructible(brick: Brick) { return brick.type !== "indestructible"; }
 export function paddleScale(game: Game) { return game.shrinkUntil > game.time ? 0.6 : 1; }
 export function releaseBalls(game: Game, emit?: EventSink) {
@@ -84,6 +85,13 @@ export function collectPower(game: Game, power: Drop["power"], emit?: EventSink)
 	}
 	else if (power === "armour") game.armour = true;
 	else if (power === "sticky") game.stickyUntil = game.time + STICKY_DURATION;
+	else if (power === "rewind") {
+		for (const ball of game.balls) {
+			// Reverse against the current world, so removed bricks stay empty.
+			if ((ball.rewindUntil ?? 0) <= game.time) { ball.vx *= -1; ball.vy *= -1; }
+			ball.rewindUntil = game.time + REWIND_DURATION;
+		}
+	}
 	else if (power === "laser") {
 		if (game.laserUntil <= game.time) game.nextLaserAt = game.time + 1;
 		game.laserUntil = game.time + LASER_DURATION;
@@ -152,6 +160,7 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 	movePaddle(game, game.paddleX);
 	const r = FIELD.radius;
 	for (const ball of game.balls) {
+		if (ball.rewindUntil && ball.rewindUntil <= game.time) { ball.vx *= -1; ball.vy *= -1; ball.rewindUntil = undefined; }
 		if (ball.slowUntil && ball.slowUntil <= game.time) { ball.vx /= SLOW_FACTOR; ball.vy /= SLOW_FACTOR; ball.slowUntil = undefined; }
 		if (ball.attachedOffset !== undefined) continue;
 		const oldX = ball.x, oldY = ball.y;
@@ -162,7 +171,7 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 				if (brick.hits > 0 && destructible(brick) && distance < nearest) { target = brick; nearest = distance; }
 			}
 			if (target) {
-				const heading = Math.atan2(ball.vy, ball.vx), desired = Math.atan2(target.y - ball.y, target.x - ball.x);
+				const heading = Math.atan2(ball.vy, ball.vx), desired = Math.atan2(target.y - ball.y, target.x - ball.x) + ((ball.rewindUntil ?? 0) > game.time ? Math.PI : 0);
 				const difference = Math.atan2(Math.sin(desired - heading), Math.cos(desired - heading));
 				const angle = heading + clamp(difference, -0.35 * dt, 0.35 * dt), speed = Math.hypot(ball.vx, ball.vy);
 				ball.vx = Math.cos(angle) * speed; ball.vy = Math.sin(angle) * speed;
