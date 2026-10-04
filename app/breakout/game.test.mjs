@@ -66,7 +66,7 @@ describe("Breakout simulation", () => {
 		Object.assign(g.balls[0], { x: 1, y: 10, vx: -7, vy: 8 });
 		g.balls.push({ id: g.nextId++, x: 9, y: 5, vx: 0, vy: -10 });
 		g.balls.push({ id: g.nextId++, x: 2, y: 21, vx: 0, vy: 10 });
-		const before = structuredClone(g), paths = forecast(g);
+		const before = JSON.parse(JSON.stringify(g)), paths = forecast(g);
 		expect(g).toEqual(before); expect(paths).toHaveLength(3);
 		for (let i = 0; i < 240; i++) step(before, 1 / 120, false);
 		paths.forEach(path => {
