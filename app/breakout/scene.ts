@@ -96,13 +96,22 @@ export function createScene(host: HTMLDivElement) {
 			}
 			lastForecast = now; forecastX = game.paddleX; forecastTime = game.time; forecastIds = ids;
 		}
+		const boardIds = new Set(game.bricks.map(brick => brick.id));
+		for (const [id, mesh] of brickMeshes) if (!boardIds.has(id)) {
+			for (const removed of [mesh, ...(marks.get(id) ?? [])]) {
+				scene.remove(removed);
+				if (removed.geometry !== labelGeometry) { removed.geometry.dispose(); const index = geometries.indexOf(removed.geometry); if (index >= 0) geometries.splice(index, 1); }
+				if (removed.material instanceof THREE.MeshStandardMaterial) { removed.material.dispose(); const index = materials.indexOf(removed.material); if (index >= 0) materials.splice(index, 1); }
+			}
+			brickMeshes.delete(id); marks.delete(id);
+		}
 		for (const brick of game.bricks) {
 			let mesh = brickMeshes.get(brick.id);
 			if (!mesh) {
 				const color = brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
-				mesh = box(FIELD.brickWidth, FIELD.brickHeight, 0.7, color, brick.x, brick.y, 0.2); brickMeshes.set(brick.id, mesh);
+				mesh = box(brick.width, brick.height, 0.7, color, brick.x, brick.y, 0.2); brickMeshes.set(brick.id, mesh);
 				const indicators = [];
-				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y - (brick.power ? 0.25 : 0), 0.56));
+				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y - (brick.power ? brick.height * 0.32 : 0), 0.56));
 				if (brick.power) { const label = new THREE.Mesh(labelGeometry, labelMaterials[brick.power]); label.position.set(brick.x, brick.y + 0.05, 0.57); scene.add(label); indicators.push(label); }
 				marks.set(brick.id, indicators);
 			}

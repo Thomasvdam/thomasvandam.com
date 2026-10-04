@@ -36,3 +36,5 @@
 .ballPowers i { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .piercing { background: #f9ea62; }.fire { background: #ff744b; }.ghost { background: #b9d8ef; }.homing { background: #6ca8ff; }
 @media (max-width: 800px) { .ballPowers { margin: 10px 0 0; gap: 4px; font-size: 9px; } }
+
+.level { color: #a6b6cb; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; padding: 0 12px 12px; }
