@@ -11,6 +11,7 @@
 .legend small { display: block; font-size: 11px; color: #879ab3; margin-top: 4px; }
 .legend i { display: block; width: 28px; height: 15px; border-radius: 3px; box-shadow: inset 0 -4px 0 #0003; flex-shrink: 0; }
 .normal { background: #67d4ee; }.armored { background: #ffb65c; }.wide { background: #b2f078; }.duplicate { background: #c3a0ff; }
+.top { background: #59ead4; }.random { background: #eaf1f8; }
 .sight { background: #ff87b7; }
 .controls { font-size: 11px; color: #879ab3; line-height: 1.9; }
 .footnote { font-size: 10px; color: #657991; margin-top: 25px; }
