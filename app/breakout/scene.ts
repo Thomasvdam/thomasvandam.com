@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { FIELD, forecast, WING_SEGMENT, type Game } from "./game";
+import { FIELD, forecast, TOP_DURATION, WING_SEGMENT, type Game } from "./game";
 
 export function createScene(host: HTMLDivElement) {
 	const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -28,9 +28,20 @@ export function createScene(host: HTMLDivElement) {
 	box(18, 0.3, 0.8, 0x425570, 9, 25.85, 0);
 	// Subtle floor grid makes the extrusion and ball shadows legible.
 	for (let y = 1; y < 26; y += 1) box(17.4, 0.012, 0.01, 0x243349, 9, y, -0.68);
+	const textures: THREE.Texture[] = [];
 	const paddle = box(3, 0.4, 0.65, 0xeaf8ff, 9, 2, 0.25);
 	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => box(WING_SEGMENT - 0.015, 0.4, 0.65, 0xb2f078, 9 + side * (1.5 + (i + 0.5) * WING_SEGMENT), 2, 0.25)));
-	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7 };
+	const topPaddle = box(3, 0.4, 0.65, 0x59ead4, 9, FIELD.topPaddleY, 0.25);
+	const topCharge = Array.from({ length: 7 }, (_, i) => box(0.34, 0.11, 0.02, 0xeaf8ff, 9 + (i - 3) * 0.4, FIELD.topPaddleY, 0.59));
+	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, random: 0xeaf1f8 };
+	const labelGeometry = new THREE.PlaneGeometry(0.45, 0.45); geometries.push(labelGeometry);
+	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", random: "?" }).map(([type, glyph]) => {
+		const canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 128;
+		const context = canvas.getContext("2d")!;
+		context.fillStyle = "#233348"; context.font = "bold 100px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; context.fillText(glyph, 64, 69);
+		const texture = new THREE.CanvasTexture(canvas); textures.push(texture);
+		const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true }); materials.push(material); return [type, material];
+	}));
 	const trajectoryMaterial = new THREE.LineDashedMaterial({ color: 0xffa7ca, transparent: true, opacity: 0.65, dashSize: 0.16, gapSize: 0.12, depthTest: false });
 	materials.push(trajectoryMaterial);
 	const trajectories = new Map<number, THREE.Line>();
@@ -44,6 +55,12 @@ export function createScene(host: HTMLDivElement) {
 	const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x83bfff, emissiveIntensity: 0.4 }); materials.push(ballMaterial);
 	function sync(game: Game) {
 		paddle.position.x = game.paddleX;
+		const topRemaining = Math.max(0, game.topUntil - game.time);
+		topPaddle.visible = topRemaining > 0 && (game.mode === "playing" || game.mode === "paused");
+		topPaddle.position.x = game.paddleX;
+		const topMaterial = topPaddle.material as THREE.MeshStandardMaterial;
+		topMaterial.transparent = true; topMaterial.opacity = 0.2 + 0.8 * topRemaining / TOP_DURATION;
+		topCharge.forEach((segment, i) => { segment.visible = topPaddle.visible && i < Math.ceil(topRemaining); segment.position.x = game.paddleX + (i - 3) * 0.4; });
 		wings.forEach((segments, side) => segments.forEach((segment, i) => {
 			segment.visible = i < (side === 0 ? game.leftHits : game.rightHits);
 			segment.position.x = game.paddleX + (side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT);
@@ -77,8 +94,8 @@ export function createScene(host: HTMLDivElement) {
 				const color = brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
 				mesh = box(FIELD.brickWidth, FIELD.brickHeight, 0.7, color, brick.x, brick.y, 0.2); brickMeshes.set(brick.id, mesh);
 				const indicators = [];
-				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y, 0.56));
-				if (brick.power) { indicators.push(box(brick.power === "wide" ? 0.65 : 0.12, 0.1, 0.03, 0x233348, brick.x, brick.y + 0.16, 0.57)); }
+				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y - (brick.power ? 0.25 : 0), 0.56));
+				if (brick.power) { const label = new THREE.Mesh(labelGeometry, labelMaterials[brick.power]); label.position.set(brick.x, brick.y + 0.05, 0.57); scene.add(label); indicators.push(label); }
 				marks.set(brick.id, indicators);
 			}
 			mesh.visible = brick.hits > 0;
@@ -95,8 +112,8 @@ export function createScene(host: HTMLDivElement) {
 		for (const [id, mesh] of drops) if (!game.drops.some(drop => drop.id === id)) { scene.remove(mesh); drops.delete(id); }
 		for (const drop of game.drops) {
 			let mesh = drops.get(drop.id);
-			if (!mesh) { mesh = box(0.65, 0.65, 0.65, powerColor[drop.power], drop.x, drop.y, 0.45); drops.set(drop.id, mesh); }
-			mesh.position.y = drop.y; mesh.rotation.z = game.time * 1.8; mesh.rotation.x = game.time;
+			if (!mesh) { mesh = box(0.65, 0.65, 0.65, powerColor[drop.power], drop.x, drop.y, 0.45); const label = new THREE.Mesh(labelGeometry, labelMaterials[drop.power]); label.position.z = 0.335; mesh.add(label); drops.set(drop.id, mesh); }
+			mesh.position.y = drop.y; mesh.rotation.z = Math.sin(game.time * 2) * 0.15;
 		}
 		hadSight = sight;
 		renderer.render(scene, camera);
@@ -111,6 +128,6 @@ export function createScene(host: HTMLDivElement) {
 			raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1), camera);
 			return raycaster.ray.intersectPlane(plane, target)?.x ?? 9;
 		},
-		dispose() { observer.disconnect(); trajectories.forEach(line => line.geometry.dispose()); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); },
+		dispose() { observer.disconnect(); trajectories.forEach(line => line.geometry.dispose()); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); renderer.dispose(); renderer.domElement.remove(); },
 	};
 }
