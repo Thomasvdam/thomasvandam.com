@@ -56,6 +56,11 @@ export class BreakoutSound {
 				case "duplicate": this.notes([440, 554, 659, 880], 0.065); break;
 				case "sight": this.notes([523, 784, 1047], 0.1); break;
 				case "top": this.notes([392, 587, 784], 0.08); break;
+				case "piercing": this.notes([740, 988], 0.07); break;
+				case "fire": this.notes([196, 392, 587], 0.08); break;
+				case "ghost": this.notes([880, 1320], 0.12); break;
+				case "homing": this.notes([494, 622, 740], 0.08); break;
+				case "apply": this.tone(600, 1200, 0.09, "sine", 0.1); break;
 				case "life": this.notes([330, 247, 165], 0.12); break;
 				case "lost": this.notes([392, 330, 247, 131], 0.16); break;
 				case "won": this.notes([523, 659, 784, 1047], 0.13); break;

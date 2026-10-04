@@ -33,9 +33,9 @@ export function createScene(host: HTMLDivElement) {
 	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => box(WING_SEGMENT - 0.015, 0.4, 0.65, 0xb2f078, 9 + side * (1.5 + (i + 0.5) * WING_SEGMENT), 2, 0.25)));
 	const topPaddle = box(3, 0.4, 0.65, 0x59ead4, 9, FIELD.topPaddleY, 0.25);
 	const topCharge = Array.from({ length: 7 }, (_, i) => box(0.34, 0.11, 0.02, 0xeaf8ff, 9 + (i - 3) * 0.4, FIELD.topPaddleY, 0.59));
-	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, random: 0xeaf1f8 };
+	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8 };
 	const labelGeometry = new THREE.PlaneGeometry(0.45, 0.45); geometries.push(labelGeometry);
-	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", random: "?" }).map(([type, glyph]) => {
+	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?" }).map(([type, glyph]) => {
 		const canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 128;
 		const context = canvas.getContext("2d")!;
 		context.fillStyle = "#233348"; context.font = "bold 100px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; context.fillText(glyph, 64, 69);
@@ -52,9 +52,17 @@ export function createScene(host: HTMLDivElement) {
 	const balls = new Map<number, THREE.Mesh>();
 	const drops = new Map<number, THREE.Mesh>();
 	const sphere = new THREE.SphereGeometry(FIELD.radius, 16, 12); geometries.push(sphere);
-	const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x83bfff, emissiveIntensity: 0.4 }); materials.push(ballMaterial);
+	const ballMaterials = Object.fromEntries(Object.entries({ normal: 0xffffff, piercing: powerColor.piercing, fire: powerColor.fire, ghost: powerColor.ghost, homing: powerColor.homing }).map(([effect, color]) => {
+		const material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: effect === "fire" ? 0.8 : 0.35, transparent: effect === "ghost", opacity: effect === "ghost" ? 0.35 : 1, depthWrite: effect !== "ghost" });
+		materials.push(material); return [effect, material];
+	}));
+	const queuedLabel = new THREE.Mesh(labelGeometry, labelMaterials.piercing); scene.add(queuedLabel);
 	function sync(game: Game) {
 		paddle.position.x = game.paddleX;
+		const queued = game.queuedPowers[0]; queuedLabel.visible = !!queued; queuedLabel.position.set(game.paddleX, FIELD.paddleY, 0.59); queuedLabel.scale.setScalar(0.7);
+		if (queued) queuedLabel.material = labelMaterials[queued];
+		const paddleMaterial = paddle.material as THREE.MeshStandardMaterial;
+		paddleMaterial.color.setHex(queued ? powerColor[queued] : 0xeaf8ff);
 		const topRemaining = Math.max(0, game.topUntil - game.time);
 		topPaddle.visible = topRemaining > 0 && (game.mode === "playing" || game.mode === "paused");
 		topPaddle.position.x = game.paddleX;
@@ -106,7 +114,8 @@ export function createScene(host: HTMLDivElement) {
 		for (const [id, mesh] of balls) if (!game.balls.some(ball => ball.id === id)) { scene.remove(mesh); balls.delete(id); }
 		for (const ball of game.balls) {
 			let mesh = balls.get(ball.id);
-			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterial); mesh.castShadow = true; scene.add(mesh); balls.set(ball.id, mesh); }
+			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.castShadow = true; scene.add(mesh); balls.set(ball.id, mesh); }
+			mesh.material = ballMaterials[ball.effect ?? "normal"]; mesh.castShadow = ball.effect !== "ghost";
 			mesh.position.set(ball.x, ball.y, 0.42);
 		}
 		for (const [id, mesh] of drops) if (!game.drops.some(drop => drop.id === id)) { scene.remove(mesh); drops.delete(id); }
