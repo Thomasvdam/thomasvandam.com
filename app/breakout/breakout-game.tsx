@@ -6,7 +6,7 @@ import { ArrowLeft, Pause, Play, RotateCcw } from "lucide-react";
 import { launch, movePaddle, newGame, step, type Game } from "./game";
 import styles from "./breakout.module.css";
 
-const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, bricks: 40, balls: 1, wide: 0 };
+const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, bricks: 40, balls: 1, leftHits: 0, rightHits: 0, sight: 0 };
 export function BreakoutGame() {
 	const host = useRef<HTMLDivElement>(null);
 	const game = useRef(newGame());
@@ -24,7 +24,7 @@ export function BreakoutGame() {
 			const keys = new Set<string>();
 			const paint = () => {
 				const g = game.current;
-				setView({ mode: g.mode, score: g.score, lives: g.lives, bricks: g.bricks.filter(b => b.hits > 0).length, balls: g.balls.length, wide: Math.max(0, Math.ceil(g.wideUntil - g.time)) });
+				setView({ mode: g.mode, score: g.score, lives: g.lives, bricks: g.bricks.filter(b => b.hits > 0).length, balls: g.balls.length, leftHits: g.leftHits, rightHits: g.rightHits, sight: Math.max(0, Math.ceil(g.sightUntil - g.time)) });
 			};
 			action.current = kind => {
 				if (kind === "reset") game.current = newGame();
@@ -84,8 +84,9 @@ export function BreakoutGame() {
 				<div className={styles.legend}>
 					<div><i className={styles.normal} /><span>Classic brick<small>One hit and it’s gone</small></span></div>
 					<div><i className={styles.armored} /><span>Armored brick<small>Two or three hits · count the dots</small></span></div>
-					<div><i className={styles.wide} /><span>Wide paddle<small>Catch the green box · 16 seconds</small></span></div>
-					<div><i className={styles.extra} /><span>Extra ball<small>Catch the violet box · keep both alive</small></span></div>
+					<div><i className={styles.wide} /><span>Wide paddle<small>Green extensions · five hits on each side</small></span></div>
+					<div><i className={styles.duplicate} /><span>Duplicate balls<small>Double every ball · up to 64 in play</small></span></div>
+					<div><i className={styles.sight} /><span>Future Sight<small>Pink box · two-second paths for 12 seconds</small></span></div>
 				</div>
 				<p className={styles.controls}>Move your mouse or drag to steer.<br />Keyboard: ← → or A / D to move.<br />Click, tap, or Space to launch.<br />Space / P / Esc to pause.</p>
 				<p className={styles.footnote}>One level. Three lives. Forty bricks.</p>
@@ -101,7 +102,7 @@ export function BreakoutGame() {
 						{loaded && !error && <button onClick={() => action.current(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : "Play again"}<Play size={15} /></button>}
 					</div>}
 				</div>
-				<div className={styles.toolbar}><span>{view.wide ? `Wide paddle · ${view.wide}s` : view.balls > 1 ? `${view.balls} balls in play` : "Keep your eye on the ball"}</span><div><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => action.current("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => action.current("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
+				<div className={styles.toolbar}><span>{[view.leftHits || view.rightHits ? `Extensions L ${view.leftHits}/5 · R ${view.rightHits}/5` : "", view.sight ? `Future Sight ${view.sight}s` : "", view.balls > 1 ? `${view.balls} balls` : ""].filter(Boolean).join(" / ") || "Keep your eye on the ball"}</span><div><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => action.current("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => action.current("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
 			</section>
 		</div>
 	</div>;

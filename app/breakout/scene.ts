@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { FIELD, paddleWidth, type Game } from "./game";
+import { FIELD, forecast, WING_SEGMENT, type Game } from "./game";
 
 export function createScene(host: HTMLDivElement) {
 	const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -28,7 +28,14 @@ export function createScene(host: HTMLDivElement) {
 	box(18, 0.3, 0.8, 0x425570, 9, 25.85, 0);
 	// Subtle floor grid makes the extrusion and ball shadows legible.
 	for (let y = 1; y < 26; y += 1) box(17.4, 0.012, 0.01, 0x243349, 9, y, -0.68);
-	const paddle = box(1, 0.4, 0.65, 0xeaf8ff, 9, 2, 0.25);
+	const paddle = box(3, 0.4, 0.65, 0xeaf8ff, 9, 2, 0.25);
+	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => box(WING_SEGMENT - 0.015, 0.4, 0.65, 0xb2f078, 9 + side * (1.5 + (i + 0.5) * WING_SEGMENT), 2, 0.25)));
+	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7 };
+	const trajectoryMaterial = new THREE.LineDashedMaterial({ color: 0xffa7ca, transparent: true, opacity: 0.65, dashSize: 0.16, gapSize: 0.12, depthTest: false });
+	materials.push(trajectoryMaterial);
+	const trajectories = new Map<number, THREE.Line>();
+	let hadSight = false;
+	let lastForecast = -Infinity, forecastX = NaN, forecastTime = NaN, forecastIds = "";
 	const brickMeshes = new Map<number, THREE.Mesh>();
 	const marks = new Map<number, THREE.Mesh[]>();
 	const balls = new Map<number, THREE.Mesh>();
@@ -36,11 +43,38 @@ export function createScene(host: HTMLDivElement) {
 	const sphere = new THREE.SphereGeometry(FIELD.radius, 16, 12); geometries.push(sphere);
 	const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x83bfff, emissiveIntensity: 0.4 }); materials.push(ballMaterial);
 	function sync(game: Game) {
-		paddle.position.x = game.paddleX; paddle.scale.x = paddleWidth(game);
+		paddle.position.x = game.paddleX;
+		wings.forEach((segments, side) => segments.forEach((segment, i) => {
+			segment.visible = i < (side === 0 ? game.leftHits : game.rightHits);
+			segment.position.x = game.paddleX + (side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT);
+		}));
+		const sight = game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
+		for (const [id, line] of trajectories) {
+			line.visible = sight;
+			if (!game.balls.some(ball => ball.id === id)) { scene.remove(line); line.geometry.dispose(); trajectories.delete(id); }
+		}
+		const ids = game.balls.map(ball => ball.id).join(",");
+		const now = performance.now();
+		const forecastInterval = game.balls.length > 16 ? 1000 / 12 : 1000 / 30;
+		if (sight && (!hadSight || (now - lastForecast >= forecastInterval && (game.time !== forecastTime || game.paddleX !== forecastX)) || ids !== forecastIds || game.time < forecastTime)) {
+			for (const path of forecast(game)) {
+				let line = trajectories.get(path.id);
+				if (!line) {
+					const geometry = new THREE.BufferGeometry();
+					geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(241 * 3), 3));
+					line = new THREE.Line(geometry, trajectoryMaterial); line.renderOrder = 1; line.frustumCulled = false; scene.add(line); trajectories.set(path.id, line);
+				}
+				const positions = line.geometry.getAttribute("position") as THREE.BufferAttribute;
+				path.points.forEach((p, i) => positions.setXYZ(i, p.x, p.y, 0.44));
+				positions.needsUpdate = true; line.geometry.setDrawRange(0, path.points.length);
+				line.computeLineDistances(); line.visible = true;
+			}
+			lastForecast = now; forecastX = game.paddleX; forecastTime = game.time; forecastIds = ids;
+		}
 		for (const brick of game.bricks) {
 			let mesh = brickMeshes.get(brick.id);
 			if (!mesh) {
-				const color = brick.power ? (brick.power === "wide" ? 0xb2f078 : 0xc3a0ff) : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
+				const color = brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
 				mesh = box(FIELD.brickWidth, FIELD.brickHeight, 0.7, color, brick.x, brick.y, 0.2); brickMeshes.set(brick.id, mesh);
 				const indicators = [];
 				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y, 0.56));
@@ -61,9 +95,10 @@ export function createScene(host: HTMLDivElement) {
 		for (const [id, mesh] of drops) if (!game.drops.some(drop => drop.id === id)) { scene.remove(mesh); drops.delete(id); }
 		for (const drop of game.drops) {
 			let mesh = drops.get(drop.id);
-			if (!mesh) { mesh = box(0.65, 0.65, 0.65, drop.power === "wide" ? 0xb2f078 : 0xc3a0ff, drop.x, drop.y, 0.45); drops.set(drop.id, mesh); }
+			if (!mesh) { mesh = box(0.65, 0.65, 0.65, powerColor[drop.power], drop.x, drop.y, 0.45); drops.set(drop.id, mesh); }
 			mesh.position.y = drop.y; mesh.rotation.z = game.time * 1.8; mesh.rotation.x = game.time;
 		}
+		hadSight = sight;
 		renderer.render(scene, camera);
 	}
 	const resize = () => { renderer.setSize(host.clientWidth, host.clientHeight); };
@@ -76,6 +111,6 @@ export function createScene(host: HTMLDivElement) {
 			raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1), camera);
 			return raycaster.ray.intersectPlane(plane, target)?.x ?? 9;
 		},
-		dispose() { observer.disconnect(); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); },
+		dispose() { observer.disconnect(); trajectories.forEach(line => line.geometry.dispose()); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove(); },
 	};
 }
