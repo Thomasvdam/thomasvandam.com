@@ -2,19 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Pause, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { launch, movePaddle, newGame, step, type Game } from "./game";
+import { BreakoutSound } from "./sound";
 import styles from "./breakout.module.css";
 
 const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, bricks: 40, balls: 1, leftHits: 0, rightHits: 0, sight: 0, top: 0 };
 export function BreakoutGame() {
 	const host = useRef<HTMLDivElement>(null);
 	const game = useRef(newGame());
+	const speaker = useRef<BreakoutSound | null>(null);
 	const action = useRef<(kind: "launch" | "pause" | "reset") => void>(() => {});
+	const [muted, setMuted] = useState(false);
+	const [audioUnavailable, setAudioUnavailable] = useState(false);
 	const [view, setView] = useState(initial);
 	const [loaded, setLoaded] = useState(false);
 	const [error, setError] = useState("");
 	useEffect(() => {
+		const sound = new BreakoutSound(); speaker.current = sound;
 		let disposed = false, cleanup: (() => void) | undefined;
 		import("./scene").then(({ createScene }) => {
 			if (disposed || !host.current) return;
@@ -27,10 +32,13 @@ export function BreakoutGame() {
 				setView({ mode: g.mode, score: g.score, lives: g.lives, bricks: g.bricks.filter(b => b.hits > 0).length, balls: g.balls.length, leftHits: g.leftHits, rightHits: g.rightHits, sight: Math.max(0, Math.ceil(g.sightUntil - g.time)), top: Math.max(0, Math.ceil(g.topUntil - g.time)) });
 			};
 			action.current = kind => {
-				if (kind === "reset") game.current = newGame();
-				else if (kind === "launch") launch(game.current);
-				else if (game.current.mode === "playing") game.current.mode = "paused";
-				else if (game.current.mode === "paused") game.current.mode = "playing";
+				if (kind === "reset") { sound.silence(); game.current = newGame(); }
+				else if (kind === "launch" && game.current.mode === "ready") {
+					const launched = game.current; launch(launched);
+					void sound.unlock().then(enabled => { if (disposed) return; setAudioUnavailable(!enabled); if (game.current === launched && launched.mode === "playing") sound.play("launch"); });
+				}
+				else if (kind === "pause" && game.current.mode === "playing") { game.current.mode = "paused"; sound.silence(); }
+				else if (kind === "pause" && game.current.mode === "paused") { game.current.mode = "playing"; void sound.unlock().then(enabled => { if (!disposed) setAudioUnavailable(!enabled); }); }
 				paint();
 			};
 			const pointer = (event: PointerEvent) => {
@@ -56,7 +64,7 @@ export function BreakoutGame() {
 				while (accumulated >= 1 / 120) {
 					const direction = Number(keys.has("arrowright") || keys.has("d")) - Number(keys.has("arrowleft") || keys.has("a"));
 					if (game.current.mode === "playing" || game.current.mode === "ready") movePaddle(game.current, game.current.paddleX + direction * 20 / 120);
-					step(game.current, 1 / 120); accumulated -= 1 / 120;
+					step(game.current, 1 / 120, true, Math.random, event => sound.play(event)); accumulated -= 1 / 120;
 				}
 				scene.sync(game.current);
 				if (now - lastUI > 100) { paint(); lastUI = now; }
@@ -71,8 +79,14 @@ export function BreakoutGame() {
 				window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("blur", blur); document.removeEventListener("visibilitychange", visibility);
 			};
 		}).catch(() => { if (!disposed) setError("This experiment needs WebGL. Try a browser with hardware acceleration enabled."); });
-		return () => { disposed = true; cleanup?.(); };
+		return () => { disposed = true; cleanup?.(); sound.dispose(); if (speaker.current === sound) speaker.current = null; };
 	}, []);
+	const toggleSound = () => {
+		const next = audioUnavailable ? false : !muted;
+		setMuted(next); speaker.current?.setMuted(next);
+		const sound = speaker.current;
+		if (!next) void sound?.unlock().then(enabled => { if (speaker.current === sound) setAudioUnavailable(!enabled); });
+	};
 	const overlay = view.mode !== "playing";
 	return <div className={styles.page}>
 		<header className={styles.header}><Link href="/" className={styles.back}><ArrowLeft size={16} /> Thomas van Dam</Link><span className={styles.eyebrow}>Game experiment / 01</span></header>
@@ -104,7 +118,7 @@ export function BreakoutGame() {
 						{loaded && !error && <button onClick={() => action.current(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : "Play again"}<Play size={15} /></button>}
 					</div>}
 				</div>
-				<div className={styles.toolbar}><span>{[view.leftHits || view.rightHits ? `Extensions L ${view.leftHits}/5 · R ${view.rightHits}/5` : "", view.sight ? `Future Sight ${view.sight}s` : "", view.top ? `Top paddle ${view.top}s` : "", view.balls > 1 ? `${view.balls} balls` : ""].filter(Boolean).join(" / ") || "Keep your eye on the ball"}</span><div><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => action.current("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => action.current("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
+				<div className={styles.toolbar}><span>{[view.leftHits || view.rightHits ? `Extensions L ${view.leftHits}/5 · R ${view.rightHits}/5` : "", view.sight ? `Future Sight ${view.sight}s` : "", view.top ? `Top paddle ${view.top}s` : "", view.balls > 1 ? `${view.balls} balls` : ""].filter(Boolean).join(" / ") || "Keep your eye on the ball"}</span><div><button onClick={toggleSound} aria-label={audioUnavailable ? "Retry sound" : muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted} title={audioUnavailable ? "Sound unavailable — click to retry" : muted ? "Unmute sound" : "Mute sound"}>{muted || audioUnavailable ? <VolumeX size={17} /> : <Volume2 size={17} />}</button><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => action.current("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => action.current("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
 			</section>
 		</div>
 	</div>;

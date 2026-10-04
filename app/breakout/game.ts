@@ -2,6 +2,8 @@
 export const FIELD = { width: 18, height: 26, paddleY: 2, topPaddleY: 24, radius: 0.24, brickWidth: 1.8, brickHeight: 0.8 };
 export const POWER_TYPES = ["wide", "duplicate", "sight", "top"] as const;
 export type Power = typeof POWER_TYPES[number];
+export type GameEvent = Power | "launch" | "wall" | "paddle" | "topBounce" | "chip" | "hit" | "break" | "drop" | "life" | "lost" | "won";
+export type EventSink = (event: GameEvent) => void;
 export type Ball = { id: number; x: number; y: number; vx: number; vy: number };
 export type Brick = { id: number; x: number; y: number; hits: number; maxHits: number; power?: Power | "random" };
 export type Drop = { id: number; x: number; y: number; power: Power };
@@ -30,13 +32,14 @@ export function movePaddle(game: Game, x: number) {
 	game.paddleX = clamp(x, 1.8 + game.leftHits * WING_SEGMENT, FIELD.width - 1.8 - game.rightHits * WING_SEGMENT);
 	if (game.mode === "ready") { game.balls[0].x = game.paddleX; }
 }
-export function launch(game: Game) {
+export function launch(game: Game, emit?: EventSink) {
 	if (game.mode !== "ready") return;
 	game.mode = "playing";
 	game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
 	game.balls[0].vx = 3.4; game.balls[0].vy = 10;
+	emit?.("launch");
 }
-export function collectPower(game: Game, power: Power) {
+export function collectPower(game: Game, power: Power, emit?: EventSink) {
 	if (power === "wide") { game.leftHits = 5; game.rightHits = 5; movePaddle(game, game.paddleX); }
 	else if (power === "top") game.topUntil = game.time + TOP_DURATION;
 	else if (power === "sight") game.sightUntil = Math.max(game.time, game.sightUntil) + SIGHT_DURATION;
@@ -51,30 +54,32 @@ export function collectPower(game: Game, power: Power) {
 			game.balls.push({ id: game.nextId++, x: source.x, y: source.y, vx: Math.sign(Math.cos(angle)) * Math.sqrt(Math.max(0, speed * speed - vertical * vertical)), vy: vertical });
 		}
 	}
+	emit?.(power);
 }
-export function step(game: Game, dt: number, powerDrops = true, random: () => number = Math.random) {
+export function step(game: Game, dt: number, powerDrops = true, random: () => number = Math.random, onEvent?: EventSink) {
 	if (game.mode !== "playing") return;
+	const emit = powerDrops ? onEvent : undefined;
 	game.time += dt;
 	movePaddle(game, game.paddleX);
 	const r = FIELD.radius;
 	for (const ball of game.balls) {
 		const oldX = ball.x, oldY = ball.y;
 		ball.x += ball.vx * dt; ball.y += ball.vy * dt;
-		if (ball.x < 0.3 + r || ball.x > FIELD.width - 0.3 - r) { ball.x = clamp(ball.x, 0.3 + r, FIELD.width - 0.3 - r); ball.vx *= -1; }
-		if (ball.y > FIELD.height - 0.3 - r) { ball.y = FIELD.height - 0.3 - r; ball.vy = -Math.abs(ball.vy); }
+		if (ball.x < 0.3 + r || ball.x > FIELD.width - 0.3 - r) { ball.x = clamp(ball.x, 0.3 + r, FIELD.width - 0.3 - r); ball.vx *= -1; emit?.("wall"); }
+		if (ball.y > FIELD.height - 0.3 - r) { ball.y = FIELD.height - 0.3 - r; ball.vy = -Math.abs(ball.vy); emit?.("wall"); }
 		const topFace = FIELD.topPaddleY - 0.2 - r;
 		if (game.topUntil > game.time && ball.vy > 0 && oldY <= topFace && ball.y >= topFace && Math.abs(ball.x - game.paddleX) < 1.5 + r) {
 			const angle = clamp((ball.x - game.paddleX) / 1.5, -1, 1) * 1.05;
 			const speed = Math.min(15, Math.hypot(ball.vx, ball.vy) + 0.12);
-			ball.vx = Math.sin(angle) * speed; ball.vy = -Math.cos(angle) * speed; ball.y = topFace;
+			ball.vx = Math.sin(angle) * speed; ball.vy = -Math.cos(angle) * speed; ball.y = topFace; emit?.("topBounce");
 		}
 		const bounds = paddleBounds(game);
 		if (ball.vy < 0 && oldY >= FIELD.paddleY + 0.2 + r && ball.y <= FIELD.paddleY + 0.2 + r && ball.x > bounds.left - r && ball.x < bounds.right + r) {
 			const offset = clamp((ball.x - (bounds.left + bounds.right) / 2) / (paddleWidth(game) / 2), -1, 1);
-			if (ball.x < game.paddleX - 1.5 && game.leftHits > 0) game.leftHits--;
-			else if (ball.x > game.paddleX + 1.5 && game.rightHits > 0) game.rightHits--;
+			if (ball.x < game.paddleX - 1.5 && game.leftHits > 0) { game.leftHits--; emit?.("chip"); }
+			else if (ball.x > game.paddleX + 1.5 && game.rightHits > 0) { game.rightHits--; emit?.("chip"); }
 			const angle = offset * 1.05, speed = Math.min(15, Math.hypot(ball.vx, ball.vy) + 0.12);
-			ball.vx = Math.sin(angle) * speed; ball.vy = Math.cos(angle) * speed; ball.y = FIELD.paddleY + 0.2 + r;
+			ball.vx = Math.sin(angle) * speed; ball.vy = Math.cos(angle) * speed; ball.y = FIELD.paddleY + 0.2 + r; emit?.("paddle");
 		}
 		for (const brick of game.bricks) {
 			if (brick.hits <= 0) continue;
@@ -83,7 +88,7 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 			if (Math.abs(oldX - brick.x) >= hw) { ball.vx *= -1; ball.x = brick.x + Math.sign(oldX - brick.x) * hw; }
 			else { ball.vy *= -1; ball.y = brick.y + Math.sign(oldY - brick.y) * hh; }
 			game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
-			brick.hits--; game.score += brick.hits ? 10 : 50;
+			brick.hits--; emit?.(brick.hits ? "hit" : "break"); game.score += brick.hits ? 10 : 50;
 			if (powerDrops && !brick.hits && brick.power) game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: brick.power === "random" ? POWER_TYPES[Math.floor(random() * POWER_TYPES.length)] : brick.power });
 			break;
 		}
@@ -91,18 +96,18 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 	game.balls = game.balls.filter(ball => ball.y > -1);
 	for (const drop of powerDrops ? game.drops : []) {
 		drop.y -= dt * 4.5;
-		if (Math.abs(drop.y - FIELD.paddleY) < 0.5 && drop.x > paddleBounds(game).left - 0.35 && drop.x < paddleBounds(game).right + 0.35) { collectPower(game, drop.power); drop.y = -2; }
+		if (Math.abs(drop.y - FIELD.paddleY) < 0.5 && drop.x > paddleBounds(game).left - 0.35 && drop.x < paddleBounds(game).right + 0.35) { collectPower(game, drop.power, emit); drop.y = -2; }
 	}
 	game.drops = game.drops.filter(drop => drop.y > -1);
-	if (game.bricks.every(brick => brick.hits === 0)) { game.mode = "won"; return; }
+	if (game.bricks.every(brick => brick.hits === 0)) { game.mode = "won"; emit?.("won"); return; }
 	if (!game.balls.length) {
 		game.lives--; game.drops = []; game.leftHits = 0; game.rightHits = 0; game.sightUntil = 0; game.topUntil = 0;
-		if (!game.lives) game.mode = "lost";
-		else { game.mode = "ready"; game.balls = [{ id: game.nextId++, x: game.paddleX, y: 2.65, vx: 0, vy: 0 }]; }
+		if (!game.lives) { game.mode = "lost"; emit?.("lost"); }
+		else { emit?.("life"); game.mode = "ready"; game.balls = [{ id: game.nextId++, x: game.paddleX, y: 2.65, vx: 0, vy: 0 }]; }
 	}
 	if (powerDrops && game.mode === "playing" && game.time >= game.nextSightDropAt) {
 		game.drops.push({ id: game.nextId++, x: game.paddleX, y: FIELD.height / 2, power: "sight" });
-		game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
+		game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL; emit?.("drop");
 	}
 }
 
