@@ -4,7 +4,7 @@ import { BreakoutGame } from "./breakout-game";
 
 export const metadata: Metadata = {
 	title: "Breakout — Thomas van Dam",
-	description: "A three-dimensional Breakout experiment. Forty bricks, eight power-ups, one level.",
+	description: "A three-dimensional Breakout experiment. Three increasingly large brick patterns, eight power-ups, and a classic brought into 3D.",
 };
 
 export default function BreakoutPage() {

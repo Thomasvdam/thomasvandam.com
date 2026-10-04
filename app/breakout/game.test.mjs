@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { collectPower, forecast, launch, MAX_BALLS, movePaddle, newGame, paddleBounds, paddleWidth, BALL_POWER_TYPES, POWER_TYPES, step } from "./game";
+import { collectPower, forecast, launch, MAX_BALLS, movePaddle, newGame, nextLevel, paddleBounds, paddleWidth, BALL_POWER_TYPES, POWER_TYPES, step } from "./game";
 
 describe("Breakout simulation", () => {
 	test("level contains all brick types and a ball follows the paddle before launch", () => {
@@ -225,8 +225,8 @@ describe("Breakout simulation", () => {
 		g.balls[0].y = -2; step(g, 1 / 120); expect(g.lives).toBe(3);
 		g.balls[0].y = -2; step(g, 1 / 120); expect(g.lives).toBe(2); expect(g.mode).toBe("ready");
 	});
-	test("last brick wins, last life loses, and restart restores the level", () => {
-		const g = newGame(); launch(g); g.bricks.forEach(b => b.hits = 0); step(g, 1 / 120); expect(g.mode).toBe("won");
+	test("last brick clears the level, last life loses, and restart restores the level", () => {
+		const g = newGame(); launch(g); g.bricks.forEach(b => b.hits = 0); step(g, 1 / 120); expect(g.mode).toBe("cleared");
 		const lost = newGame(); launch(lost); lost.lives = 1; lost.balls[0].y = -2; step(lost, 1 / 120); expect(lost.mode).toBe("lost");
 		expect(newGame().lives).toBe(3);
 	});
