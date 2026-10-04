@@ -52,6 +52,7 @@ export function createScene(host: HTMLDivElement) {
 	const marks = new Map<number, THREE.Mesh[]>();
 	const balls = new Map<number, THREE.Mesh>();
 	const drops = new Map<number, THREE.Mesh>();
+	const ballIds = new Set<number>(), brickIds = new Set<number>(), blastIds = new Set<number>(), dropIds = new Set<number>();
 	const sphere = new THREE.SphereGeometry(FIELD.radius, 16, 12); geometries.push(sphere);
 	const auraGeometry = new THREE.TorusGeometry(FIELD.radius * 1.45, 0.025, 6, 24); geometries.push(auraGeometry);
 	const slowAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.slow.color }), speedAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.speed.color }); const rewindAura = new THREE.MeshBasicMaterial({ color: powerColor.rewind }); materials.push(slowAura, speedAura, rewindAura);
@@ -86,11 +87,13 @@ export function createScene(host: HTMLDivElement) {
 			segment.position.x = game.paddleX + (side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT) * paddleScale(game); segment.scale.x = paddleScale(game);
 		}));
 		const sight = game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
+		ballIds.clear();
+		for (const ball of game.balls) ballIds.add(ball.id);
 		for (const [id, line] of trajectories) {
 			line.visible = sight;
-			if (!game.balls.some(ball => ball.id === id)) { scene.remove(line); line.geometry.dispose(); trajectories.delete(id); }
+			if (!ballIds.has(id)) { scene.remove(line); line.geometry.dispose(); trajectories.delete(id); }
 		}
-		const ids = game.balls.map(ball => ball.id).join(",");
+		const ids = sight ? game.balls.map(ball => ball.id).join(",") : "";
 		const now = performance.now();
 		const forecastInterval = game.balls.length > 16 ? 1000 / 12 : 1000 / 30;
 		if (sight && (!hadSight || (now - lastForecast >= forecastInterval && (game.time !== forecastTime || game.paddleX !== forecastX)) || ids !== forecastIds || game.time < forecastTime)) {
@@ -108,8 +111,9 @@ export function createScene(host: HTMLDivElement) {
 			}
 			lastForecast = now; forecastX = game.paddleX; forecastTime = game.time; forecastIds = ids;
 		}
-		const boardIds = new Set(game.bricks.map(brick => brick.id));
-		for (const [id, mesh] of brickMeshes) if (!boardIds.has(id)) {
+		brickIds.clear();
+		for (const brick of game.bricks) brickIds.add(brick.id);
+		for (const [id, mesh] of brickMeshes) if (!brickIds.has(id)) {
 			for (const removed of [mesh, ...(marks.get(id) ?? [])]) {
 				scene.remove(removed);
 				if (removed.geometry !== labelGeometry) { removed.geometry.dispose(); const index = geometries.indexOf(removed.geometry); if (index >= 0) geometries.splice(index, 1); }
@@ -139,7 +143,7 @@ export function createScene(host: HTMLDivElement) {
 				mark.position.set(i < brick.maxHits ? brick.x + (i - (brick.maxHits - 1) / 2) * 0.23 : brick.x, i < brick.maxHits ? brick.y - (brick.power || brick.type ? brick.height * 0.32 : 0) : brick.y + 0.05, i < brick.maxHits ? 0.56 : 0.57);
 			});
 		}
-		for (const [id, mesh] of balls) if (!game.balls.some(ball => ball.id === id)) { scene.remove(mesh); balls.delete(id); }
+		for (const [id, mesh] of balls) if (!ballIds.has(id)) { scene.remove(mesh); balls.delete(id); }
 		for (const ball of game.balls) {
 			let mesh = balls.get(ball.id);
 			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.castShadow = true; const aura = new THREE.Mesh(auraGeometry, speedAura); aura.position.z = 0.06; mesh.add(aura); scene.add(mesh); balls.set(ball.id, mesh); }
@@ -150,13 +154,17 @@ export function createScene(host: HTMLDivElement) {
 			aura.visible = rewinding || slowed || (ball.speedBoost ?? 1) > 1; aura.material = rewinding ? rewindAura : slowed ? slowAura : speedAura;
 			aura.scale.setScalar(rewinding ? 1.1 + 0.1 * Math.sin(game.time * 15) : 1);
 		}
-		for (const [id, mesh] of blastMeshes) if (!game.blasts.some(blast => blast.id === id)) { scene.remove(mesh); blastMeshes.delete(id); }
+		blastIds.clear();
+		for (const blast of game.blasts) blastIds.add(blast.id);
+		for (const [id, mesh] of blastMeshes) if (!blastIds.has(id)) { scene.remove(mesh); blastMeshes.delete(id); }
 		for (const blast of game.blasts) {
 			let mesh = blastMeshes.get(blast.id);
 			if (!mesh) { mesh = new THREE.Mesh(blastGeometry, blastMaterial); scene.add(mesh); blastMeshes.set(blast.id, mesh); }
 			mesh.position.set(blast.x, blast.y, 0.5);
 		}
-		for (const [id, mesh] of drops) if (!game.drops.some(drop => drop.id === id)) { scene.remove(mesh); drops.delete(id); }
+		dropIds.clear();
+		for (const drop of game.drops) dropIds.add(drop.id);
+		for (const [id, mesh] of drops) if (!dropIds.has(id)) { scene.remove(mesh); drops.delete(id); }
 		for (const drop of game.drops) {
 			let mesh = drops.get(drop.id);
 			if (!mesh) { mesh = box(0.65, 0.65, 0.65, powerColor[drop.power], drop.x, drop.y, 0.45); const label = new THREE.Mesh(labelGeometry, labelMaterials[drop.power]); label.position.z = 0.335; mesh.add(label); drops.set(drop.id, mesh); }

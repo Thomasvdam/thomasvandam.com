@@ -3,98 +3,32 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
-import { launch, movePaddle, newGame, nextLevel, releaseBalls, destructible, step, type Game, type BallPower } from "./game";
 import type { LevelDefinition } from "./level-format";
 import { BRICK_TYPES } from "./brick-types";
 import { LEVELS } from "./levels";
-import { BreakoutSound } from "./sound";
-import { bindPaddlePointer } from "./pointer-controls";
+import { createBreakoutRuntime, viewFromGame, type BreakoutRuntime, type BreakoutView } from "./breakout-runtime";
+import { newGame, type Game } from "./game";
 import styles from "./breakout.module.css";
 
-const initial = { mode: "ready" as Game["mode"], score: 0, lives: 3, level: 0, total: 0, bricks: 0, balls: 1, leftHits: 0, rightHits: 0, sight: 0, top: 0, stun: 0, rewind: 0, sticky: 0, laser: 0, shrink: 0, armour: false, attached: 0, queued: [] as BallPower[] };
 export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } = {}) {
 	const host = useRef<HTMLDivElement>(null);
-	const game = useRef(newGame(customLevel));
-	const speaker = useRef<BreakoutSound | null>(null);
-	const action = useRef<(kind: "launch" | "pause" | "reset" | "next") => void>(() => {});
+	const [game] = useState<Game>(() => newGame(customLevel));
+	const runtime = useRef<BreakoutRuntime | null>(null);
 	const [muted, setMuted] = useState(false);
 	const [audioUnavailable, setAudioUnavailable] = useState(false);
-	const [view, setView] = useState(() => { const count = newGame(customLevel).bricks.filter(destructible).length; return { ...initial, total: count, bricks: count }; });
+	const [view, setView] = useState<BreakoutView>(() => viewFromGame(game));
 	const [loaded, setLoaded] = useState(false);
 	const [error, setError] = useState("");
 	useEffect(() => {
-		const sound = new BreakoutSound(); speaker.current = sound;
-		let disposed = false, cleanup: (() => void) | undefined;
-		import("./scene").then(({ createScene }) => {
-			if (disposed || !host.current) return;
-			const element = host.current;
-			const scene = createScene(element);
-			let frame = 0, previous = performance.now(), accumulated = 0, lastUI = 0;
-			const keys = new Set<string>();
-			const paint = () => {
-				const g = game.current;
-				setView({ mode: g.mode, score: g.score, lives: g.lives, level: g.level, total: g.bricks.filter(destructible).length, bricks: g.bricks.filter(b => destructible(b) && b.hits > 0).length, balls: g.balls.length, leftHits: g.leftHits, rightHits: g.rightHits, sight: Math.max(0, Math.ceil(g.sightUntil - g.time)), top: Math.max(0, Math.ceil(g.topUntil - g.time)), stun: Math.max(0, g.stunUntil - g.time), rewind: Math.max(0, ...g.balls.map(b => Math.ceil((b.rewindUntil ?? 0) - g.time))), sticky: Math.max(0, Math.ceil(g.stickyUntil - g.time)), laser: Math.max(0, Math.ceil(g.laserUntil - g.time)), shrink: Math.max(0, Math.ceil(g.shrinkUntil - g.time)), armour: g.armour, attached: g.balls.filter(b => b.attachedOffset !== undefined).length, queued: [...g.queuedPowers] });
-			};
-			action.current = kind => {
-				if (kind === "reset") { sound.silence(); game.current = newGame(customLevel); }
-				else if (kind === "next") { sound.silence(); nextLevel(game.current); }
-				else if (kind === "launch" && game.current.mode === "ready") {
-					const launched = game.current; launch(launched);
-					void sound.unlock().then(enabled => { if (disposed) return; setAudioUnavailable(!enabled); if (game.current === launched && launched.mode === "playing") sound.play("launch"); });
-				}
-				else if (kind === "pause" && game.current.mode === "playing") { game.current.mode = "paused"; sound.silence(); }
-				else if (kind === "pause" && game.current.mode === "paused") { game.current.mode = "playing"; void sound.unlock().then(enabled => { if (!disposed) setAudioUnavailable(!enabled); }); }
-				paint();
-			};
-			const pointer = bindPaddlePointer(element, {
-				paddleX: () => game.current.paddleX,
-				move: x => movePaddle(game.current, x),
-				projectX: scene.pointerX,
-				press: () => action.current("launch"),
-				release: () => { releaseBalls(game.current, event => sound.play(event)); paint(); },
-			});
-			const down = (event: KeyboardEvent) => {
-				if ((event.target as HTMLElement)?.closest("button, a") && [" ", "Enter"].includes(event.key)) return;
-				const key = event.key.toLowerCase();
-				if (["arrowleft", "arrowright", "a", "d", " ", "p", "escape"].includes(key)) event.preventDefault();
-				keys.add(key);
-				if (event.repeat) return;
-				if (key === " " && !(game.current.mode === "playing" && game.current.stickyUntil > game.current.time)) action.current(game.current.mode === "cleared" ? "next" : game.current.mode === "ready" ? "launch" : "pause");
-				if (key === "p" || key === "escape") action.current("pause");
-			};
-			const up = (event: KeyboardEvent) => {
-				const key = event.key.toLowerCase();
-				if (key === " " && keys.has(key)) { releaseBalls(game.current, event => sound.play(event)); paint(); }
-				keys.delete(key);
-			};
-			const blur = () => { keys.clear(); pointer.cancel(); if (game.current.mode === "playing") action.current("pause"); };
-			const visibility = () => { if (document.hidden) blur(); };
-			function tick(now: number) {
-				accumulated += Math.min((now - previous) / 1000, 0.05); previous = now;
-				while (accumulated >= 1 / 120) {
-					const direction = Number(keys.has("arrowright") || keys.has("d")) - Number(keys.has("arrowleft") || keys.has("a"));
-					if (game.current.mode === "playing" || game.current.mode === "ready") movePaddle(game.current, game.current.paddleX + direction * 20 / 120);
-					step(game.current, 1 / 120, true, Math.random, event => sound.play(event)); accumulated -= 1 / 120;
-				}
-				scene.sync(game.current);
-				if (now - lastUI > 100) { paint(); lastUI = now; }
-				frame = requestAnimationFrame(tick);
-			}
-			window.addEventListener("keydown", down); window.addEventListener("keyup", up); window.addEventListener("blur", blur); document.addEventListener("visibilitychange", visibility);
-			frame = requestAnimationFrame(tick); setLoaded(true);
-			cleanup = () => {
-				cancelAnimationFrame(frame); scene.dispose();
-				pointer.dispose();
-				window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); window.removeEventListener("blur", blur); document.removeEventListener("visibilitychange", visibility);
-			};
-		}).catch(() => { if (!disposed) setError("This experiment needs WebGL. Try a browser with hardware acceleration enabled."); });
-		return () => { disposed = true; cleanup?.(); sound.dispose(); if (speaker.current === sound) speaker.current = null; };
-	}, [customLevel]);
+		if (!host.current) return;
+		const nextRuntime = createBreakoutRuntime({ host: host.current, game, customLevel, onViewChange: setView, onLoaded: () => setLoaded(true), onError: setError, onAudioUnavailable: unavailable => setAudioUnavailable(unavailable) });
+		runtime.current = nextRuntime;
+		return () => { nextRuntime.dispose(); if (runtime.current === nextRuntime) runtime.current = null; };
+	}, [customLevel, game]);
 	const toggleSound = () => {
 		const next = audioUnavailable ? false : !muted;
-		setMuted(next); speaker.current?.setMuted(next);
-		const sound = speaker.current;
-		if (!next) void sound?.unlock().then(enabled => { if (speaker.current === sound) setAudioUnavailable(!enabled); });
+		setMuted(next);
+		runtime.current?.setMuted(next);
 	};
 	const overlay = view.mode !== "playing";
 	return <div className={styles.page} onDragStart={event => event.preventDefault()}>
@@ -138,10 +72,10 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 						<p className={styles.eyebrow}>{view.mode === "won" ? customLevel ? "Test level cleared" : "All levels cleared" : view.mode === "cleared" ? "Wall cleared" : view.mode === "lost" ? "Out of lives" : `Level ${String(view.level + 1).padStart(2, "0")} · ${(customLevel?.name ?? LEVELS[view.level].name)}`}</p>
 						<h2>{error ? "No 3D support" : !loaded ? "Setting the scene…" : view.mode === "cleared" ? "On to the next." : view.mode === "won" ? "Nicely done." : view.mode === "lost" ? "One more round?" : view.mode === "paused" ? "Take a breather." : "Ready to break out?"}</h2>
 						<p>{error || (view.mode === "cleared" ? `Next: ${LEVELS[view.level + 1]?.name}. Your score and lives carry over.` : view.mode === "ready" ? "Click the field, tap, or press Space." : view.mode === "paused" ? "Your game is right where you left it." : `You scored ${view.score} points.`)}</p>
-						{loaded && !error && <button onClick={() => action.current(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : view.mode === "cleared" ? "next" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : view.mode === "cleared" ? "Next level" : "Play again"}<Play size={15} /></button>}
+						{loaded && !error && <button onClick={() => runtime.current?.action(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : view.mode === "cleared" ? "next" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : view.mode === "cleared" ? "Next level" : "Play again"}<Play size={15} /></button>}
 					</div>}
 				</div>
-				<div className={styles.toolbar}><span>{[view.rewind ? `Rewind ${view.rewind}s` : "", view.attached ? `${view.attached} attached · release click / Space / finger` : "", view.sticky ? `Sticky ${view.sticky}s` : "", view.laser ? `Laser ${view.laser}s` : "", view.armour ? "Armour ready" : "", view.shrink ? `Shrunk ${view.shrink}s` : "", view.stun ? `Paddle stunned ${view.stun.toFixed(1)}s` : "", view.leftHits || view.rightHits ? `Extensions L ${view.leftHits}/5 · R ${view.rightHits}/5` : "", view.sight ? `Future Sight ${view.sight}s` : "", view.top ? `Top paddle ${view.top}s` : "", view.balls > 1 ? `${view.balls} balls` : "", view.queued.length ? `Next: ${view.queued.join(" → ")}` : ""].filter(Boolean).join(" / ") || "Keep your eye on the ball"}</span><div><button onClick={toggleSound} aria-label={audioUnavailable ? "Retry sound" : muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted} title={audioUnavailable ? "Sound unavailable — click to retry" : muted ? "Unmute sound" : "Mute sound"}>{muted || audioUnavailable ? <VolumeX size={17} /> : <Volume2 size={17} />}</button><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => action.current("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => action.current("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
+				<div className={styles.toolbar}><span>{[view.rewind ? `Rewind ${view.rewind}s` : "", view.attached ? `${view.attached} attached · release click / Space / finger` : "", view.sticky ? `Sticky ${view.sticky}s` : "", view.laser ? `Laser ${view.laser}s` : "", view.armour ? "Armour ready" : "", view.shrink ? `Shrunk ${view.shrink}s` : "", view.stun ? `Paddle stunned ${view.stun.toFixed(1)}s` : "", view.leftHits || view.rightHits ? `Extensions L ${view.leftHits}/5 · R ${view.rightHits}/5` : "", view.sight ? `Future Sight ${view.sight}s` : "", view.top ? `Top paddle ${view.top}s` : "", view.balls > 1 ? `${view.balls} balls` : "", view.queued.length ? `Next: ${view.queued.join(" → ")}` : ""].filter(Boolean).join(" / ") || "Keep your eye on the ball"}</span><div><button onClick={toggleSound} aria-label={audioUnavailable ? "Retry sound" : muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted} title={audioUnavailable ? "Sound unavailable — click to retry" : muted ? "Unmute sound" : "Mute sound"}>{muted || audioUnavailable ? <VolumeX size={17} /> : <Volume2 size={17} />}</button><button disabled={!loaded || !["playing", "paused"].includes(view.mode)} onClick={() => runtime.current?.action("pause")} aria-label={view.mode === "paused" ? "Resume game" : "Pause game"}>{view.mode === "paused" ? <Play size={17} /> : <Pause size={17} />}</button><button disabled={!loaded} onClick={() => runtime.current?.action("reset")} aria-label="Restart game"><RotateCcw size={17} /></button></div></div>
 			</section>
 		</div>
 	</div>;
