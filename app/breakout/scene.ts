@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { FIELD, forecast, WING_SEGMENT, paddleScale, paddleWidth, type Game } from "./game";
-import { aroundDelta } from "./field";
+import { FIELD, forecast, WING_SEGMENT, domeLevel, paddleScale, paddleWidth, type Game } from "./game";
+import { aroundDelta, surfacePoint } from "./field";
 import { BRICK_TYPES } from "./brick-types";
 import { POWER_COLORS as powerColor } from "./powers";
 import { BreakoutParticles, brickColor, MAX_PARTICLES } from "./particles";
@@ -17,6 +17,7 @@ export function createScene(host: HTMLDivElement) {
 	host.appendChild(renderer.domElement);
 	const scene = new THREE.Scene();
 	const arena = new THREE.Group(); scene.add(arena);
+	let domeActive = false;
 	const camera = new THREE.OrthographicCamera(-10, 10, 14.4, -14.4, 0.1, 100);
 	camera.up.set(0, 0, 1); camera.position.set(0, -45, 17); camera.lookAt(0, 0, 13);
 	scene.add(new THREE.AmbientLight(0xb7c6ea, 2));
@@ -55,7 +56,8 @@ export function createScene(host: HTMLDivElement) {
 		const mesh = new THREE.Mesh(arcGeometry(width, height, radius, thickness), material(color)); parent.add(mesh); return mesh;
 	}
 	function position(object: THREE.Object3D, x: number, height: number, radius = RADIUS) {
-		const a = angle(x); object.position.set(Math.sin(a) * radius, -Math.cos(a) * radius, height);
+		const a = angle(x), point = surfacePoint(x, height, radius, domeActive);
+		object.position.set(point.x, point.y, point.z);
 		object.rotation.set(Math.PI / 2, 0, a);
 	}
 	// Open wire cage: it never writes depth, so far-side silhouettes show through gaps.
@@ -69,6 +71,22 @@ export function createScene(host: HTMLDivElement) {
 		const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(Math.sin(a) * RADIUS, -Math.cos(a) * RADIUS, 0), new THREE.Vector3(Math.sin(a) * RADIUS, -Math.cos(a) * RADIUS, FIELD.height)]); geometries.push(geometry); arena.add(new THREE.Line(geometry, cageMaterial));
 	}
 	const ceiling = arc(FIELD.width, 0.3, 0x617b96, arena); ceiling.position.z = FIELD.height - 0.15;
+	const dome = new THREE.Group(); dome.name = "Dome roof"; dome.visible = false; arena.add(dome);
+	const domeMaterial = new THREE.LineBasicMaterial({ color: 0x83b3d7, transparent: true, opacity: 0.65, depthWrite: false }); materials.push(domeMaterial);
+	function domeLine(points: THREE.Vector3[]) {
+		const geometry = new THREE.BufferGeometry().setFromPoints(points); geometries.push(geometry); dome.add(new THREE.Line(geometry, domeMaterial));
+	}
+	for (let i = 0; i < 24; i++) {
+		const a = i / 24 * Math.PI * 2;
+		domeLine(Array.from({ length: 33 }, (_, j) => {
+			const t = j / 32 * Math.PI / 2;
+			return new THREE.Vector3(Math.sin(a) * RADIUS * Math.cos(t), -Math.cos(a) * RADIUS * Math.cos(t), FIELD.height + RADIUS * Math.sin(t));
+		}));
+	}
+	for (let i = 0; i < 4; i++) {
+		const t = i / 4 * Math.PI / 2;
+		domeLine(Array.from({ length: 97 }, (_, j) => new THREE.Vector3(Math.sin(j / 96 * Math.PI * 2) * RADIUS * Math.cos(t), -Math.cos(j / 96 * Math.PI * 2) * RADIUS * Math.cos(t), FIELD.height + RADIUS * Math.sin(t))));
+	}
 	const bottomRim = arc(FIELD.width, 0.08, 0x304860, arena); bottomRim.position.z = 0;
 	const paddle = arc(3, 0.4, 0xeaf8ff); paddle.position.z = FIELD.paddleY;
 	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => {
@@ -125,6 +143,12 @@ export function createScene(host: HTMLDivElement) {
 	const particleColor = new THREE.Color();
 	let previousParticleFrame = performance.now();
 	function sync(game: Game) {
+		if (domeActive !== domeLevel(game)) {
+			domeActive = domeLevel(game); dome.visible = domeActive; ceiling.visible = !domeActive;
+			const center = (FIELD.height + (domeActive ? RADIUS : 0)) / 2;
+			camera.position.set(0, -45, center + 4); camera.lookAt(0, 0, center); resize();
+			forecastTime = -Infinity; pathRotation = NaN;
+		}
 		arena.rotation.z = -angle(game.paddleX);
 		const scale = paddleScale(game);
 		paddle.geometry = arcGeometry(3 * scale, 0.4);
@@ -138,7 +162,7 @@ export function createScene(host: HTMLDivElement) {
 			mesh.geometry = arcGeometry((WING_SEGMENT - 0.015) * scale, 0.4);
 			mesh.rotation.z = angle((side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT) * scale);
 		}));
-		const front = (x: number) => Math.cos(angle(aroundDelta(x, game.paddleX))) >= 0;
+		const front = (x: number, y = 0) => surfacePoint(aroundDelta(x, game.paddleX), y, RADIUS, domeActive).y <= 0;
 		prune(bricks, new Set(game.bricks.map(b => b.id)));
 		for (const brick of game.bricks) {
 			let group = bricks.get(brick.id);
@@ -163,9 +187,9 @@ export function createScene(host: HTMLDivElement) {
 			let mesh = balls.get(ball.id);
 			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.add(new THREE.Mesh(auraGeometry, material(powerColor.rewind))); arena.add(mesh); balls.set(ball.id, mesh); }
 			position(mesh, ball.x, ball.y, RADIUS + 0.1);
-			mesh.material = front(ball.x) ? ballMaterials[ball.effect ?? "normal"] : shadow;
+			mesh.material = front(ball.x, ball.y) ? ballMaterials[ball.effect ?? "normal"] : shadow;
 			const aura = mesh.children[0] as THREE.Mesh, rewinding = (ball.rewindUntil ?? 0) > game.time, slowed = (ball.slowUntil ?? 0) > game.time;
-			aura.visible = front(ball.x) && (rewinding || slowed || (ball.speedBoost ?? 1) > 1);
+			aura.visible = front(ball.x, ball.y) && (rewinding || slowed || (ball.speedBoost ?? 1) > 1);
 			aura.material = material(rewinding ? powerColor.rewind : new THREE.Color(slowed ? BRICK_TYPES.slow.color : BRICK_TYPES.speed.color).getHex());
 		}
 		prune(drops, new Set(game.drops.map(d => d.id)));
@@ -200,12 +224,15 @@ export function createScene(host: HTMLDivElement) {
 				group.add(near, back); arena.add(group); trajectory = { group, front: near, back }; trajectories.set(path.id, trajectory);
 			}
 			const nearPoints: THREE.Vector3[] = [], backPoints: THREE.Vector3[] = [];
-			const point = (x: number, y: number) => new THREE.Vector3(Math.sin(angle(x)) * (RADIUS + 0.12), -Math.cos(angle(x)) * (RADIUS + 0.12), y);
+			const point = (x: number, y: number) => {
+				const p = surfacePoint(x, y, RADIUS + 0.12, domeActive); return new THREE.Vector3(p.x, p.y, p.z);
+			};
 			for (let i = 1; i < path.points.length; i++) {
 				const previous = path.points[i - 1], current = path.points[i];
-				const middle = previous.x + aroundDelta(current.x, previous.x) / 2;
-				const points = front(middle) ? nearPoints : backPoints;
-				points.push(point(previous.x, previous.y), point(current.x, current.y));
+				const start = point(previous.x, previous.y), end = point(current.x, current.y);
+				const middle = start.clone().add(end).multiplyScalar(0.5).applyAxisAngle(new THREE.Vector3(0, 0, 1), arena.rotation.z);
+				const points = middle.y <= 0 ? nearPoints : backPoints;
+				points.push(start, end);
 			}
 			for (const [line, points] of [[trajectory.front, nearPoints], [trajectory.back, backPoints]] as const) {
 				line.geometry.dispose(); line.geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -215,8 +242,8 @@ export function createScene(host: HTMLDivElement) {
 		if (sight) pathRotation = game.paddleX;
 		particles.sync(game, (now - previousParticleFrame) / 1000, !reducedMotion.matches); previousParticleFrame = now;
 		particles.particles.forEach((p, i) => {
-			const a = angle(p.x), near = front(p.x), fade = p.life / p.duration;
-			particlePositions.setXYZ(i, Math.sin(a) * (RADIUS + p.radial), -Math.cos(a) * (RADIUS + p.radial), p.y);
+			const point = surfacePoint(p.x, p.y, RADIUS + p.radial, domeActive), near = front(p.x, p.y), fade = p.life / p.duration;
+			particlePositions.setXYZ(i, point.x, point.y, point.z);
 			particleColor.setHex(p.color).multiplyScalar(near ? 1 : 0.3);
 			particleColors.setXYZ(i, particleColor.r, particleColor.g, particleColor.b);
 			particleSizes.setX(i, p.size * (0.4 + 0.6 * fade)); particleOpacity.setX(i, fade * (near ? 0.9 : 0.5));
@@ -227,7 +254,7 @@ export function createScene(host: HTMLDivElement) {
 	}
 	const resize = () => {
 		const width = host.clientWidth, height = host.clientHeight;
-		const halfHeight = Math.max(14.4, 9 / (width / height)), halfWidth = halfHeight * width / height;
+		const halfHeight = Math.max(domeActive ? 18.5 : 14.4, 9 / (width / height)), halfWidth = halfHeight * width / height;
 		camera.left = -halfWidth; camera.right = halfWidth; camera.top = halfHeight; camera.bottom = -halfHeight; camera.updateProjectionMatrix(); renderer.setSize(width, height);
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();

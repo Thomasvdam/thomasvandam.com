@@ -58,6 +58,7 @@ export default function LevelEditor() {
 			<section className={styles.panel} aria-label="Level settings">
 				<label>Start from<select defaultValue="0" onChange={e => update(clone(LEVELS[Number(e.target.value)]))}>{LEVELS.map((level, i) => <option key={i} value={i}>{level.name}</option>)}</select></label>
 				<label>Name<input value={draft.name} maxLength={60} onChange={e => update({ ...draft, name: e.target.value })} /></label>
+				<label>Ceiling<select value={draft.ceiling ?? "flat"} onChange={e => update({ ...draft, ceiling: e.target.value as "flat" | "dome" })}><option value="flat">Flat · bounce</option><option value="dome">Dome · cross to the other side</option></select></label>
 				<div className={styles.fields}>
 					<label>Columns<input type="number" min={1} max={16} value={draft.columns} onChange={e => resize(draft.pattern.length, Math.max(1, Math.min(16, Math.round(Number(e.target.value)))))} /></label>
 					<label>Rows<input type="number" min={1} max={20} value={draft.pattern.length} onChange={e => resize(Math.max(1, Math.min(20, Math.round(Number(e.target.value)))), draft.columns)} /></label>

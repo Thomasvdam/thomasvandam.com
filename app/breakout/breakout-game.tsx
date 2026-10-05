@@ -32,6 +32,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 	};
 	const overlay = view.mode !== "playing";
 	const introductions = customLevel ? [] : levelIntroductions(view.level);
+	const dome = (customLevel ?? LEVELS[view.level]).ceiling === "dome";
 	return <div className={styles.page} onDragStart={event => event.preventDefault()}>
 		<header className={styles.header}><Link href="/" className={styles.back}><ArrowLeft size={16} /> Thomas van Dam</Link><span className={styles.eyebrow}>Game experiment / 01</span></header>
 		<div className={styles.layout}>
@@ -73,6 +74,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 						<h2>{error ? "No 3D support" : !loaded ? "Setting the scene…" : view.mode === "cleared" ? "On to the next." : view.mode === "won" ? "Nicely done." : view.mode === "lost" ? "One more round?" : view.mode === "paused" ? "Take a breather." : "Ready to break out?"}</h2>
 						<p>{error || (view.mode === "cleared" ? `Next: ${LEVELS[view.level + 1]?.name}. Your score and lives carry over.` : view.mode === "ready" ? "Click the field, tap, or press Space." : view.mode === "paused" ? "Your game is right where you left it." : `You scored ${view.score} points.`)}</p>
 						{loaded && !error && view.mode === "ready" && introductions.length > 0 && <p>New this level: {introductions.join(" · ")}.</p>}
+						{loaded && !error && view.mode === "ready" && dome && <p>The ball follows the dome to the opposite side. Rotate to catch its return.</p>}
 						{loaded && !error && <button onClick={() => runtime.current?.action(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : view.mode === "cleared" ? "next" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : view.mode === "cleared" ? "Next level" : "Play again"}<Play size={15} /></button>}
 					</div>}
 				</div>
