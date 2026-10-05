@@ -127,7 +127,7 @@ export function createScene(host: HTMLDivElement) {
 			}
 			group.visible = brick.hits > 0; group.position.z = brick.y; group.rotation.z = angle(brick.x);
 			const near = front(brick.x), phased = brick.type === "phase" && !brick.materialized;
-			(group.children[0] as THREE.Mesh).material = phased ? phase : near ? material(color) : shadow;
+			(group.children[0] as THREE.Mesh).material = near ? phased ? phase : material(color) : shadow;
 			group.children.slice(1).forEach((mark, i) => { mark.visible = near && (i < brick.hits || i >= brick.maxHits); });
 		}
 		prune(balls, new Set(game.balls.map(b => b.id)));
