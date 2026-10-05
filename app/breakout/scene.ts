@@ -90,9 +90,12 @@ export function createScene(host: HTMLDivElement) {
 		const value = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, transparent: effect === "ghost", opacity: effect === "ghost" ? 0.4 : 1, depthWrite: effect !== "ghost" }); materials.push(value); return [effect, value];
 	}));
 	const bricks = new Map<number, THREE.Group>(), balls = new Map<number, THREE.Mesh>(), drops = new Map<number, THREE.Group>(), blasts = new Map<number, THREE.Mesh>();
-	const trajectories = new Map<number, THREE.Line>();
-	const pathMaterial = new THREE.LineDashedMaterial({ color: 0xffa7ca, transparent: true, opacity: 0.65, dashSize: 0.2, gapSize: 0.15, depthWrite: false }); materials.push(pathMaterial);
-	let paths: ReturnType<typeof forecast> = [], lastForecast = -Infinity, forecastTime = -Infinity, forecastX = NaN;
+	type Trajectory = { group: THREE.Group; front: THREE.LineSegments; back: THREE.LineSegments };
+	const trajectories = new Map<number, Trajectory>();
+	const pathMaterial = new THREE.LineBasicMaterial({ color: 0xffa7ca, transparent: true, opacity: 0.9, depthWrite: false });
+	const backPathMaterial = new THREE.LineDashedMaterial({ color: 0x72b6cc, transparent: true, opacity: 0.5, dashSize: 0.12, gapSize: 0.22, depthWrite: false });
+	materials.push(pathMaterial, backPathMaterial);
+	let paths: ReturnType<typeof forecast> = [], lastForecast = -Infinity, forecastTime = -Infinity, forecastX = NaN, pathRotation = NaN;
 	function prune<T extends THREE.Object3D>(map: Map<number, T>, ids: Set<number>) {
 		for (const [id, object] of map) if (!ids.has(id)) { arena.remove(object); map.delete(id); }
 	}
@@ -157,19 +160,34 @@ export function createScene(host: HTMLDivElement) {
 		}
 		const sight = game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
 		const now = performance.now(), ids = new Set(game.balls.map(b => b.id));
-		for (const [id, line] of trajectories) {
-			line.visible = sight;
-			if (!ids.has(id)) { arena.remove(line); line.geometry.dispose(); trajectories.delete(id); }
+		for (const [id, trajectory] of trajectories) {
+			trajectory.group.visible = sight;
+			if (!ids.has(id)) { arena.remove(trajectory.group); trajectory.front.geometry.dispose(); trajectory.back.geometry.dispose(); trajectories.delete(id); }
 		}
+		let rebuildPaths = false;
 		if (sight && (game.time < forecastTime || now - lastForecast > (game.balls.length > 16 ? 1000 / 12 : 1000 / 30)) && (game.time !== forecastTime || game.paddleX !== forecastX || paths.length !== game.balls.length)) {
-			paths = forecast(game); lastForecast = now; forecastTime = game.time; forecastX = game.paddleX;
-			for (const path of paths) {
-				let line = trajectories.get(path.id);
-				if (!line) { line = new THREE.Line(new THREE.BufferGeometry(), pathMaterial); arena.add(line); trajectories.set(path.id, line); }
-				const points = path.points.map(p => new THREE.Vector3(Math.sin(angle(p.x)) * (RADIUS + 0.12), -Math.cos(angle(p.x)) * (RADIUS + 0.12), p.y));
-				line.geometry.dispose(); line.geometry = new THREE.BufferGeometry().setFromPoints(points); line.computeLineDistances(); line.visible = true;
-			}
+			paths = forecast(game); rebuildPaths = true; lastForecast = now; forecastTime = game.time; forecastX = game.paddleX;
 		}
+		if (sight && (rebuildPaths || game.paddleX !== pathRotation)) for (const path of paths) {
+			let trajectory = trajectories.get(path.id);
+			if (!trajectory) {
+				const group = new THREE.Group(), near = new THREE.LineSegments(new THREE.BufferGeometry(), pathMaterial), back = new THREE.LineSegments(new THREE.BufferGeometry(), backPathMaterial);
+				group.add(near, back); arena.add(group); trajectory = { group, front: near, back }; trajectories.set(path.id, trajectory);
+			}
+			const nearPoints: THREE.Vector3[] = [], backPoints: THREE.Vector3[] = [];
+			const point = (x: number, y: number) => new THREE.Vector3(Math.sin(angle(x)) * (RADIUS + 0.12), -Math.cos(angle(x)) * (RADIUS + 0.12), y);
+			for (let i = 1; i < path.points.length; i++) {
+				const previous = path.points[i - 1], current = path.points[i];
+				const middle = previous.x + aroundDelta(current.x, previous.x) / 2;
+				const points = front(middle) ? nearPoints : backPoints;
+				points.push(point(previous.x, previous.y), point(current.x, current.y));
+			}
+			for (const [line, points] of [[trajectory.front, nearPoints], [trajectory.back, backPoints]] as const) {
+				line.geometry.dispose(); line.geometry = new THREE.BufferGeometry().setFromPoints(points);
+			}
+			trajectory.back.computeLineDistances(); trajectory.group.visible = true;
+		}
+		if (sight) pathRotation = game.paddleX;
 		renderer.render(scene, camera);
 	}
 	const resize = () => {
@@ -181,6 +199,6 @@ export function createScene(host: HTMLDivElement) {
 	return {
 		sync,
 		pointerX(clientX: number) { return clientX / Math.max(1, renderer.domElement.getBoundingClientRect().width) * FIELD.width; },
-		dispose() { observer.disconnect(); trajectories.forEach(line => line.geometry.dispose()); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); renderer.dispose(); renderer.domElement.remove(); },
+		dispose() { observer.disconnect(); trajectories.forEach(trajectory => { trajectory.front.geometry.dispose(); trajectory.back.geometry.dispose(); }); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); renderer.dispose(); renderer.domElement.remove(); },
 	};
 }

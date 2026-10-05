@@ -13,7 +13,7 @@ test("three levels increase brick dimensions/count and keep separated bricks ins
 		if (level && level < 3) { expect(layout.width).toBeGreaterThan(LEVELS[level - 1].width); expect(layout.height).toBeGreaterThan(LEVELS[level - 1].height); }
 		for (const brick of bricks) {
 			expect(brick.x - brick.width / 2).toBeGreaterThan(0.3); expect(brick.x + brick.width / 2).toBeLessThan(FIELD.width - 0.3);
-			expect(brick.y - brick.height / 2).toBeGreaterThan(FIELD.paddleY + 2); expect(brick.y + brick.height / 2).toBeLessThan(FIELD.brickCeiling - 0.5);
+			expect(brick.y - brick.height / 2).toBeGreaterThan(FIELD.brickFloor); expect(brick.y + brick.height / 2).toBeLessThan(FIELD.brickCeiling - 0.5);
 			for (const other of bricks) if (brick.id !== other.id) expect(Math.abs(brick.x - other.x) >= (brick.width + other.width) / 2 || Math.abs(brick.y - other.y) >= (brick.height + other.height) / 2).toBe(true);
 		}
 		expect(new Set(bricks.filter(b => b.power).map(b => b.power))).toEqual(new Set([...POWER_TYPES, "random"]));
@@ -53,7 +53,7 @@ test("larger-brick collisions and ghost clearance use actual dimensions, includi
 	expect(target.hits).toBe(2); expect(g.balls[0].vy).toBeLessThan(0); expect(path.points.some(p => p.y < target.y - 0.82)).toBe(true);
 	const ghost = newGame(); advanceLevel(ghost); advanceLevel(ghost); launch(ghost);
 	Object.assign(ghost.balls[0], { x: 9, y: 23, vx: 0, vy: 0, effect: "ghost" }); step(ghost, 1 / 120); expect(ghost.balls[0].effect).toBe("ghost");
-	ghost.balls[0].y = 23.05; step(ghost, 1 / 120); expect(ghost.balls[0].effect).toBeUndefined();
+	ghost.balls[0].y = LEVELS[2].top + LEVELS[2].height / 2 + FIELD.radius + 0.01; step(ghost, 1 / 120); expect(ghost.balls[0].effect).toBeUndefined();
 });
 
 test("a simultaneous last-brick clear and ball loss cannot break advancing to the next level", () => {

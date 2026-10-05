@@ -24,8 +24,8 @@ export const LEVELS: LevelDefinition[] = [
 		"height": 1,
 		"columns": 7,
 		"xStep": 2.25,
-		"top": 22.4,
-		"yStep": 1.6,
+		"top": 22.9,
+		"yStep": 1.5,
 		"pattern": [
 			"..3SW..",
 			".M23LD.",
@@ -46,8 +46,8 @@ export const LEVELS: LevelDefinition[] = [
 		"height": 1.2,
 		"columns": 6,
 		"xStep": 2.7,
-		"top": 22.2,
-		"yStep": 1.4,
+		"top": 22.7,
+		"yStep": 1.25,
 		"pattern": [
 			"2SW2M1",
 			"1D..L3",

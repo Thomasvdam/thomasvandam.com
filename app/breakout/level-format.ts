@@ -41,7 +41,7 @@ export function validateLevel(value: unknown): string[] {
 	level.pattern.forEach((row, r) => [...row].forEach((cell, col) => {
 		if (cell === ".") return;
 		const x = FIELD.width / 2 + (col - (level.columns - 1) / 2) * level.xStep, y = level.top - r * level.yStep;
-		if (x - level.width / 2 <= 0.3 || x + level.width / 2 >= FIELD.width - 0.3 || y - level.height / 2 <= FIELD.paddleY + 2 || y + level.height / 2 >= FIELD.brickCeiling - 0.5) errors.push(`Row ${r + 1}, column ${col + 1} leaves the brick area.`);
+		if (x - level.width / 2 <= 0.3 || x + level.width / 2 >= FIELD.width - 0.3 || y - level.height / 2 <= FIELD.brickFloor || y + level.height / 2 >= FIELD.brickCeiling - 0.5) errors.push(`Row ${r + 1}, column ${col + 1} leaves the brick area.`);
 	}));
 	return errors;
 }
