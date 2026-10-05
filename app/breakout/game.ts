@@ -1,7 +1,7 @@
 import { BALL_POWER_TYPES, POWER_TYPES, type BallPower, type Power } from "./powers";
 import { LEVELS, levelBricks } from "./levels";
 
-import { FIELD, aroundDelta, wrapX } from "./field";
+import { DOME_TRAVEL, FIELD, aroundDelta, wrapX } from "./field";
 import { bricksForLevel, type LevelDefinition } from "./level-format";
 import type { BrickType } from "./brick-types";
 export { FIELD } from "./field";
@@ -22,6 +22,7 @@ export function newGame(customLevel?: LevelDefinition): Game {
 	const bricks = customLevel ? bricksForLevel(customLevel) : levelBricks(0);
 	return { ...(customLevel ? { customLevel } : {}), mode: "ready", level: 0, paddleX: 9, queuedPowers: [], balls: [{ id: bricks.length, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], blasts: [], stickyUntil: 0, laserUntil: 0, nextLaserAt: 0, armour: false, shrinkUntil: 0, lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, stunUntil: 0, nextSightDropAt: 10, time: 0, nextId: bricks.length + 1 };
 }
+export function domeLevel(game: Game) { return (game.customLevel ?? LEVELS[game.level]).ceiling === "dome"; }
 export function nextLevel(game: Game) {
 	if (game.mode !== "cleared" || game.level >= LEVELS.length - 1) return;
 	game.level++;
@@ -174,8 +175,9 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 		if (ball.rewindUntil && ball.rewindUntil <= game.time) { ball.vx *= -1; ball.vy *= -1; ball.rewindUntil = undefined; }
 		if (ball.slowUntil && ball.slowUntil <= game.time) { ball.vx /= SLOW_FACTOR; ball.vy /= SLOW_FACTOR; ball.slowUntil = undefined; }
 		if (ball.attachedOffset !== undefined) continue;
-		const oldX = ball.x, oldY = ball.y;
-		if (ball.effect === "homing") {
+		let oldX = ball.x;
+		const oldY = ball.y;
+		if (ball.effect === "homing" && !(domeLevel(game) && ball.y > FIELD.height)) {
 			let target: Brick | undefined, nearest = Infinity;
 			for (const brick of game.bricks) {
 				const distance = aroundDelta(brick.x, ball.x) ** 2 + (brick.y - ball.y) ** 2;
@@ -189,7 +191,14 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 			}
 		}
 		ball.x += ball.vx * dt; ball.y += ball.vy * dt;
-		if (ball.y > FIELD.height - 0.3 - r) { ball.y = FIELD.height - 0.3 - r; ball.vy = -Math.abs(ball.vy); emit?.("wall"); }
+		if (domeLevel(game)) {
+			if (ball.y >= FIELD.height + DOME_TRAVEL) {
+				ball.y = 2 * FIELD.height + DOME_TRAVEL - ball.y;
+				ball.x += FIELD.width / 2;
+				oldX += FIELD.width / 2;
+				ball.vy = -Math.abs(ball.vy);
+			}
+		} else if (ball.y > FIELD.height - 0.3 - r) { ball.y = FIELD.height - 0.3 - r; ball.vy = -Math.abs(ball.vy); emit?.("wall"); }
 		setPaddleBounds(game, bounds);
 		const paddleBallX = game.paddleX + aroundDelta(ball.x, game.paddleX);
 		if (ball.vy < 0 && oldY >= FIELD.paddleY + 0.2 + r && ball.y <= FIELD.paddleY + 0.2 + r && paddleBallX > bounds.left - r && paddleBallX < bounds.right + r) {

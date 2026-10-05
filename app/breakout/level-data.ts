@@ -2,7 +2,7 @@ import { FIELD } from "./field";
 import type { LevelDefinition } from "./level-format";
 
 // Paste editor exports into this array to add levels to the campaign.
-// Introduce a few mechanics at a time; mystery rewards wait until the finale.
+// Introduce a few mechanics at a time; mystery rewards follow the other pickups.
 export const LEVELS: LevelDefinition[] = [
 	{
 		"name": "Patchwork",
@@ -224,6 +224,32 @@ export const LEVELS: LevelDefinition[] = [
 			"3R33D333",
 			"3Z33N333",
 			"W3F3K3?3"
+		]
+	},
+	{
+		"name": "Over the Top",
+		"ceiling": "dome",
+		"width": 1.9,
+		"height": 0.8,
+		"columns": 8,
+		"xStep": FIELD.width / 8,
+		"top": 22.5,
+		"yStep": 1.1,
+		"pattern": [
+			"33333333",
+			"333V333V",
+			"3I333I33",
+			"333?333?",
+			"33333333",
+			"3M333O33",
+			"333S333S",
+			"3E333A33",
+			"333V333V",
+			"3G333P33",
+			"333B333H",
+			"3R333D33",
+			"333Z333N",
+			"W3F3K333"
 		]
 	}
 ];

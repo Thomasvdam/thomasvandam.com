@@ -24,12 +24,13 @@ export const CELLS: Record<string, Cell> = {
 	Z: { label: "Rewind balls", hits: 1, color: "#72f1bf", power: "rewind" },
 	...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [spec.symbol, { ...spec, type: type as BrickType }])),
 };
-export type LevelDefinition = { name: string; width: number; height: number; columns: number; xStep: number; top: number; yStep: number; pattern: string[] };
+export type LevelDefinition = { name: string; ceiling?: "flat" | "dome"; width: number; height: number; columns: number; xStep: number; top: number; yStep: number; pattern: string[] };
 
 export function validateLevel(value: unknown): string[] {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return ["A level must be a JSON object."];
 	const level = value as LevelDefinition, errors: string[] = [];
 	if (typeof level.name !== "string" || !level.name.trim() || level.name.length > 60) errors.push("Name must contain 1–60 characters.");
+	if (level.ceiling !== undefined && level.ceiling !== "flat" && level.ceiling !== "dome") errors.push("Ceiling must be flat or dome.");
 	for (const key of ["width", "height", "xStep", "yStep", "top"] as const) if (!Number.isFinite(level[key]) || level[key] <= 0) errors.push(`${key} must be a positive finite number.`);
 	if (!Number.isInteger(level.columns) || level.columns < 1 || level.columns > 16) errors.push("Use 1–16 columns.");
 	if (!Array.isArray(level.pattern) || level.pattern.length < 1 || level.pattern.length > 20 || level.pattern.some(row => typeof row !== "string")) return [...errors, "Use 1–20 string rows."];
@@ -51,7 +52,7 @@ export function parseLevel(source: string): LevelDefinition {
 	const errors = validateLevel(value);
 	if (errors.length) throw new Error(errors.join(" "));
 	const level = value as LevelDefinition;
-	return { name: level.name, width: level.width, height: level.height, columns: level.columns, xStep: level.xStep, top: level.top, yStep: level.yStep, pattern: [...level.pattern] };
+	return { name: level.name, ...(level.ceiling ? { ceiling: level.ceiling } : {}), width: level.width, height: level.height, columns: level.columns, xStep: level.xStep, top: level.top, yStep: level.yStep, pattern: [...level.pattern] };
 }
 export function exportLevel(level: LevelDefinition) {
 	const errors = validateLevel(level);
