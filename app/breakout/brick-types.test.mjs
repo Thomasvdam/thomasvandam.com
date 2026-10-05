@@ -71,7 +71,7 @@ test("moving bricks stop before live neighbors and playfield boundaries", () => 
 	const g = setup("moving"); g.bricks.push({ id: 3, x: 9, y: 21.5, width: 2, height: 1, hits: 1, maxHits: 1 });
 	hit(g); expect(g.bricks[0].y).toBeCloseTo(20.49); hit(g); expect(g.bricks[0].y).toBeCloseTo(20.49);
 	const wall = setup("moving"); wall.bricks[0].x = 1.4; hit(wall, undefined, "right"); expect(wall.bricks[0].x).toBeCloseTo(0.6);
-	const floor = setup("moving"); floor.bricks[0].y = 4.7; hit(floor, undefined, "top"); expect(floor.bricks[0].y - 0.5).toBeGreaterThan(4);
+	const floor = setup("moving"); floor.bricks[0].y = 7.7; hit(floor, undefined, "top"); expect(floor.bricks[0].y - 0.5).toBeGreaterThan(7);
 });
 
 test("phasing bricks activate only after a complete crossing and cannot damage that passage", () => {

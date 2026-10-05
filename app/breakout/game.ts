@@ -83,7 +83,7 @@ export function launch(game: Game, emit?: EventSink) {
 	if (game.mode !== "ready") return;
 	game.mode = "playing";
 	game.nextSightDropAt = game.time + SIGHT_IDLE_INTERVAL;
-	game.balls[0].vx = 3.4; game.balls[0].vy = 10;
+	game.balls[0].vx = 2.72; game.balls[0].vy = 8;
 	emit?.("launch");
 }
 export function collectPower(game: Game, power: Drop["power"], emit?: EventSink) {
@@ -124,7 +124,7 @@ export function collectPower(game: Game, power: Drop["power"], emit?: EventSink)
 // Push around the circumference or vertically, stopping before a neighboring brick.
 function shiftBrick(game: Game, brick: Brick, axis: "x" | "y", direction: number) {
 	const size = axis === "x" ? "width" : "height", otherAxis = axis === "x" ? "y" : "x", otherSize = axis === "x" ? "height" : "width";
-	const low = FIELD.paddleY + 2.01, high = FIELD.brickCeiling - 0.51;
+	const low = FIELD.brickFloor + 0.01, high = FIELD.brickCeiling - 0.51;
 	let distance = axis === "x" ? 0.8 : Math.min(0.8, direction > 0 ? high - brick[size] / 2 - brick[axis] : brick[axis] - brick[size] / 2 - low);
 	for (const other of game.bricks) {
 		if (other === brick || other.hits <= 0 || Math.abs(otherAxis === "x" ? aroundDelta(other.x, brick.x) : other.y - brick.y) >= (other[otherSize] + brick[otherSize]) / 2) continue;
@@ -288,7 +288,7 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 export type Forecast = { id: number; points: { x: number; y: number }[] };
 // Use the same collisions on a private snapshot, including damage from other balls.
 // The paddle stays at its current position; the next live forecast incorporates steering.
-export function forecast(game: Game, seconds = 2): Forecast[] {
+export function forecast(game: Game, seconds = 3): Forecast[] {
 	const copy: Game = { ...game, mode: "playing", queuedPowers: [...game.queuedPowers], balls: game.balls.map(b => ({ ...b, contacts: [...(b.contacts ?? [])], phaseEntries: b.phaseEntries?.map(entry => ({ ...entry })) })), bricks: game.bricks.map(b => ({ ...b })), blasts: game.blasts.map(b => ({ ...b })), drops: [] };
 	const paths = game.balls.map(b => ({ id: b.id, points: [{ x: b.x, y: b.y }] }));
 	const positions = new Map<number, Ball>();

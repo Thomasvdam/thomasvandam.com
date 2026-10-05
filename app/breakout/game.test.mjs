@@ -176,27 +176,27 @@ describe("Breakout simulation", () => {
 		for (let i = 0; i < path.points.length - 1; i++) step(before, 1 / 120, false);
 		expect(before.queuedPowers).toHaveLength(0); expect(path.points.at(-1).y).toBeCloseTo(before.balls[0].y, 10);
 	});
-	test("two-second forecasts follow real wall, brick, and paddle collisions without mutating play", () => {
+	test("three-second forecasts follow real wall, brick, and paddle collisions without mutating play", () => {
 		const g = newGame(); launch(g); collectPower(g, "wide");
 		Object.assign(g.balls[0], { x: 1, y: 10, vx: -7, vy: 8 });
 		g.balls.push({ id: g.nextId++, x: 9, y: 5, vx: 0, vy: -10 });
 		g.balls.push({ id: g.nextId++, x: 2, y: 21, vx: 0, vy: 10 });
 		const before = JSON.parse(JSON.stringify(g)), paths = forecast(g);
 		expect(g).toEqual(before); expect(paths).toHaveLength(3);
-		for (let i = 0; i < 240; i++) step(before, 1 / 120, false);
+		for (let i = 0; i < 360; i++) step(before, 1 / 120, false);
 		paths.forEach(path => {
 			const ball = before.balls.find(b => b.id === path.id);
-			expect(path.points).toHaveLength(241);
+			expect(path.points).toHaveLength(361);
 			expect(path.points.at(-1).x).toBeCloseTo(ball.x, 10); expect(path.points.at(-1).y).toBeCloseTo(ball.y, 10);
 		});
 		expect(paths[0].points.some(p => p.x > 2)).toBe(true);
-		expect(paths[1].points.at(-1).y).toBeGreaterThan(5);
+		expect(paths[1].points.some(p => p.y > 5)).toBe(true);
 		expect(before.bricks[8].hits).toBeLessThan(g.bricks[8].hits);
 	});
 	test("forecast responds to steering and terminates a missed ball without inventing its next life", () => {
 		const g = newGame(); launch(g); Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: -10 });
 		const catchPath = forecast(g)[0]; movePaddle(g, 3); const missPath = forecast(g)[0];
-		expect(catchPath.points.at(-1).y).toBeGreaterThan(2); expect(missPath.points.length).toBeLessThan(241); expect(g.lives).toBe(3);
+		expect(catchPath.points.at(-1).y).toBeGreaterThan(2); expect(missPath.points.length).toBeLessThan(361); expect(g.lives).toBe(3);
 	});
 	test("collecting a drop activates it and extra balls preserve a life until all are lost", () => {
 		const g = newGame(); launch(g);

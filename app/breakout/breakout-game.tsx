@@ -43,7 +43,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 					<div><i className={styles.armored} /><span>Armored brick<small>Two or three hits · count the dots</small></span></div>
 					<div><i className={styles.wide} /><span>Wide paddle<small>W · green extensions · five hits on each side</small></span></div>
 					<div><i className={styles.duplicate} /><span>Duplicate balls<small>D · double every ball · up to 64 in play</small></span></div>
-					<div><i className={styles.sight} /><span>Future Sight<small>F · pink box · adds 12 seconds of two-second paths</small></span></div>
+					<div><i className={styles.sight} /><span>Future Sight<small>F · pink box · adds 12 seconds of three-second paths · pink solid front / cyan dashed back</small></span></div>
 					<div><i className={styles.sticky} /><span>Sticky paddle<small>K · 20s · release click, Space or finger to launch attached balls</small></span></div>
 					<div><i className={styles.laser} /><span>Laser paddle<small>R · one blast per second for 10s</small></span></div>
 					<div><i className={styles.armour} /><span>Armour<small>A · absorbs one Shock or Shrink</small></span></div>

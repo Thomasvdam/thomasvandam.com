@@ -69,3 +69,16 @@ test("top paddle is absent from rewards, editor brushes and campaign source", ()
 	expect(LEVELS.every(level => !level.pattern.some(row => row.includes("T")))).toBe(true);
 	expect(() => parseLevel(JSON.stringify({ ...LEVELS[0], pattern: ["T1111111"] }))).toThrow("Unknown cell symbol");
 });
+
+test("launch speed is twenty percent gentler and Future Sight defaults to three seconds", () => {
+	const g = fixture(); expect(Math.hypot(g.balls[0].vx, g.balls[0].vy)).toBeCloseTo(Math.hypot(3.4, 10) * 0.8);
+	Object.assign(g.balls[0], { x: 9, y: 8, vx: 0, vy: 0 });
+	expect(forecast(g)[0].points).toHaveLength(361);
+	expect(forecast(g, 1)[0].points).toHaveLength(121);
+});
+
+test("level imports reserve at least five units between the paddle and brick area", () => {
+	const level = { ...LEVELS[0], columns: 1, pattern: ["1"], top: FIELD.brickFloor + LEVELS[0].height / 2 };
+	expect(() => parseLevel(JSON.stringify(level))).toThrow("leaves the brick area");
+	expect(parseLevel(JSON.stringify({ ...level, top: level.top + 0.1 })).top).toBeCloseTo(level.top + 0.1);
+});
