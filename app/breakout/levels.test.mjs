@@ -1,12 +1,14 @@
 import { expect, test } from "bun:test";
-import { LEVELS, levelBricks } from "./levels";
+import { LEVELS, levelBricks, levelIntroductions } from "./levels";
+import { CELLS } from "./level-format";
 import { collectPower, FIELD, forecast, launch, newGame, nextLevel, POWER_TYPES, step } from "./game";
 
 function advanceLevel(game) {
 	launch(game); game.bricks.forEach(brick => brick.hits = 0); step(game, 1 / 120); nextLevel(game);
 }
 
-test("three levels increase brick dimensions/count and keep separated bricks inside the playfield", () => {
+test("ten campaign levels keep separated bricks inside the playfield", () => {
+	expect(LEVELS).toHaveLength(10);
 	const counts = LEVELS.slice(0, 3).map((_, level) => levelBricks(level).length); expect(counts).toEqual([40, 60, 66]);
 	LEVELS.forEach((layout, level) => {
 		const bricks = levelBricks(level); expect(new Set(bricks.map(b => b.id)).size).toBe(bricks.length);
@@ -16,10 +18,29 @@ test("three levels increase brick dimensions/count and keep separated bricks ins
 			expect(brick.y - brick.height / 2).toBeGreaterThan(FIELD.brickFloor); expect(brick.y + brick.height / 2).toBeLessThan(FIELD.brickCeiling - 0.5);
 			for (const other of bricks) if (brick.id !== other.id) expect(Math.abs(brick.x - other.x) >= (brick.width + other.width) / 2 || Math.abs(brick.y - other.y) >= (brick.height + other.height) / 2).toBe(true);
 		}
-		expect(new Set(bricks.filter(b => b.power).map(b => b.power))).toEqual(new Set([...POWER_TYPES, "random"]));
 		const armorHeights = bricks.filter(b => b.maxHits > 1).map(b => b.y), singleHeights = bricks.filter(b => b.maxHits === 1).map(b => b.y);
 		expect(Math.min(...armorHeights)).toBeLessThan(Math.max(...singleHeights));
 	});
+});
+
+test("campaign difficulty grows in measured steps and each board introduces a few mechanics", () => {
+	const introductions = ["WF", "LD", "PK", "MB", "SH", "OR", "EA", "IG", "VZN", "?"];
+	const seen = new Set();
+	let previousHits = 0, previousCount = 0;
+	LEVELS.forEach((layout, index) => {
+		const symbols = [...new Set(layout.pattern.join(""))].filter(symbol => CELLS[symbol].power || CELLS[symbol].type);
+		const added = symbols.filter(symbol => !seen.has(symbol));
+		expect(new Set(added)).toEqual(new Set(introductions[index]));
+		expect(levelIntroductions(index)).toEqual(added.map(symbol => CELLS[symbol].label));
+		symbols.forEach(symbol => seen.add(symbol));
+		const bricks = levelBricks(index), hits = bricks.filter(b => b.type !== "indestructible").reduce((total, b) => total + b.maxHits, 0);
+		expect(bricks.length).toBeGreaterThanOrEqual(previousCount);
+		expect(hits).toBeGreaterThan(previousHits);
+		if (previousHits) expect(hits / previousHits).toBeLessThan(1.4);
+		previousHits = hits; previousCount = bricks.length;
+	});
+	expect(new Set(LEVELS.flatMap((_, i) => levelBricks(i).filter(b => b.power).map(b => b.power)))).toEqual(new Set([...POWER_TYPES, "random"]));
+	expect(new Set(LEVELS.map(layout => layout.name)).size).toBe(10);
 });
 
 test("Prism has a hollow center and tapered edges; Switchback alternates center and edge channels", () => {
