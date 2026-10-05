@@ -37,11 +37,12 @@ export function validateLevel(value: unknown): string[] {
 	if (level.pattern.some(row => [...row].some(cell => !Object.hasOwn(CELLS, cell)))) errors.push(`Unknown cell symbol. Use ${Object.keys(CELLS).join(", ")}.`);
 	if (!level.pattern.some(row => [...row].some(cell => CELLS[cell]?.hits > 0 && CELLS[cell]?.type !== "indestructible"))) errors.push("Paint at least one destructible brick.");
 	if (level.xStep < level.width || level.yStep < level.height) errors.push("Spacing must be at least the brick size so bricks do not overlap.");
+	if ((level.columns - 1) * level.xStep + level.width > FIELD.width + 1e-9) errors.push("Columns must fit around the cylinder without overlapping at the seam.");
 	if (errors.length) return errors;
 	level.pattern.forEach((row, r) => [...row].forEach((cell, col) => {
 		if (cell === ".") return;
-		const x = FIELD.width / 2 + (col - (level.columns - 1) / 2) * level.xStep, y = level.top - r * level.yStep;
-		if (x - level.width / 2 <= 0.3 || x + level.width / 2 >= FIELD.width - 0.3 || y - level.height / 2 <= FIELD.brickFloor || y + level.height / 2 >= FIELD.brickCeiling - 0.5) errors.push(`Row ${r + 1}, column ${col + 1} leaves the brick area.`);
+		const y = level.top - r * level.yStep;
+		if (y - level.height / 2 <= FIELD.brickFloor || y + level.height / 2 >= FIELD.brickCeiling - 0.5) errors.push(`Row ${r + 1}, column ${col + 1} leaves the brick area.`);
 	}));
 	return errors;
 }

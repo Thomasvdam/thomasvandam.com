@@ -2,10 +2,12 @@ import * as THREE from "three";
 import { FIELD, forecast, WING_SEGMENT, paddleScale, paddleWidth, type Game } from "./game";
 import { aroundDelta } from "./field";
 import { BRICK_TYPES } from "./brick-types";
+import { POWER_COLORS as powerColor } from "./powers";
+import { BreakoutParticles, brickColor, MAX_PARTICLES } from "./particles";
 
 const RADIUS = 7.4;
 const angle = (x: number) => x / FIELD.width * Math.PI * 2;
-const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a, sticky: 0xf4a8df, laser: 0xff596c, armour: 0x82aaff, shrink: 0xd78a52, rewind: 0x72f1bf };
+
 
 // Z is the vertical cylinder axis. x in the simulation is an unrolled circumference.
 export function createScene(host: HTMLDivElement) {
@@ -99,6 +101,29 @@ export function createScene(host: HTMLDivElement) {
 	function prune<T extends THREE.Object3D>(map: Map<number, T>, ids: Set<number>) {
 		for (const [id, object] of map) if (!ids.has(id)) { arena.remove(object); map.delete(id); }
 	}
+	const particles = new BreakoutParticles();
+	const particleGeometry = new THREE.BufferGeometry();
+	const particlePositions = new THREE.BufferAttribute(new Float32Array(MAX_PARTICLES * 3), 3).setUsage(THREE.DynamicDrawUsage);
+	const particleColors = new THREE.BufferAttribute(new Float32Array(MAX_PARTICLES * 3), 3).setUsage(THREE.DynamicDrawUsage);
+	const particleSizes = new THREE.BufferAttribute(new Float32Array(MAX_PARTICLES), 1).setUsage(THREE.DynamicDrawUsage);
+	const particleOpacity = new THREE.BufferAttribute(new Float32Array(MAX_PARTICLES), 1).setUsage(THREE.DynamicDrawUsage);
+	particleGeometry.setAttribute("position", particlePositions); particleGeometry.setAttribute("color", particleColors); particleGeometry.setAttribute("size", particleSizes); particleGeometry.setAttribute("opacity", particleOpacity);
+	const particleMaterial = new THREE.ShaderMaterial({
+		transparent: true, depthWrite: false, vertexColors: true,
+		uniforms: { pixelRatio: { value: renderer.getPixelRatio() } },
+		vertexShader: `attribute float size; attribute float opacity; uniform float pixelRatio; varying vec3 particleColor; varying float particleAlpha;
+			void main() { particleColor = color; particleAlpha = opacity; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_PointSize = size * pixelRatio; }`,
+		fragmentShader: `varying vec3 particleColor; varying float particleAlpha;
+			void main() { float radius = length(gl_PointCoord - vec2(0.5)) * 2.0; float alpha = (1.0 - smoothstep(0.65, 1.0, radius)) * particleAlpha; if (alpha < 0.01) discard; gl_FragColor = vec4(particleColor, alpha);
+				#include <tonemapping_fragment>
+				#include <colorspace_fragment>
+			}`,
+	});
+	const particleMesh = new THREE.Points(particleGeometry, particleMaterial); particleMesh.frustumCulled = false; arena.add(particleMesh);
+	geometries.push(particleGeometry); materials.push(particleMaterial);
+	const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+	const particleColor = new THREE.Color();
+	let previousParticleFrame = performance.now();
 	function sync(game: Game) {
 		arena.rotation.z = -angle(game.paddleX);
 		const scale = paddleScale(game);
@@ -117,7 +142,7 @@ export function createScene(host: HTMLDivElement) {
 		prune(bricks, new Set(game.bricks.map(b => b.id)));
 		for (const brick of game.bricks) {
 			let group = bricks.get(brick.id);
-			const color = brick.type ? new THREE.Color(BRICK_TYPES[brick.type].color).getHex() : brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
+			const color = brickColor(brick);
 			if (!group) {
 				group = new THREE.Group(); arena.add(group); bricks.set(brick.id, group);
 				arc(brick.width, brick.height, color, group);
@@ -188,6 +213,16 @@ export function createScene(host: HTMLDivElement) {
 			trajectory.back.computeLineDistances(); trajectory.group.visible = true;
 		}
 		if (sight) pathRotation = game.paddleX;
+		particles.sync(game, (now - previousParticleFrame) / 1000, !reducedMotion.matches); previousParticleFrame = now;
+		particles.particles.forEach((p, i) => {
+			const a = angle(p.x), near = front(p.x), fade = p.life / p.duration;
+			particlePositions.setXYZ(i, Math.sin(a) * (RADIUS + p.radial), -Math.cos(a) * (RADIUS + p.radial), p.y);
+			particleColor.setHex(p.color).multiplyScalar(near ? 1 : 0.3);
+			particleColors.setXYZ(i, particleColor.r, particleColor.g, particleColor.b);
+			particleSizes.setX(i, p.size * (0.4 + 0.6 * fade)); particleOpacity.setX(i, fade * (near ? 0.9 : 0.5));
+		});
+		particleGeometry.setDrawRange(0, particles.particles.length);
+		particlePositions.needsUpdate = true; particleColors.needsUpdate = true; particleSizes.needsUpdate = true; particleOpacity.needsUpdate = true;
 		renderer.render(scene, camera);
 	}
 	const resize = () => {
