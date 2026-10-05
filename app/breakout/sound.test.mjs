@@ -44,15 +44,15 @@ test("multiball contact cues are rate-limited and audio voices stay bounded", as
 
 test("simulation emits actual contacts, pickups and outcomes, while forecasts stay silent", () => {
 	const events = [], emit = event => events.push(event), g = newGame(); launch(g, emit); expect(events).toEqual(["launch"]);
-	Object.assign(g.balls[0], { x: 0.55, y: 10, vx: -10, vy: 1 }); step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("wall");
+	Object.assign(g.balls[0], { x: 9, y: 25.5, vx: 0, vy: 10 }); step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("wall");
 	const brick = g.bricks[0]; Object.assign(g.balls[0], { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 });
 	step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("hit");
 	brick.hits = 1; Object.assign(g.balls[0], { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 });
 	step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("break");
 	collectPower(g, "wide", emit); Object.assign(g.balls[0], { x: g.paddleX - 2, y: 2.5, vx: 0, vy: -10 });
 	step(g, 1 / 120, true, Math.random, emit); expect(events.slice(-2)).toEqual(["chip", "paddle"]);
-	g.drops.push({ id: 1000, x: g.paddleX, y: 2.1, power: "top" }); step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("top");
-	const before = events.length; Object.assign(g.balls[0], { x: 0.55, y: 10, vx: -10, vy: 1 }); step(g, 1 / 120, false, Math.random, emit); expect(events).toHaveLength(before);
+	g.drops.push({ id: 1000, x: g.paddleX, y: 2.1, power: "sight" }); step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("sight");
+	const before = events.length; Object.assign(g.balls[0], { x: 9, y: 25.5, vx: 0, vy: 10 }); step(g, 1 / 120, false, Math.random, emit); expect(events).toHaveLength(before);
 	g.balls[0].y = -2; step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("life");
 	launch(g, emit); g.lives = 1; g.balls[0].y = -2; step(g, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("lost");
 	const win = newGame(); launch(win); win.bricks.forEach(b => b.hits = 0); step(win, 1 / 120, true, Math.random, emit); expect(events.at(-1)).toBe("won");

@@ -46,7 +46,6 @@ export class BreakoutSound {
 			switch (event) {
 				case "wall": this.tone(240, 180, 0.035, "sine", 0.12); break;
 				case "paddle": this.tone(420, 600, 0.065, "triangle", 0.17); break;
-				case "topBounce": this.tone(650, 440, 0.065, "triangle", 0.17); break;
 				case "chip": this.tone(160, 65, 0.09, "sawtooth", 0.06); break;
 				case "hit": this.tone(290, 210, 0.055, "square", 0.055); break;
 				case "break": this.tone(780, 360, 0.1, "triangle", 0.16); this.tone(1100, 650, 0.055, "sine", 0.07); break;
@@ -55,7 +54,6 @@ export class BreakoutSound {
 				case "wide": this.notes([330, 440, 660], 0.08); break;
 				case "duplicate": this.notes([440, 554, 659, 880], 0.065); break;
 				case "sight": this.notes([523, 784, 1047], 0.1); break;
-				case "top": this.notes([392, 587, 784], 0.08); break;
 				case "piercing": this.notes([740, 988], 0.07); break;
 				case "fire": this.notes([196, 392, 587], 0.08); break;
 				case "ghost": this.notes([880, 1320], 0.12); break;

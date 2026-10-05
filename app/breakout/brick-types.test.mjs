@@ -20,12 +20,12 @@ function hit(g, effect, side = "bottom") {
 }
 function advance(g, seconds) { for (let i = 0; i < Math.round(seconds * 120); i++) step(g, tick); }
 
-test("speed destruction changes only its ball and survives lower and upper paddle bounces", () => {
+test("speed destruction changes only its ball and survives paddle and ceiling bounces", () => {
 	const g = setup("speed"), other = { id: 500, x: 4, y: 8, vx: 5, vy: 0 }; g.balls.push(other);
 	const b = hit(g); expect(Math.hypot(b.vx, b.vy)).toBeCloseTo(12); expect(other.vx).toBe(5);
 	expect(b.speedBoost).toBeCloseTo(1.2);
 	Object.assign(b, { x: 9, y: 2.5, vx: 0, vy: -17 }); step(g, tick); expect(b.vy).toBeGreaterThan(17);
-	collectPower(g, "top"); Object.assign(b, { x: 9, y: 23.5, vx: 0, vy: 17 }); step(g, tick); expect(b.vy).toBeLessThan(-17);
+	Object.assign(b, { x: 9, y: 25.5, vx: 0, vy: 17 }); step(g, tick); expect(b.vy).toBe(-17);
 	for (let i = 0; i < 15; i++) {
 		g.bricks[0].hits = 1; const speed = Math.hypot(b.vx, b.vy); Object.assign(b, { x: 9, y: 19.2, vx: 0, vy: speed }); step(g, tick);
 		expect(Math.hypot(b.vx, b.vy)).toBeLessThanOrEqual(MAX_SPEED);
@@ -70,7 +70,7 @@ test("moving bricks move away from all four incoming sides, including piercing a
 test("moving bricks stop before live neighbors and playfield boundaries", () => {
 	const g = setup("moving"); g.bricks.push({ id: 3, x: 9, y: 21.5, width: 2, height: 1, hits: 1, maxHits: 1 });
 	hit(g); expect(g.bricks[0].y).toBeCloseTo(20.49); hit(g); expect(g.bricks[0].y).toBeCloseTo(20.49);
-	const wall = setup("moving"); wall.bricks[0].x = 1.4; hit(wall, undefined, "right"); expect(wall.bricks[0].x - 1).toBeGreaterThan(0.3);
+	const wall = setup("moving"); wall.bricks[0].x = 1.4; hit(wall, undefined, "right"); expect(wall.bricks[0].x).toBeCloseTo(0.6);
 	const floor = setup("moving"); floor.bricks[0].y = 4.7; hit(floor, undefined, "top"); expect(floor.bricks[0].y - 0.5).toBeGreaterThan(4);
 });
 

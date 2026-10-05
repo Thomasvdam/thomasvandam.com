@@ -21,18 +21,18 @@ function harness() {
 test("touch down launches without moving the paddle; dragging uses finger deltas and fresh origins", () => {
 	const h = harness(); expect(h.send("pointerdown").defaultPrevented).toBe(true);
 	expect(h.game.paddleX).toBe(9); expect(h.game.balls[0].x).toBe(9); expect(h.presses()).toBe(1); expect(h.focus()).toEqual({ preventScroll: true });
-	h.send("pointermove", { clientX: 80 }); expect(h.game.paddleX).toBe(11); expect(h.game.balls[0].x).toBe(11);
-	h.send("pointermove", { clientX: 60 }); expect(h.game.paddleX).toBe(10);
+	h.send("pointermove", { clientX: 80 }); expect(h.game.paddleX).toBe(7); expect(h.game.balls[0].x).toBe(7);
+	h.send("pointermove", { clientX: 60 }); expect(h.game.paddleX).toBe(8);
 	h.send("pointerup"); expect(h.captures.size).toBe(0);
-	h.send("pointerdown", { clientX: 300 }); expect(h.game.paddleX).toBe(10);
+	h.send("pointerdown", { clientX: 300 }); expect(h.game.paddleX).toBe(8);
 	h.send("pointermove", { clientX: 280 }); expect(h.game.paddleX).toBe(9); h.binding.dispose();
 });
 
-test("touch reverses immediately at paddle bounds and does not replay movement after a stun", () => {
-	const h = harness(); h.send("pointerdown"); h.send("pointermove", { clientX: 1000 }); expect(h.game.paddleX).toBe(16.2);
-	h.send("pointermove", { clientX: 980 }); expect(h.game.paddleX).toBeCloseTo(15.2);
-	collectPower(h.game, "shock"); h.send("pointermove", { clientX: 900 }); expect(h.game.paddleX).toBeCloseTo(15.2);
-	h.game.mode = "playing"; step(h.game, 1.01); h.send("pointermove", { clientX: 880 }); expect(h.game.paddleX).toBeCloseTo(14.2); h.binding.dispose();
+test("touch wraps around the cylinder and does not replay movement after a stun", () => {
+	const h = harness(); h.send("pointerdown"); h.send("pointermove", { clientX: 1000 }); expect(h.game.paddleX).toBeCloseTo(15);
+	h.send("pointermove", { clientX: 980 }); expect(h.game.paddleX).toBeCloseTo(16);
+	collectPower(h.game, "shock"); h.send("pointermove", { clientX: 900 }); expect(h.game.paddleX).toBeCloseTo(16);
+	h.game.mode = "playing"; step(h.game, 1.01); h.send("pointermove", { clientX: 880 }); expect(h.game.paddleX).toBeCloseTo(17); h.binding.dispose();
 });
 
 test("secondary fingers, uncaptured movement and canceled gestures cannot steer", () => {
@@ -43,10 +43,11 @@ test("secondary fingers, uncaptured movement and canceled gestures cannot steer"
 	h.send("pointerdown"); h.send("lostpointercapture"); h.send("pointermove", { clientX: 300 }); expect(h.game.paddleX).toBe(9); h.binding.dispose();
 });
 
-test("mouse and pen remain absolute; right clicks do not move or launch", () => {
-	const h = harness(); h.send("pointermove", { pointerType: "mouse", clientX: 120 }); expect(h.game.paddleX).toBe(6);
-	h.send("pointerdown", { pointerType: "mouse", button: 2, clientX: 200 }); expect(h.game.paddleX).toBe(6); expect(h.presses()).toBe(0);
-	h.send("pointerdown", { pointerType: "pen", clientX: 200 }); expect(h.game.paddleX).toBe(10); expect(h.presses()).toBe(1); h.binding.dispose();
+test("mouse and pen drag relative to their press; hover and right clicks do not rotate", () => {
+	const h = harness(); h.send("pointermove", { pointerType: "mouse", clientX: 120 }); expect(h.game.paddleX).toBe(9);
+	h.send("pointerdown", { pointerType: "mouse", button: 2, clientX: 200 }); expect(h.game.paddleX).toBe(9); expect(h.presses()).toBe(0);
+	h.send("pointerdown", { pointerType: "pen", clientX: 200 }); expect(h.game.paddleX).toBe(9); expect(h.presses()).toBe(1);
+	h.send("pointermove", { pointerType: "pen", clientX: 240 }); expect(h.game.paddleX).toBe(7); h.binding.dispose();
 });
 
 test("blur cancellation and disposal release touch capture and remove input/context-menu listeners", () => {

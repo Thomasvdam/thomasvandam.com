@@ -61,8 +61,8 @@ test("Armour survives time, life loss and level transitions until used", () => {
 
 test("Shrink scales the core and extensions, preserves durability, and restores after fifteen playing seconds", () => {
 	const g = game(); collectPower(g, "wide"); const width = paddleWidth(g); collectPower(g, "shrink"); expect(paddleWidth(g)).toBeCloseTo(width * 0.6);
-	const bounds = paddleBounds(g); expect(bounds.right - bounds.left).toBeCloseTo(width * 0.6); movePaddle(g, -100); expect(paddleBounds(g).left).toBeCloseTo(0.3);
-	g.mode = "paused"; step(g, 30); expect(paddleWidth(g)).toBeCloseTo(width * 0.6); g.mode = "playing"; advance(g, 15 + dt); expect(paddleWidth(g)).toBeCloseTo(width); expect(g.leftHits + g.rightHits).toBe(10); expect(paddleBounds(g).left).toBeCloseTo(0.3);
+	const bounds = paddleBounds(g); expect(bounds.right - bounds.left).toBeCloseTo(width * 0.6); movePaddle(g, -100); expect(g.paddleX).toBeCloseTo(8);
+	g.mode = "paused"; step(g, 30); expect(paddleWidth(g)).toBeCloseTo(width * 0.6); g.mode = "playing"; advance(g, 15 + dt); expect(paddleWidth(g)).toBeCloseTo(width); expect(g.leftHits + g.rightHits).toBe(10); expect(g.paddleX).toBeCloseTo(8);
 });
 
 test("shrunk paddle collisions use the new width and Sticky attachments remain on the shrinking surface", () => {

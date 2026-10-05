@@ -2,7 +2,7 @@
 .header { display: flex; justify-content: space-between; align-items: center; max-width: 1120px; margin: 0 auto 28px; }
 .back { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9cabc0; text-decoration: none; }
 .eyebrow { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #879ab3; }
-.layout { max-width: 1020px; margin: auto; display: grid; grid-template-columns: 1fr 460px; gap: 72px; align-items: center; }
+.layout { max-width: 1020px; margin: auto; display: grid; grid-template-columns: 1fr 460px; gap: 72px; align-items: start; }
 .intro h1 { font-family: var(--font-experiment-display), sans-serif; font-size: clamp(84px, 9vw, 130px); line-height: .83; letter-spacing: -.025em; margin: 25px 0; font-weight: 900; }
 .intro h1 span { color: #aeea79; }
 .description { color: #b5c2d4; font-size: 15px; line-height: 1.8; }
@@ -11,11 +11,11 @@
 .legend small { display: block; font-size: 11px; color: #879ab3; margin-top: 4px; }
 .legend i { display: block; width: 28px; height: 15px; border-radius: 3px; box-shadow: inset 0 -4px 0 #0003; flex-shrink: 0; }
 .normal { background: #67d4ee; }.armored { background: #ffb65c; }.wide { background: #b2f078; }.duplicate { background: #c3a0ff; }
-.top { background: #59ead4; }.random { background: #eaf1f8; }
+.random { background: #eaf1f8; }
 .sight { background: #ff87b7; }
 .controls { font-size: 11px; color: #879ab3; line-height: 1.9; }
 .footnote { font-size: 10px; color: #657991; margin-top: 25px; }
-.game { min-width: 0; }
+.game { min-width: 0; position: sticky; top: 24px; }
 .hud { display: flex; justify-content: space-between; padding: 0 12px 16px; }
 .hud small { display: block; text-transform: uppercase; letter-spacing: .12em; font-size: 9px; color: #879ab3; margin-bottom: 5px; }
 .hud strong { font-family: var(--font-geist-mono), monospace; font-size: 18px; font-weight: 500; }.hud strong span { color: #53667f; font-size: 13px; }
@@ -27,7 +27,7 @@
 .overlay button { pointer-events: auto; margin-top: 14px; background: #b2f078; color: #152411; padding: 11px 18px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; gap: 20px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; color: #879ab3; font-size: 10px; padding: 12px 8px; }.toolbar > span { flex: 1; min-width: 0; line-height: 1.6; padding-right: 8px; }.toolbar > div { display: flex; gap: 8px; }.toolbar button { padding: 8px; background: #172337; border-radius: 6px; color: #c7d6e8; }
 .page button { cursor: pointer; }.page button:disabled { opacity: .35; cursor: default; }.page button:focus-visible, .back:focus-visible { outline: 2px solid #b2f078; outline-offset: 3px; }
-@media (max-width: 800px) { .page { padding: 18px 16px; }.header { margin-bottom: 20px; }.header > span { display: none; }.layout { display: flex; flex-direction: column; gap: 18px; }.intro { width: 100%; }.intro > .eyebrow { display: none; }.intro h1 { font-size: 44px; margin: 0; }.intro h1 br { display: none; }.description { font-size: 11px; margin: 10px 0 0; }.description br { display: none; }.legend { display: none; }.controls { margin: 6px 0 0; font-size: 10px; }.controls br { display: none; }.footnote { display: none; }.game { width: min(100%, 420px); }.arena { width: 100%; height: max(520px, 76svh); aspect-ratio: auto; }.hud { padding-bottom: 10px; }.hud strong { font-size: 15px; } }
+@media (max-width: 800px) { .page { padding: 18px 16px; }.header { margin-bottom: 20px; }.header > span { display: none; }.layout { display: flex; flex-direction: column; gap: 18px; }.intro { width: 100%; }.intro > .eyebrow { display: none; }.intro h1 { font-size: 44px; margin: 0; }.intro h1 br { display: none; }.description { font-size: 11px; margin: 10px 0 0; }.description br { display: none; }.legend { display: none; }.controls { margin: 6px 0 0; font-size: 10px; }.controls br { display: none; }.footnote { display: none; }.game { width: min(100%, 420px); position: static; }.arena { width: 100%; height: max(520px, 76svh); aspect-ratio: auto; }.hud { padding-bottom: 10px; }.hud strong { font-size: 15px; } }
 @media (max-height: 650px) and (min-width: 801px) { .intro h1 { font-size: 80px; }.legend { margin: 20px 0; gap: 12px; }.header { margin-bottom: 14px; }.arena { width: min(100%, 50.62svh); }.layout { grid-template-columns: 1fr 340px; } }
 
 .ballPowers { margin: 18px 0; display: grid; gap: 7px; font-size: 10px; color: #a6b6cb; }
