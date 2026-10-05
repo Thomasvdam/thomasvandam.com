@@ -14,7 +14,6 @@ export type BreakoutView = {
 	leftHits: number;
 	rightHits: number;
 	sight: number;
-	top: number;
 	stun: number;
 	rewind: number;
 	sticky: number;
@@ -46,7 +45,6 @@ export function viewFromGame(game: Game): BreakoutView {
 		leftHits: game.leftHits,
 		rightHits: game.rightHits,
 		sight: Math.max(0, Math.ceil(game.sightUntil - game.time)),
-		top: Math.max(0, Math.ceil(game.topUntil - game.time)),
 		stun: Math.max(0, game.stunUntil - game.time),
 		rewind: Math.max(0, rewind),
 		sticky: Math.max(0, Math.ceil(game.stickyUntil - game.time)),
@@ -59,7 +57,7 @@ export function viewFromGame(game: Game): BreakoutView {
 }
 
 function sameView(left: BreakoutView, right: BreakoutView) {
-	if (left.mode !== right.mode || left.score !== right.score || left.lives !== right.lives || left.level !== right.level || left.total !== right.total || left.bricks !== right.bricks || left.balls !== right.balls || left.leftHits !== right.leftHits || left.rightHits !== right.rightHits || left.sight !== right.sight || left.top !== right.top || left.stun !== right.stun || left.rewind !== right.rewind || left.sticky !== right.sticky || left.laser !== right.laser || left.shrink !== right.shrink || left.armour !== right.armour || left.attached !== right.attached || left.queued.length !== right.queued.length) return false;
+	if (left.mode !== right.mode || left.score !== right.score || left.lives !== right.lives || left.level !== right.level || left.total !== right.total || left.bricks !== right.bricks || left.balls !== right.balls || left.leftHits !== right.leftHits || left.rightHits !== right.rightHits || left.sight !== right.sight || left.stun !== right.stun || left.rewind !== right.rewind || left.sticky !== right.sticky || left.laser !== right.laser || left.shrink !== right.shrink || left.armour !== right.armour || left.attached !== right.attached || left.queued.length !== right.queued.length) return false;
 	return left.queued.every((power, index) => power === right.queued[index]);
 }
 
@@ -120,7 +118,7 @@ export function createBreakoutRuntime({ host, game, customLevel, onViewChange, o
 		};
 		const pointer = bindPaddlePointer(host, {
 			paddleX: () => game.paddleX,
-			move: x => movePaddle(game, x),
+			move: x => { if (game.mode === "ready" || game.mode === "playing") movePaddle(game, x); },
 			projectX: scene.pointerX,
 			press: () => action("launch"),
 			release: () => { releaseBalls(game, event => sound.play(event)); paint(); },
@@ -145,7 +143,7 @@ export function createBreakoutRuntime({ host, game, customLevel, onViewChange, o
 			accumulated += Math.min((now - previous) / 1000, 0.05); previous = now;
 			while (accumulated >= 1 / 120) {
 				const direction = Number(keys.has("arrowright") || keys.has("d")) - Number(keys.has("arrowleft") || keys.has("a"));
-				if (game.mode === "playing" || game.mode === "ready") movePaddle(game, game.paddleX + direction * 20 / 120);
+				if (game.mode === "playing" || game.mode === "ready") movePaddle(game, game.paddleX + -direction * 6 / 120);
 				step(game, 1 / 120, true, Math.random, event => sound.play(event)); accumulated -= 1 / 120;
 			}
 			scene.sync(game);

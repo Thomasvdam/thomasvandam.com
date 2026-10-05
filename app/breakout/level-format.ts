@@ -12,7 +12,6 @@ export const CELLS: Record<string, Cell> = {
 	W: { label: "Wide paddle", hits: 1, color: "#b2f078", power: "wide" },
 	D: { label: "Duplicate balls", hits: 1, color: "#c3a0ff", power: "duplicate" },
 	F: { label: "Future Sight", hits: 1, color: "#ff87b7", power: "sight" },
-	T: { label: "Top paddle", hits: 1, color: "#59ead4", power: "top" },
 	P: { label: "Piercing", hits: 1, color: "#f9ea62", power: "piercing" },
 	B: { label: "Fire", hits: 1, color: "#ff744b", power: "fire" },
 	G: { label: "Ghost", hits: 1, color: "#b9d8ef", power: "ghost" },
@@ -42,7 +41,7 @@ export function validateLevel(value: unknown): string[] {
 	level.pattern.forEach((row, r) => [...row].forEach((cell, col) => {
 		if (cell === ".") return;
 		const x = FIELD.width / 2 + (col - (level.columns - 1) / 2) * level.xStep, y = level.top - r * level.yStep;
-		if (x - level.width / 2 <= 0.3 || x + level.width / 2 >= FIELD.width - 0.3 || y - level.height / 2 <= FIELD.paddleY + 2 || y + level.height / 2 >= FIELD.topPaddleY - 0.5) errors.push(`Row ${r + 1}, column ${col + 1} leaves the brick area.`);
+		if (x - level.width / 2 <= 0.3 || x + level.width / 2 >= FIELD.width - 0.3 || y - level.height / 2 <= FIELD.paddleY + 2 || y + level.height / 2 >= FIELD.brickCeiling - 0.5) errors.push(`Row ${r + 1}, column ${col + 1} leaves the brick area.`);
 	}));
 	return errors;
 }

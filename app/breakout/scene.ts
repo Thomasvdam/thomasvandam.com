@@ -1,188 +1,186 @@
 import * as THREE from "three";
-import { FIELD, forecast, TOP_DURATION, WING_SEGMENT, paddleScale, paddleWidth, type Game } from "./game";
+import { FIELD, forecast, WING_SEGMENT, paddleScale, paddleWidth, type Game } from "./game";
+import { aroundDelta } from "./field";
 import { BRICK_TYPES } from "./brick-types";
 
+const RADIUS = 7.4;
+const angle = (x: number) => x / FIELD.width * Math.PI * 2;
+const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a, sticky: 0xf4a8df, laser: 0xff596c, armour: 0x82aaff, shrink: 0xd78a52, rewind: 0x72f1bf };
+
+// Z is the vertical cylinder axis. x in the simulation is an unrolled circumference.
 export function createScene(host: HTMLDivElement) {
-	const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+	const renderer = new THREE.WebGLRenderer({ antialias: true });
 	renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-	renderer.shadowMap.enabled = true;
-	renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+	renderer.setClearColor(0x0b1423);
 	host.appendChild(renderer.domElement);
 	const scene = new THREE.Scene();
-	const camera = new THREE.OrthographicCamera(-9.5, 9.5, 13.7, -13.7, 0.1, 100);
-	camera.position.set(9, 10, 40); camera.lookAt(9, 13, 0);
+	const arena = new THREE.Group(); scene.add(arena);
+	const camera = new THREE.OrthographicCamera(-10, 10, 14.4, -14.4, 0.1, 100);
+	camera.up.set(0, 0, 1); camera.position.set(0, -45, 17); camera.lookAt(0, 0, 13);
 	scene.add(new THREE.AmbientLight(0xb7c6ea, 2));
-	const light = new THREE.DirectionalLight(0xffffff, 4);
-	light.position.set(3, 20, 16); light.castShadow = true;
-	light.shadow.mapSize.set(1024, 1024);
-	Object.assign(light.shadow.camera, { left: -20, right: 20, top: 25, bottom: -20 });
-	scene.add(light);
-	const geometries: THREE.BufferGeometry[] = [], materials: THREE.Material[] = [];
-	function box(w: number, h: number, depth: number, color: number, x: number, y: number, z: number) {
-		const geometry = new THREE.BoxGeometry(w, h, depth); geometries.push(geometry);
-		const material = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.2 }); materials.push(material);
-		const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh); return mesh;
+	const light = new THREE.DirectionalLight(0xffffff, 3); light.position.set(-8, -20, 30); scene.add(light);
+	const geometries: THREE.BufferGeometry[] = [], materials: THREE.Material[] = [], textures: THREE.Texture[] = [];
+	const geometryCache = new Map<string, THREE.BufferGeometry>();
+	function arcGeometry(width: number, height: number, radius = RADIUS, thickness = 0.48) {
+		const key = [width, height, radius, thickness].join(",");
+		let geometry = geometryCache.get(key);
+		if (!geometry) {
+			const half = angle(width) / 2, shape = new THREE.Shape(), segments = Math.max(8, Math.ceil(width * 12));
+			for (let i = 0; i <= segments; i++) {
+				const a = -half + 2 * half * i / segments;
+				const x = Math.sin(a) * (radius + thickness / 2), y = -Math.cos(a) * (radius + thickness / 2);
+				if (!i) shape.moveTo(x, y); else shape.lineTo(x, y);
+			}
+			for (let i = segments; i >= 0; i--) {
+				const a = -half + 2 * half * i / segments;
+				shape.lineTo(Math.sin(a) * (radius - thickness / 2), -Math.cos(a) * (radius - thickness / 2));
+			}
+			shape.closePath();
+			geometry = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 16 });
+			geometry.translate(0, 0, -height / 2); geometries.push(geometry); geometryCache.set(key, geometry);
+		}
+		return geometry;
 	}
-	box(18.6, 26.6, 0.4, 0x111e31, 9, 13, -0.9);
-	box(0.3, 26, 0.8, 0x425570, 0.15, 13, 0);
-	box(0.3, 26, 0.8, 0x425570, 17.85, 13, 0);
-	box(18, 0.3, 0.8, 0x425570, 9, 25.85, 0);
-	// Subtle floor grid makes the extrusion and ball shadows legible.
-	for (let y = 1; y < 26; y += 1) box(17.4, 0.012, 0.01, 0x243349, 9, y, -0.68);
-	const textures: THREE.Texture[] = [];
-	const paddle = box(3, 0.4, 0.65, 0xeaf8ff, 9, 2, 0.25);
-	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => box(WING_SEGMENT - 0.015, 0.4, 0.65, 0xb2f078, 9 + side * (1.5 + (i + 0.5) * WING_SEGMENT), 2, 0.25)));
-	const topPaddle = box(3, 0.4, 0.65, 0x59ead4, 9, FIELD.topPaddleY, 0.25);
-	const topCharge = Array.from({ length: 7 }, (_, i) => box(0.34, 0.11, 0.02, 0xeaf8ff, 9 + (i - 3) * 0.4, FIELD.topPaddleY, 0.59));
-	const powerColor = { wide: 0xb2f078, duplicate: 0xc3a0ff, sight: 0xff87b7, top: 0x59ead4, piercing: 0xf9ea62, fire: 0xff744b, ghost: 0xb9d8ef, homing: 0x6ca8ff, random: 0xeaf1f8, shock: 0xffe65a, sticky: 0xf4a8df, laser: 0xff596c, armour: 0x82aaff, shrink: 0xd78a52, rewind: 0x72f1bf };
-	const labelGeometry = new THREE.PlaneGeometry(0.45, 0.45); geometries.push(labelGeometry);
-	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", top: "T", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?", shock: "E", sticky: "K", laser: "R", armour: "A", shrink: "N", rewind: "Z", ...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [type, spec.symbol])) }).map(([type, glyph]) => {
+	const colorMaterials = new Map<number, THREE.MeshStandardMaterial>();
+	function material(color: number) {
+		let value = colorMaterials.get(color);
+		if (!value) { value = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.15 }); colorMaterials.set(color, value); materials.push(value); }
+		return value;
+	}
+	const shadow = new THREE.MeshBasicMaterial({ color: 0x26374b }); materials.push(shadow);
+	const phase = new THREE.MeshStandardMaterial({ color: BRICK_TYPES.phase.color, transparent: true, opacity: 0.18, depthWrite: false }); materials.push(phase);
+	function arc(width: number, height: number, color: number, parent: THREE.Object3D = scene, radius = RADIUS, thickness = 0.48) {
+		const mesh = new THREE.Mesh(arcGeometry(width, height, radius, thickness), material(color)); parent.add(mesh); return mesh;
+	}
+	function position(object: THREE.Object3D, x: number, height: number, radius = RADIUS) {
+		const a = angle(x); object.position.set(Math.sin(a) * radius, -Math.cos(a) * radius, height);
+		object.rotation.set(Math.PI / 2, 0, a);
+	}
+	// Open wire cage: it never writes depth, so far-side silhouettes show through gaps.
+	const cageMaterial = new THREE.LineBasicMaterial({ color: 0x35516b, transparent: true, opacity: 0.35, depthWrite: false }); materials.push(cageMaterial);
+	for (let z = 0; z <= FIELD.height; z += 2) {
+		const points = Array.from({ length: 97 }, (_, i) => new THREE.Vector3(Math.sin(i / 96 * Math.PI * 2) * RADIUS, -Math.cos(i / 96 * Math.PI * 2) * RADIUS, z));
+		const geometry = new THREE.BufferGeometry().setFromPoints(points); geometries.push(geometry); arena.add(new THREE.Line(geometry, cageMaterial));
+	}
+	for (let i = 0; i < 24; i++) {
+		const a = i / 24 * Math.PI * 2;
+		const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(Math.sin(a) * RADIUS, -Math.cos(a) * RADIUS, 0), new THREE.Vector3(Math.sin(a) * RADIUS, -Math.cos(a) * RADIUS, FIELD.height)]); geometries.push(geometry); arena.add(new THREE.Line(geometry, cageMaterial));
+	}
+	const ceiling = arc(FIELD.width, 0.3, 0x617b96, arena); ceiling.position.z = FIELD.height - 0.15;
+	const bottomRim = arc(FIELD.width, 0.08, 0x304860, arena); bottomRim.position.z = 0;
+	const paddle = arc(3, 0.4, 0xeaf8ff); paddle.position.z = FIELD.paddleY;
+	const wings = [-1, 1].map(side => Array.from({ length: 5 }, (_, i) => {
+		const mesh = arc(WING_SEGMENT - 0.015, 0.4, powerColor.wide);
+		mesh.rotation.z = angle(side * (1.5 + (i + 0.5) * WING_SEGMENT)); mesh.position.z = FIELD.paddleY; return mesh;
+	}));
+	const shield = arc(3.15, 0.08, powerColor.armour, scene, RADIUS + 0.3); shield.position.z = FIELD.paddleY - 0.3;
+	const turret = arc(0.09, 0.3, powerColor.laser); turret.position.z = FIELD.paddleY + 0.3;
+	const labelGeometry = new THREE.PlaneGeometry(0.65, 0.65); geometries.push(labelGeometry);
+	const labelMaterials = Object.fromEntries(Object.entries({ wide: "W", duplicate: "D", sight: "F", piercing: "P", fire: "B", ghost: "G", homing: "H", random: "?", shock: "E", sticky: "K", laser: "R", armour: "A", shrink: "N", rewind: "Z", ...Object.fromEntries(Object.entries(BRICK_TYPES).map(([type, spec]) => [type, spec.symbol])) }).map(([type, glyph]) => {
 		const canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 128;
-		const context = canvas.getContext("2d")!;
-		context.fillStyle = "#233348"; context.font = "bold 100px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; context.fillText(glyph, 64, 69);
+		const context = canvas.getContext("2d")!; context.fillStyle = "#152235"; context.font = "bold 100px sans-serif"; context.textAlign = "center"; context.textBaseline = "middle"; context.fillText(glyph, 64, 69);
 		const texture = new THREE.CanvasTexture(canvas); textures.push(texture);
-		const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true }); materials.push(material); return [type, material];
+		const value = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }); materials.push(value); return [type, value];
 	}));
-	const trajectoryMaterial = new THREE.LineDashedMaterial({ color: 0xffa7ca, transparent: true, opacity: 0.65, dashSize: 0.16, gapSize: 0.12, depthTest: false });
-	materials.push(trajectoryMaterial);
-	const trajectories = new Map<number, THREE.Line>();
-	let hadSight = false;
-	let lastForecast = -Infinity, forecastX = NaN, forecastTime = NaN, forecastIds = "";
-	const brickMeshes = new Map<number, THREE.Mesh>();
-	const marks = new Map<number, THREE.Mesh[]>();
-	const balls = new Map<number, THREE.Mesh>();
-	const drops = new Map<number, THREE.Mesh>();
-	const ballIds = new Set<number>(), brickIds = new Set<number>(), blastIds = new Set<number>(), dropIds = new Set<number>();
-	const sphere = new THREE.SphereGeometry(FIELD.radius, 16, 12); geometries.push(sphere);
-	const auraGeometry = new THREE.TorusGeometry(FIELD.radius * 1.45, 0.025, 6, 24); geometries.push(auraGeometry);
-	const slowAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.slow.color }), speedAura = new THREE.MeshBasicMaterial({ color: BRICK_TYPES.speed.color }); const rewindAura = new THREE.MeshBasicMaterial({ color: powerColor.rewind }); materials.push(slowAura, speedAura, rewindAura);
+	const queuedLabel = new THREE.Mesh(labelGeometry, labelMaterials.piercing); scene.add(queuedLabel); position(queuedLabel, 0, FIELD.paddleY, RADIUS + 0.26); queuedLabel.scale.setScalar(0.5);
+	const dotGeometry = new THREE.CircleGeometry(0.065, 10); geometries.push(dotGeometry);
+	const sphere = new THREE.SphereGeometry(FIELD.radius * 1.2, 16, 12); geometries.push(sphere);
+	const auraGeometry = new THREE.TorusGeometry(FIELD.radius * 1.8, 0.03, 6, 24); geometries.push(auraGeometry);
 	const ballMaterials = Object.fromEntries(Object.entries({ normal: 0xffffff, piercing: powerColor.piercing, fire: powerColor.fire, ghost: powerColor.ghost, homing: powerColor.homing }).map(([effect, color]) => {
-		const material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: effect === "fire" ? 0.8 : 0.35, transparent: effect === "ghost", opacity: effect === "ghost" ? 0.35 : 1, depthWrite: effect !== "ghost" });
-		materials.push(material); return [effect, material];
+		const value = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5, transparent: effect === "ghost", opacity: effect === "ghost" ? 0.4 : 1, depthWrite: effect !== "ghost" }); materials.push(value); return [effect, value];
 	}));
-	const shield = box(3.15, 0.55, 0.08, powerColor.armour, 9, 2, 0.15);
-	const turret = box(0.18, 0.35, 0.25, powerColor.laser, 9, 2.3, 0.4);
-	const blastGeometry = new THREE.BoxGeometry(0.08, 0.65, 0.12); geometries.push(blastGeometry);
-	const blastMaterial = new THREE.MeshBasicMaterial({ color: powerColor.laser }); materials.push(blastMaterial);
-	const blastMeshes = new Map<number, THREE.Mesh>();
-	const queuedLabel = new THREE.Mesh(labelGeometry, labelMaterials.piercing); scene.add(queuedLabel);
+	const bricks = new Map<number, THREE.Group>(), balls = new Map<number, THREE.Mesh>(), drops = new Map<number, THREE.Group>(), blasts = new Map<number, THREE.Mesh>();
+	const trajectories = new Map<number, THREE.Line>();
+	const pathMaterial = new THREE.LineDashedMaterial({ color: 0xffa7ca, transparent: true, opacity: 0.65, dashSize: 0.2, gapSize: 0.15, depthWrite: false }); materials.push(pathMaterial);
+	let paths: ReturnType<typeof forecast> = [], lastForecast = -Infinity, forecastTime = -Infinity, forecastX = NaN;
+	function prune<T extends THREE.Object3D>(map: Map<number, T>, ids: Set<number>) {
+		for (const [id, object] of map) if (!ids.has(id)) { arena.remove(object); map.delete(id); }
+	}
 	function sync(game: Game) {
-		paddle.position.x = game.paddleX; paddle.scale.x = paddleScale(game);
-		shield.visible = game.armour; shield.position.x = game.paddleX; shield.scale.x = paddleWidth(game) / 3;
-		turret.visible = game.laserUntil > game.time; turret.position.x = game.paddleX;
-		const queued = game.queuedPowers[0]; queuedLabel.visible = !!queued; queuedLabel.position.set(game.paddleX, FIELD.paddleY, 0.59); queuedLabel.scale.setScalar(0.7);
-		if (queued) queuedLabel.material = labelMaterials[queued];
-		const paddleMaterial = paddle.material as THREE.MeshStandardMaterial;
-		paddleMaterial.color.setHex(game.shrinkUntil > game.time ? powerColor.shrink : game.stickyUntil > game.time ? powerColor.sticky : queued ? powerColor[queued] : 0xeaf8ff);
-		paddleMaterial.emissive.setHex(game.stunUntil > game.time ? powerColor.shock : 0x000000);
-		paddleMaterial.emissiveIntensity = game.stunUntil > game.time ? 0.5 + 0.5 * Math.sin(game.time * 45) : 0;
-		const topRemaining = Math.max(0, game.topUntil - game.time);
-		topPaddle.visible = topRemaining > 0 && (game.mode === "playing" || game.mode === "paused");
-		topPaddle.position.x = game.paddleX;
-		const topMaterial = topPaddle.material as THREE.MeshStandardMaterial;
-		topMaterial.transparent = true; topMaterial.opacity = 0.2 + 0.8 * topRemaining / TOP_DURATION;
-		topCharge.forEach((segment, i) => { segment.visible = topPaddle.visible && i < Math.ceil(topRemaining); segment.position.x = game.paddleX + (i - 3) * 0.4; });
-		wings.forEach((segments, side) => segments.forEach((segment, i) => {
-			segment.visible = i < (side === 0 ? game.leftHits : game.rightHits);
-			segment.position.x = game.paddleX + (side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT) * paddleScale(game); segment.scale.x = paddleScale(game);
+		arena.rotation.z = -angle(game.paddleX);
+		const scale = paddleScale(game);
+		paddle.geometry = arcGeometry(3 * scale, 0.4);
+		const queued = game.queuedPowers[0];
+		paddle.material = material(game.stunUntil > game.time ? powerColor.shock : game.shrinkUntil > game.time ? powerColor.shrink : game.stickyUntil > game.time ? powerColor.sticky : queued ? powerColor[queued] : 0xeaf8ff);
+		shield.visible = game.armour; shield.geometry = arcGeometry(paddleWidth(game), 0.08, RADIUS + 0.3);
+		turret.visible = game.laserUntil > game.time;
+		queuedLabel.visible = !!queued; if (queued) queuedLabel.material = labelMaterials[queued];
+		wings.forEach((segments, side) => segments.forEach((mesh, i) => {
+			mesh.visible = i < (side === 0 ? game.leftHits : game.rightHits);
+			mesh.geometry = arcGeometry((WING_SEGMENT - 0.015) * scale, 0.4);
+			mesh.rotation.z = angle((side === 0 ? -1 : 1) * (1.5 + (i + 0.5) * WING_SEGMENT) * scale);
 		}));
-		const sight = game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
-		ballIds.clear();
-		for (const ball of game.balls) ballIds.add(ball.id);
-		for (const [id, line] of trajectories) {
-			line.visible = sight;
-			if (!ballIds.has(id)) { scene.remove(line); line.geometry.dispose(); trajectories.delete(id); }
-		}
-		const ids = sight ? game.balls.map(ball => ball.id).join(",") : "";
-		const now = performance.now();
-		const forecastInterval = game.balls.length > 16 ? 1000 / 12 : 1000 / 30;
-		if (sight && (!hadSight || (now - lastForecast >= forecastInterval && (game.time !== forecastTime || game.paddleX !== forecastX)) || ids !== forecastIds || game.time < forecastTime)) {
-			for (const path of forecast(game)) {
-				let line = trajectories.get(path.id);
-				if (!line) {
-					const geometry = new THREE.BufferGeometry();
-					geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(241 * 3), 3));
-					line = new THREE.Line(geometry, trajectoryMaterial); line.renderOrder = 1; line.frustumCulled = false; scene.add(line); trajectories.set(path.id, line);
-				}
-				const positions = line.geometry.getAttribute("position") as THREE.BufferAttribute;
-				path.points.forEach((p, i) => positions.setXYZ(i, p.x, p.y, 0.44));
-				positions.needsUpdate = true; line.geometry.setDrawRange(0, path.points.length);
-				line.computeLineDistances(); line.visible = true;
-			}
-			lastForecast = now; forecastX = game.paddleX; forecastTime = game.time; forecastIds = ids;
-		}
-		brickIds.clear();
-		for (const brick of game.bricks) brickIds.add(brick.id);
-		for (const [id, mesh] of brickMeshes) if (!brickIds.has(id)) {
-			for (const removed of [mesh, ...(marks.get(id) ?? [])]) {
-				scene.remove(removed);
-				if (removed.geometry !== labelGeometry) { removed.geometry.dispose(); const index = geometries.indexOf(removed.geometry); if (index >= 0) geometries.splice(index, 1); }
-				if (removed.material instanceof THREE.MeshStandardMaterial) { removed.material.dispose(); const index = materials.indexOf(removed.material); if (index >= 0) materials.splice(index, 1); }
-			}
-			brickMeshes.delete(id); marks.delete(id);
-		}
+		const front = (x: number) => Math.cos(angle(aroundDelta(x, game.paddleX))) >= 0;
+		prune(bricks, new Set(game.bricks.map(b => b.id)));
 		for (const brick of game.bricks) {
-			let mesh = brickMeshes.get(brick.id);
-			if (!mesh) {
-				const color = brick.type ? new THREE.Color(BRICK_TYPES[brick.type].color).getHex() : brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
-				mesh = box(brick.width, brick.height, 0.7, color, brick.x, brick.y, 0.2); brickMeshes.set(brick.id, mesh);
-				const indicators = [];
-				for (let i = 0; i < brick.maxHits; i++) indicators.push(box(0.12, 0.1, 0.02, 0x233348, brick.x + (i - (brick.maxHits - 1) / 2) * 0.23, brick.y - (brick.power || brick.type ? brick.height * 0.32 : 0), 0.56));
-				if (brick.power || brick.type) { const label = new THREE.Mesh(labelGeometry, labelMaterials[brick.type ?? brick.power!]); label.position.set(brick.x, brick.y + 0.05, 0.57); scene.add(label); indicators.push(label); }
-				marks.set(brick.id, indicators);
+			let group = bricks.get(brick.id);
+			const color = brick.type ? new THREE.Color(BRICK_TYPES[brick.type].color).getHex() : brick.power ? powerColor[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
+			if (!group) {
+				group = new THREE.Group(); arena.add(group); bricks.set(brick.id, group);
+				arc(brick.width, brick.height, color, group);
+				for (let i = 0; i < brick.maxHits; i++) {
+					const dot = new THREE.Mesh(dotGeometry, material(0x152235)); position(dot, (i - (brick.maxHits - 1) / 2) * 0.1, brick.power || brick.type ? -brick.height * 0.3 : 0, RADIUS + 0.245); group.add(dot);
+				}
+				if (brick.power || brick.type) {
+					const label = new THREE.Mesh(labelGeometry, labelMaterials[brick.type ?? brick.power!]); position(label, 0, 0.06, RADIUS + 0.25); group.add(label);
+				}
 			}
-			mesh.visible = brick.hits > 0;
-			mesh.position.set(brick.x, brick.y, 0.2);
-			const phased = brick.type === "phase" && !brick.materialized;
-			mesh.castShadow = !phased;
-			(mesh.material as THREE.MeshStandardMaterial).opacity = phased ? 0.16 : 0.55 + 0.45 * brick.hits / brick.maxHits;
-			(mesh.material as THREE.MeshStandardMaterial).depthWrite = !phased;
-			(mesh.material as THREE.MeshStandardMaterial).transparent = true;
-			marks.get(brick.id)?.forEach((mark, i) => {
-				mark.visible = brick.hits > 0 && (i < brick.hits || i >= brick.maxHits);
-				mark.position.set(i < brick.maxHits ? brick.x + (i - (brick.maxHits - 1) / 2) * 0.23 : brick.x, i < brick.maxHits ? brick.y - (brick.power || brick.type ? brick.height * 0.32 : 0) : brick.y + 0.05, i < brick.maxHits ? 0.56 : 0.57);
-			});
+			group.visible = brick.hits > 0; group.position.z = brick.y; group.rotation.z = angle(brick.x);
+			const near = front(brick.x), phased = brick.type === "phase" && !brick.materialized;
+			(group.children[0] as THREE.Mesh).material = phased ? phase : near ? material(color) : shadow;
+			group.children.slice(1).forEach((mark, i) => { mark.visible = near && (i < brick.hits || i >= brick.maxHits); });
 		}
-		for (const [id, mesh] of balls) if (!ballIds.has(id)) { scene.remove(mesh); balls.delete(id); }
+		prune(balls, new Set(game.balls.map(b => b.id)));
 		for (const ball of game.balls) {
 			let mesh = balls.get(ball.id);
-			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.castShadow = true; const aura = new THREE.Mesh(auraGeometry, speedAura); aura.position.z = 0.06; mesh.add(aura); scene.add(mesh); balls.set(ball.id, mesh); }
-			mesh.material = ballMaterials[ball.effect ?? "normal"]; mesh.castShadow = ball.effect !== "ghost";
-			mesh.position.set(ball.x, ball.y, 0.42);
-			const aura = mesh.children[0] as THREE.Mesh, slowed = (ball.slowUntil ?? 0) > game.time;
-			const rewinding = (ball.rewindUntil ?? 0) > game.time;
-			aura.visible = rewinding || slowed || (ball.speedBoost ?? 1) > 1; aura.material = rewinding ? rewindAura : slowed ? slowAura : speedAura;
-			aura.scale.setScalar(rewinding ? 1.1 + 0.1 * Math.sin(game.time * 15) : 1);
+			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.add(new THREE.Mesh(auraGeometry, material(powerColor.rewind))); arena.add(mesh); balls.set(ball.id, mesh); }
+			position(mesh, ball.x, ball.y, RADIUS + 0.1);
+			mesh.material = front(ball.x) ? ballMaterials[ball.effect ?? "normal"] : shadow;
+			const aura = mesh.children[0] as THREE.Mesh, rewinding = (ball.rewindUntil ?? 0) > game.time, slowed = (ball.slowUntil ?? 0) > game.time;
+			aura.visible = front(ball.x) && (rewinding || slowed || (ball.speedBoost ?? 1) > 1);
+			aura.material = material(rewinding ? powerColor.rewind : new THREE.Color(slowed ? BRICK_TYPES.slow.color : BRICK_TYPES.speed.color).getHex());
 		}
-		blastIds.clear();
-		for (const blast of game.blasts) blastIds.add(blast.id);
-		for (const [id, mesh] of blastMeshes) if (!blastIds.has(id)) { scene.remove(mesh); blastMeshes.delete(id); }
-		for (const blast of game.blasts) {
-			let mesh = blastMeshes.get(blast.id);
-			if (!mesh) { mesh = new THREE.Mesh(blastGeometry, blastMaterial); scene.add(mesh); blastMeshes.set(blast.id, mesh); }
-			mesh.position.set(blast.x, blast.y, 0.5);
-		}
-		dropIds.clear();
-		for (const drop of game.drops) dropIds.add(drop.id);
-		for (const [id, mesh] of drops) if (!dropIds.has(id)) { scene.remove(mesh); drops.delete(id); }
+		prune(drops, new Set(game.drops.map(d => d.id)));
 		for (const drop of game.drops) {
-			let mesh = drops.get(drop.id);
-			if (!mesh) { mesh = box(0.65, 0.65, 0.65, powerColor[drop.power], drop.x, drop.y, 0.45); const label = new THREE.Mesh(labelGeometry, labelMaterials[drop.power]); label.position.z = 0.335; mesh.add(label); drops.set(drop.id, mesh); }
-			mesh.position.y = drop.y; mesh.rotation.z = Math.sin(game.time * 2) * 0.15;
+			let group = drops.get(drop.id);
+			if (!group) {
+				group = new THREE.Group(); arc(0.3, 0.65, powerColor[drop.power], group);
+				const label = new THREE.Mesh(labelGeometry, labelMaterials[drop.power]); position(label, 0, 0, RADIUS + 0.25); group.add(label); arena.add(group); drops.set(drop.id, group);
+			}
+			group.rotation.z = angle(drop.x); group.position.z = drop.y;
+			(group.children[0] as THREE.Mesh).material = front(drop.x) ? material(powerColor[drop.power]) : shadow; group.children[1].visible = front(drop.x);
 		}
-		hadSight = sight;
+		prune(blasts, new Set(game.blasts.map(b => b.id)));
+		for (const blast of game.blasts) {
+			let mesh = blasts.get(blast.id); if (!mesh) { mesh = arc(0.035, 0.65, powerColor.laser, arena); blasts.set(blast.id, mesh); }
+			mesh.rotation.z = angle(blast.x); mesh.position.z = blast.y; mesh.material = front(blast.x) ? material(powerColor.laser) : shadow;
+		}
+		const sight = game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
+		const now = performance.now(), ids = new Set(game.balls.map(b => b.id));
+		for (const [id, line] of trajectories) {
+			line.visible = sight;
+			if (!ids.has(id)) { arena.remove(line); line.geometry.dispose(); trajectories.delete(id); }
+		}
+		if (sight && (game.time < forecastTime || now - lastForecast > (game.balls.length > 16 ? 1000 / 12 : 1000 / 30)) && (game.time !== forecastTime || game.paddleX !== forecastX || paths.length !== game.balls.length)) {
+			paths = forecast(game); lastForecast = now; forecastTime = game.time; forecastX = game.paddleX;
+			for (const path of paths) {
+				let line = trajectories.get(path.id);
+				if (!line) { line = new THREE.Line(new THREE.BufferGeometry(), pathMaterial); arena.add(line); trajectories.set(path.id, line); }
+				const points = path.points.map(p => new THREE.Vector3(Math.sin(angle(p.x)) * (RADIUS + 0.12), -Math.cos(angle(p.x)) * (RADIUS + 0.12), p.y));
+				line.geometry.dispose(); line.geometry = new THREE.BufferGeometry().setFromPoints(points); line.computeLineDistances(); line.visible = true;
+			}
+		}
 		renderer.render(scene, camera);
 	}
-	const resize = () => { renderer.setSize(host.clientWidth, host.clientHeight); };
+	const resize = () => {
+		const width = host.clientWidth, height = host.clientHeight;
+		const halfHeight = Math.max(14.4, 9 / (width / height)), halfWidth = halfHeight * width / height;
+		camera.left = -halfWidth; camera.right = halfWidth; camera.top = halfHeight; camera.bottom = -halfHeight; camera.updateProjectionMatrix(); renderer.setSize(width, height);
+	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
-	const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), target = new THREE.Vector3();
 	return {
 		sync,
-		pointerX(clientX: number, clientY: number) {
-			const rect = renderer.domElement.getBoundingClientRect();
-			raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1), camera);
-			return raycaster.ray.intersectPlane(plane, target)?.x ?? 9;
-		},
+		pointerX(clientX: number) { return clientX / Math.max(1, renderer.domElement.getBoundingClientRect().width) * FIELD.width; },
 		dispose() { observer.disconnect(); trajectories.forEach(line => line.geometry.dispose()); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); renderer.dispose(); renderer.domElement.remove(); },
 	};
 }

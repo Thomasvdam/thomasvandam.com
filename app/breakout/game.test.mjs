@@ -20,12 +20,12 @@ describe("Breakout simulation", () => {
 		Object.assign(g.balls[0], { x: box.x, y: box.y - 0.7, vx: 0, vy: 10 }); step(g, 1 / 120);
 		expect(g.drops[0].power).toBe(box.power);
 	});
-	test("paddle redirects downward balls upward; walls reflect", () => {
+	test("paddle redirects downward balls upward; circumference wraps", () => {
 		const g = newGame(); launch(g);
 		Object.assign(g.balls[0], { x: g.paddleX + 1, y: 2.5, vx: 0, vy: -10 }); step(g, 1 / 120);
 		expect(g.balls[0].vy).toBeGreaterThan(0); expect(g.balls[0].vx).toBeGreaterThan(0);
-		Object.assign(g.balls[0], { x: 0.55, y: 10, vx: -10, vy: 1 }); step(g, 1 / 120);
-		expect(g.balls[0].vx).toBeGreaterThan(0);
+		Object.assign(g.balls[0], { x: 0.05, y: 10, vx: -10, vy: 1 }); step(g, 1 / 120);
+		expect(g.balls[0].vx).toBe(-10); expect(g.balls[0].x).toBeGreaterThan(17);
 	});
 	test("extensions survive time and core hits, then each side breaks down over five hits", () => {
 		const g = newGame(); launch(g); collectPower(g, "wide"); expect(paddleWidth(g)).toBeCloseTo(4.6);
@@ -41,10 +41,10 @@ describe("Breakout simulation", () => {
 		expect(paddleWidth(g)).toBe(3);
 		collectPower(g, "wide"); expect(g.leftHits).toBe(5); expect(g.rightHits).toBe(5);
 	});
-	test("asymmetric extensions stay inside the arena and catch power-ups", () => {
+	test("asymmetric extensions wrap around the arena and catch power-ups", () => {
 		const g = newGame(); launch(g); collectPower(g, "wide"); g.leftHits = 0;
-		movePaddle(g, 100); expect(paddleBounds(g).right).toBeCloseTo(17.7);
-		movePaddle(g, -100); expect(paddleBounds(g).left).toBeCloseTo(0.3);
+		movePaddle(g, 100); expect(g.paddleX).toBeCloseTo(10);
+		movePaddle(g, -100); expect(g.paddleX).toBeCloseTo(8);
 		g.drops.push({ id: 1000, x: paddleBounds(g).right - 0.1, y: 2.1, power: "sight" }); step(g, 1 / 120);
 		expect(g.sightUntil).toBeGreaterThan(g.time);
 	});
@@ -94,25 +94,6 @@ describe("Breakout simulation", () => {
 		launch(g); Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: 0 });
 		step(g, 9.99); expect(g.drops).toHaveLength(0); step(g, 0.02); expect(g.drops).toHaveLength(1);
 	});
-	test("the top paddle follows steering and redirects upward balls only while active", () => {
-		const g = newGame(); launch(g); collectPower(g, "top"); expect(g.topUntil).toBe(7);
-		movePaddle(g, 12); Object.assign(g.balls[0], { x: 12.8, y: 23.5, vx: 0, vy: 10 }); step(g, 1 / 120);
-		expect(g.balls[0].vy).toBeLessThan(0); expect(g.balls[0].vx).toBeGreaterThan(0);
-		Object.assign(g.balls[0], { x: 8, y: 23.5, vx: 0, vy: 10 }); step(g, 1 / 120); expect(g.balls[0].vy).toBeGreaterThan(0);
-		g.time = 7; Object.assign(g.balls[0], { x: 12, y: 23.5, vx: 0, vy: 10 }); step(g, 1 / 120); expect(g.balls[0].vy).toBeGreaterThan(0);
-	});
-	test("top-paddle duration pauses, refreshes on pickup, and clears on life loss", () => {
-		const g = newGame(); launch(g); collectPower(g, "top"); g.mode = "paused"; step(g, 20); expect(g.topUntil - g.time).toBe(7);
-		g.mode = "playing"; g.time = 3; collectPower(g, "top"); expect(g.topUntil - g.time).toBe(7);
-		g.balls[0].y = -2; step(g, 1 / 120); expect(g.topUntil).toBe(0);
-	});
-	test("forecasts include the top paddle and its expiration within the next two seconds", () => {
-		const g = newGame(); launch(g); collectPower(g, "top"); Object.assign(g.balls[0], { x: 9, y: 23.5, vx: 0, vy: 1 });
-		const paths = forecast(g), copy = JSON.parse(JSON.stringify(g));
-		for (let i = 0; i < 240; i++) step(copy, 1 / 120, false);
-		expect(paths[0].points.at(-1).y).toBeCloseTo(copy.balls[0].y, 10); expect(paths[0].points.slice(0, 40).some(p => p.y < 23.5)).toBe(true);
-		g.topUntil = g.time + 0.02; const expiredPath = forecast(g)[0]; expect(expiredPath.points.at(-1).y).toBeGreaterThan(25);
-	});
 	test("mystery bricks roll on destruction and drop a concrete power from the full pool", () => {
 		POWER_TYPES.forEach((power, index) => {
 			const g = newGame(); launch(g); const brick = g.bricks.find(b => b.power === "random");
@@ -122,7 +103,6 @@ describe("Breakout simulation", () => {
 			Object.assign(g.balls[0], { x: 9, y: 5, vx: 0, vy: 0 });
 			g.drops[0].x = g.paddleX; g.drops[0].y = 2.1; step(g, 1 / 120);
 			expect(g.drops).toHaveLength(0);
-			if (power === "top") expect(g.topUntil - g.time).toBe(7);
 		});
 	});
 	test("forecast simulation never rolls mystery rewards", () => {
@@ -134,7 +114,7 @@ describe("Breakout simulation", () => {
 	test("ball pickups queue in order and one charge transfers only at a lower-paddle hit", () => {
 		const g = newGame(); launch(g); collectPower(g, "fire"); collectPower(g, "piercing");
 		expect(g.queuedPowers).toEqual(["fire", "piercing"]); expect(g.balls[0].effect).toBeUndefined();
-		collectPower(g, "top"); Object.assign(g.balls[0], { x: 9, y: 23.5, vx: 0, vy: 10 }); step(g, 1 / 120);
+		Object.assign(g.balls[0], { x: 9, y: 25.5, vx: 0, vy: 10 }); step(g, 1 / 120);
 		expect(g.queuedPowers).toHaveLength(2); expect(g.balls[0].effect).toBeUndefined();
 		Object.assign(g.balls[0], { x: 9, y: 2.5, vx: 0, vy: -10 }); step(g, 1 / 120);
 		expect(g.balls[0].effect).toBe("fire"); expect(g.queuedPowers).toEqual(["piercing"]);

@@ -7,38 +7,30 @@ type PaddleControls = {
 };
 
 export function bindPaddlePointer(element: HTMLDivElement, controls: PaddleControls) {
-	let touch: { id: number; x: number } | undefined;
+	let drag: { id: number; x: number } | undefined;
 	const cancel = () => {
-		const id = touch?.id; touch = undefined;
+		const id = drag?.id; drag = undefined;
 		if (id !== undefined && element.hasPointerCapture(id)) element.releasePointerCapture(id);
 	};
 	const pointer = (event: PointerEvent) => {
 		if (!event.isPrimary || (event.type === "pointerdown" && event.button !== 0)) return;
-		if (event.pointerType === "touch") {
-			if (event.type === "pointerdown") {
-				if (touch) return;
-				touch = { id: event.pointerId, x: controls.projectX(event.clientX, event.clientY) };
-			} else {
-				if (!touch || touch.id !== event.pointerId || !element.hasPointerCapture(event.pointerId)) return;
-				const x = controls.projectX(event.clientX, event.clientY), delta = x - touch.x;
-				touch.x = x;
-				// Incremental motion reverses immediately at walls and discards motion during stun.
-				controls.move(controls.paddleX() + delta);
-			}
+		if (event.type === "pointerdown") {
+			if (drag) return;
+			drag = { id: event.pointerId, x: controls.projectX(event.clientX, event.clientY) };
+			element.setPointerCapture(event.pointerId); element.focus({ preventScroll: true }); controls.press();
 		} else {
-			if (touch) return;
-			controls.move(controls.projectX(event.clientX, event.clientY));
+			if (!drag || drag.id !== event.pointerId || !element.hasPointerCapture(event.pointerId)) return;
+			const x = controls.projectX(event.clientX, event.clientY), delta = x - drag.x;
+			drag.x = x;
+			// Drag the arena with the pointer; the stationary paddle moves oppositely in world coordinates.
+			controls.move(controls.paddleX() - delta);
 		}
 		event.preventDefault();
-		if (event.type === "pointerdown") {
-			element.setPointerCapture(event.pointerId); element.focus({ preventScroll: true }); controls.press();
-		}
 	};
 	const end = (event: PointerEvent) => {
-		const held = element.hasPointerCapture(event.pointerId);
-		if (event.type === "pointerup" && event.isPrimary && held) controls.release?.();
-		if (touch?.id === event.pointerId) cancel();
-		else if (held && event.type !== "lostpointercapture") element.releasePointerCapture(event.pointerId);
+		if (drag?.id !== event.pointerId) return;
+		if (event.type === "pointerup" && event.isPrimary && element.hasPointerCapture(event.pointerId)) controls.release?.();
+		cancel();
 	};
 	const contextMenu = (event: Event) => event.preventDefault();
 	element.addEventListener("pointerdown", pointer); element.addEventListener("pointermove", pointer);
