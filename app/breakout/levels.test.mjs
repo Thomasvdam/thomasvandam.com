@@ -12,7 +12,7 @@ test("three levels increase brick dimensions/count and keep separated bricks ins
 		const bricks = levelBricks(level); expect(new Set(bricks.map(b => b.id)).size).toBe(bricks.length);
 		if (level && level < 3) { expect(layout.width).toBeGreaterThan(LEVELS[level - 1].width); expect(layout.height).toBeGreaterThan(LEVELS[level - 1].height); }
 		for (const brick of bricks) {
-			expect(brick.x - brick.width / 2).toBeGreaterThan(0.3); expect(brick.x + brick.width / 2).toBeLessThan(FIELD.width - 0.3);
+			expect(brick.x - brick.width / 2).toBeGreaterThanOrEqual(0); expect(brick.x + brick.width / 2).toBeLessThanOrEqual(FIELD.width);
 			expect(brick.y - brick.height / 2).toBeGreaterThan(FIELD.brickFloor); expect(brick.y + brick.height / 2).toBeLessThan(FIELD.brickCeiling - 0.5);
 			for (const other of bricks) if (brick.id !== other.id) expect(Math.abs(brick.x - other.x) >= (brick.width + other.width) / 2 || Math.abs(brick.y - other.y) >= (brick.height + other.height) / 2).toBe(true);
 		}
@@ -59,4 +59,12 @@ test("larger-brick collisions and ghost clearance use actual dimensions, includi
 test("a simultaneous last-brick clear and ball loss cannot break advancing to the next level", () => {
 	const g = newGame(); launch(g); g.bricks.forEach(b => b.hits = 0); g.balls[0].y = -2; step(g, 1 / 120);
 	expect(g.mode).toBe("cleared"); expect(g.balls).toHaveLength(0); expect(() => nextLevel(g)).not.toThrow(); expect(g.balls).toHaveLength(1); expect(g.mode).toBe("ready");
+});
+
+test("campaign columns have the same spacing across the seam as everywhere else", () => {
+	for (const level of LEVELS) {
+		expect(level.columns * level.xStep).toBeCloseTo(FIELD.width, 10);
+		const lastToFirst = FIELD.width - (level.columns - 1) * level.xStep;
+		expect(lastToFirst - level.width).toBeCloseTo(level.xStep - level.width, 10);
+	}
 });

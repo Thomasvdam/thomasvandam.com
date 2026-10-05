@@ -1,3 +1,4 @@
+import { FIELD } from "./field";
 import type { LevelDefinition } from "./level-format";
 
 // Paste editor exports into this array to add levels to the campaign.
@@ -7,7 +8,7 @@ export const LEVELS: LevelDefinition[] = [
 		"width": 1.8,
 		"height": 0.8,
 		"columns": 8,
-		"xStep": 2,
+		"xStep": FIELD.width / 8,
 		"top": 22.5,
 		"yStep": 1.25,
 		"pattern": [
@@ -23,7 +24,7 @@ export const LEVELS: LevelDefinition[] = [
 		"width": 2,
 		"height": 1,
 		"columns": 7,
-		"xStep": 2.25,
+		"xStep": FIELD.width / 7,
 		"top": 22.9,
 		"yStep": 1.5,
 		"pattern": [
@@ -45,7 +46,7 @@ export const LEVELS: LevelDefinition[] = [
 		"width": 2.2,
 		"height": 1.2,
 		"columns": 6,
-		"xStep": 2.7,
+		"xStep": FIELD.width / 6,
 		"top": 22.7,
 		"yStep": 1.25,
 		"pattern": [

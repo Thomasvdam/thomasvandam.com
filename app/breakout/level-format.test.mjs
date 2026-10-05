@@ -45,3 +45,14 @@ test("appending an exported definition automatically joins campaign progression"
 		launch(g); g.bricks[0].hits = 0; step(g, 1 / 120); expect(g.mode).toBe("won");
 	} finally { LEVELS.pop(); }
 });
+
+test("cylindrical layouts allow edge bricks, preserve intentional seams, and reject wrap overlap", () => {
+	const ring = { ...LEVELS[0], columns: 9, width: 2, xStep: 2, pattern: ["111111111"] };
+	expect(validateLevel(ring)).toEqual([]);
+	expect(bricksForLevel(ring)).toHaveLength(9);
+	expect(validateLevel({ ...ring, width: 2.1 })).not.toEqual([]);
+	const opening = { ...ring, pattern: [".1111111."] };
+	expect(bricksForLevel(parseLevel(exportLevel(opening)))).toHaveLength(7);
+	const narrow = { ...LEVELS[0], xStep: 2 };
+	expect(parseLevel(exportLevel(narrow)).xStep).toBe(2);
+});
