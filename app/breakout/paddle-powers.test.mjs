@@ -81,7 +81,8 @@ test("indestructible bricks never lose HP or award score and do not prevent leve
 });
 
 test("new powers and blockers round-trip from every campaign board; blocker-only editor levels are rejected", () => {
-	for (const [index, level] of LEVELS.entries()) { expect(levelBricks(index)).toEqual(newGame(parseLevel(exportLevel(level))).bricks); expect(levelBricks(index).some(b => !destructible(b))).toBe(true); }
+	for (const [index, level] of LEVELS.entries()) { expect(levelBricks(index)).toEqual(newGame(parseLevel(exportLevel(level))).bricks); }
+	expect(LEVELS.some((_, index) => levelBricks(index).some(b => !destructible(b)))).toBe(true);
 	expect(validateLevel({ ...LEVELS[0], columns: 1, pattern: ["I"] }).length).toBeGreaterThan(0);
 });
 

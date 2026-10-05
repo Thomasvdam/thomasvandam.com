@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import type { LevelDefinition } from "./level-format";
 import { BRICK_TYPES } from "./brick-types";
-import { LEVELS } from "./levels";
+import { LEVELS, levelIntroductions } from "./levels";
 import { createBreakoutRuntime, viewFromGame, type BreakoutRuntime, type BreakoutView } from "./breakout-runtime";
 import { newGame, type Game } from "./game";
 import styles from "./breakout.module.css";
@@ -31,6 +31,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 		runtime.current?.setMuted(next);
 	};
 	const overlay = view.mode !== "playing";
+	const introductions = customLevel ? [] : levelIntroductions(view.level);
 	return <div className={styles.page} onDragStart={event => event.preventDefault()}>
 		<header className={styles.header}><Link href="/" className={styles.back}><ArrowLeft size={16} /> Thomas van Dam</Link><span className={styles.eyebrow}>Game experiment / 01</span></header>
 		<div className={styles.layout}>
@@ -71,6 +72,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 						<p className={styles.eyebrow}>{view.mode === "won" ? customLevel ? "Test level cleared" : "All levels cleared" : view.mode === "cleared" ? "Wall cleared" : view.mode === "lost" ? "Out of lives" : `Level ${String(view.level + 1).padStart(2, "0")} · ${(customLevel?.name ?? LEVELS[view.level].name)}`}</p>
 						<h2>{error ? "No 3D support" : !loaded ? "Setting the scene…" : view.mode === "cleared" ? "On to the next." : view.mode === "won" ? "Nicely done." : view.mode === "lost" ? "One more round?" : view.mode === "paused" ? "Take a breather." : "Ready to break out?"}</h2>
 						<p>{error || (view.mode === "cleared" ? `Next: ${LEVELS[view.level + 1]?.name}. Your score and lives carry over.` : view.mode === "ready" ? "Click the field, tap, or press Space." : view.mode === "paused" ? "Your game is right where you left it." : `You scored ${view.score} points.`)}</p>
+						{loaded && !error && view.mode === "ready" && introductions.length > 0 && <p>New this level: {introductions.join(" · ")}.</p>}
 						{loaded && !error && <button onClick={() => runtime.current?.action(view.mode === "ready" ? "launch" : view.mode === "paused" ? "pause" : view.mode === "cleared" ? "next" : "reset")}>{view.mode === "ready" ? "Launch ball" : view.mode === "paused" ? "Resume game" : view.mode === "cleared" ? "Next level" : "Play again"}<Play size={15} /></button>}
 					</div>}
 				</div>

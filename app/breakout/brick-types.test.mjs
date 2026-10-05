@@ -137,6 +137,7 @@ test("forecasts match every brick effect, slow expiry and active stun without mu
 });
 
 test("all special brick types appear in campaign boards and survive editor source round trips", () => {
-	LEVELS.forEach((level, index) => { expect(new Set(levelBricks(index).filter(b => b.type).map(b => b.type))).toEqual(new Set(Object.keys(BRICK_TYPES))); expect(bricksForLevel(parseLevel(exportLevel(level)))).toEqual(levelBricks(index)); });
+	expect(new Set(LEVELS.flatMap((_, index) => levelBricks(index).filter(b => b.type).map(b => b.type)))).toEqual(new Set(Object.keys(BRICK_TYPES)));
+	LEVELS.forEach((level, index) => { expect(bricksForLevel(parseLevel(exportLevel(level)))).toEqual(levelBricks(index)); });
 	for (const [type, spec] of Object.entries(BRICK_TYPES)) { const level = { ...LEVELS[0], columns: 2, pattern: [spec.symbol + "1"] }; expect(bricksForLevel(parseLevel(exportLevel(level)))[0].type).toBe(type); }
 });

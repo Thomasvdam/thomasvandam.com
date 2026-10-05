@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { collectPower, forecast, launch, MAX_BALLS, movePaddle, newGame, paddleBounds, paddleWidth, BALL_POWER_TYPES, POWER_TYPES, step } from "./game";
 
 describe("Breakout simulation", () => {
-	test("level contains all brick types and a ball follows the paddle before launch", () => {
+	test("opening level teaches armor, widening and sight; a ball follows the paddle before launch", () => {
 		const g = newGame(); expect(g.bricks).toHaveLength(40);
 		expect(new Set(g.bricks.map(b => b.maxHits))).toEqual(new Set([1, 2, 3]));
-		expect(new Set(g.bricks.filter(b => b.power).map(b => b.power))).toEqual(new Set([...POWER_TYPES, "random"]));
+		expect(new Set(g.bricks.filter(b => b.power).map(b => b.power))).toEqual(new Set(["wide", "sight"]));
 		movePaddle(g, -100); expect(g.balls[0].x).toBe(g.paddleX); expect(g.paddleX).toBeGreaterThan(1.5);
 		launch(g); expect(g.mode).toBe("playing"); expect(g.balls[0].vy).toBeGreaterThan(0);
 	});
@@ -96,7 +96,7 @@ describe("Breakout simulation", () => {
 	});
 	test("mystery bricks roll on destruction and drop a concrete power from the full pool", () => {
 		POWER_TYPES.forEach((power, index) => {
-			const g = newGame(); launch(g); const brick = g.bricks.find(b => b.power === "random");
+			const g = newGame(); launch(g); const brick = g.bricks[0]; Object.assign(brick, { power: "random", hits: 1, maxHits: 1 });
 			Object.assign(g.balls[0], { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 });
 			let rolls = 0; step(g, 1 / 120, true, () => { rolls++; return (index + 0.5) / POWER_TYPES.length; });
 			expect(rolls).toBe(1); expect(g.drops).toHaveLength(1); expect(g.drops[0].power).toBe(power);
@@ -106,7 +106,7 @@ describe("Breakout simulation", () => {
 		});
 	});
 	test("forecast simulation never rolls mystery rewards", () => {
-		const g = newGame(); launch(g); const brick = g.bricks.find(b => b.power === "random");
+		const g = newGame(); launch(g); const brick = g.bricks[0]; Object.assign(brick, { power: "random", hits: 1, maxHits: 1 });
 		Object.assign(g.balls[0], { x: brick.x, y: brick.y - 0.7, vx: 0, vy: 10 });
 		step(g, 1 / 120, false, () => { throw new Error("Forecast rolled a reward"); });
 		expect(brick.hits).toBe(0); expect(g.drops).toHaveLength(0);
