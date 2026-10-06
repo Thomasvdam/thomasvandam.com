@@ -40,7 +40,8 @@ export const LEVELS: LevelDefinition[] = [
 			"11W1112",
 			".D1112.",
 			"..F11.."
-		]
+		],
+		"ceiling": "dome"
 	},
 	{
 		"name": "Switchback",
@@ -84,7 +85,8 @@ export const LEVELS: LevelDefinition[] = [
 			"1D122P22",
 			"11B2K2B2",
 			"11122212"
-		]
+		],
+		"ceiling": "dome"
 	},
 	{
 		"name": "Afterburn",
@@ -127,7 +129,8 @@ export const LEVELS: LevelDefinition[] = [
 			"1S132S23",
 			"W122F232",
 			"1R12D22K"
-		]
+		],
+		"ceiling": "dome"
 	},
 	{
 		"name": "Live Wire",
@@ -199,7 +202,8 @@ export const LEVELS: LevelDefinition[] = [
 			"1B33H332",
 			"2R33D332",
 			"W23F33K2"
-		]
+		],
+		"ceiling": "dome"
 	},
 	{
 		"name": "Last Orbit",
@@ -227,29 +231,29 @@ export const LEVELS: LevelDefinition[] = [
 		]
 	},
 	{
-		"name": "Over the Top",
+		"name": "Crossfire",
 		"ceiling": "dome",
-		"width": 1.9,
+		"width": 1.5,
 		"height": 0.8,
-		"columns": 8,
-		"xStep": FIELD.width / 8,
+		"columns": 10,
+		"xStep": FIELD.width / 10,
 		"top": 22.5,
 		"yStep": 1.1,
 		"pattern": [
-			"33333333",
-			"333V333V",
-			"3I333I33",
-			"333?333?",
-			"33333333",
-			"3M333O33",
-			"333S333S",
-			"3E333A33",
-			"333V333V",
-			"3G333P33",
-			"333B333H",
-			"3R333D33",
-			"333Z333N",
-			"W3F3K333"
+			"3333333333",
+			"33.3V33.33",
+			"3.3M33.3O3",
+			".3B33.3H33",
+			"3333333333",
+			"33I3.33I3.",
+			"333.3E33.3",
+			"33.3A33.33",
+			"3333333333",
+			"3.3G33.3P3",
+			".3R33.3D33",
+			"3333.3333.",
+			"3333333333",
+			"W3F3K3Z3?3"
 		]
 	}
 ];
