@@ -51,10 +51,10 @@ test("surface projection is continuous at both dome joins, reaches the apex and 
 	expect(Math.sign(end.y)).toBe(-Math.sign(start.y));
 });
 
-test("dome metadata round-trips through editor exports, while earlier levels retain flat ceiling collisions", () => {
+test("dome metadata round-trips through editor exports, with an early introduction and selected later domes", () => {
 	const level = parseLevel(exportLevel(LEVELS.at(-1))); expect(level.ceiling).toBe("dome"); expect(domeLevel(newGame(level))).toBe(true);
 	expect(validateLevel({ ...level, ceiling: "open" })).toContain("Ceiling must be flat or dome.");
-	expect(LEVELS.slice(0, -1).every(level => level.ceiling !== "dome")).toBe(true);
+	expect(LEVELS.flatMap((level, i) => level.ceiling === "dome" ? [i + 1] : [])).toEqual([2, 4, 6, 9, 11]);
 	const game = newGame(), events = []; launch(game); Object.assign(game.balls[0], { y: FIELD.height - 0.1, vx: 0, vy: 8 });
 	step(game, tick, true, Math.random, event => events.push(event)); expect(game.balls[0].vy).toBe(-8); expect(events).toContain("wall");
 });

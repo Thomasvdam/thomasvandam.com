@@ -31,7 +31,7 @@ test("campaign difficulty grows in measured steps and each board introduces a fe
 		const symbols = [...new Set(layout.pattern.join(""))].filter(symbol => CELLS[symbol].power || CELLS[symbol].type);
 		const added = symbols.filter(symbol => !seen.has(symbol));
 		expect(new Set(added)).toEqual(new Set(introductions[index]));
-		expect(levelIntroductions(index)).toEqual([...(layout.ceiling === "dome" ? ["Dome crossing"] : []), ...added.map(symbol => CELLS[symbol].label)]);
+		expect(levelIntroductions(index)).toEqual([...(index === 1 ? ["Dome crossing"] : []), ...added.map(symbol => CELLS[symbol].label)]);
 		symbols.forEach(symbol => seen.add(symbol));
 		const bricks = levelBricks(index), hits = bricks.filter(b => b.type !== "indestructible").reduce((total, b) => total + b.maxHits, 0);
 		expect(bricks.length).toBeGreaterThanOrEqual(previousCount);
