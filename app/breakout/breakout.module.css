@@ -44,3 +44,5 @@
 .sticky { background: #f4a8df; }.laser { background: #ff596c; }.armour { background: #82aaff; }.shrink { background: #d78a52; }
 
 .rewind { background: #72f1bf; }
+
+.rewindNotice { position: absolute; top: 18px; left: 0; right: 0; z-index: 1; pointer-events: none; text-align: center; color: #a9ffdf; font: 11px var(--font-geist-mono), monospace; letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 2px 8px #000; }

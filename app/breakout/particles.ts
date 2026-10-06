@@ -9,7 +9,6 @@ export function brickColor(brick: Brick) {
 	return brick.type ? Number.parseInt(BRICK_TYPES[brick.type].color.slice(1), 16) : brick.power ? POWER_COLORS[brick.power] : brick.maxHits > 1 ? 0xffb65c : 0x67d4ee;
 }
 function ballEffect(ball: Ball, time: number) {
-	if ((ball.rewindUntil ?? 0) > time) return "rewind";
 	if (ball.effect) return ball.effect;
 	if ((ball.slowUntil ?? 0) > time) return "slow";
 	if ((ball.speedBoost ?? 1) > 1) return "speed";

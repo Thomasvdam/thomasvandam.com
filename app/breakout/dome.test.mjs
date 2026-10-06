@@ -23,13 +23,13 @@ test("dome crossing travels over the top and descends at the antipode without a 
 	expect(events).not.toContain("wall"); expect(game.lives).toBe(3);
 });
 
-test("Rewind can turn around on the dome and return through the entry, while duplication retains the route", () => {
+test("Rewind retraces dome crossings and removes later duplicated balls", () => {
 	const game = setup(); Object.assign(game.balls[0], { x: 3, y: FIELD.height + 2, vx: 0, vy: 8, effect: "fire" });
-	collectPower(game, "rewind"); collectPower(game, "duplicate");
-	expect(game.balls).toHaveLength(2); expect(game.balls[1].y).toBe(FIELD.height + 2);
-	for (let i = 0; i < 40; i++) step(game, tick);
-	expect(game.balls[0].x).toBe(3); expect(game.balls[0].y).toBeLessThan(FIELD.height); expect(game.balls[0].vy).toBe(-8);
-	expect(game.balls.every(ball => ball.effect === "fire" && ball.rewindUntil > game.time)).toBe(true);
+	const frames = [];
+	for (let i = 0; i < 120; i++) { step(game, tick); frames.push(globalThis.structuredClone(game.balls[0])); }
+	collectPower(game, "duplicate"); step(game, tick); collectPower(game, "rewind");
+	for (let i = 119; i >= 0; i--) { step(game, tick); expect(game.balls).toHaveLength(1); expect(game.balls[0]).toEqual(frames[i]); }
+	step(game, tick); expect(game.balls[0].x).toBe(3); expect(game.balls[0].y).toBe(FIELD.height + 2); expect(game.balls[0].vy).toBe(8);
 });
 
 test("Future Sight follows the curved crossing and return exactly without mutating live state", () => {

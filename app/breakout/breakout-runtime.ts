@@ -1,6 +1,7 @@
 import { launch, movePaddle, newGame, nextLevel, releaseBalls, destructible, step, type BallPower, type Game } from "./game";
 import type { LevelDefinition } from "./level-format";
 import { BreakoutSound } from "./sound";
+import { resetRewind } from "./rewind";
 import { bindPaddlePointer } from "./pointer-controls";
 
 export type BreakoutView = {
@@ -29,9 +30,8 @@ export type BreakoutAction = "launch" | "pause" | "reset" | "next";
 export function viewFromGame(game: Game): BreakoutView {
 	let total = 0, bricks = 0;
 	for (const brick of game.bricks) if (destructible(brick)) { total++; if (brick.hits > 0) bricks++; }
-	let rewind = 0, attached = 0;
+	let attached = 0;
 	for (const ball of game.balls) {
-		rewind = Math.max(rewind, Math.ceil((ball.rewindUntil ?? 0) - game.time));
 		if (ball.attachedOffset !== undefined) attached++;
 	}
 	return {
@@ -46,7 +46,7 @@ export function viewFromGame(game: Game): BreakoutView {
 		rightHits: game.rightHits,
 		sight: Math.max(0, Math.ceil(game.sightUntil - game.time)),
 		stun: Math.max(0, game.stunUntil - game.time),
-		rewind: Math.max(0, rewind),
+		rewind: Math.ceil(game.rewind),
 		sticky: Math.max(0, Math.ceil(game.stickyUntil - game.time)),
 		laser: Math.max(0, Math.ceil(game.laserUntil - game.time)),
 		shrink: Math.max(0, Math.ceil(game.shrinkUntil - game.time)),
@@ -102,7 +102,7 @@ export function createBreakoutRuntime({ host, game, customLevel, onViewChange, o
 		const keys = new Set<string>();
 		action = kind => {
 			if (kind === "reset") {
-				sound.silence(); Object.assign(game, newGame(customLevel));
+				sound.silence(); resetRewind(game); Object.assign(game, newGame(customLevel));
 				if (!customLevel) delete game.customLevel;
 				gameVersion++;
 			}
