@@ -1,3 +1,4 @@
+import { playbackRewind, recordFrame, resetRewind, startRewind } from "./rewind";
 import { BALL_POWER_TYPES, POWER_TYPES, type BallPower, type Power } from "./powers";
 import { LEVELS, levelBricks } from "./levels";
 
@@ -12,19 +13,20 @@ export type { BallPower, Power } from "./powers";
 export type GameEvent = Power | "launch" | "wall" | "paddle" | "chip" | "hit" | "break" | "drop" | "life" | "lost" | "won" | "apply" | "speed" | "slow" | "shift" | "phase" | "shock" | "void" | "stick" | "release" | "blast" | "shield";
 export type EventSink = (event: GameEvent) => void;
 type PhaseEntry = { id: number; axis: "x" | "y"; direction: number };
-export type Ball = { id: number; x: number; y: number; vx: number; vy: number; effect?: BallPower; contacts?: number[]; speedBoost?: number; slowUntil?: number; phaseEntries?: PhaseEntry[]; attachedOffset?: number; rewindUntil?: number };
+export type Ball = { id: number; x: number; y: number; vx: number; vy: number; effect?: BallPower; contacts?: number[]; speedBoost?: number; slowUntil?: number; phaseEntries?: PhaseEntry[]; attachedOffset?: number };
 export type Brick = { id: number; x: number; y: number; width: number; height: number; hits: number; maxHits: number; power?: Power | "random"; type?: BrickType; materialized?: boolean };
-export type Drop = { id: number; x: number; y: number; power: Power | "shock" };
+export type Drop = { id: number; x: number; y: number; power: Power | "shock"; sourceBrickId?: number };
 export type Blast = { id: number; x: number; y: number };
-export type Game = { mode: "ready" | "playing" | "paused" | "cleared" | "won" | "lost"; level: number; customLevel?: LevelDefinition; paddleX: number; queuedPowers: BallPower[]; balls: Ball[]; bricks: Brick[]; drops: Drop[]; blasts: Blast[]; stickyUntil: number; laserUntil: number; nextLaserAt: number; armour: boolean; shrinkUntil: number; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; stunUntil: number; nextSightDropAt: number; time: number; nextId: number };
+export type Game = { mode: "ready" | "playing" | "paused" | "cleared" | "won" | "lost"; level: number; customLevel?: LevelDefinition; paddleX: number; queuedPowers: BallPower[]; balls: Ball[]; bricks: Brick[]; drops: Drop[]; blasts: Blast[]; stickyUntil: number; laserUntil: number; nextLaserAt: number; armour: boolean; shrinkUntil: number; lives: number; score: number; leftHits: number; rightHits: number; sightUntil: number; stunUntil: number; nextSightDropAt: number; time: number; nextId: number; rewind: number };
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 export function newGame(customLevel?: LevelDefinition): Game {
 	const bricks = customLevel ? bricksForLevel(customLevel) : levelBricks(0);
-	return { ...(customLevel ? { customLevel } : {}), mode: "ready", level: 0, paddleX: 9, queuedPowers: [], balls: [{ id: bricks.length, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], blasts: [], stickyUntil: 0, laserUntil: 0, nextLaserAt: 0, armour: false, shrinkUntil: 0, lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, stunUntil: 0, nextSightDropAt: 10, time: 0, nextId: bricks.length + 1 };
+	return { ...(customLevel ? { customLevel } : {}), rewind: 0, mode: "ready", level: 0, paddleX: 9, queuedPowers: [], balls: [{ id: bricks.length, x: 9, y: 2.65, vx: 0, vy: 0 }], bricks, drops: [], blasts: [], stickyUntil: 0, laserUntil: 0, nextLaserAt: 0, armour: false, shrinkUntil: 0, lives: 3, score: 0, leftHits: 0, rightHits: 0, sightUntil: 0, stunUntil: 0, nextSightDropAt: 10, time: 0, nextId: bricks.length + 1 };
 }
 export function domeLevel(game: Game) { return (game.customLevel ?? LEVELS[game.level]).ceiling === "dome"; }
 export function nextLevel(game: Game) {
 	if (game.mode !== "cleared" || game.level >= LEVELS.length - 1) return;
+	resetRewind(game);
 	game.level++;
 	game.bricks = levelBricks(game.level, game.nextId); game.nextId += game.bricks.length;
 	game.drops = []; game.blasts = []; game.queuedPowers = []; game.stickyUntil = 0; game.laserUntil = 0; game.nextLaserAt = 0; game.shrinkUntil = 0;
@@ -49,11 +51,11 @@ function bounceSpeed(ball: Ball, time: number) {
 export const STICKY_DURATION = 20;
 export const LASER_DURATION = 10;
 export const SHRINK_DURATION = 15;
-export const REWIND_DURATION = 5;
+
 export function destructible(brick: Brick) { return brick.type !== "indestructible"; }
 export function paddleScale(game: Game) { return game.shrinkUntil > game.time ? 0.6 : 1; }
 export function releaseBalls(game: Game, emit?: EventSink) {
-	if (game.mode !== "playing") return;
+	if (game.mode !== "playing" || game.rewind) return;
 	let released = false;
 	for (const ball of game.balls) if (ball.attachedOffset !== undefined) { ball.attachedOffset = undefined; released = true; }
 	if (released) emit?.("release");
@@ -71,6 +73,7 @@ export function paddleBounds(game: Game) {
 }
 export function paddleWidth(game: Game) { return (3 + (game.leftHits + game.rightHits) * WING_SEGMENT) * paddleScale(game); }
 export function movePaddle(game: Game, x: number) {
+	if (game.rewind) return;
 	if (game.stunUntil > game.time) x = game.paddleX;
 	const scale = paddleScale(game);
 	game.paddleX = wrapX(x);
@@ -87,7 +90,8 @@ export function launch(game: Game, emit?: EventSink) {
 	game.balls[0].vx = 2.72; game.balls[0].vy = 8;
 	emit?.("launch");
 }
-export function collectPower(game: Game, power: Drop["power"], emit?: EventSink) {
+export function collectPower(game: Game, power: Drop["power"], emit?: EventSink, sourceDropId?: number) {
+	if (game.rewind) return;
 	if (power === "shock" || power === "shrink") {
 		if (game.armour) { game.armour = false; emit?.("shield"); return; }
 		if (power === "shock") game.stunUntil = game.time + 1;
@@ -95,13 +99,7 @@ export function collectPower(game: Game, power: Drop["power"], emit?: EventSink)
 	}
 	else if (power === "armour") game.armour = true;
 	else if (power === "sticky") game.stickyUntil = game.time + STICKY_DURATION;
-	else if (power === "rewind") {
-		for (const ball of game.balls) {
-			// Reverse against the current world, so removed bricks stay empty.
-			if ((ball.rewindUntil ?? 0) <= game.time) { ball.vx *= -1; ball.vy *= -1; }
-			ball.rewindUntil = game.time + REWIND_DURATION;
-		}
-	}
+	else if (power === "rewind") { startRewind(game, undefined, sourceDropId); }
 	else if (power === "laser") {
 		if (game.laserUntil <= game.time) game.nextLaserAt = game.time + 1;
 		game.laserUntil = game.time + LASER_DURATION;
@@ -160,10 +158,17 @@ function damageBrick(game: Game, brick: Brick, amount: number, ball: Ball | unde
 		if ((ball.slowUntil ?? 0) <= game.time) { ball.vx *= SLOW_FACTOR; ball.vy *= SLOW_FACTOR; }
 		ball.slowUntil = game.time + SLOW_DURATION; emit?.("slow");
 	}
-	if (powerDrops && !brick.hits && brick.type === "shock") game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: "shock" });
-	if (powerDrops && !brick.hits && brick.power) game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: brick.power === "random" ? POWER_TYPES[Math.floor(random() * POWER_TYPES.length)] : brick.power });
+	if (powerDrops && !brick.hits && brick.type === "shock") game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: "shock", sourceBrickId: brick.id });
+	if (powerDrops && !brick.hits && brick.power) game.drops.push({ id: game.nextId++, x: brick.x, y: brick.y, power: brick.power === "random" ? POWER_TYPES[Math.floor(random() * POWER_TYPES.length)] : brick.power, sourceBrickId: brick.id });
 }
 export function step(game: Game, dt: number, powerDrops = true, random: () => number = Math.random, onEvent?: EventSink) {
+	if (game.mode !== "playing") return;
+	if (game.rewind) { if (powerDrops) playbackRewind(game, dt); return; }
+	if (powerDrops) recordFrame(game);
+	simulateStep(game, dt, powerDrops, random, onEvent);
+	if (powerDrops) recordFrame(game);
+}
+function simulateStep(game: Game, dt: number, powerDrops: boolean, random: () => number, onEvent?: EventSink) {
 	if (game.mode !== "playing") return;
 	const emit = powerDrops ? onEvent : undefined;
 	game.time += dt;
@@ -172,7 +177,6 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 	const r = FIELD.radius;
 	const bounds = { left: 0, right: 0 };
 	for (const ball of game.balls) {
-		if (ball.rewindUntil && ball.rewindUntil <= game.time) { ball.vx *= -1; ball.vy *= -1; ball.rewindUntil = undefined; }
 		if (ball.slowUntil && ball.slowUntil <= game.time) { ball.vx /= SLOW_FACTOR; ball.vy /= SLOW_FACTOR; ball.slowUntil = undefined; }
 		if (ball.attachedOffset !== undefined) continue;
 		let oldX = ball.x;
@@ -184,7 +188,7 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 				if (brick.hits > 0 && destructible(brick) && distance < nearest) { target = brick; nearest = distance; }
 			}
 			if (target) {
-				const heading = Math.atan2(ball.vy, ball.vx), desired = Math.atan2(target.y - ball.y, aroundDelta(target.x, ball.x)) + ((ball.rewindUntil ?? 0) > game.time ? Math.PI : 0);
+				const heading = Math.atan2(ball.vy, ball.vx), desired = Math.atan2(target.y - ball.y, aroundDelta(target.x, ball.x));
 				const difference = Math.atan2(Math.sin(desired - heading), Math.cos(desired - heading));
 				const angle = heading + clamp(difference, -0.35 * dt, 0.35 * dt), speed = Math.hypot(ball.vx, ball.vy);
 				ball.vx = Math.cos(angle) * speed; ball.vy = Math.sin(angle) * speed;
@@ -277,11 +281,13 @@ export function step(game: Game, dt: number, powerDrops = true, random: () => nu
 	game.blasts = game.blasts.filter(blast => blast.y < FIELD.height);
 	game.balls = game.balls.filter(ball => ball.y > -1);
 	for (const drop of powerDrops ? game.drops : []) {
+		if (game.rewind) break;
 		drop.y -= dt * 4.5;
 		setPaddleBounds(game, bounds);
-		if (Math.abs(drop.y - FIELD.paddleY) < 0.5 && game.paddleX + aroundDelta(drop.x, game.paddleX) > bounds.left - 0.35 && game.paddleX + aroundDelta(drop.x, game.paddleX) < bounds.right + 0.35) { collectPower(game, drop.power, emit); drop.y = -2; }
+		if (Math.abs(drop.y - FIELD.paddleY) < 0.5 && game.paddleX + aroundDelta(drop.x, game.paddleX) > bounds.left - 0.35 && game.paddleX + aroundDelta(drop.x, game.paddleX) < bounds.right + 0.35) { collectPower(game, drop.power, emit, drop.id); drop.y = -2; }
 	}
 	game.drops = game.drops.filter(drop => drop.y > -1);
+	if (game.rewind) return;
 	if (game.bricks.every(brick => !destructible(brick) || brick.hits === 0)) { game.mode = game.customLevel || game.level === LEVELS.length - 1 ? "won" : "cleared"; emit?.("won"); return; }
 	if (!game.balls.length) {
 		game.lives--; game.drops = []; game.blasts = []; game.queuedPowers = []; game.stickyUntil = 0; game.laserUntil = 0; game.nextLaserAt = 0; game.shrinkUntil = 0; game.leftHits = 0; game.rightHits = 0; game.sightUntil = 0; game.stunUntil = 0;
@@ -298,6 +304,7 @@ export type Forecast = { id: number; points: { x: number; y: number }[] };
 // Use the same collisions on a private snapshot, including damage from other balls.
 // The paddle stays at its current position; the next live forecast incorporates steering.
 export function forecast(game: Game, seconds = 3): Forecast[] {
+	if (game.rewind) return [];
 	const copy: Game = { ...game, mode: "playing", queuedPowers: [...game.queuedPowers], balls: game.balls.map(b => ({ ...b, contacts: [...(b.contacts ?? [])], phaseEntries: b.phaseEntries?.map(entry => ({ ...entry })) })), bricks: game.bricks.map(b => ({ ...b })), blasts: game.blasts.map(b => ({ ...b })), drops: [] };
 	const paths = game.balls.map(b => ({ id: b.id, points: [{ x: b.x, y: b.y }] }));
 	const positions = new Map<number, Ball>();

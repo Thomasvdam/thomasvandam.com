@@ -50,7 +50,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 					<div><i className={styles.laser} /><span>Laser paddle<small>R · one blast per second for 10s</small></span></div>
 					<div><i className={styles.armour} /><span>Armour<small>A · absorbs one Shock or Shrink</small></span></div>
 					<div><i className={styles.shrink} /><span>Shrink hazard<small>N · smaller paddle for 15s</small></span></div>
-					<div><i className={styles.rewind} /><span>Rewind balls<small>Z · reverse ball motion for five seconds · bricks stay broken</small></span></div>
+					<div><i className={styles.rewind} /><span>Rewind field<small>Z · replay the last five seconds backwards · restore movement and powers · bricks stay changed</small></span></div>
 					<div><i className={styles.random} /><span>Mystery brick<small>? · reveals a typed pickup when broken</small></span></div>
 				</div>
 				<div className={styles.ballPowers}>
@@ -68,6 +68,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 				<p className={styles.level}>{customLevel ? `Play-test · ${customLevel.name}` : `Level ${view.level + 1} / ${LEVELS.length} · ${LEVELS[view.level].name}`}</p>
 				<div className={styles.hud}><div><small>Score</small><strong>{String(view.score).padStart(4, "0")}</strong></div><div><small>Bricks</small><strong>{view.bricks}<span> / {view.total}</span></strong></div><div><small>Lives</small><strong aria-label={`${view.lives} lives`}>{"●".repeat(view.lives)}<span>{"○".repeat(3 - view.lives)}</span></strong></div></div>
 				<div className={styles.arena}>
+					{view.rewind > 0 && <p className={styles.rewindNotice} role="status">⏪ Rewinding · {view.rewind}s</p>}
 					<div ref={host} className={styles.canvas} tabIndex={0} role="application" aria-label="Breakout playfield. Drag, arrow keys or A and D to rotate the cylinder. Space to launch, pause, or advance after clearing a level." />
 					{(overlay || error || !loaded) && <div className={styles.overlay}>
 						<p className={styles.eyebrow}>{view.mode === "won" ? customLevel ? "Test level cleared" : "All levels cleared" : view.mode === "cleared" ? "Wall cleared" : view.mode === "lost" ? "Out of lives" : `Level ${String(view.level + 1).padStart(2, "0")} · ${(customLevel?.name ?? LEVELS[view.level].name)}`}</p>

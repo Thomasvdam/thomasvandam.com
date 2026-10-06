@@ -28,10 +28,9 @@ test("effect trails use distinct colors, freeze on pause, and do not mutate game
 	expect(particles.particles.some(p => p.color === 0xb9d8ef)).toBe(true);
 });
 test("every ball modifier and timed effect emits a bounded trail", () => {
-	for (const effect of ["piercing", "fire", "ghost", "homing", "rewind", "slow", "speed"]) {
+	for (const effect of ["piercing", "fire", "ghost", "homing", "slow", "speed"]) {
 		const { game, particles } = fixture(), ball = game.balls[0];
-		if (effect === "rewind") ball.rewindUntil = 5;
-		else if (effect === "slow") ball.slowUntil = 5;
+		if (effect === "slow") ball.slowUntil = 5;
 		else if (effect === "speed") ball.speedBoost = 1.2;
 		else ball.effect = effect;
 		particles.sync(game, 0.05); expect(particles.particles.length).toBeGreaterThan(0);

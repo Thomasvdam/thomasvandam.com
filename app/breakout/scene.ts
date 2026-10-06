@@ -16,6 +16,27 @@ export function createScene(host: HTMLDivElement) {
 	renderer.setClearColor(0x0b1423);
 	host.appendChild(renderer.domElement);
 	const scene = new THREE.Scene();
+	const rewindTarget = new THREE.WebGLRenderTarget(1, 1);
+	const rewindScene = new THREE.Scene(), rewindCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+	const rewindGeometry = new THREE.PlaneGeometry(2, 2);
+	const rewindMaterial = new THREE.ShaderMaterial({
+		depthTest: false, depthWrite: false,
+		uniforms: { frame: { value: rewindTarget.texture }, clock: { value: 0 }, motion: { value: 1 } },
+		vertexShader: `varying vec2 screenUV; void main() { screenUV = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+		fragmentShader: `uniform sampler2D frame; uniform float clock; uniform float motion; varying vec2 screenUV;
+			void main() {
+				vec2 uv = screenUV;
+				float wave = sin(uv.y * 45.0 + clock * 12.0) * 0.003 + sin(uv.y * 130.0 - clock * 6.0) * 0.0015;
+				uv.x += wave * motion;
+				float shift = 0.004 * motion;
+				vec3 color = vec3(texture2D(frame, clamp(uv + vec2(shift, 0.0), 0.0, 1.0)).r, texture2D(frame, clamp(uv, 0.0, 1.0)).g, texture2D(frame, clamp(uv - vec2(shift, 0.0), 0.0, 1.0)).b);
+				float scan = 0.94 + 0.06 * sin(uv.y * 650.0 + clock * 18.0) * motion;
+				gl_FragColor = vec4(mix(color, color * vec3(0.65, 1.15, 1.12) + vec3(0.0, 0.025, 0.025), 0.55) * scan, 1.0);
+				#include <tonemapping_fragment>
+				#include <colorspace_fragment>
+			}`,
+	});
+	rewindScene.add(new THREE.Mesh(rewindGeometry, rewindMaterial));
 	const arena = new THREE.Group(); scene.add(arena);
 	let domeActive = false;
 	const camera = new THREE.OrthographicCamera(-10, 10, 14.4, -14.4, 0.1, 100);
@@ -188,7 +209,7 @@ export function createScene(host: HTMLDivElement) {
 			if (!mesh) { mesh = new THREE.Mesh(sphere, ballMaterials.normal); mesh.add(new THREE.Mesh(auraGeometry, material(powerColor.rewind))); arena.add(mesh); balls.set(ball.id, mesh); }
 			position(mesh, ball.x, ball.y, RADIUS + 0.1);
 			mesh.material = front(ball.x, ball.y) ? ballMaterials[ball.effect ?? "normal"] : shadow;
-			const aura = mesh.children[0] as THREE.Mesh, rewinding = (ball.rewindUntil ?? 0) > game.time, slowed = (ball.slowUntil ?? 0) > game.time;
+			const aura = mesh.children[0] as THREE.Mesh, rewinding = game.rewind > 0, slowed = (ball.slowUntil ?? 0) > game.time;
 			aura.visible = front(ball.x, ball.y) && (rewinding || slowed || (ball.speedBoost ?? 1) > 1);
 			aura.material = material(rewinding ? powerColor.rewind : new THREE.Color(slowed ? BRICK_TYPES.slow.color : BRICK_TYPES.speed.color).getHex());
 		}
@@ -207,7 +228,7 @@ export function createScene(host: HTMLDivElement) {
 			let mesh = blasts.get(blast.id); if (!mesh) { mesh = arc(0.035, 0.65, powerColor.laser, arena); blasts.set(blast.id, mesh); }
 			mesh.rotation.z = angle(blast.x); mesh.position.z = blast.y; mesh.material = front(blast.x) ? material(powerColor.laser) : shadow;
 		}
-		const sight = game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
+		const sight = !game.rewind && game.sightUntil > game.time && (game.mode === "playing" || game.mode === "paused");
 		const now = performance.now(), ids = new Set(game.balls.map(b => b.id));
 		for (const [id, trajectory] of trajectories) {
 			trajectory.group.visible = sight;
@@ -240,7 +261,7 @@ export function createScene(host: HTMLDivElement) {
 			trajectory.back.computeLineDistances(); trajectory.group.visible = true;
 		}
 		if (sight) pathRotation = game.paddleX;
-		particles.sync(game, (now - previousParticleFrame) / 1000, !reducedMotion.matches); previousParticleFrame = now;
+		particles.sync(game, (now - previousParticleFrame) / 1000, !reducedMotion.matches && !game.rewind); previousParticleFrame = now;
 		particles.particles.forEach((p, i) => {
 			const point = surfacePoint(p.x, p.y, RADIUS + p.radial, domeActive), near = front(p.x, p.y), fade = p.life / p.duration;
 			particlePositions.setXYZ(i, point.x, point.y, point.z);
@@ -250,17 +271,22 @@ export function createScene(host: HTMLDivElement) {
 		});
 		particleGeometry.setDrawRange(0, particles.particles.length);
 		particlePositions.needsUpdate = true; particleColors.needsUpdate = true; particleSizes.needsUpdate = true; particleOpacity.needsUpdate = true;
-		renderer.render(scene, camera);
+		if (game.rewind) {
+			rewindMaterial.uniforms.clock.value = game.time; rewindMaterial.uniforms.motion.value = reducedMotion.matches ? 0 : 1;
+			renderer.setRenderTarget(rewindTarget); renderer.render(scene, camera);
+			renderer.setRenderTarget(null); renderer.render(rewindScene, rewindCamera);
+		} else renderer.render(scene, camera);
 	}
 	const resize = () => {
 		const width = host.clientWidth, height = host.clientHeight;
 		const halfHeight = Math.max(domeActive ? 18.5 : 14.4, 9 / (width / height)), halfWidth = halfHeight * width / height;
 		camera.left = -halfWidth; camera.right = halfWidth; camera.top = halfHeight; camera.bottom = -halfHeight; camera.updateProjectionMatrix(); renderer.setSize(width, height);
+		rewindTarget.setSize(Math.max(1, Math.floor(width * renderer.getPixelRatio())), Math.max(1, Math.floor(height * renderer.getPixelRatio())));
 	};
 	const observer = new ResizeObserver(resize); observer.observe(host); resize();
 	return {
 		sync,
 		pointerX(clientX: number) { return clientX / Math.max(1, renderer.domElement.getBoundingClientRect().width) * FIELD.width; },
-		dispose() { observer.disconnect(); trajectories.forEach(trajectory => { trajectory.front.geometry.dispose(); trajectory.back.geometry.dispose(); }); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); renderer.dispose(); renderer.domElement.remove(); },
+		dispose() { observer.disconnect(); rewindTarget.dispose(); rewindGeometry.dispose(); rewindMaterial.dispose(); trajectories.forEach(trajectory => { trajectory.front.geometry.dispose(); trajectory.back.geometry.dispose(); }); geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose()); renderer.dispose(); renderer.domElement.remove(); },
 	};
 }
