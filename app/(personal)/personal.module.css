@@ -330,3 +330,10 @@
 .breakoutWall i:nth-child(12) { background: #c3a0ff; box-shadow: 0 5px 0 #7455a6; }
 .breakout::before { content: ""; position: absolute; right: 95px; bottom: 67px; width: 70px; height: 8px; background: #eaf1f8; box-shadow: 0 4px 0 #8296ae; transform: rotate(-20deg); }
 .breakout::after { content: ""; position: absolute; right: 68px; bottom: 102px; width: 12px; height: 12px; border-radius: 50%; background: #eaf1f8; box-shadow: 0 4px 8px #0008; }
+
+.whitechapel { background: #d9d0b9; color: #343b2f; }
+.casebookMap { position: absolute; right: -10px; top: 65px; width: 200px; height: 150px; transform: rotate(-15deg); border: 2px dashed #70755f; opacity: .7; }
+.casebookMap i { position: absolute; display: grid; place-items: center; width: 45px; height: 45px; border: 2px solid #70755f; border-radius: 50%; font: 12px var(--font-geist-mono), monospace; font-style: normal; background: #e9e3d1; }
+.casebookMap i:nth-child(1) { top: -22px; left: 20px; background: #d8b858; }
+.casebookMap i:nth-child(2) { top: 45px; right: -22px; }
+.casebookMap i:nth-child(3) { bottom: -22px; left: 55px; border: 4px solid #2c7562; }
