@@ -53,6 +53,7 @@ function Casebook() {
 	const [officerToPlace, setOfficerToPlace] = useState<Officer | null>(null);
 	const [error, setError] = useState("");
 	const fileInput = useRef<HTMLInputElement>(null);
+	const caseMenu = useRef<HTMLDetailsElement>(null);
 	const interactionRoot = useRef<HTMLDivElement>(null);
 	const board = useRef<HTMLDivElement>(null);
 	const menuElement = useRef<HTMLDivElement>(null);
@@ -157,7 +158,11 @@ function Casebook() {
 		}
 	}
 	function changeTime(nextNight: number, nextTurn: number) { closeMenu(); setNight(nextNight); setTurn(nextTurn); }
+	function closeCaseMenu() {
+		if (caseMenu.current) { caseMenu.current.open = false; caseMenu.current.querySelector("summary")?.focus(); }
+	}
 	function exportCase() {
+		closeCaseMenu();
 		const url = URL.createObjectURL(new Blob([JSON.stringify(caseFile, null, 2)], { type: "application/json" }));
 		const anchor = document.createElement("a"); anchor.href = url; anchor.download = "whitechapel-case.json"; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 	}
@@ -172,7 +177,7 @@ function Casebook() {
 	const menuTop = menu ? menuPosition(menu.y, actions.length) : 0;
 
 	return <div ref={interactionRoot} className={styles.desk}>
-		<header className={styles.header}><Link href="/#experiments" aria-label="Back to experiments"><ArrowLeft size={18} /></Link><h1>WHITECHAPEL<span> / casebook</span></h1><details className={styles.fileTools}><summary>Case ▾</summary><div><p role="status">{status}</p><button onClick={exportCase}><Download size={15} /> Export</button><button onClick={() => fileInput.current?.click()}><FileUp size={15} /> Import</button><button onClick={() => { closeMenu(); setConfirmReset(true); }}>New case</button><a href="https://github.com/bmewing/whitechapelR">Map data credits</a></div></details><input ref={fileInput} type="file" accept=".json,application/json" aria-label="Import case file" hidden onChange={importCase} /></header>
+		<header className={styles.header}><Link href="/#experiments" aria-label="Back to experiments"><ArrowLeft size={18} /></Link><h1>WHITECHAPEL<span> / casebook</span></h1><details ref={caseMenu} className={styles.fileTools}><summary>Case ▾</summary><div><p role="status">{status}</p><button onClick={exportCase}><Download size={15} /> Export</button><button onClick={() => { closeCaseMenu(); fileInput.current?.click(); }}><FileUp size={15} /> Import</button><button onClick={() => { closeCaseMenu(); closeMenu(); setConfirmReset(true); }}>New case</button><a href="https://github.com/bmewing/whitechapelR" onClick={closeCaseMenu}>Map data credits</a></div></details><input ref={fileInput} type="file" accept=".json,application/json" aria-label="Import case file" hidden onChange={importCase} /></header>
 		{confirmReset && <div className={styles.notice}><span>Start a new case? Export first to keep a separate copy.</span><button onClick={() => { save(newCase()); changeTime(1, 0); setConfirmReset(false); setOfficerToPlace(null); }}>Start new case</button><button onClick={() => setConfirmReset(false)}>Cancel</button></div>}
 		{pendingImport && <div className={styles.notice}><span>Replace this case with the imported map?</span><button onClick={() => { save(pendingImport); const last = [...pendingImport.events, ...pendingImport.placements].sort((a, b) => b.night - a.night || b.turn - a.turn)[0]; changeTime(last?.night ?? 1, last?.turn ?? 0); setPendingImport(null); }}>Import this case</button><button onClick={() => setPendingImport(null)}>Cancel</button></div>}
 		{error && <p className={styles.error} role="alert">{error}</p>}
