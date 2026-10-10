@@ -75,3 +75,8 @@
 
 /* Apply directly to SVG labels and the separate hold menu as well. */
 .board, .board *, .menuLayer, .menuLayer * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+.pastEvidence .nodeDisc { fill-opacity: .45; }
+.pastEvidence:not(.suspect):not(.ruled):not(.selected) .nodeDisc { stroke-opacity: .5; }
+.pastEvidence .marker { opacity: .45; }
+.pastEvidence.crime > text:not(.marker) { fill: #454b3a; }
