@@ -85,6 +85,14 @@ export default function Home() {
 						</Link>
 						<p>A classic with a little depth. Clear the wall, catch the power-ups.</p>
 					</article>
+					<article>
+						<Link href="/whitechapel" className={`${styles.cover} ${styles.whitechapel}`}>
+							<h3>The<br />casebook.</h3>
+							<div className={styles.casebookMap} aria-hidden="true"><i>64</i><i>82</i><i>90</i></div>
+							<div className={styles.coverBottom}><span>05 / An investigator’s companion</span><span>Investigate <span aria-hidden="true">↗</span></span></div>
+						</Link>
+						<p>Keep the evidence. Find the hideout. A companion for Letters from Whitechapel.</p>
+					</article>
 				</div>
 			</section>
 
