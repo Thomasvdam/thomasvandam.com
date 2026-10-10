@@ -1,0 +1,82 @@
+.desk { --ink: #dcd9cf; --muted: #a5a69c; --accent: #d8b875; --line: #373c37; --officer-blue: #71a6ed; --officer-yellow: #e8c75b; --officer-brown: #b58767; --officer-red: #ec7b6c; --officer-green: #83bc83; height: 100dvh; min-height: 420px; display: flex; flex-direction: column; overflow: hidden; background: #171c19; color: var(--ink); font-family: var(--font-experiment-body), sans-serif; }
+.desk button, .desk input { font: inherit; }
+.desk button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 11px; min-height: 40px; background: #242b25; color: var(--ink); cursor: pointer; font-size: 12px; }
+.desk button:hover:not(:disabled) { background: #3a4236; }
+.desk button:disabled { opacity: .35; cursor: default; }
+.desk :is(button, input, summary, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.header { display: flex; gap: 12px; align-items: center; min-height: 54px; padding: 6px 18px; border-bottom: 1px solid var(--line); }
+.header > a { display: grid; place-items: center; min-width: 36px; height: 40px; color: var(--ink); }
+.header h1 { font: 700 25px var(--font-experiment-display), sans-serif; letter-spacing: 1px; flex: 1; margin: 0; }
+.header h1 span { color: var(--muted); font-size: 18px; }
+.fileTools { position: relative; font-size: 12px; }
+.fileTools summary { cursor: pointer; padding: 10px; }
+.fileTools > div { position: absolute; z-index: 4; right: 0; top: 44px; width: 245px; padding: 16px; background: #242b25; border: 1px solid var(--line); box-shadow: 0 10px 40px #0008; border-radius: 5px; }
+.fileTools button { margin: 0 5px 8px 0; }
+.fileTools p, .fileTools a { font-size: 10px; color: var(--muted); line-height: 1.6; margin: 0 0 10px; }
+.notice { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 18px; background: #393422; font-size: 12px; }
+.notice span { flex: 1; min-width: 150px; }
+.error { padding: 10px 18px; background: #382921; color: #ffd0ba; font-size: 12px; margin: 0; }
+.timebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 18px 5px; }
+.nights { display: flex; gap: 5px; }
+.nights button { font: 700 19px var(--font-experiment-display), sans-serif; min-width: 45px; }
+.nights button[aria-pressed="true"] { background: var(--accent); color: #20251c; border-color: var(--accent); }
+.turnControl { display: flex; align-items: center; gap: 10px; }
+.turnControl span { font-size: 11px; white-space: nowrap; }
+.turnControl strong { font: 700 23px var(--font-experiment-display), sans-serif; margin-left: 5px; }
+.officerBar { display: flex; gap: 7px; padding: 6px 18px; align-items: center; }
+.officerBar button { min-height: 36px; padding: 5px 12px; font-size: 11px; flex: 1; max-width: 130px; }
+.officerBar i { width: 11px; height: 13px; border-radius: 5px 5px 2px 2px; flex-shrink: 0; }
+.officerBar small { color: var(--muted); font-size: 10px; }
+.officerBar [aria-pressed="true"] { border-color: var(--accent); background: #3a4236; }
+.mapToolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 18px 9px; }
+.mapToolbar p { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
+.mapToolbar > div { display: flex; gap: 4px; }
+.mapToolbar button { padding: 6px 9px; min-height: 32px; }
+.board { flex: 1; min-height: 0; width: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-color: #918970 #c9c0a9; background: #d9d0b9; background-image: linear-gradient(#b6ac8b35 1px, transparent 1px), linear-gradient(90deg, #b6ac8b35 1px, transparent 1px); background-size: 70px 70px; touch-action: pan-x pan-y; }
+.board svg { display: block; height: auto; margin: 0 auto; user-select: none; -webkit-user-select: none; }
+.roads { pointer-events: none; }
+.roads line { stroke: #737661; stroke-width: 2; }
+.node { cursor: pointer; touch-action: none; -webkit-touch-callout: none; }
+.hitArea { fill: transparent; stroke: none; }
+.nodeDisc { fill: #e9e3d1; stroke: #7c806a; stroke-width: 1.5; pointer-events: none; }
+.node > text { font: 600 14px var(--font-geist-mono), monospace; fill: #454b3a; pointer-events: none; }
+.crossing .nodeDisc { fill: #626652; stroke: #d9d0b9; stroke-width: 1; }
+.node:hover .nodeDisc, .node:focus .nodeDisc { stroke: #174c4d; stroke-width: 4; }
+.node:focus { outline: none; }
+.node .marker { fill: #343b2f; font-size: 15px; font-weight: bold; paint-order: stroke; stroke: #d9d0b9; stroke-width: 4; }
+.crime .nodeDisc { fill: #b65741; stroke: #7f3a2f; }
+.crime > text:not(.marker) { fill: #fff6e4; }
+.clue .nodeDisc { fill: #d8b858; stroke: #947a29; }
+.clear .nodeDisc { fill: #c4c4b1; stroke: #7c806a; stroke-dasharray: 3 2; }
+.miss .nodeDisc { fill: #a5b6bd; stroke: #547781; }
+.suspect .nodeDisc { stroke: #2c7562; stroke-width: 5; }
+.ruled .nodeDisc { stroke: #343b2f; stroke-dasharray: 2 2; stroke-width: 3; opacity: .5; }
+.selected .nodeDisc { stroke: #202b27; stroke-width: 5; filter: drop-shadow(0 0 5px #e8bd5e); }
+.node .officerLetter { fill: #17231f; font: 700 10px var(--font-geist-mono), monospace; pointer-events: none; }
+.footer { display: flex; align-items: center; gap: 18px; padding: 8px 18px; min-height: 44px; font-size: 11px; }
+.footer label { white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.footer input { accent-color: var(--accent); }
+.footer input[type="range"] { flex: 1; min-width: 50px; max-width: 400px; }
+.footer details { position: relative; margin-left: auto; }
+.footer summary { cursor: pointer; padding: 6px; }
+.footer details > div { position: absolute; z-index: 3; width: min(320px, 85vw); right: 0; bottom: 35px; background: #242b25; color: var(--ink); padding: 15px; font-size: 11px; line-height: 1.8; border: 1px solid var(--line); border-radius: 5px; }
+.menuLayer { position: fixed; z-index: 10; inset: 0; }
+.actionMenu { position: absolute; width: 212px; color: var(--ink); background: #222a24; border: 1px solid #79816a; border-radius: 8px; box-shadow: 0 10px 35px #0008; overflow: hidden; touch-action: none; }
+.actionMenu header { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--line); }
+.actionMenu header strong { font-size: 13px; }
+.actionMenu header button { min-height: 30px; border: 0; background: none; padding: 4px; }
+.actionMenu > p { height: 36px; margin: 0; padding: 10px 12px; color: var(--accent); font-size: 10px; }
+.actionMenu > button { display: flex; justify-content: flex-start; width: 100%; height: 42px; min-height: 42px; border: 0; border-radius: 0; background: transparent; padding: 0 14px; font-size: 12px; }
+.actionMenu > button span { display: inline-flex; justify-content: center; width: 22px; font: 16px var(--font-geist-mono), monospace; }
+.actionMenu > button.activeAction { background: var(--accent); color: #20251c; }
+.actionMenu > button:last-child { border-top: 1px solid var(--line); }
+@media (max-width: 600px) { .header { padding-inline: 8px; gap: 5px; } .header h1 { font-size: 22px; } .header h1 span { font-size: 14px; } .timebar { padding-inline: 8px; gap: 6px; } .nights { gap: 3px; } .nights button { min-width: 35px; padding-inline: 7px; } .turnControl { gap: 4px; } .turnControl button { padding-inline: 8px; } .officerBar { padding-inline: 8px; gap: 4px; } .officerBar button { padding-inline: 5px; gap: 4px; font-size: 10px; } .mapToolbar { padding-inline: 9px; gap: 8px; } .mapToolbar p { font-size: 10px; max-width: 210px; } .mapToolbar button { padding-inline: 7px; } .footer { gap: 8px; padding-inline: 10px; font-size: 10px; } }
+@media (max-width: 350px) { .header h1 span { display: none; } .nights button { min-width: 30px; } .turnControl strong { font-size: 20px; } .officerBar small { display: none; } }
+
+/* Apply directly to SVG labels and the separate hold menu as well. */
+.board, .board *, .menuLayer, .menuLayer * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+.pastEvidence .nodeDisc { fill-opacity: .45; }
+.pastEvidence:not(.suspect):not(.ruled):not(.selected) .nodeDisc { stroke-opacity: .5; }
+.pastEvidence .marker { opacity: .45; }
+.pastEvidence.crime > text:not(.marker) { fill: #454b3a; }
