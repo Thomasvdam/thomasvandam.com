@@ -1,3 +1,4 @@
+import { crossingIds, officerColors, type Placement } from "./positions";
 export const kinds = {
 	crime: { label: "Crime scene", symbol: "◆", help: "The murder location. Night three can have two crime scenes." },
 	clue: { label: "Clue found", symbol: "+", help: "Jack visited this location sometime this night, before this search." },
@@ -8,10 +9,10 @@ export const kinds = {
 } as const;
 export type Kind = keyof typeof kinds;
 export type Observation = { id: string; night: number; turn: number; kind: Kind; location: number | null; officer: string; text: string };
-export type Case = { version: 1; name: string; events: Observation[]; suspicions: Record<string, "suspect" | "ruled">; notes: string };
+export type Case = { version: 1; name: string; events: Observation[]; suspicions: Record<string, "suspect" | "ruled">; notes: string; placements: Placement[] };
 export const officers = ["Unassigned", "Blue", "Yellow", "Brown", "Red", "Green"];
 export function newCase(): Case {
-	return { version: 1, name: "The Whitechapel case", events: [], suspicions: {}, notes: "" };
+	return { version: 1, name: "The Whitechapel case", events: [], suspicions: {}, notes: "", placements: [] };
 }
 export function validLocation(value: number): boolean { return Number.isInteger(value) && value >= 1 && value <= 195; }
 export function visibleEvents(events: Observation[], night: number, turn: number, allNights: boolean): Observation[] {
@@ -29,5 +30,12 @@ export function parseCase(raw: string): Case {
 	for (const [location, status] of Object.entries(value.suspicions)) {
 		if (!validLocation(Number(location)) || String(Number(location)) !== location || (status !== "suspect" && status !== "ruled")) throw new Error("The case contains an invalid hideout annotation.");
 	}
-	return { version: 1, name: value.name, events: value.events.map((event: Observation) => ({ id: event.id, night: event.night, turn: event.turn, kind: event.kind, location: event.location, officer: event.officer, text: event.text })), suspicions: { ...value.suspicions }, notes: value.notes };
+	const placements = value.placements ?? [];
+	if (!Array.isArray(placements) || placements.length > 5000) throw new Error("Invalid officer history.");
+	for (const placement of placements) {
+		if (!placement || typeof placement.id !== "string" || !placement.id || ids.has(placement.id) || !Number.isInteger(placement.night) || placement.night < 1 || placement.night > 4 || !Number.isInteger(placement.turn) || placement.turn < 0 || placement.turn > 30 || !officerColors.includes(placement.officer) || (placement.crossing !== null && !crossingIds.has(placement.crossing))) throw new Error("Invalid officer position.");
+		ids.add(placement.id);
+	}
+
+	return { version: 1, name: value.name, events: value.events.map((event: Observation) => ({ id: event.id, night: event.night, turn: event.turn, kind: event.kind, location: event.location, officer: event.officer, text: event.text })), suspicions: { ...value.suspicions }, notes: value.notes, placements: placements.map((p: Placement) => ({ id: p.id, night: p.night, turn: p.turn, officer: p.officer, crossing: p.crossing })) };
 }
