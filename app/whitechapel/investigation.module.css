@@ -72,3 +72,6 @@
 .actionMenu > button:last-child { border-top: 1px solid var(--line); }
 @media (max-width: 600px) { .header { padding-inline: 8px; gap: 5px; } .header h1 { font-size: 22px; } .header h1 span { font-size: 14px; } .timebar { padding-inline: 8px; gap: 6px; } .nights { gap: 3px; } .nights button { min-width: 35px; padding-inline: 7px; } .turnControl { gap: 4px; } .turnControl button { padding-inline: 8px; } .officerBar { padding-inline: 8px; gap: 4px; } .officerBar button { padding-inline: 5px; gap: 4px; font-size: 10px; } .mapToolbar { padding-inline: 9px; gap: 8px; } .mapToolbar p { font-size: 10px; max-width: 210px; } .mapToolbar button { padding-inline: 7px; } .footer { gap: 8px; padding-inline: 10px; font-size: 10px; } }
 @media (max-width: 350px) { .header h1 span { display: none; } .nights button { min-width: 30px; } .turnControl strong { font-size: 20px; } .officerBar small { display: none; } }
+
+/* Apply directly to SVG labels and the separate hold menu as well. */
+.board, .board *, .menuLayer, .menuLayer * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
