@@ -39,3 +39,44 @@ test("the schematic has all 195 locations and roads reference real locations", (
 	const ids = new Set(map.locations.map(node => node.number));
 	for (const [from, to] of map.roads) { expect(ids.has(from) && ids.has(to) && from !== to).toBe(true); }
 });
+
+describe("officer history", () => {
+	test("positions carry over nights and change only at the recorded turn", async () => {
+		const { officerPositions } = await import("./positions.ts");
+		const moves = [{ id: "p1", night: 1, turn: 0, officer: "Blue", crossing: 0 }, { id: "p2", night: 2, turn: 3, officer: "Blue", crossing: 1 }, { id: "p3", night: 2, turn: 4, officer: "Blue", crossing: null }];
+		expect(officerPositions(moves, 1, 0)).toEqual({ Blue: 0 });
+		expect(officerPositions(moves, 2, 2)).toEqual({ Blue: 0 });
+		expect(officerPositions(moves, 2, 3)).toEqual({ Blue: 1 });
+		expect(officerPositions(moves, 2, 4)).toEqual({});
+	});
+	test("same-turn corrections win while other officers remain placed", async () => {
+		const { officerPositions } = await import("./positions.ts");
+		const moves = [{ id: "a", night: 1, turn: 1, officer: "Blue", crossing: 0 }, { id: "b", night: 1, turn: 1, officer: "Green", crossing: 0 }, { id: "c", night: 1, turn: 1, officer: "Blue", crossing: 1 }];
+		expect(officerPositions(moves, 1, 1)).toEqual({ Blue: 1, Green: 0 });
+	});
+	test("legacy cases gain an empty officer history without losing their data", () => {
+		const data = { ...newCase(), notes: "Earlier case notes" }; delete data.placements;
+		expect(parseCase(JSON.stringify(data))).toEqual({ ...data, placements: [] });
+	});
+	test("rejects officers on numbered locations and invalid timestamps", () => {
+		const numbered = map.nodes.find(node => node.number !== null).id;
+		for (const patch of [{ crossing: numbered }, { crossing: 999 }, { officer: "Jack" }, { turn: -1 }, { night: 5 }]) {
+			expect(() => parseCase(JSON.stringify({ ...newCase(), placements: [{ id: "p", night: 1, turn: 0, officer: "Blue", crossing: 0, ...patch }] }))).toThrow();
+		}
+	});
+});
+test("street segments join known nodes and the rulebook's yellow crossing adjoins 99, 100 and 120", () => {
+	const nodes = new Map(map.nodes.map(node => [node.id, node]));
+	for (const [a, b] of map.edges) expect(nodes.has(a) && nodes.has(b) && a !== b).toBe(true);
+	const neighbors = new Map();
+	for (const [a, b] of map.edges) { neighbors.set(a, [...(neighbors.get(a) ?? []), b]); neighbors.set(b, [...(neighbors.get(b) ?? []), a]); }
+	expect(map.nodes.some(node => node.number === null && [99, 100, 120].every(number => neighbors.get(node.id)?.some(id => nodes.get(id).number === number)))).toBe(true);
+});
+test("hold choices stay neutral without movement and follow visible menu rows", async () => {
+	const { dragChoice } = await import("./gestures.ts");
+	expect(dragChoice(300, 305, 7, 174)).toBe(-1);
+	expect(dragChoice(300, 195, 7, 174)).toBe(0);
+	expect(dragChoice(300, 447, 7, 174)).toBe(6);
+	expect(dragChoice(40, 300, 7, 88)).toBe(5); // Menu clamped below the screen edge.
+	expect(dragChoice(300, 1000, 7, 174)).toBe(6);
+});

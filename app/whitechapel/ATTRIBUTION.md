@@ -1,8 +1,9 @@
-Map coordinates and road adjacency are adapted from Mark Ewing’s whitechapelR dataset:
-https://github.com/bmewing/whitechapelR (data/node_locations.rda and data/roads.rda).
-Retrieved 2026-10-10. The 195 locations match the revised edition. Roads represent
-connections between numbered locations; police crossings and alley connections
-are not represented. This is an investigator’s schematic, not a movement engine.
+Numbered-location road adjacency is adapted from Mark Ewing’s whitechapelR dataset:
+https://github.com/bmewing/whitechapelR (data/roads.rda).
+Retrieved 2026-10-10. The 195 locations match the revised edition.
+The original roads dataset represents connections between numbered locations. The crossing network described below
+now provides the rendered street segments; alley connections are not represented.
+This is an investigator’s schematic, not a movement engine.
 
 MIT License
 
@@ -31,3 +32,12 @@ https://images-cdn.fantasyflightgames.com/filer_public/55/ff/55ff98ec-c39b-4607-
 
 Letters from Whitechapel is owned by its respective rights holders. This is an
 unofficial companion; no original board artwork is included.
+
+Police-crossing geometry and street connectivity added 2026-10-10 from the
+board transcription at https://github.com/davidapple/Letters-From-Whitechapel
+(js/map.js). Only factual board coordinates, numbered-location identities, and
+connections are transcribed; no upstream executable code or artwork is used.
+Coordinates are normalized to a common schematic scale. Crossing IDs are stable
+internal references and do not appear on the physical board. The original
+whitechapelR numbered-location adjacency is retained as a separate reference.
+The schematic now includes 234 police crossings and 592 street segments.
