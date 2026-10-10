@@ -53,11 +53,20 @@ function Casebook() {
 	const [officerToPlace, setOfficerToPlace] = useState<Officer | null>(null);
 	const [error, setError] = useState("");
 	const fileInput = useRef<HTMLInputElement>(null);
+	const interactionRoot = useRef<HTMLDivElement>(null);
 	const board = useRef<HTMLDivElement>(null);
 	const menuElement = useRef<HTMLDivElement>(null);
 	const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const gesture = useRef<{ target: Target; pointer: number; startX: number; startY: number; lastX: number; lastY: number; holding: boolean; panning: boolean; choice: number } | null>(null);
 
+	useEffect(() => {
+		const root = interactionRoot.current;
+		function preventSelection(event: Event) {
+			if (event.target instanceof Element && event.target.closest(`.${styles.board}, .${styles.menuLayer}`)) event.preventDefault();
+		}
+		root?.addEventListener("selectstart", preventSelection);
+		return () => root?.removeEventListener("selectstart", preventSelection);
+	}, []);
 	useEffect(() => () => { if (holdTimer.current) clearTimeout(holdTimer.current); }, []);
 	useEffect(() => {
 		if (menu && !menu.holding) menuElement.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -108,6 +117,9 @@ function Casebook() {
 	}
 	function pointerDown(event: React.PointerEvent<SVGGElement>, target: Target) {
 		if (!event.isPrimary || event.button !== 0) return;
+		// Own the gesture before the browser can begin selection or a callout.
+		event.preventDefault();
+		window.getSelection()?.removeAllRanges();
 		closeMenu();
 		try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Synthetic events have no active pointer. */ }
 		gesture.current = { target, pointer: event.pointerId, startX: event.clientX, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, holding: false, panning: false, choice: -1 };
@@ -159,7 +171,7 @@ function Casebook() {
 	const menuLeft = menu ? Math.max(8, Math.min(window.innerWidth - 220, menu.x + 20)) : 0;
 	const menuTop = menu ? menuPosition(menu.y, actions.length) : 0;
 
-	return <div className={styles.desk}>
+	return <div ref={interactionRoot} className={styles.desk}>
 		<header className={styles.header}><Link href="/#experiments" aria-label="Back to experiments"><ArrowLeft size={18} /></Link><h1>WHITECHAPEL<span> / casebook</span></h1><details className={styles.fileTools}><summary>Case ▾</summary><div><p role="status">{status}</p><button onClick={exportCase}><Download size={15} /> Export</button><button onClick={() => fileInput.current?.click()}><FileUp size={15} /> Import</button><button onClick={() => { closeMenu(); setConfirmReset(true); }}>New case</button><a href="https://github.com/bmewing/whitechapelR">Map data credits</a></div></details><input ref={fileInput} type="file" accept=".json,application/json" aria-label="Import case file" hidden onChange={importCase} /></header>
 		{confirmReset && <div className={styles.notice}><span>Start a new case? Export first to keep a separate copy.</span><button onClick={() => { save(newCase()); changeTime(1, 0); setConfirmReset(false); setOfficerToPlace(null); }}>Start new case</button><button onClick={() => setConfirmReset(false)}>Cancel</button></div>}
 		{pendingImport && <div className={styles.notice}><span>Replace this case with the imported map?</span><button onClick={() => { save(pendingImport); const last = [...pendingImport.events, ...pendingImport.placements].sort((a, b) => b.night - a.night || b.turn - a.turn)[0]; changeTime(last?.night ?? 1, last?.turn ?? 0); setPendingImport(null); }}>Import this case</button><button onClick={() => setPendingImport(null)}>Cancel</button></div>}
