@@ -9,7 +9,7 @@ import { useTrackGame } from "./use-track-game";
 
 const lessons = [
 	{ title: "Watch the orange gaps", text: "The engineer rides the train’s front platform. Press Space, click, or tap once as an orange gap reaches that platform. Leave complete rails alone; holding the button won’t repeat." },
-	{ title: "Aim for the on-time bonus", text: "Safe placements keep you rolling. On-time hits also fill the bonus dots: ten in a row earn a train upgrade. Early or late hits reset the streak, but keep your upgrades. The bonus window widens a little as you speed up." },
+	{ title: "Aim for the on-time bonus", text: "Safe placements keep you rolling. On-time hits also fill the bonus dots: ten in a row earn a train upgrade. Early or late hits reset the streak, but keep your upgrades." },
 	{ title: "Follow the railway", text: "At a junction, press to switch left or right. Both routes are safe; resume laying track after the fork. The rhythm can change, so watch for gaps. Esc pauses whenever you need a breather." },
 ];
 
