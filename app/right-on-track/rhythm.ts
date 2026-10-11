@@ -203,8 +203,14 @@ export function isDownbeat(run: Run, beat: number) {
 	return (beat - phrase.start) % phrase.meter === 0;
 }
 
+// A modest extra 20 ms of bonus tolerance over the full acceleration ramp.
+export function precisionWindow(beat: number) {
+	const speed = tempo(secondsAt(Math.max(0, beat)));
+	return PRECISION_WINDOW + 0.02 * (speed - START_BPM) / (MAX_BPM - START_BPM);
+}
+
 export function tolerance(beat: number) {
-	return Math.max(PRECISION_WINDOW, Math.min(0.095, 60 / tempo(secondsAt(Math.max(0, beat))) * 0.16));
+	return Math.max(precisionWindow(beat), Math.min(0.095, 60 / tempo(secondsAt(Math.max(0, beat))) * 0.16));
 }
 
 export function earlyTolerance(beat: number) {
@@ -281,7 +287,7 @@ export function layTrack(run: Run, seconds: number, earnPrecision = true) {
 		run.placed.add(beat);
 		run.score++;
 		if (earnPrecision) {
-			const offset = seconds - secondsAt(beat), precise = Math.abs(offset) <= PRECISION_WINDOW + 1e-9;
+			const offset = seconds - secondsAt(beat), precise = Math.abs(offset) <= precisionWindow(beat) + 1e-9;
 			run.lastHit = { seconds, precise, offset, brokeCombo: !precise && run.precisionStreak > 0 };
 			run.precisionStreak = precise ? run.precisionStreak + 1 : 0;
 			if (run.precisionStreak > 0 && run.precisionStreak % UPGRADE_INTERVAL === 0) {

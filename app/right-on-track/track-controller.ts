@@ -3,8 +3,10 @@ import { BeatSound } from "./sound";
 import type { DebugPreview } from "./debug";
 import { initialView, sameTrackView, trackView, type TrackView } from "./track-view";
 
+const TUTORIAL_KEY = "right-on-track-tutorial-seen";
 const BEST_KEY = "right-on-track-best";
 type Callbacks = {
+	onTutorial: (step: number | null) => void;
 	onView: (view: TrackView) => void;
 	onBest: (best: number) => void;
 	onMuted: (muted: boolean) => void;
@@ -17,6 +19,7 @@ type Callbacks = {
 
 // Own the mutable run, clock, audio, renderer and browser listeners for one mount.
 export function createTrackController(host: HTMLDivElement, callbacks: Callbacks) {
+	let tutorial: number | null = 0;
 	let run = newRun(), savedRun: Run | null = null, preview: DebugPreview | null = null;
 	let origin = 0, nextSound = -4, lastPaint = 0, best = 0, muted = false;
 	let view = initialView;
@@ -28,6 +31,17 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 	const speaker = new BeatSound();
 	try { const saved = Number(localStorage.getItem(BEST_KEY)); best = Number.isFinite(saved) ? Math.max(0, Math.floor(saved)) : 0; } catch { /* Best score is optional when storage is unavailable. */ }
 	callbacks.onBest(best);
+	try { if (localStorage.getItem(TUTORIAL_KEY) === "1") tutorial = null; } catch { /* The tutorial also works without storage. */ }
+	callbacks.onTutorial(tutorial);
+	function showTutorial() {
+		if (savedRun) return;
+		pause(); tutorial = 0; callbacks.onTutorial(tutorial);
+	}
+	function skipTutorial() {
+		tutorial = null; callbacks.onTutorial(null);
+		try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* Remembering the tutorial is optional. */ }
+		host.focus(); action();
+	}
 
 	function paint() {
 		const current = run;
@@ -71,7 +85,7 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 			if (window.location.hash === "#debug") history.replaceState(history.state, "", window.location.pathname + window.location.search);
 			callbacks.onDebugOpen(false); callbacks.onPreviewLabel(""); host.focus(); paint();
 		} else {
-			pause(); savedRun = run; callbacks.onDebugOpen(true);
+			pause(); tutorial = null; callbacks.onTutorial(null); savedRun = run; callbacks.onDebugOpen(true);
 		}
 	}
 	function previewUpgrades(level: number) {
@@ -96,6 +110,11 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 	}
 	function action() {
 		if (!cleanup || contextFailed || document.hidden) return;
+		if (tutorial !== null) {
+			if (tutorial < 2) { tutorial++; callbacks.onTutorial(tutorial); }
+			else skipTutorial();
+			return;
+		}
 		const current = run;
 		if (savedRun && !preview) return;
 		if (preview && (current.mode === "ready" || current.mode === "crashed")) {
@@ -160,5 +179,5 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 		muted = !muted; callbacks.onMuted(muted); speaker.setMuted(muted);
 		if (!muted) void speaker.unlock().then(ok => { if (!disposed) callbacks.onAudioUnavailable(!ok); });
 	}
-	return { action, toggleSound, toggleDebug, triggerPreview, previewUpgrades, dispose };
+	return { action, showTutorial, skipTutorial, toggleSound, toggleDebug, triggerPreview, previewUpgrades, dispose };
 }

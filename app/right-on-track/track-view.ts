@@ -1,7 +1,7 @@
 import { activeSignal, phaseAt, trainSpeed, type Run } from "./rhythm";
 import { precisionReadout } from "./upgrades";
 
-export const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), switching: false, reason: "", precision: 0, feedback: "Aim for precise hits", tone: "idle", upgrades: 0 };
+export const initialView = { mode: "ready" as Run["mode"], phase: -4, score: 0, speed: trainSpeed(0), switching: false, reason: "", precision: 0, feedback: "10 on-time hits earn a bonus", tone: "idle", upgrades: 0 };
 export type TrackView = typeof initialView;
 
 export function trackView(run: Run): TrackView {
