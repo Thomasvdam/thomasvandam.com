@@ -28,8 +28,8 @@ export function TrackGame() {
 			<button data-utility type="button" onClick={toggleSound} aria-label={muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}<span>{muted ? "Sound off" : "Sound on"}</span></button>
 		</header>
 		<section className={styles.intro}>
-			<div><p className={styles.overline}>Keep the rails. Keep it rolling.</p><h1>Right on <span>track.</span></h1></div>
-			<p>Lay the missing track just in time.<br />Too early, too late, or twice — derailment.</p>
+			<div><p className={styles.overline}>Lay the rails to keep it rolling.</p><h1>Right on <span>track.</span></h1></div>
+			<p>Lay the missing track just in time.<br />Too early, too late, or twice results in derailment.</p>
 		</section>
 		<section className={styles.game} aria-label="One-button railway game">
 			<div className={styles.readouts}><div><span>Track laid</span><strong>{String(view.score).padStart(3, "0")}</strong></div><div><span>Personal best</span><strong>{String(best).padStart(3, "0")}</strong></div><div><span>Speed</span><strong>{view.speed}<small> km/h</small></strong></div></div>

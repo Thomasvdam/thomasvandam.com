@@ -4,7 +4,7 @@ import { BreakoutRoute } from "./breakout-route";
 
 export const metadata: Metadata = {
 	title: "Breakout — Thomas van Dam",
-	description: "A three-dimensional Breakout experiment. Handmade brick patterns, ball and paddle powers, and a classic brought into 3D.",
+	description: "An almost three-dimensional Breakout experiment.",
 };
 
 export default function BreakoutPage() {

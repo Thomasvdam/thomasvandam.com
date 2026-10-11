@@ -34,12 +34,12 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 	const introductions = customLevel ? [] : levelIntroductions(view.level);
 	const dome = (customLevel ?? LEVELS[view.level]).ceiling === "dome";
 	return <div className={styles.page} onDragStart={event => event.preventDefault()}>
-		<header className={styles.header}><Link href="/" className={styles.back}><ArrowLeft size={16} /> Thomas van Dam</Link><span className={styles.eyebrow}>Game experiment / 01</span></header>
+		<header className={styles.header}><Link href="/" className={styles.back}><ArrowLeft size={16} /> Thomas van Dam</Link><span className={styles.eyebrow}>Game experiment / 02</span></header>
 		<div className={styles.layout}>
 			<aside className={styles.intro}>
-				<p className={styles.eyebrow}>A new spin on Breakout</p>
+				<p className={styles.eyebrow}>A small spin on Breakout</p>
 				<h1>BREAK<br /><span>OUT.</span></h1>
-				<p className={styles.description}>Rotate the arena. Clear the cylinder.<br />Keep the ball in play. Far-side shadows disappear behind solid bricks.</p>
+				<p className={styles.description}>Rotate the arena to clear the cylinder.</p>
 				<div className={styles.legend}>
 					<div><i className={styles.normal} /><span>Classic brick<small>One hit and it’s gone</small></span></div>
 					<div><i className={styles.armored} /><span>Armored brick<small>Two or three hits · count the dots</small></span></div>
@@ -62,7 +62,7 @@ export function BreakoutGame({ customLevel }: { customLevel?: LevelDefinition } 
 				</div>
 				<details className={styles.brickGuide}><summary>Special bricks · learn the symbols</summary>{Object.entries(BRICK_TYPES).map(([type, spec]) => <p key={type}><i style={{ background: spec.color }} /><span>{spec.label}<small>{spec.description}</small></span></p>)}</details>
 				<p className={styles.controls}>Drag the field to rotate the cylinder. The paddle stays fixed.<br />Keyboard: ← → or A / D to rotate.<br />Click, tap, or Space to launch.<br />P / Esc to pause. Space pauses unless Sticky is active. Space to advance after clearing a level.</p>
-				<p className={styles.footnote}>{customLevel ? "Play-testing a single draft level." : `${LEVELS.length} levels. Three lives. Handmade brick patterns each round.`} No brick hits for 10 seconds? A Future Sight box drops in.</p>
+				<p className={styles.footnote}>{customLevel ? "Play-testing a single draft level." : `${LEVELS.length} levels. Three lives.`} No brick hits for 10 seconds? A Future Sight box drops in.</p>
 			</aside>
 			<section className={styles.game} aria-label="Breakout game">
 				<p className={styles.level}>{customLevel ? `Play-test · ${customLevel.name}` : `Level ${view.level + 1} / ${LEVELS.length} · ${LEVELS[view.level].name}`}</p>

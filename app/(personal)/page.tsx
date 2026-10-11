@@ -73,7 +73,7 @@ export default function Home() {
 							<h3>Right on<br />track.</h3>
 							<div className={styles.coverBottom}><span>03 / A train game</span><span>All aboard <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>One button. An ever-faster train. Keep it rolling.</p>
+						<p>Keep it rolling in this little game.</p>
 					</article>
 					<article>
 						<Link href="/breakout" className={`${styles.cover} ${styles.breakout}`}>
@@ -83,7 +83,7 @@ export default function Home() {
 							</div>
 							<div className={styles.coverBottom}><span>04 / A brick breaker</span><span>Play it <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>A classic with a little depth. Clear the wall, catch the power-ups.</p>
+						<p>My spin on a classic.</p>
 					</article>
 					<article>
 						<Link href="/whitechapel" className={`${styles.cover} ${styles.whitechapel}`}>
@@ -91,7 +91,7 @@ export default function Home() {
 							<div className={styles.casebookMap} aria-hidden="true"><i>64</i><i>82</i><i>90</i></div>
 							<div className={styles.coverBottom}><span>05 / An investigator’s companion</span><span>Investigate <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>Keep the evidence. Find the hideout. A companion for Letters from Whitechapel.</p>
+						<p>A small companion for Letters from Whitechapel.</p>
 					</article>
 				</div>
 			</section>

@@ -4,7 +4,7 @@ import { TrackGame } from "./track-game";
 
 export const metadata: Metadata = {
 	title: "Right on Track — Thomas van Dam",
-	description: "One button. An ever-faster toy train. Lay the missing track just in time.",
+	description: "Keep it rolling in this little game.",
 };
 
 export default function RightOnTrackPage() {
