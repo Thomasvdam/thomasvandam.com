@@ -83,7 +83,7 @@ frame skips, manual handoff, deterministic retries, and paused autoplay.
 
 ## Tutorial
 
-First-time players see three skippable tips before the engine starts: front-platform placement, on-time bonuses, and junctions/rhythm changes. Next tip, Space or a scene tap advance the walkthrough; the final action or Skip tutorial starts a normal run. Completion/skip is remembered when storage is available. How to play reopens it and pauses an active run; finishing resumes that run. Utility buttons must not lay track. Verify all steps, skipping, returning visits, replay/resume, keyboard controls and narrow layouts in the actual React page.
+First-time players see three skippable tips before the engine starts: front-platform placement, on-time bonuses, and junctions/rhythm changes. Next tip, Space or a tap on the scene or tutorial card advance the walkthrough; the final action or Skip tutorial starts a normal run. Completion/skip is remembered when storage is available. How to play reopens it and pauses an active run; finishing resumes that run. Utility buttons must not lay track. Verify all steps, skipping, returning visits, replay/resume, keyboard controls and narrow layouts in the actual React page.
 
 ## Remaining manual acceptance
 
