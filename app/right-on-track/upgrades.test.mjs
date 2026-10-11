@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
-import { layTrack, newRun, needsTrack, secondsAt, advance, tolerance, phraseAt } from "./rhythm.ts";
+import { layTrack, newRun, needsTrack, secondsAt, advance, tolerance, phraseAt, precisionWindow } from "./rhythm.ts";
 import { precisionReadout, PRECISION_WINDOW, rainbowPuff, upgradeAppearance } from "./upgrades.ts";
 import { advancePreview, createDebugPreview } from "./debug.ts";
 
 function hit(run, offset = 0) {
 	let beat = Math.max(0, run.checked + 0.5);
 	while (!needsTrack(run, beat) || run.placed.has(beat)) beat += 0.5;
-	layTrack(run, secondsAt(beat) + offset);
+	layTrack(run, secondsAt(beat) + (typeof offset === "function" ? offset(beat) : offset));
 	advance(run, secondsAt(beat) + tolerance(beat) + 0.001);
 	expect(run.mode).toBe("running");
 	return beat;
@@ -26,10 +26,10 @@ test("each ten consecutive precise hits unlocks one persistent run upgrade", () 
 	expect(newRun().upgrades).toBe(0); expect(newRun().precisionStreak).toBe(0);
 });
 
-test.each([-1, 1])("precision includes the 60 ms boundary on side %i and rejects a looser accepted tap", side => {
-	const run = start(); hit(run, side * PRECISION_WINDOW);
+test.each([-1, 1])("precision includes the speed-adjusted boundary on side %i and rejects a looser accepted tap", side => {
+	const run = start(); hit(run, beat => side * precisionWindow(beat));
 	expect(run.precisionStreak).toBe(1);
-	hit(run, side * (PRECISION_WINDOW + 0.001));
+	hit(run, beat => side * (precisionWindow(beat) + 0.001));
 	expect(run.precisionStreak).toBe(0);
 });
 
@@ -98,7 +98,7 @@ test("rainbow chance is deterministic and reaches all emitted puffs", () => {
 
 test("precision feedback distinguishes perfect hits and early/late combo resets", () => {
 	const run = start(); hit(run);
-	expect(precisionReadout(run)).toMatchObject({ progress: 1, feedback: "Perfect!", tone: "perfect" });
+	expect(precisionReadout(run)).toMatchObject({ progress: 1, feedback: "On time · bonus +1", tone: "perfect" });
 	hit(run, -0.08);
 	expect(precisionReadout(run)).toMatchObject({ progress: 0, feedback: "Early · combo reset", tone: "loose" });
 	hit(run); hit(run, 0.08);
@@ -108,7 +108,7 @@ test("precision feedback distinguishes perfect hits and early/late combo resets"
 
 test("ten-hit feedback fills the meter and preserves upgrade progress through pauses", () => {
 	const run = start(); for (let i = 0; i < 10; i++) hit(run);
-	expect(precisionReadout(run)).toMatchObject({ progress: 10, feedback: "Perfect · upgrade earned!" });
+	expect(precisionReadout(run)).toMatchObject({ progress: 10, feedback: "On time · bonus earned!" });
 	run.mode = "paused"; expect(precisionReadout(run).progress).toBe(10); run.mode = "running";
 	hit(run); expect(precisionReadout(run).progress).toBe(1);
 	hit(run, 0.08); expect(run.upgrades).toBe(1); expect(precisionReadout(run).progress).toBe(0);
@@ -129,4 +129,28 @@ test.each([-1, 1])("precision accepts 60 ms at maximum speed on side %i", side =
 	p.run.seconds = secondsAt(phrase.start) - 0.2; p.run.checked = phrase.start - 0.5;
 	layTrack(p.run, secondsAt(phrase.start) + side * PRECISION_WINDOW);
 	expect(p.run.mode).toBe("running"); expect(p.run.precisionStreak).toBe(1);
+});
+
+
+test("bonus tolerance widens gradually from 60 to 80 ms, with a safe late boundary", () => {
+	const windows = [0, 100, 400, 800, 1600].map(precisionWindow);
+	expect(windows[0]).toBeGreaterThanOrEqual(0.06);
+	expect(windows[0]).toBeLessThan(0.061);
+	for (let i = 1; i < windows.length; i++) expect(windows[i]).toBeGreaterThanOrEqual(windows[i - 1]);
+	expect(windows.at(-1)).toBeCloseTo(0.08);
+	for (let beat = 0; beat < 2000; beat += 0.5) expect(tolerance(beat)).toBeGreaterThanOrEqual(precisionWindow(beat));
+});
+
+test.each([-1, 1])("maximum-speed bonus accepts its boundary and excludes looser taps on side %i", side => {
+	const run = newRun(0); run.mode = "running";
+	let beat = 1600;
+	while (!needsTrack(run, beat)) beat++;
+	run.checked = beat - 0.5;
+	layTrack(run, secondsAt(beat) + side * precisionWindow(beat));
+	expect(run.mode).toBe("running"); expect(run.precisionStreak).toBe(1);
+	while (!needsTrack(run, ++beat)) { /* Find another gap. */ }
+	run.checked = beat - 0.5;
+	layTrack(run, secondsAt(beat) + side * (precisionWindow(beat) + 0.001));
+	if (side < 0) { expect(run.mode).toBe("running"); expect(run.precisionStreak).toBe(0); }
+	else { expect(run.mode).toBe("crashed"); expect(run.precisionStreak).toBe(1); }
 });

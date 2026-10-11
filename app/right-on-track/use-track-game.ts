@@ -7,6 +7,7 @@ import { initialView } from "./track-view";
 export function useTrackGame() {
 	const host = useRef<HTMLDivElement>(null);
 	const controller = useRef<ReturnType<typeof createTrackController> | null>(null);
+	const [tutorial, setTutorial] = useState<number | null>(0);
 	const [view, setView] = useState(initialView);
 	const [best, setBest] = useState(0);
 	const [muted, setMuted] = useState(false);
@@ -19,7 +20,7 @@ export function useTrackGame() {
 	useEffect(() => {
 		if (!host.current) return;
 		const runtime = createTrackController(host.current, {
-			onView: setView, onBest: setBest, onMuted: setMuted, onDebugOpen: setDebugOpen,
+			onTutorial: setTutorial, onView: setView, onBest: setBest, onMuted: setMuted, onDebugOpen: setDebugOpen,
 			onPreviewLabel: setPreviewLabel, onUnavailable: setUnavailable, onLoaded: setLoaded, onAudioUnavailable: setAudioUnavailable,
 		});
 		controller.current = runtime;
@@ -27,7 +28,9 @@ export function useTrackGame() {
 	}, []);
 
 	return {
-		host, view, best, muted, debugOpen, previewLabel, unavailable, loaded, audioUnavailable,
+		host, view, best, muted, debugOpen, previewLabel, unavailable, loaded, audioUnavailable, tutorial,
+		showTutorial: () => controller.current?.showTutorial(),
+		skipTutorial: () => controller.current?.skipTutorial(),
 		action: () => controller.current?.action(),
 		toggleSound: () => controller.current?.toggleSound(),
 		toggleDebug: () => controller.current?.toggleDebug(),

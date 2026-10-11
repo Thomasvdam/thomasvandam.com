@@ -51,7 +51,7 @@ servers on the same port.
 
 ## Hidden preview menu
 
-Precision rewards use a ±60 ms window for every player placement, including
+Precision rewards use a window that gradually widens from ±60 ms to ±80 ms as speed increases for every player placement, including
 half-beat flourishes. Each ten-hit block unlocks another cosmetic tier; a looser
 accepted hit resets the streak but preserves earned upgrades. Rests, pauses,
 switch toggles and debug autoplay do not award or break the streak. A new run
@@ -59,7 +59,7 @@ resets cosmetics. Bun checks cover the exact boundaries, including full-speed la
 milestones, switch/rest/pause handling, debug isolation, half-beat hits, and
 deterministic rainbow probability. The renderer checks all cosmetic tiers, gold
 materials, hat/wagon visibility, smoke stability, 100% rainbow and new-run reset,
-with four reward screenshots. A small bottom-edge indicator shows ten dots and the current count, with a subtle green fill and amber reset. It has no panel, hit popups or upgrade-name banner; detailed timing feedback remains in the meter’s accessible description. An earned upgrade plays a brief three-chime steam whistle and emits a small, fading burst of sixteen colored sparks from the chimney. The whistle shares mute/stop controls and only fires from an input that actually earns a tier. Renderer checks cover the chimney attachment, bounded particle size, expiry without repeating, new-run reset and a saved burst screenshot; offline audio checks cover whistle/chuff headroom, duration, mute and stop. Sparks are disabled for reduced motion. Logic tests cover timing descriptions, feedback expiry, milestone rollover, held progress on pauses/switches, and absence of debug autoplay feedback.
+with four reward screenshots. A small bottom-edge indicator shows ten dots and the current count, with a subtle green fill and amber reset. Visible feedback beside the dots distinguishes on-time bonus progress, early/late accepted hits and streak resets. The same feedback is announced accessibly. An earned upgrade plays a brief three-chime steam whistle and emits a small, fading burst of sixteen colored sparks from the chimney. The whistle shares mute/stop controls and only fires from an input that actually earns a tier. Renderer checks cover the chimney attachment, bounded particle size, expiry without repeating, new-run reset and a saved burst screenshot; offline audio checks cover whistle/chuff headroom, duration, mute and stop. Sparks are disabled for reduced motion. Logic tests cover timing descriptions, feedback expiry, milestone rollover, held progress on pauses/switches, and absence of debug autoplay feedback.
 
 On `/right-on-track`, press **Ctrl+Alt+Shift+D** (or **⌘+Option+Shift+D** on Mac).
 On mobile, open **`/right-on-track#debug`** instead. Adding `#debug` to the current
@@ -80,6 +80,10 @@ animation stepping controls. Add selectors in `app/right-on-track/debug.ts` when
 adding decorations or sections; they locate real generated content rather than
 injecting a separate model into the renderer. Bun tests exercise every selector,
 frame skips, manual handoff, deterministic retries, and paused autoplay.
+
+## Tutorial
+
+First-time players see three skippable tips before the engine starts: front-platform placement, on-time bonuses, and junctions/rhythm changes. Next tip, Space or a scene tap advance the walkthrough; the final action or Skip tutorial starts a normal run. Completion/skip is remembered when storage is available. How to play reopens it and pauses an active run; finishing resumes that run. Utility buttons must not lay track. Verify all steps, skipping, returning visits, replay/resume, keyboard controls and narrow layouts in the actual React page.
 
 ## Remaining manual acceptance
 
