@@ -4,6 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowLeft, Volume2, VolumeX } from "lucide-react";
 import styles from "./track-game.module.css";
+import { TimingFeedback } from "./timing-feedback";
 import { UPGRADE_INTERVAL } from "./upgrades";
 import { useTrackGame } from "./use-track-game";
 
@@ -33,7 +34,6 @@ export function TrackGame() {
 		<header className={styles.header}>
 			<Link href="/#experiments"><ArrowLeft size={14} /> Thomas van Dam</Link>
 			<span>03 / A one-button train game</span>
-			<button data-utility type="button" onClick={showTutorial} disabled={debugOpen}>Replay tutorial</button>
 			<button data-utility type="button" onClick={toggleSound} aria-label={muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}<span>{muted ? "Sound off" : "Sound on"}</span></button>
 		</header>
 		<section className={styles.intro}>
@@ -48,7 +48,7 @@ export function TrackGame() {
 					<div className={styles.comboDots} role="meter" aria-label="On-time bonus streak" aria-valuemin={0} aria-valuemax={UPGRADE_INTERVAL} aria-valuenow={view.precision} aria-valuetext={view.feedback}>{Array.from({ length: UPGRADE_INTERVAL }, (_, i) => <i key={i} data-filled={i < view.precision} />)}</div>
 					<span aria-hidden="true">{view.precision}/{UPGRADE_INTERVAL}</span>
 				</div>
-				<span key={`${view.score}-${view.mode}`} className={styles.feedback} data-tone={view.tone} role="status" aria-live="polite" aria-atomic="true">{view.tone === "loose" || view.tone === "miss" ? view.feedback : ""}</span>
+				<TimingFeedback popup={view.popup} />
 				<span aria-hidden="true">{view.switching ? "Press to switch route" : "Lay track at the front platform"}</span>
 			</div>
 			{reading && <div className={styles.tutorial} aria-label="How to play">
@@ -66,7 +66,10 @@ export function TrackGame() {
 		</section>
 		<div className={styles.controls}>
 			<div><p role="status" className={styles.status}>{reading && loaded && !unavailable ? "Read the tip, then continue or skip to play." : practicing && running ? view.practiceWaiting ? "Your turn. Space, click, or tap to lay track." : "Watch the gap. We’ll stop the train when it’s time." : status}</p><p className={styles.help}>Space, click, or tap the scene. Hold won’t repeat. Esc pauses.{audioUnavailable && " Audio unavailable; visual timing still works."}</p></div>
+			<div className={styles.controlButtons}>
 			<button className={styles.action} type="button" disabled={!loaded || unavailable} onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); event.currentTarget.focus(); action(); } }} onClick={(event) => { if (event.detail === 0) action(); }}>{buttonText}<span aria-hidden="true">↗</span></button>
+			<button className={styles.replay} data-utility type="button" onClick={showTutorial} disabled={debugOpen || !loaded || unavailable}>Replay tutorial</button>
+			</div>
 		</div>
 		{debugOpen && <DebugMenu onTrigger={id => triggerPreview(id)} onClose={() => toggleDebug()} preview={previewLabel} upgrades={view.upgrades} onUpgrade={level => previewUpgrades(level)} />}
 		<footer className={styles.footer}><span>New sights. Faster train.</span><span>Endless railway / no destination</span></footer>
