@@ -19,6 +19,7 @@ export function advancePractice(run: Run, seconds: number, practice: Practice) {
 export function placePractice(run: Run, practice: Practice) {
 	if (run.mode !== "running" || !practice.waiting || practice.count >= 2) return false;
 	layTrack(run, secondsAt(practice.beat), false);
+	run.lastHit = { seconds: run.seconds, precise: true, offset: 0, brokeCombo: false };
 	practice.count++;
 	practice.waiting = false;
 	if (practice.count < 2) practice.beat = nextGap(run, practice.beat + 1);

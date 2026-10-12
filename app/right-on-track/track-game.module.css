@@ -64,10 +64,22 @@
 .combo > span { font-size: 8px; color: #edf0e8a6; }
 @media (max-width: 700px) { .sceneLabel { left: 14px; right: 14px; font-size: 8px; letter-spacing: .2px; } }
 
-.feedback { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); font: 800 22px/1 var(--font-experiment-display), sans-serif; color: #ffdbac; text-shadow: 0 2px 8px #182522; animation: timing-feedback 1.2s ease-out both; }
-.feedback:empty { display: none; }
-.feedback[data-tone="miss"] { color: #ffc0ab; }
-@keyframes timing-feedback { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.feedback { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); width: 240px; height: 30px; text-align: center; }
+.popup { position: absolute; inset: 0; font: 800 24px/1 var(--font-experiment-display), sans-serif; color: #ffdbac; text-shadow: 0 2px 8px #182522; }
+.popup > span { display: block; transform: rotate(var(--popup-tilt)); animation: hit-popup 1.2s ease-out both; }
+.popup[data-tone="perfect"] { color: #d0efb9; }
+.popup[data-tone="miss"] { color: #ffc0ab; }
+.popup[data-outgoing="true"] { animation: retire-popup 120ms ease-out both; }
+@keyframes hit-popup {
+	0% { opacity: 0; transform: translateY(7px) rotate(var(--popup-tilt)) scale(.88); }
+	12%, 65% { opacity: 1; transform: translateY(0) rotate(var(--popup-tilt)) scale(1); }
+	100% { opacity: 0; transform: translateY(-7px) rotate(var(--popup-tilt)) scale(1); }
+}
+@keyframes retire-popup { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+	.popup > span { transform: none; animation-name: still-popup; }
+}
+@keyframes still-popup { 0%, 65% { opacity: 1; } 100% { opacity: 0; } }
 .tutorial { pointer-events: none; position: absolute; z-index: 3; inset: 88px 22px 55px; margin: auto; max-width: 490px; height: fit-content; padding: 26px; background: #182522f5; color: #fff6e7; border: 1px solid #edf0e84d; }
 .tutorial h2 { font: 800 28px/1.1 var(--font-experiment-display), sans-serif; margin-bottom: 14px; }
 .tutorial > div > p { font-size: 14px; line-height: 1.7; }
@@ -88,3 +100,8 @@
 .practice { position: absolute; top: 88px; left: 22px; right: 22px; max-width: 360px; margin: auto; padding: 14px 18px; color: #fff6e7; background: #182522e6; font-size: 13px; line-height: 1.5; pointer-events: none; }
 .practice .overline { margin-bottom: 6px; }
 .practice button { pointer-events: auto; margin-top: 8px; padding: 4px 0; color: #ffae86; cursor: pointer; }
+
+.controlButtons { display: flex; flex-direction: column; align-items: stretch; gap: 8px; flex-shrink: 0; }
+.replay { padding: 9px 14px; border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); font-size: 12px; cursor: pointer; }
+.replay:hover { border-color: hsl(var(--primary)); color: #ffae86; }
+.replay:disabled { opacity: .5; cursor: default; }
