@@ -1,4 +1,5 @@
 import { advance, layTrack, newRun, phaseAt, secondsAt, type Run } from "./rhythm";
+import { advancePractice, createPractice, placePractice, type Practice } from "./tutorial";
 import { BeatSound } from "./sound";
 import type { DebugPreview } from "./debug";
 import { initialView, sameTrackView, trackView, type TrackView } from "./track-view";
@@ -20,6 +21,7 @@ type Callbacks = {
 // Own the mutable run, clock, audio, renderer and browser listeners for one mount.
 export function createTrackController(host: HTMLDivElement, callbacks: Callbacks) {
 	let tutorial: number | null = 0;
+	let practice: Practice | null = null, tutorialReturnRun: Run | null = null;
 	let run = newRun(), savedRun: Run | null = null, preview: DebugPreview | null = null;
 	let origin = 0, nextSound = -4, lastPaint = 0, best = 0, muted = false;
 	let view = initialView;
@@ -35,19 +37,25 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 	callbacks.onTutorial(tutorial);
 	function showTutorial() {
 		if (savedRun) return;
-		pause(); tutorial = 0; callbacks.onTutorial(tutorial);
+		pause();
+		if (tutorialReturnRun) { run = tutorialReturnRun; tutorialReturnRun = null; }
+		else if (practice) run = newRun();
+		practice = null; tutorial = 0; callbacks.onTutorial(tutorial); host.focus(); paint();
 	}
 	function skipTutorial() {
-		tutorial = null; callbacks.onTutorial(null);
+		if (practice) speaker.stop();
+		if (tutorialReturnRun) { run = tutorialReturnRun; tutorialReturnRun = null; }
+		else if (practice) run = newRun();
+		practice = null; tutorial = null; callbacks.onTutorial(null);
 		try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* Remembering the tutorial is optional. */ }
 		host.focus(); action();
 	}
 
 	function paint() {
 		const current = run;
-		const next = trackView(current);
+		const next = trackView(current, practice);
 		if (!sameTrackView(view, next)) { view = next; callbacks.onView(next); }
-		if (!savedRun && current.score > best) {
+		if (!savedRun && !practice && current.score > best) {
 			best = current.score; callbacks.onBest(current.score);
 			try { localStorage.setItem(BEST_KEY, String(current.score)); } catch { /* Best score is optional when storage is unavailable. */ }
 		}
@@ -57,13 +65,14 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 		const now = performance.now();
 		if (current.mode === "running") {
 			update((now - origin) / 1000);
-			if (current.mode === "running") {
-				while (secondsAt(nextSound) < current.seconds + 0.12) {
+			if (practice?.waiting) origin = now - current.seconds * 1000;
+			if (current.mode === "running" && !practice?.waiting) {
+				while (secondsAt(nextSound) < current.seconds + 0.12 && (!practice || secondsAt(nextSound) < secondsAt(practice.beat))) {
 					const delay = secondsAt(nextSound) - current.seconds;
 					if (delay > -0.03) speaker.schedule(current, nextSound, delay);
 					nextSound += 0.5;
 				}
-			} else speaker.stop();
+			} else if (current.mode !== "running") speaker.stop();
 		}
 		if (now - lastPaint > 32) { paint(); lastPaint = now; }
 		return current;
@@ -76,7 +85,11 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 	}
 	function update(seconds: number) {
 		if (preview && debugTools) debugTools.advancePreview(run, seconds, preview.autoUntil);
-		else advance(run, seconds);
+		else if (practice) {
+			const wasWaiting = practice.waiting;
+			advancePractice(run, seconds, practice);
+			if (practice.waiting && !wasWaiting) speaker.stop();
+		} else advance(run, seconds);
 	}
 	function toggleDebug() {
 		previewRequest++;
@@ -85,7 +98,10 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 			if (window.location.hash === "#debug") history.replaceState(history.state, "", window.location.pathname + window.location.search);
 			callbacks.onDebugOpen(false); callbacks.onPreviewLabel(""); host.focus(); paint();
 		} else {
-			pause(); tutorial = null; callbacks.onTutorial(null); savedRun = run; callbacks.onDebugOpen(true);
+			pause();
+			if (tutorialReturnRun) { run = tutorialReturnRun; tutorialReturnRun = null; }
+			else if (practice) run = newRun();
+			practice = null; tutorial = null; callbacks.onTutorial(null); savedRun = run; callbacks.onDebugOpen(true);
 		}
 	}
 	function previewUpgrades(level: number) {
@@ -110,9 +126,15 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 	}
 	function action() {
 		if (!cleanup || contextFailed || document.hidden) return;
-		if (tutorial !== null) {
+		if (tutorial !== null && tutorial < 3) {
 			if (tutorial < 2) { tutorial++; callbacks.onTutorial(tutorial); }
-			else skipTutorial();
+			else {
+				if (run.mode === "paused") tutorialReturnRun = run;
+				speaker.stop(); run = newRun(crypto.getRandomValues(new Uint32Array(1))[0]); run.mode = "running";
+				practice = createPractice(run); tutorial = 3; callbacks.onTutorial(tutorial);
+				origin = performance.now(); nextSound = -4; paint();
+				void speaker.unlock().then(ok => { if (!disposed) { speaker.setMuted(muted); callbacks.onAudioUnavailable(!ok); } });
+			}
 			return;
 		}
 		const current = run;
@@ -134,6 +156,22 @@ export function createTrackController(host: HTMLDivElement, callbacks: Callbacks
 				if (!debugTools.previewAcceptsInput(preview, seconds)) return;
 				// Finish any approach placements before handling the first player tap.
 				update(seconds);
+			}
+			if (practice) {
+				update(seconds);
+				origin = performance.now() - current.seconds * 1000;
+				const beat = practice.beat;
+				if (!placePractice(current, practice)) { paint(); return; }
+				speaker.schedule(current, beat, 0);
+				nextSound = Math.floor(phaseAt(current.seconds) * 2 + 1e-9) / 2 + 0.5;
+				if (practice.count === 2) {
+					practice = null; tutorial = null; callbacks.onTutorial(null);
+					try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch { /* Remembering practice is optional. */ }
+					if (tutorialReturnRun) {
+						speaker.stop(); run = tutorialReturnRun; tutorialReturnRun = null; action();
+					}
+				} else { tutorial = 4; callbacks.onTutorial(tutorial); }
+				paint(); return;
 			}
 			// The count-in teaches the pulse without consuming a track piece.
 			if (phaseAt(seconds) < -0.5) return;

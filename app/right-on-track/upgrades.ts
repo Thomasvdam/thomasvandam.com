@@ -24,7 +24,7 @@ export function rainbowPuff(seed: number, puff: number, emission: number, chance
 export function precisionReadout(run: Pick<Run, "precisionStreak" | "lastHit" | "seconds">) {
 	const progress = run.precisionStreak > 0 ? (run.precisionStreak - 1) % UPGRADE_INTERVAL + 1 : 0;
 	const hit = run.lastHit;
-	if (!hit || run.seconds - hit.seconds > 1.2) return { progress, feedback: "10 on-time hits earn a bonus", tone: "idle" };
-	if (hit.precise) return { progress, feedback: progress === UPGRADE_INTERVAL ? "On time · bonus earned!" : "On time · bonus +1", tone: "perfect" };
-	return { progress, feedback: `${hit.offset < 0 ? "Early" : "Late"}${hit.brokeCombo ? " · combo reset" : " · no bonus"}`, tone: "loose" };
+	if (!hit || run.seconds - hit.seconds > 1.2) return { progress, feedback: "", tone: "idle" };
+	if (hit.precise) return { progress, feedback: progress === UPGRADE_INTERVAL ? "Bonus!" : "On time", tone: "perfect" };
+	return { progress, feedback: hit.offset < 0 ? "Early" : "Late", tone: "loose" };
 }

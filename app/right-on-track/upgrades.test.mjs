@@ -98,17 +98,17 @@ test("rainbow chance is deterministic and reaches all emitted puffs", () => {
 
 test("precision feedback distinguishes perfect hits and early/late combo resets", () => {
 	const run = start(); hit(run);
-	expect(precisionReadout(run)).toMatchObject({ progress: 1, feedback: "On time · bonus +1", tone: "perfect" });
+	expect(precisionReadout(run)).toMatchObject({ progress: 1, feedback: "On time", tone: "perfect" });
 	hit(run, -0.08);
-	expect(precisionReadout(run)).toMatchObject({ progress: 0, feedback: "Early · combo reset", tone: "loose" });
+	expect(precisionReadout(run)).toMatchObject({ progress: 0, feedback: "Early", tone: "loose" });
 	hit(run); hit(run, 0.08);
-	expect(precisionReadout(run).feedback).toBe("Late · combo reset");
+	expect(precisionReadout(run).feedback).toBe("Late");
 	run.seconds += 2; expect(precisionReadout(run).tone).toBe("idle");
 });
 
 test("ten-hit feedback fills the meter and preserves upgrade progress through pauses", () => {
 	const run = start(); for (let i = 0; i < 10; i++) hit(run);
-	expect(precisionReadout(run)).toMatchObject({ progress: 10, feedback: "On time · bonus earned!" });
+	expect(precisionReadout(run)).toMatchObject({ progress: 10, feedback: "Bonus!" });
 	run.mode = "paused"; expect(precisionReadout(run).progress).toBe(10); run.mode = "running";
 	hit(run); expect(precisionReadout(run).progress).toBe(1);
 	hit(run, 0.08); expect(run.upgrades).toBe(1); expect(precisionReadout(run).progress).toBe(0);
