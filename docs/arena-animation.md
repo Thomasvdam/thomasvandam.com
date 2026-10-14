@@ -1,0 +1,70 @@
+# Modular Arena sprites
+
+Animation, artwork, and gameplay are separate. A **rig** is an ordered list of
+attachment points (bones). A **pose** moves those points. A **skin** assigns PNG
+parts to the rig's named slots. The same pose works with every compatible skin.
+The renderer composes the parts; no whole-character sprite sheet is required.
+
+`app/arena/animation.ts` defines `MECH_RIG`, `BUG_RIG`, their shared animation
+functions, and the parent-transform resolver. `app/arena/sprite-parts.ts` holds
+image paths, dimensions, pivots, and skin assignments. Part art is authored in
+`tools/generate-arena-sprites.py`; PNGs are committed so running the game needs
+neither Python nor a generation step.
+
+## Part registration
+
+Parts face right (+X). A native part is 32 × 32 pixels with transparent padding;
+the visible shape must sit around its attachment point. Pixel art is drawn with
+image smoothing disabled. To use higher-resolution artwork, retain the logical
+32 × 32 canvas proportions and registration; declared dimensions control its
+size in the rig independently of the PNG's resolution.
+
+| Part | Pivot in logical pixels | Skin slot |
+| --- | --- | --- |
+| Mech chassis, torso | 16, 16 | `chassis`, `torso` |
+| Mech feet | 16, 16 | `footL`, `footR` |
+| Mech gun, cooling module | 16, 16 | `weapon`, `cooler` |
+| Bug body, shell, head | 16, 16 | `body`, `shell`, `head` |
+| Bug legs | 8, 16 | `legs` (reused by six bones) |
+| Bug wings | 8, 16 | `wings` (optional, reused by two bones) |
+
+Feet, legs, and wings are mirrored by the rig where appropriate. Do not bake the
+mirrored direction, movement, recoil, or a whole character into a replacement part.
+The parent bone must precede its children; `layer` controls rendering order.
+
+## Add a visual variant
+
+1. Create registered PNGs under `public/images/arena/parts/` and add their paths
+   and pivots to `SPRITE_PARTS`.
+2. Assign those part IDs to a skin's existing slots. A new beetle shell, head, or
+   leg can replace one slot while the other slots keep their current parts.
+3. Use that skin with `BUG_RIG` and `bugPose`. The existing walking, hit, death,
+   and spawn poses continue to work. Omitting `wings` skips those parts entirely.
+
+For example, change a bug skin's `shell` assignment to a new registered shell ID;
+the shell remains attached to the same moving body without editing `bugPose`.
+Adding a new gameplay variant also requires adding its ID to `BugVariant` and
+choosing it in the spawn scheduler. Skin changes alone never alter collision,
+speed, health, or damage.
+
+## Player upgrades
+
+`mechSkin` maps damage ranks to cannon parts, firing-speed ranks to cooler parts,
+and movement ranks to both feet. Each path has base, rank-1, and rank-3 artwork;
+higher ranks use the final appearance. `upgradePart` previews the next part in
+the upgrade card. To add another visual tier, register its PNG and extend that
+mapping. The animation does not change.
+
+The chassis and feet follow movement; the torso, gun, and cooler follow aim.
+Walking phase uses actual distance traveled, so blocked movement does not make
+the feet run. `shotAt` drives shared recoil. Bugs carry their skin ID from warning
+to live enemy to cosmetic death effect. Warning motion has no collision; the bug
+becomes active only when the existing 1.2-second warning ends.
+
+## Check changes
+
+Run `bun test app/arena` for registration, compatibility, independent aim/walking,
+recoil, shared bug poses, spawn timing, pause, and gameplay regressions. Run
+`./scripts/check` for full project validation. Inspect new parts in motion at
+desktop and phone sizes; tests can verify attachment and timing contracts but
+do not replace a visual check of the artwork.
