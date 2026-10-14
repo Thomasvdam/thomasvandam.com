@@ -10,14 +10,15 @@ export const UPGRADES = [
 export type Upgrade = typeof UPGRADES[number]["id"];
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
-export type Enemy = Vector & { id: number; health: number; maxHealth: number; speed: number };
+export type Enemy = Vector & { id: number; health: number; maxHealth: number; speed: number; variant: BugVariant; angle: number; walkDistance: number; bornAt: number; hitAt: number };
 export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number };
 export type Pickup = Vector & { id: number; value: number; attracted?: boolean };
-export type SpawnWarning = Vector & { id: number; remaining: number };
+export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
+export type BugRemains = Vector & { id: number; variant: BugVariant; angle: number; diedAt: number };
 export type Game = {
 	mode: "ready" | "playing" | "paused" | "upgrade" | "dead";
-	player: Vector & { health: number; angle: number; invulnerable: number };
-	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[];
+	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
+	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[]; remains: BugRemains[];
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	level: number; xp: number; kills: number; time: number;
 	damage: number; shotInterval: number; speed: number; shotTimer: number;
@@ -34,8 +35,8 @@ export const waveSize = (wave: number) => Math.min(100, 5 + wave * 3);
 
 export function newGame(seed = 1): Game {
 	return {
-		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0 },
-		enemies: [], bullets: [], pickups: [], spawns: [], wave: 1, toSpawn: waveSize(1), spawnTimer: .5, intermission: 0,
+		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
+		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], wave: 1, toSpawn: waveSize(1), spawnTimer: .5, intermission: 0,
 		level: 1, xp: 0, kills: 0, time: 0, damage: 1, shotInterval: .2, speed: 220, shotTimer: 0,
 		upgrades: { damage: 0, fireRate: 0, speed: 0 }, nextId: 1, seed: seed >>> 0,
 	};
@@ -76,11 +77,12 @@ function warnSpawn(game: Game) {
 		x: clamp(game.player.x + Math.cos(angle) * radius, ENEMY_RADIUS, FIELD.width - ENEMY_RADIUS),
 		y: clamp(game.player.y + Math.sin(angle) * radius, ENEMY_RADIUS, FIELD.height - ENEMY_RADIUS),
 	} : { x: ENEMY_RADIUS + random(game) * (FIELD.width - ENEMY_RADIUS * 2), y: ENEMY_RADIUS + random(game) * (FIELD.height - ENEMY_RADIUS * 2) };
-	game.spawns.push({ ...position, id: game.nextId++, remaining: SPAWN_WARNING_TIME });
+	const variant: BugVariant = (waveSize(game.wave) - game.toSpawn) % 2 === 0 ? "burrower" : "flyer";
+	game.spawns.push({ ...position, id: game.nextId++, remaining: SPAWN_WARNING_TIME, variant });
 }
 function spawnEnemy(game: Game, warning: SpawnWarning) {
 	const health = 1 + Math.floor((game.wave - 1) / 3);
-	game.enemies.push({ x: warning.x, y: warning.y, id: warning.id, health, maxHealth: health, speed: Math.min(160, 64 + game.wave * 4) });
+	game.enemies.push({ x: warning.x, y: warning.y, id: warning.id, health, maxHealth: health, speed: Math.min(160, 64 + game.wave * 4), variant: warning.variant, angle: Math.atan2(game.player.y - warning.y, game.player.x - warning.x), walkDistance: 12, bornAt: game.time, hitAt: -10 });
 }
 function dropXp(game: Game, enemy: Enemy) {
 	if (game.pickups.length < 512) game.pickups.push({ id: game.nextId++, x: enemy.x, y: enemy.y, value: 1 });
@@ -101,16 +103,27 @@ export function step(game: Game, input: Input, dt: number) {
 	if (game.mode !== "playing" || !Number.isFinite(dt) || dt <= 0) return;
 	dt = Math.min(dt, 1 / 30);
 	game.time += dt;
+	game.remains = game.remains.filter(remains => game.time - remains.diedAt < .5);
 	const move = limitVector(input.move), player = game.player;
+	const previousPlayer = { x: player.x, y: player.y };
 	player.x = clamp(player.x + move.x * game.speed * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
 	player.y = clamp(player.y + move.y * game.speed * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
+	const traveled = Math.hypot(player.x - previousPlayer.x, player.y - previousPlayer.y);
+	player.walkDistance += traveled;
+	player.walkBlend = clamp(player.walkBlend + (traveled > .001 ? 1 : -1) * dt * 8, 0, 1);
+	if (traveled > .001) {
+		const direction = Math.atan2(player.y - previousPlayer.y, player.x - previousPlayer.x);
+		const turn = Math.atan2(Math.sin(direction - player.moveAngle), Math.cos(direction - player.moveAngle));
+		player.moveAngle += turn * Math.min(1, dt * 18);
+	}
 	player.invulnerable = Math.max(0, player.invulnerable - dt);
 	if (Math.hypot(input.aim.x, input.aim.y) > .01) player.angle = Math.atan2(input.aim.y, input.aim.x);
 	game.shotTimer = Math.max(0, game.shotTimer - dt);
 	if (input.fire && game.shotTimer === 0 && game.bullets.length < 256) {
 		const x = Math.cos(player.angle), y = Math.sin(player.angle);
-		game.bullets.push({ id: game.nextId++, x: player.x + x * 20, y: player.y + y * 20, vx: x * 640, vy: y * 640, life: 1.7, damage: game.damage });
+		game.bullets.push({ id: game.nextId++, x: player.x + x * 20 + y * 6.25, y: player.y + y * 20 - x * 6.25, vx: x * 640, vy: y * 640, life: 1.7, damage: game.damage });
 		game.shotTimer = game.shotInterval;
+		player.shotAt = game.time;
 	}
 	game.spawns = game.spawns.filter(warning => {
 		warning.remaining = Math.max(0, warning.remaining - dt);
@@ -126,18 +139,21 @@ export function step(game: Game, input: Input, dt: number) {
 	}
 	for (const enemy of game.enemies) {
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy);
-		if (distance > 0) { const travel = Math.min(distance, enemy.speed * dt); enemy.x += dx / distance * travel; enemy.y += dy / distance * travel; }
+		if (distance > 0) { const travel = Math.min(distance, enemy.speed * dt); enemy.x += dx / distance * travel; enemy.y += dy / distance * travel; enemy.walkDistance += travel; enemy.angle = Math.atan2(dy, dx); }
 	}
 	game.bullets = game.bullets.filter(bullet => {
 		const previous = { x: bullet.x, y: bullet.y };
 		bullet.x += bullet.vx * dt; bullet.y += bullet.vy * dt; bullet.life -= dt;
 		const hit = game.enemies.find(enemy => enemy.health > 0 && hitByBullet(bullet, enemy, previous));
-		if (hit) { hit.health -= bullet.damage; return false; }
+		if (hit) { hit.health -= bullet.damage; hit.hitAt = game.time; return false; }
 		return bullet.life > 0 && bullet.x >= 0 && bullet.y >= 0 && bullet.x <= FIELD.width && bullet.y <= FIELD.height;
 	});
 	game.enemies = game.enemies.filter(enemy => {
 		if (enemy.health > 0) return true;
-		game.kills++; dropXp(game, enemy); return false;
+		game.kills++; dropXp(game, enemy);
+		game.remains.push({ id: enemy.id, x: enemy.x, y: enemy.y, variant: enemy.variant, angle: enemy.angle, diedAt: game.time });
+		if (game.remains.length > 64) game.remains.shift();
+		return false;
 	});
 	if (player.invulnerable === 0 && game.enemies.some(enemy => Math.hypot(enemy.x - player.x, enemy.y - player.y) < PLAYER_RADIUS + ENEMY_RADIUS)) {
 		player.health = Math.max(0, player.health - 20);
@@ -156,3 +172,4 @@ export function step(game: Game, input: Input, dt: number) {
 	});
 	checkLevel(game);
 }
+import type { BugVariant } from "./sprite-parts";
