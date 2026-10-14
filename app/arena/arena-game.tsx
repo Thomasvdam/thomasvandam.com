@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, Pause, Play, RotateCcw, Zap } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, Pause, Play, RotateCcw } from "lucide-react";
 import { newGame, UPGRADES } from "./game";
+import { SPRITE_PARTS, upgradePart } from "./sprite-parts";
 import { createArenaRuntime, viewFromGame, type ArenaView } from "./runtime";
 import styles from "./arena.module.css";
 
@@ -28,7 +29,7 @@ export function ArenaGame() {
 	return <div className={styles.page}>
 		<header className={styles.header}>
 			<Link href="/" className={styles.back} aria-label="Back to Thomas van Dam"><ArrowLeft size={15} /><span>Thomas van Dam</span></Link>
-			<div className={styles.title}><h1>ARENA<span>.</span></h1><span className={styles.eyebrow}>A survival experiment</span></div>
+			<div className={styles.title}><h1>ARENA<span>.</span></h1><span className={styles.eyebrow}>Mech / bugs / survival</span></div>
 			<span className={styles.prototype}>Work in progress</span>
 		</header>
 		<section className={styles.game} aria-label="Arena survival game">
@@ -55,8 +56,8 @@ export function ArenaGame() {
 						: view.mode === "upgrade" ? <>
 							<p className={styles.eyebrow}>Level {view.level} / game paused</p><h2>Pick your edge.</h2><p>Choose one upgrade. Then get back in there.</p>
 							<div className={styles.upgrades}>{UPGRADES.map((upgrade, index) => <button ref={index === 0 ? firstUpgrade : undefined} key={upgrade.id} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.upgrade(upgrade.id)}>
-								<span className={styles.upgradeTop}>{index === 0 ? <Crosshair size={22} /> : index === 1 ? <Zap size={22} /> : <ArrowUpRight size={22} />}<kbd>{upgrade.key}</kbd></span>
-								<strong>{upgrade.name}</strong><span>{upgrade.description}</span><small>Taken {view.upgrades[upgrade.id]} {view.upgrades[upgrade.id] === 1 ? "time" : "times"}</small>
+							<span className={styles.upgradeTop}><span className={styles.upgradeArt} aria-hidden="true" style={{ backgroundImage: `url(${SPRITE_PARTS[upgradePart(view.upgrades, upgrade.id)].path})` }} /><kbd>{upgrade.key}</kbd></span>
+								<strong>{upgrade.name}</strong><span>{upgrade.description}</span><small>{upgrade.id === "damage" ? "Cannon" : upgrade.id === "fireRate" ? "Cooling module" : "Leg servos"} · rank {view.upgrades[upgrade.id] + 1}</small>
 							</button>)}</div>
 							<p className={styles.hint}>{view.controller ? "D-pad or left stick to choose · A / bottom button to confirm" : "Tap a card, press 1–3, or use Tab and Enter"}</p>
 						</> : view.mode === "paused" ? <>
@@ -64,7 +65,7 @@ export function ArenaGame() {
 						</> : view.mode === "dead" ? <>
 							<p className={styles.eyebrow}>Run complete</p><h2>One more round?</h2><p>Wave {view.wave} · {view.kills} kills · {clock} survived</p><button className={styles.primary} onClick={() => runtime.current?.action("restart")}>Play again <RotateCcw size={16} /></button>
 						</> : <>
-							<p className={styles.eyebrow}>Move / aim / survive</p><h2>Hold your ground.</h2><p>Clear each wave. Collect the green XP.<br />Level up, choose an upgrade, keep going.<br />Red rings warn where enemies will appear.</p>
+							<p className={styles.eyebrow}>Move / aim / survive</p><h2>Hold your ground.</h2><p>One mech. Plenty of bugs.<br />Clear waves, collect XP, and upgrade your machine.<br />Rings warn of burrowing or landing bugs.</p>
 							<div className={styles.instructions}><span><b>Keyboard + mouse</b>WASD / arrows to move · mouse to aim</span><span><b>Touch</b>Left joystick to move · right joystick to aim</span><span><b>Controller</b>Left stick to move · right stick to aim</span></div>
 							<p className={styles.hint}>Your weapon fires continuously in the aimed direction.</p><button className={styles.primary} onClick={() => runtime.current?.action("start")}>Enter the arena <ArrowUpRight size={18} /></button>
 						</>}

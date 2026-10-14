@@ -5,7 +5,7 @@ import { viewFromGame } from "./runtime";
 
 const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false };
 function advance(game, seconds, input = idle) { for (let i = 0; i < Math.round(seconds * 120); i++) step(game, input, 1 / 120); }
-function enemy(game, props = {}) { const result = { id: game.nextId++, x: game.player.x + 60, y: game.player.y, health: 1, maxHealth: 1, speed: 0, ...props }; game.enemies.push(result); return result; }
+function enemy(game, props = {}) { const result = { id: game.nextId++, x: game.player.x + 60, y: game.player.y, health: 1, maxHealth: 1, speed: 0, variant: "burrower", angle: 0, walkDistance: 0, bornAt: -10, hitAt: -10, ...props }; game.enemies.push(result); return result; }
 
 test("movement has equal diagonal speed and respects the fixed arena on every side", () => {
 	const game = newGame(); start(game); game.toSpawn = 1; game.spawnTimer = 1000; const initial = { ...game.player };
@@ -93,7 +93,7 @@ test("arena-wide spawn warnings fit inside bounds and may appear directly on the
 
 test("pending spawn warnings prevent a wave clear and global XP attraction", () => {
 	const game = newGame(); start(game); game.toSpawn = 0;
-	game.spawns.push({ id: 100, x: 100, y: 100, remaining: 2 });
+	game.spawns.push({ id: 100, x: 100, y: 100, remaining: 2, variant: "burrower" });
 	game.pickups.push({ id: 101, x: 50, y: 50, value: 1 });
 	step(game, idle, 1 / 120); expect(game.intermission).toBe(0); expect(game.pickups[0].attracted).toBeFalsy(); expect(game.pickups[0].x).toBe(50);
 });
@@ -111,7 +111,7 @@ test("each group of three spawn warnings pressures the player's position even in
 
 test("moving away from a warning avoids the hit when the enemy appears", () => {
 	const game = newGame(); start(game); game.toSpawn = 0;
-	game.spawns.push({ id: 100, x: game.player.x, y: game.player.y, remaining: SPAWN_WARNING_TIME });
+	game.spawns.push({ id: 100, x: game.player.x, y: game.player.y, remaining: SPAWN_WARNING_TIME, variant: "burrower" });
 	advance(game, SPAWN_WARNING_TIME + .1, { ...idle, move: { x: 1, y: 0 } });
 	expect(game.enemies).toHaveLength(1); expect(game.player.health).toBe(100); expect(game.player.x).toBeGreaterThan(game.enemies[0].x + 100);
 });

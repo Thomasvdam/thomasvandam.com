@@ -32,15 +32,24 @@ is cleared on overlays; controller sticks must return to neutral before reuse.
 - `app/arena/camera.ts`: viewport and mouse projection.
 - `app/arena/runtime.ts`: browser lifecycle, input wiring, and gamepad menu controls.
 - `app/arena/renderer.ts`: Canvas 2D drawing using image sprites.
+- `app/arena/animation.ts`: shared mech/bug rigs, poses, and spawn animation curves.
+- `app/arena/sprite-parts.ts`: registered PNG parts, bug skins, and upgrade appearances.
 - `app/arena/arena-game.tsx`: HUD, overlays, and upgrade choices.
 
-The four transparent PNG sprites live in `public/images/arena/`. Their current
-source is `tools/generate-arena-sprites.py`; regenerate with
-`python3 tools/generate-arena-sprites.py`. Replace the files to change artwork
-without changing gameplay. Sprites are centered in their image; player and
-bullet artwork points right. The renderer rotates them to the aiming direction.
-The current images are 64 × 64; higher-resolution replacements also work.
-Collision sizes are independent of the artwork.
+The transparent pixel parts live in `public/images/arena/parts/`. Regenerate them
+and the homepage thumbnails with `python3 tools/generate-arena-sprites.py`.
+The mech uses separate chassis, feet, torso, cannon, and cooler parts. Damage,
+firing-speed, and movement upgrades replace compatible cannon, cooler, and foot
+parts at ranks 1 and 3, while numerical upgrades continue to stack. Both bug skins
+share one six-leg walking/hit/death rig; the winged variant adds optional wings.
+One burrows during the warning, the other descends and folds its wings on landing.
+Their chase behavior, damage, timing, and collision sizes are the same.
+
+Walking follows distance traveled. The mech aims independently of its feet and
+recoils on each shot. All poses, spawn effects, hit flashes, and brief bug death
+animations use simulation time, so pause and upgrade menus freeze them. Cosmetic
+death effects do not delay wave completion. See [the animation guide](arena-animation.md)
+for adding parts or skins without authoring new animation cycles.
 
 ## Validation
 
@@ -49,6 +58,6 @@ and virtual joystick regressions. Project validation is `./scripts/check`.
 Manually check simultaneous touch inputs and controller behavior on physical
 devices as well as desktop movement, aiming, and responsive camera behavior.
 
-This first version has one weapon, one enemy type, and three repeatable upgrade
+This version has one weapon, two bug appearances, and three repeatable upgrade
 choices. Speeds, wave sizes, health, XP thresholds, and upgrade strengths are
-provisional. Audio, more content, and distinctive artwork are future additions.
+provisional. Audio and more combat mechanics are future additions.
