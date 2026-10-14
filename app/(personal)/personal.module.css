@@ -351,3 +351,10 @@
 	.phaseTenCards { right: 22px; transform: rotate(12deg) scale(.82); transform-origin: bottom right; }
 	.phaseTen .coverBottom { font-size: 9px; letter-spacing: 0; }
 }
+
+.arena { background: #101c2d; color: #eaf1f8; }
+.arenaField { position: absolute; right: -14px; top: 95px; width: 200px; height: 150px; transform: rotate(-15deg); border: 1px solid #547186; background: linear-gradient(#a6e9ed14 1px, transparent 1px), linear-gradient(90deg, #a6e9ed14 1px, transparent 1px); background-size: 30px 30px; }
+.arenaField i { position: absolute; width: 36px; height: 36px; background: url('/images/arena/enemy.png') center / contain no-repeat; }
+.arenaField i:nth-child(1) { left: 65px; top: 55px; background-image: url('/images/arena/player.png'); transform: rotate(-35deg); }
+.arenaField i:nth-child(2) { right: 15px; top: 15px; }
+.arenaField i:nth-child(3) { left: 15px; bottom: 15px; }
