@@ -6,7 +6,7 @@ import { loadSprites, render } from "./renderer";
 export type ArenaView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
-		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn,
+		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
 		intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
 	};
