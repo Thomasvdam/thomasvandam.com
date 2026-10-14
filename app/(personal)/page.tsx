@@ -101,6 +101,14 @@ export default function Home() {
 						</Link>
 						<p>Phases, points, and who starts next. Just add cards.</p>
 					</article>
+					<article>
+						<Link href="/arena" className={`${styles.cover} ${styles.arena}`}>
+							<h3>The<br />arena.</h3>
+							<div className={styles.arenaField} aria-hidden="true"><i /><i /><i /></div>
+							<div className={styles.coverBottom}><span>07 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
+						</Link>
+						<p>See how long you can keep going.</p>
+					</article>
 				</div>
 			</section>
 
