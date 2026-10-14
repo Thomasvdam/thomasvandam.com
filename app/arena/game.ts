@@ -1,6 +1,7 @@
 export const FIELD = { width: 1120, height: 720 };
 export const PLAYER_RADIUS = 14;
 export const ENEMY_RADIUS = 15;
+export const SPAWN_WARNING_TIME = 1.2;
 export const UPGRADES = [
 	{ id: "damage", name: "More damage", description: "+1 damage per shot", key: "1" },
 	{ id: "fireRate", name: "Faster firing", description: "15% shorter time between shots", key: "2" },
@@ -11,11 +12,12 @@ export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Enemy = Vector & { id: number; health: number; maxHealth: number; speed: number };
 export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number };
-export type Pickup = Vector & { id: number; value: number };
+export type Pickup = Vector & { id: number; value: number; attracted?: boolean };
+export type SpawnWarning = Vector & { id: number; remaining: number };
 export type Game = {
 	mode: "ready" | "playing" | "paused" | "upgrade" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number };
-	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[];
+	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[];
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	level: number; xp: number; kills: number; time: number;
 	damage: number; shotInterval: number; speed: number; shotTimer: number;
@@ -33,7 +35,7 @@ export const waveSize = (wave: number) => Math.min(100, 5 + wave * 3);
 export function newGame(seed = 1): Game {
 	return {
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0 },
-		enemies: [], bullets: [], pickups: [], wave: 1, toSpawn: waveSize(1), spawnTimer: .5, intermission: 0,
+		enemies: [], bullets: [], pickups: [], spawns: [], wave: 1, toSpawn: waveSize(1), spawnTimer: .5, intermission: 0,
 		level: 1, xp: 0, kills: 0, time: 0, damage: 1, shotInterval: .2, speed: 220, shotTimer: 0,
 		upgrades: { damage: 0, fireRate: 0, speed: 0 }, nextId: 1, seed: seed >>> 0,
 	};
@@ -65,18 +67,20 @@ function random(game: Game) {
 	game.seed = (Math.imul(game.seed, 1664525) + 1013904223) >>> 0;
 	return game.seed / 4294967296;
 }
-function spawnEnemy(game: Game) {
-	// Choose from safe perimeter positions so a new enemy never appears on the player.
-	const positions = Array.from({ length: 16 }, (_, index) => {
-		const offset = (index % 4 + .5) / 4;
-		if (index < 4) return { x: offset * FIELD.width, y: ENEMY_RADIUS };
-		if (index < 8) return { x: FIELD.width - ENEMY_RADIUS, y: offset * FIELD.height };
-		if (index < 12) return { x: offset * FIELD.width, y: FIELD.height - ENEMY_RADIUS };
-		return { x: ENEMY_RADIUS, y: offset * FIELD.height };
-	}).filter(position => Math.hypot(position.x - game.player.x, position.y - game.player.y) > 260);
-	const position = positions[Math.floor(random(game) * positions.length)];
+function warnSpawn(game: Game) {
+	// Every third warning puts pressure on the current position; the rest cover the whole arena.
+	const nearPlayer = (waveSize(game.wave) - game.toSpawn) % 3 === 2;
+	const angle = nearPlayer ? random(game) * Math.PI * 2 : 0;
+	const radius = nearPlayer ? Math.sqrt(random(game)) * 90 : 0;
+	const position = nearPlayer ? {
+		x: clamp(game.player.x + Math.cos(angle) * radius, ENEMY_RADIUS, FIELD.width - ENEMY_RADIUS),
+		y: clamp(game.player.y + Math.sin(angle) * radius, ENEMY_RADIUS, FIELD.height - ENEMY_RADIUS),
+	} : { x: ENEMY_RADIUS + random(game) * (FIELD.width - ENEMY_RADIUS * 2), y: ENEMY_RADIUS + random(game) * (FIELD.height - ENEMY_RADIUS * 2) };
+	game.spawns.push({ ...position, id: game.nextId++, remaining: SPAWN_WARNING_TIME });
+}
+function spawnEnemy(game: Game, warning: SpawnWarning) {
 	const health = 1 + Math.floor((game.wave - 1) / 3);
-	game.enemies.push({ ...position, id: game.nextId++, health, maxHealth: health, speed: Math.min(160, 64 + game.wave * 4) });
+	game.enemies.push({ x: warning.x, y: warning.y, id: warning.id, health, maxHealth: health, speed: Math.min(160, 64 + game.wave * 4) });
 }
 function dropXp(game: Game, enemy: Enemy) {
 	if (game.pickups.length < 512) game.pickups.push({ id: game.nextId++, x: enemy.x, y: enemy.y, value: 1 });
@@ -108,12 +112,17 @@ export function step(game: Game, input: Input, dt: number) {
 		game.bullets.push({ id: game.nextId++, x: player.x + x * 20, y: player.y + y * 20, vx: x * 640, vy: y * 640, life: 1.7, damage: game.damage });
 		game.shotTimer = game.shotInterval;
 	}
+	game.spawns = game.spawns.filter(warning => {
+		warning.remaining = Math.max(0, warning.remaining - dt);
+		if (warning.remaining > 0) return true;
+		spawnEnemy(game, warning); return false;
+	});
 	if (game.intermission > 0) {
 		game.intermission = Math.max(0, game.intermission - dt);
 		if (game.intermission === 0) { game.wave++; game.toSpawn = waveSize(game.wave); game.spawnTimer = .4; }
 	} else if (game.toSpawn > 0) {
 		game.spawnTimer -= dt;
-		if (game.spawnTimer <= 0) { spawnEnemy(game); game.toSpawn--; game.spawnTimer += Math.max(.18, .7 - game.wave * .025); }
+		if (game.spawnTimer <= 0) { warnSpawn(game); game.toSpawn--; game.spawnTimer += Math.max(.18, .7 - game.wave * .025); }
 	}
 	for (const enemy of game.enemies) {
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy);
@@ -135,12 +144,15 @@ export function step(game: Game, input: Input, dt: number) {
 		player.invulnerable = .9;
 		if (player.health === 0) { game.mode = "dead"; return; }
 	}
+	if (game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.length === 0 && game.intermission === 0) {
+		game.intermission = 3;
+		for (const pickup of game.pickups) pickup.attracted = true;
+	}
 	game.pickups = game.pickups.filter(pickup => {
 		const dx = player.x - pickup.x, dy = player.y - pickup.y, distance = Math.hypot(dx, dy);
 		if (distance < 24) { game.xp += pickup.value; return false; }
-		if (distance < 100) { const travel = Math.min(distance, 320 * dt); pickup.x += dx / distance * travel; pickup.y += dy / distance * travel; }
+		if (pickup.attracted || distance < 100) { const travel = Math.min(distance, (pickup.attracted ? 900 : 320) * dt); pickup.x += dx / distance * travel; pickup.y += dy / distance * travel; }
 		return true;
 	});
-	if (game.toSpawn === 0 && game.enemies.length === 0 && game.intermission === 0) game.intermission = 3;
 	checkLevel(game);
 }
