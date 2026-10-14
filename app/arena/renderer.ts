@@ -1,5 +1,5 @@
 import { cameraFor, type Camera } from "./camera";
-import { FIELD, type Game } from "./game";
+import { FIELD, SPAWN_WARNING_TIME, type Game } from "./game";
 
 export const SPRITES = {
 	player: "/images/arena/player.png", enemy: "/images/arena/enemy.png",
@@ -29,6 +29,14 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.drawImage(sprite, -size / 2, -size / 2, size, size); ctx.restore();
 	};
 	for (const pickup of game.pickups) draw(sprites.xp, pickup.x, pickup.y, 20);
+	for (const warning of game.spawns) {
+		const progress = 1 - warning.remaining / SPAWN_WARNING_TIME, radius = 27 + Math.sin(progress * Math.PI * 6) * 2;
+		ctx.fillStyle = "#ff7b8c18"; ctx.strokeStyle = "#ff7b8c66"; ctx.lineWidth = 1;
+		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+		ctx.strokeStyle = "#ff9dab"; ctx.lineWidth = 3;
+		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
+		ctx.globalAlpha = .25; draw(sprites.enemy, warning.x, warning.y, 40); ctx.globalAlpha = 1;
+	}
 	for (const bullet of game.bullets) draw(sprites.bullet, bullet.x, bullet.y, 16, Math.atan2(bullet.vy, bullet.vx));
 	for (const enemy of game.enemies) {
 		draw(sprites.enemy, enemy.x, enemy.y, 40, Math.atan2(game.player.y - enemy.y, game.player.x - enemy.x));

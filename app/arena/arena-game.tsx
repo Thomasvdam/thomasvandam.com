@@ -45,7 +45,7 @@ export function ArenaGame() {
 			<div className={styles.experience}><span>LVL {view.level}</span><progress max={view.xpNeeded} value={Math.min(view.xp, view.xpNeeded)} aria-label="Experience toward next level" /><span>{view.xp} / {view.xpNeeded} XP</span></div>
 			<div className={styles.stage} data-playing={!overlay}>
 				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Arena playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
-				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>Next wave in {view.intermission} · collect XP</span></> : <><span>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</span></>}</div>}
+				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>Next wave in {view.intermission} · XP coming to you</span></> : <><span>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</span></>}</div>}
 				<div ref={movePad} className={`${styles.joystick} ${styles.movePad}`} role="group" aria-label="Movement joystick"><span ref={moveThumb} className={styles.thumb}><ArrowUpRight size={21} /></span><span className={styles.stickLabel}>MOVE</span></div>
 				<div ref={aimPad} className={`${styles.joystick} ${styles.aimPad}`} role="group" aria-label="Aim joystick"><span ref={aimThumb} className={styles.thumb}><Crosshair size={21} /></span><span className={styles.stickLabel}>AIM</span></div>
 				{overlay && <div className={styles.overlay}>
@@ -64,7 +64,7 @@ export function ArenaGame() {
 						</> : view.mode === "dead" ? <>
 							<p className={styles.eyebrow}>Run complete</p><h2>One more round?</h2><p>Wave {view.wave} · {view.kills} kills · {clock} survived</p><button className={styles.primary} onClick={() => runtime.current?.action("restart")}>Play again <RotateCcw size={16} /></button>
 						</> : <>
-							<p className={styles.eyebrow}>Move / aim / survive</p><h2>Hold your ground.</h2><p>Clear each wave. Collect the green XP.<br />Level up, choose an upgrade, keep going.</p>
+							<p className={styles.eyebrow}>Move / aim / survive</p><h2>Hold your ground.</h2><p>Clear each wave. Collect the green XP.<br />Level up, choose an upgrade, keep going.<br />Red rings warn where enemies will appear.</p>
 							<div className={styles.instructions}><span><b>Keyboard + mouse</b>WASD / arrows to move · mouse to aim</span><span><b>Touch</b>Left joystick to move · right joystick to aim</span><span><b>Controller</b>Left stick to move · right stick to aim</span></div>
 							<p className={styles.hint}>Your weapon fires continuously in the aimed direction.</p><button className={styles.primary} onClick={() => runtime.current?.action("start")}>Enter the arena <ArrowUpRight size={18} /></button>
 						</>}
