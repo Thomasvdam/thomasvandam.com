@@ -66,7 +66,7 @@ export function ArenaGame() {
 								{upgrade.kind === "undercarriage" && <span className={styles.handling}>{(["firm", "rubble", "mud"] as const).map(terrain => <span key={terrain}>{TERRAIN_NAMES[terrain]} <b>{MOVEMENT[upgrade.id][terrain] * 100}%</b></span>)}</span>}
 								<small>{upgrade.kind === "undercarriage" ? `${upgrade.id === view.undercarriage ? "Keep" : "Equip"} & descend` : <>{upgrade.id === "damage" ? "Cannon" : upgrade.id === "fireRate" ? "Cooling module" : view.undercarriage === "legs" ? "Leg servos" : "Drive motor"} · rank {view.upgrades[upgrade.id] + 1}</>}</small>
 							</button>)}</div>
-							<p className={styles.hint}>{view.controller ? "D-pad or left stick to choose · A / bottom button to confirm" : "Tap a card, press 1–3, or use Tab and Enter"}</p>
+							<p className={styles.hint}>{view.controller ? "D-pad or left stick to choose · A / bottom button to confirm" : "Tap a card, use its number, or press Tab and Enter"}</p>
 						</> : view.mode === "paused" ? <>
 							<p className={styles.eyebrow}>Game paused</p><h2>Take a breather.</h2><p>Your run is right where you left it.</p><button className={styles.primary} onClick={() => runtime.current?.action("pause")}>Resume game <Play size={16} /></button>
 						</> : view.mode === "dead" ? <>
