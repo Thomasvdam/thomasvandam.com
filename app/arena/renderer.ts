@@ -1,6 +1,6 @@
 import { TILE_SIZE, TERRAIN_COLUMNS } from "./terrain";
 import { cameraFor, type Camera } from "./camera";
-import { clamp, DESCENT_TIME, FIELD, SPAWN_WARNING_TIME, type Game } from "./game";
+import { clamp, FIELD, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
 import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
 import { BUG_SKINS, mechSkin, SPRITE_PARTS, type BugVariant, type Skin, type SpritePart } from "./sprite-parts";
 
@@ -31,6 +31,16 @@ export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Ri
 }
 
 export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number): Camera {
+	if (["ready", "base", "workshop"].includes(game.mode)) {
+		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
+		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
+		ctx.strokeStyle = "#334638"; ctx.lineWidth = 2;
+		for (let x = 0; x < width; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+		for (let y = 0; y < height; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+		ctx.strokeStyle = "#8d9b5a"; ctx.lineWidth = 4; ctx.strokeRect(width / 2 - 100, height / 2 - 85, 200, 170);
+		drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage), mechPose({ distance: 0, walkBlend: 0, moveAngle: 0, aimAngle: 0, shotAge: 10, time: game.time, undercarriage: game.undercarriage }), width / 2, height / 2, 2);
+		return cameraFor(game.player, width, height);
+	}
 	const camera = cameraFor(game.player, width, height);
 	ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 	ctx.fillStyle = "#101817"; ctx.fillRect(0, 0, width, height);
@@ -39,7 +49,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	// Every surface uses a distinct texture as well as color.
 	for (let row = 0; row < 9; row++) for (let column = 0; column < TERRAIN_COLUMNS; column++) {
 		const x = column * TILE_SIZE, y = row * TILE_SIZE, terrain = game.terrain[row * TERRAIN_COLUMNS + column];
-		const shade = (row + column + game.depth) % 2;
+		const shade = (row + column + game.hivesCleared) % 2;
 		ctx.fillStyle = terrain === "mud" ? (shade ? "#483e2d" : "#433929") : terrain === "rubble" ? (shade ? "#40473e" : "#3a4239") : (shade ? "#2d3328" : "#293026");
 		ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 		for (let i = 0; i < 9; i++) {
@@ -122,7 +132,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	ctx.strokeStyle = "#c9dfa077"; ctx.beginPath(); ctx.moveTo(player.x + Math.cos(player.angle) * 29, player.y + Math.sin(player.angle) * 29); ctx.lineTo(player.x + Math.cos(player.angle) * 46, player.y + Math.sin(player.angle) * 46); ctx.stroke();
 	ctx.save();
 	ctx.globalAlpha = player.invulnerable > 0 && Math.floor(player.invulnerable * 14) % 2 ? .35 : 1;
-	drawRig(ctx, sprites, MECH_RIG, mechSkin(game.upgrades, game.undercarriage), mechPose({ distance: player.walkDistance, walkBlend: player.walkBlend, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: game.time - player.shotAt, time: game.time, undercarriage: game.undercarriage }), player.x, player.y, 1.25, false, player.walkDistance);
+	drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage), mechPose({ distance: player.walkDistance, walkBlend: player.walkBlend, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: game.time - player.shotAt, time: game.time, undercarriage: game.undercarriage }), player.x, player.y, 1.25, false, player.walkDistance);
 	ctx.restore();
 	if (game.time - player.shotAt < .045 && game.mode === "playing") {
 		ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
@@ -136,26 +146,5 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x + 8, 12); ctx.moveTo(x, FIELD.height - 12); ctx.lineTo(x + 8, FIELD.height - 4); ctx.stroke();
 	}
 	ctx.restore(); ctx.restore();
-	if (game.descent > 0) {
-		const progress = 1 - game.descent / DESCENT_TIME;
-		const opacity = Math.min(1, progress * 6, (1 - progress) * 6);
-		ctx.save(); ctx.globalAlpha = opacity;
-		ctx.fillStyle = "#101510"; ctx.fillRect(0, 0, width, height);
-		ctx.translate(width / 2, height / 2);
-		const extent = Math.hypot(width, height);
-		for (let ring = 8; ring >= 0; ring--) {
-			const radius = ((ring + progress * 3) % 9) / 8 * extent;
-			ctx.strokeStyle = ring % 2 ? "#52523a" : "#343e2d"; ctx.lineWidth = 18;
-			ctx.beginPath();
-			for (let point = 0; point <= 16; point++) {
-				const angle = point / 16 * Math.PI * 2, r = radius * (1 + Math.sin((point % 16) * 7 + ring) * .07);
-				const x = Math.cos(angle) * r, y = Math.sin(angle) * r * .65;
-				if (point === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-			}
-			ctx.closePath(); ctx.stroke();
-		}
-		drawRig(ctx, sprites, MECH_RIG, mechSkin(game.upgrades, game.undercarriage), mechPose({ distance: 0, walkBlend: 0, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: 10, time: game.time, undercarriage: game.undercarriage }), 0, 0, 1.25 - Math.sin(progress * Math.PI) * .35);
-		ctx.restore();
-	}
 	return camera;
 }
