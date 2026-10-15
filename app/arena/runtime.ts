@@ -1,7 +1,7 @@
-import { terrainAt } from "./terrain";
+import { terrainAt, terrainSummary, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
 import { bindJoystick, keyboardVector, readGamepad } from "./controls";
-import { chooseUpgrade, newGame, start, step, togglePause, upgradeChoices, WAVES_PER_DEPTH, xpNeeded, type Game, type Upgrade, type Vector } from "./game";
+import { chooseUndercarriage, chooseUpgrade, newGame, start, step, togglePause, undercarriageChoices, upgradeChoices, WAVES_PER_DEPTH, xpNeeded, type Game, type Upgrade, type Vector } from "./game";
 import { loadSprites, render } from "./renderer";
 
 export type ArenaView = ReturnType<typeof viewFromGame>;
@@ -10,7 +10,7 @@ export function viewFromGame(game: Game, controller = false, selection = 0) {
 		destinationDepth: Math.floor(game.wave / WAVES_PER_DEPTH) + 1, depth: game.depth, descent: game.descent > 0, terrain: terrainAt(game.terrain, game.player.x, game.player.y), undercarriage: game.undercarriage,
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
-		choices: upgradeChoices(game), intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
+		forecast: game.nextTerrain ? terrainSummary(game.nextTerrain) : null, choices: game.mode === "loadout" ? undercarriageChoices() : upgradeChoices(), intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
 	};
 }
 type RuntimeOptions = {
@@ -49,20 +49,29 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		chooseUpgrade(game, id); changed();
 		if (playing()) focus();
 	};
+	const equip = (id: Undercarriage) => {
+		if (game.mode !== "loadout") return;
+		chooseUndercarriage(game, id); selection = 0; changed(); focus();
+	};
+	const menuChoices = () => game.mode === "loadout" ? undercarriageChoices() : upgradeChoices();
+	const confirmChoice = (index: number) => {
+		if (game.mode === "loadout") { const choice = undercarriageChoices()[index]; if (choice) equip(choice.id); }
+		else if (game.mode === "upgrade") { const choice = upgradeChoices()[index]; if (choice) upgrade(choice.id); }
+	};
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
 		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action("pause"); return; }
-		if (game.mode === "upgrade" && /^[1-5]$/.test(event.key)) {
-			event.preventDefault(); const choice = upgradeChoices(game).find(choice => choice.key === event.key);
-			if (!event.repeat && choice) upgrade(choice.id); return;
+		if (["upgrade", "loadout"].includes(game.mode) && /^[1-3]$/.test(event.key)) {
+			event.preventDefault(); const choice = menuChoices().find(choice => choice.key === event.key);
+			if (!event.repeat && choice) confirmChoice(Number(choice.key) - 1); return;
 		}
 		if (interactive) return;
 		if (event.code === "Space" || event.code === "Enter") {
 			event.preventDefault(); if (event.repeat) return;
 			if (game.mode === "ready") action("start");
 			else if (game.mode === "dead") action("restart");
-			else if (game.mode !== "upgrade") action("pause");
+			else if (!["upgrade", "loadout"].includes(game.mode)) action("pause");
 			return;
 		}
 		if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) {
@@ -99,12 +108,12 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (!pad.connected && previousPad.connected && game.mode === "playing") pauseForFocus();
 		if (document.hasFocus() && !document.hidden) {
 			if (pad.pause && !previousPad.pause) action("pause");
-			if (game.mode === "upgrade") {
-				if (pad.previous && !previousPad.previous) selection = (selection + upgradeChoices(game).length - 1) % upgradeChoices(game).length;
-				if (pad.next && !previousPad.next) selection = (selection + 1) % upgradeChoices(game).length;
+			if (["upgrade", "loadout"].includes(game.mode)) {
+				if (pad.previous && !previousPad.previous) selection = (selection + menuChoices().length - 1) % menuChoices().length;
+				if (pad.next && !previousPad.next) selection = (selection + 1) % menuChoices().length;
 			}
 			if (pad.confirm && !previousPad.confirm) {
-				if (game.mode === "upgrade") upgrade(upgradeChoices(game)[selection].id);
+				if (["upgrade", "loadout"].includes(game.mode)) confirmChoice(selection);
 				else if (game.mode === "ready") action("start");
 				else if (game.mode === "dead") action("restart");
 				else if (game.mode === "paused") action("pause");
@@ -146,7 +155,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
 	return {
-		action, upgrade,
+		action, upgrade, equip,
 		dispose: () => {
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
 			window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup);

@@ -54,3 +54,9 @@
 .terrainLegend i { width: 9px; height: 9px; background: #424c35; border: 1px solid #77805b; }
 .terrainLegend i:nth-of-type(2) { background: #57482c; border-radius: 50%; }
 .terrainLegend i:nth-of-type(3) { background: #788069; transform: rotate(-15deg); }
+
+.forecast { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; font-size: 11px; color: var(--muted); }
+.forecast b, .handling b { color: var(--ink); font-weight: 500; }
+.handling { display: grid; gap: 4px; width: 100%; }
+.handling > span { display: flex; justify-content: space-between; gap: 8px; }
+@media (max-width: 600px) { .handling { grid-column: 2; }.upgrades button:has(.handling) .upgradeTop { grid-row: span 4; } }
