@@ -20,9 +20,9 @@ export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Ri
 		ctx.save(); ctx.translate(part.x, part.y); ctx.rotate(part.angle); ctx.scale(part.scaleX, part.scaleY);
 		ctx.globalAlpha *= part.opacity;
 		ctx.drawImage(sprites[part.sprite], -spec.pivotX, -spec.pivotY, spec.width, spec.height);
-		if (part.sprite.endsWith("Wheel") || part.sprite.endsWith("Track")) {
+		if (part.sprite.endsWith("Wheel") || part.sprite.endsWith("Tread")) {
 			ctx.fillStyle = "#9aa78c";
-			const left = part.sprite.endsWith("Track") ? -12 : -7, right = part.sprite.endsWith("Track") ? 11 : 7;
+			const left = part.sprite.endsWith("Tread") ? -12 : -7, right = part.sprite.endsWith("Tread") ? 11 : 7;
 			for (let x = left + (travel / 2 % 4); x < right; x += 4) { ctx.fillRect(x, -5, 1, 2); ctx.fillRect(x, 5, 1, 2); }
 		}
 		ctx.restore();

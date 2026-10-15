@@ -73,12 +73,12 @@ do not replace a visual check of the artwork.
 
 ### Undercarriage modules
 
-`mechSkin(upgrades, undercarriage)` accepts `legs`, `wheels`, or `tracks`.
-Wheel/track modules share the centered 32px registration and `footL`/`footR`
+`mechSkin(upgrades, undercarriage)` accepts `legs`, `wheels`, or `treads`.
+Wheel/tread modules share the centered 32px registration and `footL`/`footR`
 attachments. Pass the undercarriage to `mechPose` to disable the leg stride for
-wheeled/tracked bases; upper-body aiming and recoil use the same animation.
+wheeled/treaded bases; upper-body aiming and recoil use the same animation.
 `drawRig` accepts traveled distance for rolling tread marks. New compatible
-wheel/track artwork can replace the PNGs without changing combat or the rig.
+wheel/tread artwork can replace the PNGs without changing combat or the rig.
 
-All wheel/track speed stages keep distance-driven tread marks. Replacement
-modules retain the `Wheel` or `Track` sprite-key suffix for that renderer detail.
+All wheel/tread speed stages keep distance-driven tread marks. Replacement
+modules retain the `Wheel` or `Tread` sprite-key suffix for that renderer detail.

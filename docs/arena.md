@@ -87,7 +87,7 @@ smaller patches provide alternate routes. Bugs move normally on all surfaces.
 | Treads | 75% | 75% | 75% |
 
 These provisional multipliers apply to movement speed, including speed upgrades.
-Wheels/tracks reuse the foot attachment slots, with distance-driven tread motion
+Wheels/treads reuse the foot attachment slots, with distance-driven tread motion
 instead of a walking stride. Each speed rank swaps both sides to matching
 upgraded feet, wheels, or tread modules, using the same pivots and animation.
 
@@ -103,4 +103,3 @@ other run progress. Each card shows its part, handling percentages, and whether
 it is equipped; choosing it immediately starts descent. All three bases total
 225% across the three surfaces, distributing that budget differently.
 Use keys 1–3, touch/click, or controller navigation and confirm in either menu.
-The internal `tracks` identifier remains stable; its player-facing name is Treads.
