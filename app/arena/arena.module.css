@@ -65,15 +65,10 @@
 .selectedAction { outline: 2px solid var(--accent); outline-offset: 3px; }
 .activity { font-weight: 600; color: var(--ink) !important; }
 .activity small { display: block; margin-top: 5px; font-weight: 400; }
-.hiveMap { display: grid; grid-template-columns: repeat(14, 1fr); gap: 1px; width: 100%; aspect-ratio: 14 / 9; background: #101817; }
-.hiveMap i { display: block; min-width: 0; }
-@media (max-width: 600px) { .hiveChoices button { grid-template-columns: 1fr 1fr; }.hiveChoices .upgradeTop { grid-row: auto; grid-column: 1 / -1; }.hiveChoices .hiveMap { grid-column: 1; grid-row: 3 / span 2; }.hiveChoices .activity { grid-column: 1 / -1; }.hiveChoices .handling, .hiveChoices small { grid-column: 2; }.hiveChoices .upgradeTop kbd { display: inline; } }
-
 @media (max-width: 600px) {
-	.hiveChoices button:has(.handling) .upgradeTop { grid-row: 1; }
-	.hiveChoices .activity { grid-row: 2; }
-	.hiveChoices .hiveMap { grid-row: 3 / span 2; }
-	.hiveChoices button > span:nth-child(4) { grid-column: 2; grid-row: 3; }
-	.hiveChoices .handling { grid-row: 4; }
-	.hiveChoices button > small { grid-column: 1 / -1; grid-row: 5; text-align: right; }
+	.hiveChoices button { display: flex; flex-direction: column; }
+	.hiveChoices .upgradeTop { width: 100%; }
+	.hiveChoices .upgradeTop kbd { display: inline; }
 }
+
+.workshopActions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }

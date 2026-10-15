@@ -38,14 +38,8 @@ export function terrainAt(tiles: Terrain[], x: number, y: number): Terrain {
 }
 
 export const TERRAIN_NAMES: Record<Terrain, string> = { firm: "Firm ground", mud: "Mud", rubble: "Rubble" };
-export function terrainSummary(tiles: Terrain[]) {
-	const summary = (["firm", "mud", "rubble"] as const).map(id => {
-		const count = tiles.filter(tile => tile === id).length;
-		return { id, name: TERRAIN_NAMES[id], count, percent: Math.floor(count / tiles.length * 100) };
-	});
-	// Distribute rounding remainders so the displayed coverage adds up to 100%.
-	const remaining = 100 - summary.reduce((sum, surface) => sum + surface.percent, 0);
-	const byRemainder = [...summary].sort((a, b) => (b.count / tiles.length * 100 - b.percent) - (a.count / tiles.length * 100 - a.percent));
-	for (let index = 0; index < remaining; index++) byRemainder[index].percent++;
-	return summary.sort((a, b) => b.count - a.count);
+export function prevalentTerrain(tiles: Terrain[]): Terrain {
+	const counts: Record<Terrain, number> = { firm: 0, mud: 0, rubble: 0 };
+	for (const tile of tiles) counts[tile]++;
+	return (["firm", "mud", "rubble"] as const).reduce((most, terrain) => counts[terrain] > counts[most] ? terrain : most, "firm");
 }
