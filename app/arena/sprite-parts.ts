@@ -7,13 +7,13 @@ export const SPRITE_PARTS = {
 	mechChassis: { ...centered, path: "/images/arena/parts/mech-chassis.png" },
 	mechTorso: { ...centered, path: "/images/arena/parts/mech-torso.png" },
 	mechWheel: { ...centered, path: "/images/arena/parts/mech-wheel.png" },
-	mechTrack: { ...centered, path: "/images/arena/parts/mech-track.png" },
+	mechTread: { ...centered, path: "/images/arena/parts/mech-tread.png" },
 	mechServoWheel: { ...centered, path: "/images/arena/parts/mech-servo-wheel.png" },
 	mechSprintWheel: { ...centered, path: "/images/arena/parts/mech-sprint-wheel.png" },
 	mechBoostWheel: { ...centered, path: "/images/arena/parts/mech-boost-wheel.png" },
-	mechServoTrack: { ...centered, path: "/images/arena/parts/mech-servo-track.png" },
-	mechSprintTrack: { ...centered, path: "/images/arena/parts/mech-sprint-track.png" },
-	mechBoostTrack: { ...centered, path: "/images/arena/parts/mech-boost-track.png" },
+	mechServoTread: { ...centered, path: "/images/arena/parts/mech-servo-tread.png" },
+	mechSprintTread: { ...centered, path: "/images/arena/parts/mech-sprint-tread.png" },
+	mechBoostTread: { ...centered, path: "/images/arena/parts/mech-boost-tread.png" },
 	mechSprintFoot: { ...centered, path: "/images/arena/parts/mech-sprint-foot.png" },
 	mechFoot: { ...centered, path: "/images/arena/parts/mech-foot.png" },
 	mechServoFoot: { ...centered, path: "/images/arena/parts/mech-servo-foot.png" },
@@ -45,7 +45,7 @@ export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage =
 	const stages: Record<Undercarriage, readonly SpritePart[]> = {
 		legs: ["mechFoot", "mechServoFoot", "mechSprintFoot", "mechBoostFoot"],
 		wheels: ["mechWheel", "mechServoWheel", "mechSprintWheel", "mechBoostWheel"],
-		tracks: ["mechTrack", "mechServoTrack", "mechSprintTrack", "mechBoostTrack"],
+		treads: ["mechTread", "mechServoTread", "mechSprintTread", "mechBoostTread"],
 	};
 	const foot = stages[undercarriage][Math.min(3, upgrades.speed)];
 	return {

@@ -97,7 +97,7 @@ test("simulation-driven walking, firing, and death effects freeze on overlays an
 });
 
 test("every undercarriage has distinct artwork at each speed rank on the same animated attachments", () => {
-	for (const undercarriage of ["legs", "wheels", "tracks"]) {
+	for (const undercarriage of ["legs", "wheels", "treads"]) {
 		const pose = mechPose({ ...mechState, undercarriage });
 		const base = resolveRig(MECH_RIG, mechSkin(levels, undercarriage), pose);
 		const art = [];
