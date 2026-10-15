@@ -14,11 +14,11 @@ export const MOVEMENT: Record<Undercarriage, Record<Terrain, number>> = {
 	treads: { firm: .75, mud: .75, rubble: .75 },
 };
 // A separate deterministic stream keeps terrain independent of combat/spawn randomness.
-export function createTerrain(seed: number, depth: number): Terrain[] {
-	let state = (seed ^ Math.imul(depth, 2654435761)) >>> 0;
+export function createTerrain(seed: number, layout: number, surface?: Terrain): Terrain[] {
+	let state = (seed ^ Math.imul(layout, 2654435761)) >>> 0;
 	const random = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
 	const types: Terrain[] = ["firm", "mud", "rubble"];
-	const dominant = types[((seed >>> 0) + depth - 1) % types.length];
+	const dominant = surface ?? types[((seed >>> 0) + layout - 1) % types.length];
 	const other = types.filter(type => type !== dominant);
 	const tiles: Terrain[] = Array(TERRAIN_COLUMNS * TERRAIN_ROWS).fill(dominant);
 	for (let patch = 0; patch < 4; patch++) {

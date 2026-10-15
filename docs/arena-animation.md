@@ -82,3 +82,7 @@ wheel/tread artwork can replace the PNGs without changing combat or the rig.
 
 All wheel/tread speed stages keep distance-driven tread marks. Replacement
 modules retain the `Wheel` or `Tread` sprite-key suffix for that renderer detail.
+
+Speed ranks belong to individual undercarriages in `game.parts.undercarriages`.
+Use `upgradeLevels(game)` for the equipped rig. Workshop previews substitute the
+previewed part's own rank, so unequipped parts never inherit another base's art.

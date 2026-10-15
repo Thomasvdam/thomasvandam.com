@@ -1,84 +1,49 @@
 # Arena foundation
 
-Visit `/arena`. The weapon fires continuously. Move with WASD or arrow keys and
-aim with the mouse; touch uses two virtual joysticks; standard-mapped controllers
-use the left stick to move and the right stick to aim. Controller Start pauses;
-the bottom face button starts, resumes, restarts, or confirms an upgrade. Use
-the D-pad or left stick to select an upgrade. Keyboard upgrade shortcuts are 1–3.
+Visit `/arena`. Start a run, choose a hive at base, and eradicate its three waves.
+Return to base, optionally refit in the workshop, and choose another hive.
+Health does not refill at base. XP, level, and part upgrades last for the current
+run; death/restart creates a fresh mech and inventory.
 
-The arena is always 1120 × 720 world units. One world unit equals one CSS pixel;
-the camera follows independently on axes that do not fit the playfield and
-centers the arena on axes that do. Resizing never changes simulation bounds.
+The weapon fires continuously. Move with WASD or arrow keys and aim with the
+mouse; touch uses two virtual joysticks; standard-mapped controllers use the left
+stick to move and the right stick to aim. Start pauses, and the bottom face button
+confirms menu choices. Use the D-pad/left stick for menus. Number keys match cards:
+1–3 for upgrades, hives, or undercarriages, and 4 opens/closes the workshop. Escape
+closes the workshop or pauses active combat. Tab/Enter and click/tap also work.
 
-Enemies are previewed by red rings at fixed positions for 1.2 seconds before
-appearing. Warning timers pause with gameplay.
-Two spawns in each group of three can appear anywhere inside the arena; the third
-is placed within 90 units of the player's position when its warning is created.
-That position stays fixed so moving away during the warning avoids the spawn.
-Waves finish when every scheduled enemy has appeared, no spawn warnings remain,
-and every enemy is dead.
-A three-second intermission starts the next wave automatically. Clearing a wave
-pulls all remaining XP toward the player, regardless of distance; that attraction
-persists through upgrade choices and into the next wave until collected. During
-combat, unclaimed XP attracts only toward a nearby player. Level-up pauses
-the entire simulation until an upgrade is chosen, preserving excess XP.
-Blur, hidden tabs, and controller disconnection pause active play. Held input
-is cleared on overlays; controller sticks must return to neutral before reuse.
+## Base, workshop, and hives
 
-## Code and sprites
+Three hive choices preview activity, threat, enemy counts per wave, a terrain map,
+and terrain coverage percentages. Activity changes enemy numbers, health, speed,
+and spawn pressure; threat increases as more hives are eradicated. Terrain and
+activity vary independently. Hive layouts are generated once per visit to base;
+opening the workshop does not reroll them. Deployment uses the exact previewed
+layout, with a firm arrival zone at the arena center.
 
-- `app/arena/game.ts`: browser-independent, fixed-step simulation and provisional tuning.
-- `app/arena/controls.ts`: keyboard, radial stick deadzones, and independent pointer-captured virtual joysticks.
-- `app/arena/camera.ts`: viewport and mouse projection.
-- `app/arena/runtime.ts`: browser lifecycle, input wiring, and gamepad menu controls.
-- `app/arena/renderer.ts`: Canvas 2D drawing using image sprites.
-- `app/arena/animation.ts`: shared mech/bug rigs, poses, and spawn animation curves.
-- `app/arena/sprite-parts.ts`: registered PNG parts, bug skins, and upgrade appearances.
-- `app/arena/arena-game.tsx`: HUD, overlays, and upgrade choices.
+The workshop can be opened and reopened before deployment. Equipping a base
+stays in the workshop; return to hive selection when ready. Each undercarriage
+stores its own speed rank. Switching from rank-3 legs to stock wheels gives stock
+wheel speed and visuals; switching back restores rank-3 legs. Cannon damage and
+cooler firing-speed ranks belong to those parts too. Stats and equipped visuals
+are derived from the current parts rather than copied across swaps. There is
+currently one cannon and one cooler, and three interchangeable undercarriages.
 
-The transparent pixel parts live in `public/images/arena/parts/`. Regenerate them
-and the homepage thumbnails with `python3 tools/generate-arena-sprites.py`.
-The mech uses separate chassis, feet, torso, cannon, and cooler parts. Damage,
-firing-speed, and movement upgrades replace compatible cannon, cooler, and foot
-parts as ranks increase. Cannons and coolers change at ranks 1 and 3; all three
-undercarriages have separate artwork at speed ranks 0, 1, 2, and 3. Speed is capped;
-damage and firing-speed ranks continue to stack. Both bug skins
-share one six-leg walking/hit/death rig; the winged variant adds optional wings.
-One burrows during the warning, the other descends and folds its wings on landing.
-Their chase behavior, damage, timing, and collision sizes are the same.
+XP upgrades improve the equipped part. Speed adds 8% of base movement speed per
+rank and stops at rank 3 (+24%); that choice disappears when the equipped base is
+capped and returns if a lower-rank base is equipped. Cannons and coolers change
+appearance at ranks 1 and 3. All undercarriages have stock, servo, sprint, and
+boost artwork for ranks 0–3.
 
-Walking follows distance traveled. The mech aims independently of its feet and
-recoils on each shot. All poses, spawn effects, hit flashes, and brief bug death
-animations use simulation time, so pause and upgrade menus freeze them. Cosmetic
-death effects do not delay wave completion. See [the animation guide](arena-animation.md)
-for adding parts or skins without authoring new animation cycles.
+## Arena and terrain
 
-## Validation
+The arena remains 1120 × 720 world units. One world unit equals one CSS pixel;
+the camera follows independently on axes that do not fit, and centers axes that
+do. Resizing never changes simulation bounds.
 
-Run `bun test app/arena` for simulation, camera, keyboard, controller mapping,
-and virtual joystick regressions. Project validation is `./scripts/check`.
-Manually check simultaneous touch inputs and controller behavior on physical
-devices as well as desktop movement, aiming, and responsive camera behavior.
-
-This version has one weapon, two bug appearances, and three repeatable upgrade
-choices. Speeds, wave sizes, health, XP thresholds, and upgrade strengths are
-provisional. Audio and more combat mechanics are future additions.
-
-### Burrow levels and terrain
-
-Each depth has three waves (`WAVES_PER_DEPTH`). After the last wave, all XP is
-attracted and any pending XP upgrade choices finish. A paused undercarriage menu
-then previews the actual next floor's dominant terrain and coverage percentages.
-Choose any base (including keeping the current one) to begin a 2.4-second animated
-descent. The previewed arena becomes active at the midpoint, with the mech
-centered on firm ground. Health, XP, equipment, and upgrades carry over; difficulty continues
-with the overall wave count. Movement and firing are disabled during transit;
-pausing also freezes the descent.
-
-Firm ground, mud (dark puddles), and rubble (light angular stones) form traversable
-80-unit tiles. Layouts are deterministic from the run seed and depth, using a
-separate random stream from combat. Dominant surfaces rotate between floors;
-smaller patches provide alternate routes. Bugs move normally on all surfaces.
+Firm ground, mud (puddles), and rubble (angular stones) form traversable 80-unit
+tiles. Layout randomness is separate from combat randomness. Bugs move normally
+on all surfaces. These provisional multipliers apply after part speed upgrades:
 
 | Undercarriage | Firm | Mud | Rubble |
 | --- | --- | --- | --- |
@@ -86,20 +51,47 @@ smaller patches provide alternate routes. Bugs move normally on all surfaces.
 | Wheels | 150% | 37.5% | 37.5% |
 | Treads | 75% | 75% | 75% |
 
-These provisional multipliers apply to movement speed, including speed upgrades.
-Wheels/treads reuse the foot attachment slots, with distance-driven tread motion
-instead of a walking stride. Each speed rank swaps both sides to matching
-upgraded feet, wheels, or tread modules, using the same pivots and animation.
+All bases total 225% across the three surfaces. Even a fully upgraded base cannot
+overtake an unupgraded base with better handling on that same surface.
 
-Speed upgrades add 8% of base movement speed per rank, capped at three ranks
-(+24%). The card disappears at the cap, including during chained XP choices.
-The shared multiplier applies before terrain handling; even a fully upgraded
-base cannot overtake an unupgraded base with better handling on that surface.
-Swaps retain the numerical rank and immediately show its corresponding modules.
+## Combat and XP
 
-Runs start on legs. XP level-ups offer only the three stat upgrades. After each
-floor, undercarriage swaps are free and preserve speed ranks, health, XP, and all
-other run progress. Each card shows its part, handling percentages, and whether
-it is equipped; choosing it immediately starts descent. All three bases total
-225% across the three surfaces, distributing that budget differently.
-Use keys 1–3, touch/click, or controller navigation and confirm in either menu.
+Enemy arrivals have 1.2-second stationary warnings. Two spawns in each group of
+three can appear anywhere; the third appears within 90 units of the player's
+position when warned. Moving away before a spawn avoids it. A wave finishes only
+when every scheduled enemy has appeared and died. Pending warnings count.
+
+Wave clears attract all remaining XP regardless of distance, preserving attraction
+through upgrade choices and subsequent waves. Ordinary intermissions last three
+seconds and advance automatically. After the third wave, all remaining XP and
+chained upgrade choices finish before returning to base. Base, workshop, pause,
+and upgrade screens freeze the simulation. Blur, hidden tabs, and controller
+disconnection pause combat. Held inputs are cleared across overlays, and controller
+sticks must return to neutral before movement resumes.
+
+## Code and sprites
+
+- `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
+- `hives.ts`: deterministic mission choices and activity/terrain previews.
+- `terrain.ts`: terrain generation, coverage, and undercarriage handling.
+- `controls.ts`, `camera.ts`, `runtime.ts`: input, camera, lifecycle, and menus.
+- `renderer.ts`: Canvas 2D combat and workshop-pad rendering.
+- `animation.ts`, `sprite-parts.ts`: shared rigs, poses, and registered PNG parts.
+- `arena-game.tsx`: HUD, hive selection, workshop, and upgrade screens.
+
+Parts live in `public/images/arena/parts/`. Regenerate them and homepage thumbnails
+with `python3 tools/generate-arena-sprites.py`. Walking follows distance traveled;
+torso aiming and recoil remain independent of the base. Wheel/tread stages share
+distance-driven tread marks. Both bug skins share walking/hit/death animations;
+one burrows during its warning, and the other lands and folds its optional wings.
+See [the animation guide](arena-animation.md) for replacing parts without new rigs.
+
+## Validation
+
+`bun test app/arena` covers combat, XP, input mapping, camera, hive/base/workshop
+transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
+registration/animation contracts. Full project validation is `./scripts/check`.
+Manually verify simultaneous touch, physical controllers, and subjective motion.
+
+Tuning is provisional. This version has one weapon, two bug appearances sharing
+chase behavior, and no audio. There is no saved progression between runs.

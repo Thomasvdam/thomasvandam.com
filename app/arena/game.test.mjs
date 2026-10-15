@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
-import { chooseUpgrade, ENEMY_RADIUS, FIELD, newGame, PLAYER_RADIUS, SPAWN_WARNING_TIME, start, step, togglePause, waveSize, xpNeeded } from "./game";
+import { chooseUpgrade, ENEMY_RADIUS, FIELD, newGame, PLAYER_RADIUS, SPAWN_WARNING_TIME, start as prepare, chooseHive, playerStats, upgradeLevels, step, togglePause, waveSize, xpNeeded } from "./game";
 import { cameraFor, screenToWorld } from "./camera";
 import { viewFromGame } from "./runtime";
 
+function start(game) { prepare(game); chooseHive(game, game.hives.find(hive => hive.activity === "Low").id); }
 const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false };
 function advance(game, seconds, input = idle) { for (let i = 0; i < Math.round(seconds * 120); i++) step(game, input, 1 / 120); }
 function enemy(game, props = {}) { const result = { id: game.nextId++, x: game.player.x + 60, y: game.player.y, health: 1, maxHealth: 1, speed: 0, variant: "burrower", angle: 0, walkDistance: 0, bornAt: -10, hitAt: -10, ...props }; game.enemies.push(result); return result; }
@@ -10,7 +11,7 @@ function enemy(game, props = {}) { const result = { id: game.nextId++, x: game.p
 test("movement has equal diagonal speed and respects the fixed arena on every side", () => {
 	const game = newGame(); start(game); game.toSpawn = 1; game.spawnTimer = 1000; game.terrain.fill("firm"); const initial = { ...game.player };
 	advance(game, 1, { ...idle, move: { x: 1, y: 1 } });
-	expect(Math.hypot(game.player.x - initial.x, game.player.y - initial.y)).toBeCloseTo(game.speed, 5);
+	expect(Math.hypot(game.player.x - initial.x, game.player.y - initial.y)).toBeCloseTo(playerStats(game).speed, 5);
 	advance(game, 10, { ...idle, move: { x: 1, y: 1 } });
 	expect(game.player.x).toBe(FIELD.width - PLAYER_RADIUS); expect(game.player.y).toBe(FIELD.height - PLAYER_RADIUS);
 	game.enemies = []; advance(game, 10, { ...idle, move: { x: -1, y: -1 } });
@@ -38,10 +39,10 @@ test("level-up freezes the complete simulation and preserves excess XP across mu
 	game.pickups.push({ id: 100, x: game.player.x, y: game.player.y, value: xpNeeded(1) + xpNeeded(2) + 2 });
 	step(game, idle, 1 / 120); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(2);
 	const frozen = JSON.stringify(game); advance(game, 3, { ...idle, move: { x: 1, y: 1 }, fire: true }); expect(JSON.stringify(game)).toBe(frozen);
-	chooseUpgrade(game, "damage"); expect(game.damage).toBe(2); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(3);
-	chooseUpgrade(game, "fireRate"); expect(game.shotInterval).toBeCloseTo(.17); expect(game.mode).toBe("playing"); expect(game.xp).toBe(2);
-	chooseUpgrade(game, "speed"); expect(game.speed).toBe(220); // No upgrade without a pending choice.
-	game.mode = "upgrade"; chooseUpgrade(game, "speed"); expect(game.speed).toBeCloseTo(237.6);
+	chooseUpgrade(game, "damage"); expect(playerStats(game).damage).toBe(2); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(3);
+	chooseUpgrade(game, "fireRate"); expect(playerStats(game).shotInterval).toBeCloseTo(.17); expect(game.mode).toBe("playing"); expect(game.xp).toBe(2);
+	chooseUpgrade(game, "speed"); expect(playerStats(game).speed).toBe(220); // No upgrade without a pending choice.
+	game.mode = "upgrade"; chooseUpgrade(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(237.6);
 });
 
 test("waves finish only after all spawns and enemies; the next starts automatically and collects remaining XP", () => {
@@ -60,7 +61,7 @@ test("contact damage has invulnerability, death freezes play, and a fresh run re
 	advance(game, .5); expect(game.player.health).toBe(80);
 	advance(game, 4); expect(game.mode).toBe("dead"); expect(game.player.health).toBe(0);
 	const ended = JSON.stringify(game); advance(game, 2); expect(JSON.stringify(game)).toBe(ended);
-	const reset = newGame(); expect(reset.mode).toBe("ready"); expect(reset.kills).toBe(0); expect(reset.xp).toBe(0); expect(reset.upgrades).toEqual({ damage: 0, fireRate: 0, speed: 0 });
+	const reset = newGame(); expect(reset.mode).toBe("ready"); expect(reset.kills).toBe(0); expect(reset.xp).toBe(0); expect(upgradeLevels(reset)).toEqual({ damage: 0, fireRate: 0, speed: 0 });
 });
 
 test("spawn warnings are stationary, harmless, and last the full delay before an enemy can hit", () => {

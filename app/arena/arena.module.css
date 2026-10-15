@@ -55,8 +55,25 @@
 .terrainLegend i:nth-of-type(2) { background: #57482c; border-radius: 50%; }
 .terrainLegend i:nth-of-type(3) { background: #788069; transform: rotate(-15deg); }
 
-.forecast { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; font-size: 11px; color: var(--muted); }
-.forecast b, .handling b { color: var(--ink); font-weight: 500; }
+.handling b { color: var(--ink); font-weight: 500; }
 .handling { display: grid; gap: 4px; width: 100%; }
 .handling > span { display: flex; justify-content: space-between; gap: 8px; }
 @media (max-width: 600px) { .handling { grid-column: 2; }.upgrades button:has(.handling) .upgradeTop { grid-row: span 4; } }
+
+.secondary { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; min-height: 44px; padding: 10px 18px; border: 1px solid #71835c; border-radius: 6px; color: var(--ink); background: #29372b; font-size: 12px; }
+.secondary kbd { color: var(--muted); font-size: 10px; }
+.selectedAction { outline: 2px solid var(--accent); outline-offset: 3px; }
+.activity { font-weight: 600; color: var(--ink) !important; }
+.activity small { display: block; margin-top: 5px; font-weight: 400; }
+.hiveMap { display: grid; grid-template-columns: repeat(14, 1fr); gap: 1px; width: 100%; aspect-ratio: 14 / 9; background: #101817; }
+.hiveMap i { display: block; min-width: 0; }
+@media (max-width: 600px) { .hiveChoices button { grid-template-columns: 1fr 1fr; }.hiveChoices .upgradeTop { grid-row: auto; grid-column: 1 / -1; }.hiveChoices .hiveMap { grid-column: 1; grid-row: 3 / span 2; }.hiveChoices .activity { grid-column: 1 / -1; }.hiveChoices .handling, .hiveChoices small { grid-column: 2; }.hiveChoices .upgradeTop kbd { display: inline; } }
+
+@media (max-width: 600px) {
+	.hiveChoices button:has(.handling) .upgradeTop { grid-row: 1; }
+	.hiveChoices .activity { grid-row: 2; }
+	.hiveChoices .hiveMap { grid-row: 3 / span 2; }
+	.hiveChoices button > span:nth-child(4) { grid-column: 2; grid-row: 3; }
+	.hiveChoices .handling { grid-row: 4; }
+	.hiveChoices button > small { grid-column: 1 / -1; grid-row: 5; text-align: right; }
+}
