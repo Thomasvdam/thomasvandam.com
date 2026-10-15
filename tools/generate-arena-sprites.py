@@ -95,6 +95,15 @@ for name, plate, accent, width in [
         layers += [rect(4, 13, 4, 6, "ink"), rect(5, 14, 3, 4, accent), rect(11, 17, 2, 3, "white")]
     part(name, layers)
 
+# Wheel and track modules share the feet's registration and attachment bones.
+part("mech-wheel", [rect(7, 10, 19, 13, "ink"), rect(9, 11, 15, 11, "joint"),
+                    rect(13, 11, 7, 11, "steel"), rect(15, 13, 3, 7, "metal")] +
+     [rect(x, 10, 2, 3, "metal") for x in range(9, 24, 4)] +
+     [rect(x, 21, 2, 2, "steel") for x in range(9, 24, 4)])
+part("mech-track", [rect(2, 9, 28, 15, "ink"), rect(3, 10, 26, 13, "joint"),
+                    rect(5, 13, 22, 7, "steel"), rect(8, 14, 16, 4, "armor")] +
+     [rect(x, y, 3, 3, "metal") for x in range(4, 28, 4) for y in [10, 20]])
+
 for name, barrel, accent, twin in [
     ("mech-cannon", 8, "metal", False),
     ("mech-heavy-cannon", 10, "gold", False),

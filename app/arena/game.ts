@@ -1,13 +1,24 @@
+import { createTerrain, MOVEMENT, terrainAt, UNDERCARRIAGES, type Terrain, type Undercarriage } from "./terrain";
 export const FIELD = { width: 1120, height: 720 };
 export const PLAYER_RADIUS = 14;
 export const ENEMY_RADIUS = 15;
 export const SPAWN_WARNING_TIME = 1.2;
+export const WAVES_PER_DEPTH = 3;
+export const DESCENT_TIME = 2.4;
 export const UPGRADES = [
 	{ id: "damage", name: "More damage", description: "+1 damage per shot", key: "1" },
 	{ id: "fireRate", name: "Faster firing", description: "15% shorter time between shots", key: "2" },
 	{ id: "speed", name: "Move faster", description: "+25 movement speed", key: "3" },
 ] as const;
-export type Upgrade = typeof UPGRADES[number]["id"];
+export type StatUpgrade = typeof UPGRADES[number]["id"];
+export type Upgrade = StatUpgrade | Undercarriage;
+export type UpgradeChoice = { name: string; description: string; key: string } & ({ kind: "stat"; id: StatUpgrade } | { kind: "undercarriage"; id: Undercarriage });
+export function upgradeChoices(game: Game): UpgradeChoice[] {
+	return [
+		...UPGRADES.map(upgrade => ({ ...upgrade, kind: "stat" as const })),
+		...UNDERCARRIAGES.filter(part => part.id !== game.undercarriage).map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 4) })),
+	];
+}
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Enemy = Vector & { id: number; health: number; maxHealth: number; speed: number; variant: BugVariant; angle: number; walkDistance: number; bornAt: number; hitAt: number };
@@ -19,10 +30,11 @@ export type Game = {
 	mode: "ready" | "playing" | "paused" | "upgrade" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
 	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[]; remains: BugRemains[];
+	depth: number; descent: number; terrain: Terrain[]; terrainSeed: number; undercarriage: Undercarriage;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	level: number; xp: number; kills: number; time: number;
 	damage: number; shotInterval: number; speed: number; shotTimer: number;
-	upgrades: Record<Upgrade, number>; nextId: number; seed: number;
+	upgrades: Record<StatUpgrade, number>; nextId: number; seed: number;
 };
 
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -33,8 +45,9 @@ export function limitVector(vector: Vector): Vector {
 export const xpNeeded = (level: number) => 4 + level * 2;
 export const waveSize = (wave: number) => Math.min(100, 5 + wave * 3);
 
-export function newGame(seed = 1): Game {
+export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	return {
+		depth: 1, descent: 0, terrain: createTerrain(seed, 1), terrainSeed: seed, undercarriage,
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], wave: 1, toSpawn: waveSize(1), spawnTimer: .5, intermission: 0,
 		level: 1, xp: 0, kills: 0, time: 0, damage: 1, shotInterval: .2, speed: 220, shotTimer: 0,
@@ -51,7 +64,10 @@ export function togglePause(game: Game) {
 }
 export function chooseUpgrade(game: Game, upgrade: Upgrade) {
 	if (game.mode !== "upgrade") return;
-	game.upgrades[upgrade]++;
+	const choice = upgradeChoices(game).find(choice => choice.id === upgrade);
+	if (!choice) return;
+	if (choice.kind === "undercarriage") game.undercarriage = choice.id;
+	else game.upgrades[choice.id]++;
 	if (upgrade === "damage") game.damage++;
 	if (upgrade === "fireRate") game.shotInterval = Math.max(.045, game.shotInterval * .85);
 	if (upgrade === "speed") game.speed = Math.min(420, game.speed + 25);
@@ -103,11 +119,24 @@ export function step(game: Game, input: Input, dt: number) {
 	if (game.mode !== "playing" || !Number.isFinite(dt) || dt <= 0) return;
 	dt = Math.min(dt, 1 / 30);
 	game.time += dt;
+	if (game.descent > 0) {
+		const before = game.descent;
+		game.descent = Math.max(0, game.descent - dt);
+		if (before > DESCENT_TIME / 2 && game.descent <= DESCENT_TIME / 2) {
+			game.depth++;
+			game.terrain = createTerrain(game.terrainSeed, game.depth);
+			Object.assign(game.player, { x: FIELD.width / 2, y: FIELD.height / 2, walkBlend: 0 });
+			game.bullets = []; game.remains = [];
+		}
+		if (game.descent === 0) { game.wave++; game.toSpawn = waveSize(game.wave); game.spawnTimer = .5; }
+		return;
+	}
 	game.remains = game.remains.filter(remains => game.time - remains.diedAt < .5);
 	const move = limitVector(input.move), player = game.player;
 	const previousPlayer = { x: player.x, y: player.y };
-	player.x = clamp(player.x + move.x * game.speed * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
-	player.y = clamp(player.y + move.y * game.speed * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
+	const speed = game.speed * MOVEMENT[game.undercarriage][terrainAt(game.terrain, player.x, player.y)];
+	player.x = clamp(player.x + move.x * speed * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
+	player.y = clamp(player.y + move.y * speed * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
 	const traveled = Math.hypot(player.x - previousPlayer.x, player.y - previousPlayer.y);
 	player.walkDistance += traveled;
 	player.walkBlend = clamp(player.walkBlend + (traveled > .001 ? 1 : -1) * dt * 8, 0, 1);
@@ -132,7 +161,13 @@ export function step(game: Game, input: Input, dt: number) {
 	});
 	if (game.intermission > 0) {
 		game.intermission = Math.max(0, game.intermission - dt);
-		if (game.intermission === 0) { game.wave++; game.toSpawn = waveSize(game.wave); game.spawnTimer = .4; }
+		if (game.intermission === 0) {
+			if (game.wave % WAVES_PER_DEPTH === 0) {
+				// Finish all XP and upgrade choices before leaving this floor.
+				if (game.pickups.length > 0) game.intermission = dt;
+				else { game.descent = DESCENT_TIME; game.bullets = []; return; }
+			} else { game.wave++; game.toSpawn = waveSize(game.wave); game.spawnTimer = .4; }
+		}
 	} else if (game.toSpawn > 0) {
 		game.spawnTimer -= dt;
 		if (game.spawnTimer <= 0) { warnSpawn(game); game.toSpawn--; game.spawnTimer += Math.max(.18, .7 - game.wave * .025); }

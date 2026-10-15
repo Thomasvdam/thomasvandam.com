@@ -1,5 +1,6 @@
+import { TILE_SIZE, TERRAIN_COLUMNS } from "./terrain";
 import { cameraFor, type Camera } from "./camera";
-import { clamp, FIELD, SPAWN_WARNING_TIME, type Game } from "./game";
+import { clamp, DESCENT_TIME, FIELD, SPAWN_WARNING_TIME, type Game } from "./game";
 import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
 import { BUG_SKINS, mechSkin, SPRITE_PARTS, type BugVariant, type Skin, type SpritePart } from "./sprite-parts";
 
@@ -11,7 +12,7 @@ export async function loadSprites(): Promise<Sprites> {
 	return Object.fromEntries(entries) as Sprites;
 }
 
-export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Rig, skin: Skin, pose: Pose, x: number, y: number, scale = 1, flash = false) {
+export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Rig, skin: Skin, pose: Pose, x: number, y: number, scale = 1, flash = false, travel = 0) {
 	ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
 	if (flash) ctx.filter = "brightness(1.8)";
 	for (const part of resolveRig(rig, skin, pose)) {
@@ -19,6 +20,11 @@ export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Ri
 		ctx.save(); ctx.translate(part.x, part.y); ctx.rotate(part.angle); ctx.scale(part.scaleX, part.scaleY);
 		ctx.globalAlpha *= part.opacity;
 		ctx.drawImage(sprites[part.sprite], -spec.pivotX, -spec.pivotY, spec.width, spec.height);
+		if (part.sprite === "mechWheel" || part.sprite === "mechTrack") {
+			ctx.fillStyle = "#9aa78c";
+			const left = part.sprite === "mechTrack" ? -12 : -7, right = part.sprite === "mechTrack" ? 11 : 7;
+			for (let x = left + (travel / 2 % 4); x < right; x += 4) { ctx.fillRect(x, -5, 1, 2); ctx.fillRect(x, 5, 1, 2); }
+		}
 		ctx.restore();
 	}
 	ctx.restore();
@@ -30,12 +36,25 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	ctx.fillStyle = "#101817"; ctx.fillRect(0, 0, width, height);
 	ctx.save(); ctx.translate(camera.offsetX - camera.x, camera.offsetY - camera.y);
 	ctx.save(); ctx.beginPath(); ctx.rect(0, 0, FIELD.width, FIELD.height); ctx.clip();
-	// Industrial floor panels are decorative; world bounds and collision sizes stay fixed.
-	for (let y = 0; y < FIELD.height; y += 80) for (let x = 0; x < FIELD.width; x += 80) {
-		ctx.fillStyle = (x / 80 + y / 80) % 2 ? "#202d28" : "#1c2824"; ctx.fillRect(x, y, 80, 80);
-		ctx.strokeStyle = "#2f3c34"; ctx.lineWidth = 1; ctx.strokeRect(x + .5, y + .5, 79, 79);
-		ctx.fillStyle = "#364339"; ctx.fillRect(x + 6, y + 6, 2, 2); ctx.fillRect(x + 72, y + 72, 2, 2);
-		ctx.fillStyle = "#24322b"; ctx.fillRect(x + 12, y + 72, 28, 1);
+	// Every surface uses a distinct texture as well as color.
+	for (let row = 0; row < 9; row++) for (let column = 0; column < TERRAIN_COLUMNS; column++) {
+		const x = column * TILE_SIZE, y = row * TILE_SIZE, terrain = game.terrain[row * TERRAIN_COLUMNS + column];
+		const shade = (row + column + game.depth) % 2;
+		ctx.fillStyle = terrain === "mud" ? (shade ? "#483e2d" : "#433929") : terrain === "rubble" ? (shade ? "#40473e" : "#3a4239") : (shade ? "#2d3328" : "#293026");
+		ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+		for (let i = 0; i < 9; i++) {
+			const px = x + (i * 23 + row * 11) % 70 + 4, py = y + (i * 37 + column * 7) % 70 + 4;
+			if (terrain === "mud") {
+				ctx.fillStyle = "#292e24"; ctx.beginPath(); ctx.ellipse(px, py, 10, 3, -.2, 0, Math.PI * 2); ctx.fill();
+				ctx.fillStyle = "#675738"; ctx.fillRect(px - 5, py - 3, 8, 1);
+			} else if (terrain === "rubble") {
+				ctx.fillStyle = "#252d27"; ctx.fillRect(px, py, 10, 7);
+				ctx.fillStyle = "#68705b"; ctx.fillRect(px, py - 1, 7, 4);
+				ctx.fillStyle = "#85866a"; ctx.fillRect(px + 1, py - 1, 4, 1);
+			} else {
+				ctx.fillStyle = "#454b35"; ctx.fillRect(px, py, 3, 2);
+			}
+		}
 	}
 	const visible = (x: number, y: number, margin = 70) => x >= camera.x - margin && x <= camera.x + width + margin && y >= camera.y - margin && y <= camera.y + height + margin;
 	const shadow = (x: number, y: number, radius = 20, opacity = .35) => {
@@ -103,7 +122,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	ctx.strokeStyle = "#c9dfa077"; ctx.beginPath(); ctx.moveTo(player.x + Math.cos(player.angle) * 29, player.y + Math.sin(player.angle) * 29); ctx.lineTo(player.x + Math.cos(player.angle) * 46, player.y + Math.sin(player.angle) * 46); ctx.stroke();
 	ctx.save();
 	ctx.globalAlpha = player.invulnerable > 0 && Math.floor(player.invulnerable * 14) % 2 ? .35 : 1;
-	drawRig(ctx, sprites, MECH_RIG, mechSkin(game.upgrades), mechPose({ distance: player.walkDistance, walkBlend: player.walkBlend, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: game.time - player.shotAt, time: game.time }), player.x, player.y, 1.25);
+	drawRig(ctx, sprites, MECH_RIG, mechSkin(game.upgrades, game.undercarriage), mechPose({ distance: player.walkDistance, walkBlend: player.walkBlend, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: game.time - player.shotAt, time: game.time, undercarriage: game.undercarriage }), player.x, player.y, 1.25, false, player.walkDistance);
 	ctx.restore();
 	if (game.time - player.shotAt < .045 && game.mode === "playing") {
 		ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
@@ -117,5 +136,26 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x + 8, 12); ctx.moveTo(x, FIELD.height - 12); ctx.lineTo(x + 8, FIELD.height - 4); ctx.stroke();
 	}
 	ctx.restore(); ctx.restore();
+	if (game.descent > 0) {
+		const progress = 1 - game.descent / DESCENT_TIME;
+		const opacity = Math.min(1, progress * 6, (1 - progress) * 6);
+		ctx.save(); ctx.globalAlpha = opacity;
+		ctx.fillStyle = "#101510"; ctx.fillRect(0, 0, width, height);
+		ctx.translate(width / 2, height / 2);
+		const extent = Math.hypot(width, height);
+		for (let ring = 8; ring >= 0; ring--) {
+			const radius = ((ring + progress * 3) % 9) / 8 * extent;
+			ctx.strokeStyle = ring % 2 ? "#52523a" : "#343e2d"; ctx.lineWidth = 18;
+			ctx.beginPath();
+			for (let point = 0; point <= 16; point++) {
+				const angle = point / 16 * Math.PI * 2, r = radius * (1 + Math.sin((point % 16) * 7 + ring) * .07);
+				const x = Math.cos(angle) * r, y = Math.sin(angle) * r * .65;
+				if (point === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+			}
+			ctx.closePath(); ctx.stroke();
+		}
+		drawRig(ctx, sprites, MECH_RIG, mechSkin(game.upgrades, game.undercarriage), mechPose({ distance: 0, walkBlend: 0, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: 10, time: game.time, undercarriage: game.undercarriage }), 0, 0, 1.25 - Math.sin(progress * Math.PI) * .35);
+		ctx.restore();
+	}
 	return camera;
 }
