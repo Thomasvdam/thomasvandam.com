@@ -1,12 +1,12 @@
-import { terrainAt, prevalentTerrain, TERRAIN_NAMES, type Undercarriage } from "./terrain";
+import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
 import { bindJoystick, keyboardVector, readGamepad } from "./controls";
-import { bankUpgrade, closeBankedUpgrades, openBankedUpgrades, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, xpNeeded, type Game, type Upgrade, type Vector } from "./game";
+import { purchaseService, workshopServices, bankUpgrade, closeBankedUpgrades, openBankedUpgrades, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, xpNeeded, type Game, type Upgrade, type WorkshopService, type Vector } from "./game";
 import { loadSprites, render } from "./renderer";
 
 function menuChoices(game: Game) {
 	if (game.mode === "upgrade") return [...upgradeChoices(game), { id: "bank", name: "Bank for later", key: "4", kind: "bank" as const }];
-	if (game.mode === "spend") return [...upgradeChoices(game), { id: "workshop", name: "Back to workshop", key: "4", kind: "workshop" as const }];
+	if (game.mode === "spend") return [...upgradeChoices(game), ...workshopServices(game), { id: "workshop", name: "Back to workshop", key: "6", kind: "workshop" as const }];
 	if (game.mode === "workshop") return [
 		...undercarriageChoices(),
 		...(game.bankedUpgrades > 0 ? [{ id: "spend", name: "Spend banked upgrades", key: "4", kind: "spend" as const }] : []),
@@ -23,8 +23,16 @@ export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
 		hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
-		bankedUpgrades: game.bankedUpgrades, level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
-		hives: game.hives.map(hive => ({ id: hive.id, name: hive.name, activity: hive.activity, threat: hive.threat, terrain: TERRAIN_NAMES[prevalentTerrain(hive.terrain)], minBugs: waveSize(1, hive.threat), maxBugs: waveSize(3, hive.threat) })),
+		sensorRank: game.parts.sensor, bankedUpgrades: game.bankedUpgrades, level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
+		hives: game.hives.map(hive => {
+			const terrain = terrainByPrevalence(hive.terrain), difficultyKnown = game.parts.sensor >= 1;
+			return {
+				id: hive.id, name: hive.name, activity: difficultyKnown ? hive.activity : null,
+				threat: difficultyKnown ? hive.threat : null,
+				terrain: TERRAIN_NAMES[terrain[0]], secondaryTerrain: game.parts.sensor >= 2 && terrain[1] ? TERRAIN_NAMES[terrain[1]] : null,
+				minBugs: difficultyKnown ? waveSize(1, hive.threat) : null, maxBugs: difficultyKnown ? waveSize(3, hive.threat) : null,
+			};
+		}),
 		parts: { ...game.parts.undercarriages }, choices: menuChoices(game), intermission: Math.ceil(game.intermission), upgrades: upgradeLevels(game), controller, selection,
 	};
 }
@@ -68,6 +76,10 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		chooseUpgrade(game, id); selection = 0; changed();
 		if (playing()) focus();
 	};
+	const purchase = (id: WorkshopService) => {
+		if (game.mode !== "spend") return;
+		purchaseService(game, id); selection = 0; changed();
+	};
 	const equip = (id: Undercarriage) => {
 		if (game.mode !== "workshop") return;
 		chooseUndercarriage(game, id); changed();
@@ -81,6 +93,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (!choice) return;
 		if (choice.kind === "undercarriage") equip(choice.id);
 		if (choice.kind === "stat") upgrade(choice.id);
+		if (choice.kind === "service") purchase(choice.id);
 		if (choice.kind === "hive") deploy(choice.id);
 		if (choice.kind === "workshop") action("workshop");
 		if (choice.kind === "back") action("hives");
@@ -91,7 +104,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
 		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action(game.mode === "spend" ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
-		if (menuChoices(game).length > 0 && /^[1-5]$/.test(event.key)) {
+		if (menuChoices(game).length > 0 && /^[1-6]$/.test(event.key)) {
 			event.preventDefault(); const index = menuChoices(game).findIndex(choice => choice.key === event.key);
 			if (!event.repeat && index >= 0) confirmChoice(index); return;
 		}
@@ -184,7 +197,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
 	return {
-		action, upgrade, equip, deploy,
+		action, upgrade, purchase, equip, deploy,
 		dispose: () => {
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
 			window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup);

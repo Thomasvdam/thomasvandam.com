@@ -2,7 +2,7 @@
 
 Visit `/arena`. Start a run, choose a hive at base, and eradicate its three waves.
 Return to base, optionally refit in the workshop, and choose another hive.
-Health does not refill at base. XP, level, and part upgrades last for the current
+Health does not refill automatically at base; full repairs can be purchased with a banked upgrade. XP, level, and part upgrades last for the current
 run; death/restart creates a fresh mech and inventory.
 
 The weapon fires continuously. Move with WASD or arrow keys and aim with the
@@ -10,14 +10,17 @@ mouse; touch uses two virtual joysticks; standard-mapped controllers use the lef
 stick to move and the right stick to aim. Start pauses, and the bottom face button
 confirms menu choices. Use the D-pad/left stick for menus. Number keys match cards:
 1–3 for upgrades, hives, or undercarriages. Key 4 banks a level-up, opens the
-workshop at base, or opens banked upgrades in the workshop. Key 5 returns from
+workshop at base, or opens banked upgrades in the workshop. In the spending menu, keys 4/5 purchase healing/sensor ranks and 6 returns to
+the workshop. Key 5 returns from
 the workshop to hive selection. Escape returns from banked upgrades to the
 workshop, closes the workshop, or pauses active combat. Tab/Enter and click/tap also work.
 
 ## Base, workshop, and hives
 
-Three hive choices preview activity, threat, enemy counts per wave, and the most prevalent
-terrain type. Activity changes enemy numbers, health, speed,
+Three hive choices show the most prevalent terrain. Difficulty is unknown until
+the hive sensor is upgraded. Sensor rank 1 reveals activity, threat, and enemy
+counts per wave; rank 2 also reveals the second most prevalent terrain. Hints
+remain textual, without maps or coverage percentages. Activity changes enemy numbers, health, speed,
 and spawn pressure; threat increases as more hives are eradicated. Terrain and
 activity vary independently. Hive layouts are generated once per visit to base;
 opening the workshop does not reroll them. Deployment uses the exact previewed
@@ -35,9 +38,12 @@ Level-up pauses to offer an immediate upgrade or **Bank for later**. Banking
 resumes play, or presents the next choice when excess XP earns multiple levels.
 Banked upgrades persist across hives for this run. In the workshop, equip a part
 and open **Spend banked upgrades**. Each valid choice spends one saved upgrade
-on the equipped part. Remaining points can be kept, and spending the last returns
+on the equipped part, a full heal, or a sensor rank. Remaining points can be kept, and spending the last returns
 to the workshop. Banking does not block returning to base after a hive. Spending
-is unavailable during combat; banked points reset on a new run.
+is unavailable during combat; banked points reset on a new run. Full healing
+restores health to 100 and is unavailable at full health. Sensor ranks are capped
+at 2 for now; they persist across hives and reset with the run. Future sensor
+ranks can reveal insect composition or rewards when those systems exist.
 
 XP upgrades improve the equipped part. Speed adds 8% of base movement speed per
 rank and stops at rank 3 (+24%); that choice disappears when the equipped base is
