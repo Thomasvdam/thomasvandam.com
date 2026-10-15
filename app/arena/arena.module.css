@@ -46,3 +46,11 @@
 
 .upgradeArt { width: 40px; height: 40px; display: block; background-position: center; background-size: contain; background-repeat: no-repeat; image-rendering: pixelated; }
 @media (max-width: 600px) { .upgrades button { grid-template-columns: 42px 1fr; } }
+
+.hud .waveTotal { font-size: 10px; color: var(--muted); }
+.terrainInfo { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 10px; padding: 8px 4px 0; text-transform: capitalize; }
+.terrainInfo b { color: var(--ink); font-weight: 400; }
+.terrainLegend { display: inline-flex; align-items: center; gap: 6px; }
+.terrainLegend i { width: 9px; height: 9px; background: #424c35; border: 1px solid #77805b; }
+.terrainLegend i:nth-of-type(2) { background: #57482c; border-radius: 50%; }
+.terrainLegend i:nth-of-type(3) { background: #788069; transform: rotate(-15deg); }

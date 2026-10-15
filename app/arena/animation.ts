@@ -1,3 +1,4 @@
+import type { Undercarriage } from "./terrain";
 import { clamp } from "./game";
 import type { BugVariant, Skin, SpritePart } from "./sprite-parts";
 
@@ -50,8 +51,8 @@ export function resolveRig(rig: Rig, skin: Skin, pose: Pose): ResolvedPart[] {
 	return parts.sort((a, b) => a.layer - b.layer);
 }
 
-export function mechPose(state: { distance: number; walkBlend: number; moveAngle: number; aimAngle: number; shotAge: number; time: number }): Pose {
-	const stride = Math.sin(state.distance / 44 * Math.PI * 2) * state.walkBlend;
+export function mechPose(state: { distance: number; walkBlend: number; moveAngle: number; aimAngle: number; shotAge: number; time: number; undercarriage?: Undercarriage }): Pose {
+	const stride = state.undercarriage && state.undercarriage !== "legs" ? 0 : Math.sin(state.distance / 44 * Math.PI * 2) * state.walkBlend;
 	const recoil = Math.max(0, 1 - state.shotAge / .12);
 	const bob = Math.abs(stride) * .7;
 	return {

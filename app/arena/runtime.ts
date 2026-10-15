@@ -1,14 +1,16 @@
+import { terrainAt } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
 import { bindJoystick, keyboardVector, readGamepad } from "./controls";
-import { chooseUpgrade, newGame, start, step, togglePause, UPGRADES, xpNeeded, type Game, type Upgrade, type Vector } from "./game";
+import { chooseUpgrade, newGame, start, step, togglePause, upgradeChoices, WAVES_PER_DEPTH, xpNeeded, type Game, type Upgrade, type Vector } from "./game";
 import { loadSprites, render } from "./renderer";
 
 export type ArenaView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
+		destinationDepth: Math.floor(game.wave / WAVES_PER_DEPTH) + 1, depth: game.depth, descent: game.descent > 0, terrain: terrainAt(game.terrain, game.player.x, game.player.y), undercarriage: game.undercarriage,
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
-		intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
+		choices: upgradeChoices(game), intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
 	};
 }
 type RuntimeOptions = {
@@ -23,7 +25,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 	let mouse: Vector | null = null, aimSource: "mouse" | "touch" | "controller" = "mouse";
 	let selection = 0, viewKey = "", controller = false, previousPad = readGamepad(null), controllerBlocked = false;
 	const keys = new Set<string>();
-	const playing = () => game.mode === "playing";
+	const playing = () => game.mode === "playing" && game.descent === 0;
 	const moveStick = bindJoystick(options.movePad, options.moveThumb, playing);
 	const aimStick = bindJoystick(options.aimPad, options.aimThumb, playing);
 	const publish = () => {
@@ -51,7 +53,10 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
 		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action("pause"); return; }
-		if (game.mode === "upgrade" && /^[123]$/.test(event.key)) { event.preventDefault(); if (!event.repeat) upgrade(UPGRADES[Number(event.key) - 1].id); return; }
+		if (game.mode === "upgrade" && /^[1-5]$/.test(event.key)) {
+			event.preventDefault(); const choice = upgradeChoices(game).find(choice => choice.key === event.key);
+			if (!event.repeat && choice) upgrade(choice.id); return;
+		}
 		if (interactive) return;
 		if (event.code === "Space" || event.code === "Enter") {
 			event.preventDefault(); if (event.repeat) return;
@@ -95,11 +100,11 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (document.hasFocus() && !document.hidden) {
 			if (pad.pause && !previousPad.pause) action("pause");
 			if (game.mode === "upgrade") {
-				if (pad.previous && !previousPad.previous) selection = (selection + 2) % 3;
-				if (pad.next && !previousPad.next) selection = (selection + 1) % 3;
+				if (pad.previous && !previousPad.previous) selection = (selection + upgradeChoices(game).length - 1) % upgradeChoices(game).length;
+				if (pad.next && !previousPad.next) selection = (selection + 1) % upgradeChoices(game).length;
 			}
 			if (pad.confirm && !previousPad.confirm) {
-				if (game.mode === "upgrade") upgrade(UPGRADES[selection].id);
+				if (game.mode === "upgrade") upgrade(upgradeChoices(game)[selection].id);
 				else if (game.mode === "ready") action("start");
 				else if (game.mode === "dead") action("restart");
 				else if (game.mode === "paused") action("pause");
@@ -129,13 +134,13 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		loaded = true; resize(); onLoaded(); publish();
 		const tick = (now: number) => {
 			if (disposed) return;
-			const pad = pollController(), before = game.mode;
+			const pad = pollController(), before = game.mode, descending = game.descent > 0;
 			const elapsed = lastTime ? Math.min((now - lastTime) / 1000, .1) : 0; lastTime = now;
 			if (game.mode === "playing") {
 				accumulator += elapsed;
 				while (accumulator >= 1 / 120 && game.mode === "playing") { step(game, getInput(pad), 1 / 120); accumulator -= 1 / 120; }
 			} else accumulator = 0;
-			if (game.mode !== before) { selection = 0; clearInput(); }
+			if (game.mode !== before || descending !== (game.descent > 0)) { selection = 0; clearInput(); }
 			render(ctx, game, sprites, width, height, pixelRatio); publish(); frame = requestAnimationFrame(tick);
 		};
 		frame = requestAnimationFrame(tick);
