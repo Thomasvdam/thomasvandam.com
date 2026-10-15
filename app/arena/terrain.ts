@@ -38,8 +38,8 @@ export function terrainAt(tiles: Terrain[], x: number, y: number): Terrain {
 }
 
 export const TERRAIN_NAMES: Record<Terrain, string> = { firm: "Firm ground", mud: "Mud", rubble: "Rubble" };
-export function prevalentTerrain(tiles: Terrain[]): Terrain {
+export function terrainByPrevalence(tiles: Terrain[]): Terrain[] {
 	const counts: Record<Terrain, number> = { firm: 0, mud: 0, rubble: 0 };
 	for (const tile of tiles) counts[tile]++;
-	return (["firm", "mud", "rubble"] as const).reduce((most, terrain) => counts[terrain] > counts[most] ? terrain : most, "firm");
+	return (["firm", "mud", "rubble"] as const).filter(terrain => counts[terrain] > 0).sort((a, b) => counts[b] - counts[a]);
 }

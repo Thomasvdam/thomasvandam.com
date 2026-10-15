@@ -72,3 +72,5 @@
 }
 
 .workshopActions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+
+.secondaryTerrain { display: block; margin-top: 6px !important; }

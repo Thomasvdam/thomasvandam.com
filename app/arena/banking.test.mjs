@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { bankUpgrade, chooseHive, chooseUndercarriage, chooseUpgrade, closeBankedUpgrades, closeWorkshop, newGame, openBankedUpgrades, openWorkshop, playerStats, start, step, upgradeLevels, xpNeeded } from "./game.ts";
 import { viewFromGame } from "./runtime.ts";
-import { prevalentTerrain, TERRAIN_NAMES } from "./terrain.ts";
+import { terrainByPrevalence, TERRAIN_NAMES } from "./terrain.ts";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false };
 function advance(game, seconds) { for (let i = 0; i < Math.ceil(seconds * 120); i++) step(game, idle, 1 / 120); }
 function deploy(game) { start(game); chooseHive(game, game.hives[0].id); game.toSpawn = 0; game.intermission = 100; }
@@ -46,7 +46,7 @@ test("capped and invalid upgrades cannot consume banked points; leaving the work
 	const game = newGame(); start(game); game.bankedUpgrades = 2; game.parts.undercarriages.legs = 3;
 	openWorkshop(game); openBankedUpgrades(game); const snapshot = JSON.stringify(game);
 	chooseUpgrade(game, "speed"); chooseUpgrade(game, "invalid"); expect(JSON.stringify(game)).toBe(snapshot);
-	expect(viewFromGame(game).choices.map(choice => choice.key)).toEqual(["1", "2", "4"]);
+	expect(viewFromGame(game).choices.map(choice => choice.key)).toEqual(["1", "2", "5", "6"]);
 	closeBankedUpgrades(game); closeWorkshop(game); chooseHive(game, game.hives[0].id);
 	expect(game.bankedUpgrades).toBe(2); expect(upgradeLevels(game).speed).toBe(3); openBankedUpgrades(game); expect(game.mode).toBe("playing");
 	game.mode = "dead"; bankUpgrade(game); openBankedUpgrades(game); chooseUpgrade(game, "damage"); expect(game.bankedUpgrades).toBe(2);
@@ -57,7 +57,7 @@ test("hive previews expose the most prevalent terrain without a map or percentag
 	const game = newGame(47); start(game);
 	for (const preview of viewFromGame(game).hives) {
 		const hive = game.hives.find(hive => hive.id === preview.id);
-		expect(preview.terrain).toBe(TERRAIN_NAMES[prevalentTerrain(hive.terrain)]);
+		expect(preview.terrain).toBe(TERRAIN_NAMES[terrainByPrevalence(hive.terrain)[0]]);
 		expect(preview).not.toHaveProperty("layout"); expect(preview).not.toHaveProperty("forecast");
 	}
 });

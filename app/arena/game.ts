@@ -16,6 +16,14 @@ export const UPGRADES = [
 export type Upgrade = typeof UPGRADES[number]["id"];
 export function upgradeChoices(game: Game) { return UPGRADES.filter(upgrade => upgrade.id !== "speed" || upgradeLevels(game).speed < MAX_SPEED_RANK).map(upgrade => ({ ...upgrade, kind: "stat" as const })); }
 export function undercarriageChoices() { return UNDERCARRIAGES.map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 1) })); }
+export const MAX_SENSOR_RANK = 2;
+export type WorkshopService = "heal" | "sensor";
+export function workshopServices(game: Game) {
+	const choices: { id: WorkshopService; name: string; description: string; key: string; kind: "service" }[] = [];
+	if (game.player.health < 100) choices.push({ id: "heal", name: "Full heal", description: "Restore health to 100.", key: "4", kind: "service" });
+	if (game.parts.sensor < MAX_SENSOR_RANK) choices.push({ id: "sensor", name: "Upgrade hive sensor", description: game.parts.sensor === 0 ? "Reveal hive difficulty." : "Reveal the second most prevalent terrain.", key: "5", kind: "service" });
+	return choices;
+}
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Enemy = Vector & { id: number; health: number; maxHealth: number; speed: number; variant: BugVariant; angle: number; walkDistance: number; bornAt: number; hitAt: number };
@@ -31,7 +39,7 @@ export type Game = {
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	bankedUpgrades: number; level: number; xp: number; kills: number; time: number;
 	shotTimer: number;
-	parts: { cannon: number; cooler: number; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
+	parts: { cannon: number; cooler: number; sensor: number; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
 };
 
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -55,7 +63,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		bankedUpgrades: 0, level: 1, xp: 0, kills: 0, time: 0, shotTimer: 0,
-		parts: { cannon: 0, cooler: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
+		parts: { cannon: 0, cooler: 0, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
 }
 
@@ -75,12 +83,21 @@ export function chooseUpgrade(game: Game, upgrade: Upgrade) {
 	if (upgrade === "fireRate") game.parts.cooler++;
 	if (upgrade === "speed") game.parts.undercarriages[game.undercarriage]++;
 	if (game.mode === "spend") {
-		game.bankedUpgrades--;
-		if (game.bankedUpgrades === 0) game.mode = "workshop";
+		spendBankedUpgrade(game);
 	} else {
 		game.mode = "playing";
 		checkLevel(game);
 	}
+}
+function spendBankedUpgrade(game: Game) {
+	game.bankedUpgrades--;
+	if (game.bankedUpgrades === 0) game.mode = "workshop";
+}
+export function purchaseService(game: Game, service: WorkshopService) {
+	if (game.mode !== "spend" || game.bankedUpgrades === 0 || !workshopServices(game).some(choice => choice.id === service)) return;
+	if (service === "heal") game.player.health = 100;
+	if (service === "sensor") game.parts.sensor++;
+	spendBankedUpgrade(game);
 }
 export function bankUpgrade(game: Game) {
 	if (game.mode !== "upgrade") return;

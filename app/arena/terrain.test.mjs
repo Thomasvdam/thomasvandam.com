@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, openWorkshop, BASE_SPEED, MAX_SPEED_RANK, SPEED_RANK_BONUS, newGame, playerStats, start, step, upgradeChoices, upgradeLevels, WAVES_PER_HIVE, waveSize } from "./game.ts";
 import { createHives } from "./hives.ts";
-import { createTerrain, MOVEMENT, terrainAt, prevalentTerrain } from "./terrain.ts";
+import { createTerrain, MOVEMENT, terrainAt, terrainByPrevalence } from "./terrain.ts";
 import { mechSkin } from "./sprite-parts.ts";
 import { mechPose } from "./animation.ts";
 import { viewFromGame } from "./runtime.ts";
@@ -72,11 +72,11 @@ test("workshop is optional and reopenable, preserves hive choices, and never dep
 test("hive previews match deployed layouts and activity changes actual enemy pressure", () => {
 	for (const seed of [1, 47, 999, 4294967295]) {
 		const choices = createHives(seed, 0); expect(choices).toEqual(createHives(seed, 0));
-		expect(new Set(choices.map(hive => prevalentTerrain(hive.terrain))).size).toBe(3);
+		expect(new Set(choices.map(hive => terrainByPrevalence(hive.terrain)[0])).size).toBe(3);
 		expect(new Set(choices.map(hive => hive.activity))).toEqual(new Set(["Low", "Moderate", "High"]));
 		const pressures = [];
 		for (const choice of [...choices].sort((a, b) => a.threat - b.threat)) {
-			const game = newGame(seed); start(game); const preview = viewFromGame(game).hives.find(hive => hive.id === choice.id);
+			const game = newGame(seed); start(game); game.parts.sensor = 1; const preview = viewFromGame(game).hives.find(hive => hive.id === choice.id);
 			chooseHive(game, choice.id); expect(game.terrain).toEqual(choice.terrain);
 			expect(game.toSpawn).toBe(preview.minBugs); game.spawnTimer = 0; step(game, idle, 1 / 120); advance(game, 1.3);
 			pressures.push({ total: preview.minBugs, health: game.enemies[0].maxHealth, speed: game.enemies[0].speed });
@@ -98,7 +98,7 @@ test("part speed ranks are independent, restored on re-equip, and reset for a ne
 	expect(upgradeLevels(game).speed).toBe(3); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * 1.24); expect(mechSkin(upgradeLevels(game), "legs").footL).toBe("mechBoostFoot");
 	chooseUndercarriage(game, "wheels"); expect(upgradeLevels(game).speed).toBe(1); expect(mechSkin(upgradeLevels(game), "wheels").footL).toBe("mechServoWheel");
 	game.mode = "dead"; const frozen = JSON.stringify(game); chooseUndercarriage(game, "treads"); chooseUpgrade(game, "speed"); expect(JSON.stringify(game)).toBe(frozen);
-	const fresh = newGame(); expect(fresh.parts).toEqual({ cannon: 0, cooler: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }); expect(fresh.hivesCleared).toBe(0);
+	const fresh = newGame(); expect(fresh.parts).toEqual({ cannon: 0, cooler: 0, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }); expect(fresh.hivesCleared).toBe(0);
 });
 
 test("handling budgets and capped speed retain terrain advantages", () => {
