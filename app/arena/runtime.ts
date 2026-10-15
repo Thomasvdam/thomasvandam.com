@@ -10,7 +10,7 @@ export function viewFromGame(game: Game, controller = false, selection = 0) {
 		destinationDepth: Math.floor(game.wave / WAVES_PER_DEPTH) + 1, depth: game.depth, descent: game.descent > 0, terrain: terrainAt(game.terrain, game.player.x, game.player.y), undercarriage: game.undercarriage,
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
-		forecast: game.nextTerrain ? terrainSummary(game.nextTerrain) : null, choices: game.mode === "loadout" ? undercarriageChoices() : upgradeChoices(), intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
+		forecast: game.nextTerrain ? terrainSummary(game.nextTerrain) : null, choices: game.mode === "loadout" ? undercarriageChoices() : upgradeChoices(game), intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
 	};
 }
 type RuntimeOptions = {
@@ -46,17 +46,17 @@ export function createArenaRuntime(options: RuntimeOptions) {
 	};
 	const upgrade = (id: Upgrade) => {
 		if (game.mode !== "upgrade") return;
-		chooseUpgrade(game, id); changed();
+		chooseUpgrade(game, id); selection = 0; changed();
 		if (playing()) focus();
 	};
 	const equip = (id: Undercarriage) => {
 		if (game.mode !== "loadout") return;
 		chooseUndercarriage(game, id); selection = 0; changed(); focus();
 	};
-	const menuChoices = () => game.mode === "loadout" ? undercarriageChoices() : upgradeChoices();
+	const menuChoices = () => game.mode === "loadout" ? undercarriageChoices() : upgradeChoices(game);
 	const confirmChoice = (index: number) => {
 		if (game.mode === "loadout") { const choice = undercarriageChoices()[index]; if (choice) equip(choice.id); }
-		else if (game.mode === "upgrade") { const choice = upgradeChoices()[index]; if (choice) upgrade(choice.id); }
+		else if (game.mode === "upgrade") { const choice = upgradeChoices(game)[index]; if (choice) upgrade(choice.id); }
 	};
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;

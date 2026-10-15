@@ -95,3 +95,19 @@ test("simulation-driven walking, firing, and death effects freeze on overlays an
 	expect(game.remains).toHaveLength(0);
 	const fresh = newGame(); expect(fresh.player.walkDistance).toBe(0); expect(fresh.remains).toHaveLength(0); expect(mechSkin(fresh.upgrades)).toEqual(mechSkin(levels));
 });
+
+test("every undercarriage has distinct artwork at each speed rank on the same animated attachments", () => {
+	for (const undercarriage of ["legs", "wheels", "tracks"]) {
+		const pose = mechPose({ ...mechState, undercarriage });
+		const base = resolveRig(MECH_RIG, mechSkin(levels, undercarriage), pose);
+		const art = [];
+		for (let speed = 0; speed <= 3; speed++) {
+			const skin = mechSkin({ ...levels, speed }, undercarriage);
+			const parts = resolveRig(MECH_RIG, skin, pose);
+			expect(transforms(parts)).toEqual(transforms(base)); expect(skin.footR).toBe(skin.footL);
+			art.push(readFileSync(`public${SPRITE_PARTS[skin.footL].path}`).toString("base64"));
+			if (speed < 3) expect(upgradePart({ ...levels, speed }, "speed", undercarriage)).toBe(mechSkin({ ...levels, speed: speed + 1 }, undercarriage).footL);
+		}
+		expect(new Set(art).size).toBe(4);
+	}
+});

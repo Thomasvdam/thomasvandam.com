@@ -50,8 +50,10 @@ speed, health, or damage.
 ## Player upgrades
 
 `mechSkin` maps damage ranks to cannon parts, firing-speed ranks to cooler parts,
-and movement ranks to both feet. Each path has base, rank-1, and rank-3 artwork;
-higher ranks use the final appearance. `upgradePart` previews the next part in
+and movement ranks to both feet, wheels, or treads. Cannons and coolers have
+base, rank-1, and rank-3 artwork; higher ranks use the final appearance. All three
+undercarriages have distinct stock, servo (rank 1), sprint (rank 2), and boost
+(rank 3) parts. Speed is capped at rank 3 in gameplay. `upgradePart` previews the next part in
 the upgrade card. To add another visual tier, register its PNG and extend that
 mapping. The animation does not change.
 
@@ -77,3 +79,6 @@ attachments. Pass the undercarriage to `mechPose` to disable the leg stride for
 wheeled/tracked bases; upper-body aiming and recoil use the same animation.
 `drawRig` accepts traveled distance for rolling tread marks. New compatible
 wheel/track artwork can replace the PNGs without changing combat or the rig.
+
+All wheel/track speed stages keep distance-driven tread marks. Replacement
+modules retain the `Wheel` or `Track` sprite-key suffix for that renderer detail.

@@ -41,7 +41,7 @@ test("level-up freezes the complete simulation and preserves excess XP across mu
 	chooseUpgrade(game, "damage"); expect(game.damage).toBe(2); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(3);
 	chooseUpgrade(game, "fireRate"); expect(game.shotInterval).toBeCloseTo(.17); expect(game.mode).toBe("playing"); expect(game.xp).toBe(2);
 	chooseUpgrade(game, "speed"); expect(game.speed).toBe(220); // No upgrade without a pending choice.
-	game.mode = "upgrade"; chooseUpgrade(game, "speed"); expect(game.speed).toBe(245);
+	game.mode = "upgrade"; chooseUpgrade(game, "speed"); expect(game.speed).toBeCloseTo(237.6);
 });
 
 test("waves finish only after all spawns and enemies; the next starts automatically and collects remaining XP", () => {

@@ -86,6 +86,7 @@ part("mech-torso", [
 for name, plate, accent, width in [
     ("mech-foot", "steel", "metal", 18),
     ("mech-servo-foot", "armor", "gold", 20),
+    ("mech-sprint-foot", "darkArmor", "gold", 21),
     ("mech-boost-foot", "light", "orange", 22),
 ]:
     layers = [rect(5, 10, width, 13, "ink"), rect(7, 11, width - 3, 10, plate),
@@ -103,6 +104,35 @@ part("mech-wheel", [rect(7, 10, 19, 13, "ink"), rect(9, 11, 15, 11, "joint"),
 part("mech-track", [rect(2, 9, 28, 15, "ink"), rect(3, 10, 26, 13, "joint"),
                     rect(5, 13, 22, 7, "steel"), rect(8, 14, 16, 4, "armor")] +
      [rect(x, y, 3, 3, "metal") for x in range(4, 28, 4) for y in [10, 20]])
+
+# Four compatible speed stages per undercarriage: stock, servo, sprint, boost.
+for stage, plate, accent, size in [
+    ("servo", "armor", "gold", 21),
+    ("sprint", "darkArmor", "gold", 23),
+    ("boost", "light", "orange", 25),
+]:
+    left = 16 - size // 2
+    wheel = [rect(left - 1, 8, size + 2, 17, "ink"),
+             rect(left, 9, size, 15, "joint"), rect(left + 2, 11, size - 4, 11, plate),
+             rect(12, 11, 8, 11, "ink"), rect(13, 12, 6, 9, accent),
+             rect(14, 13, 4, 2, "white")]
+    wheel += [rect(x, y, 2, 2, "metal") for x in range(left, left + size, 4) for y in [9, 22]]
+    if stage != "servo":
+        wheel += [rect(left - 2, 12, 4, 9, "ink"), rect(left - 1, 13, 3, 7, accent)]
+    if stage == "boost":
+        wheel += [rect(24, 7, 4, 3, "ink"), rect(25, 8, 2, 2, "orange")]
+    part(f"mech-{stage}-wheel", wheel)
+    track = [rect(1, 7, 30, 19, "ink"), rect(2, 8, 28, 17, "joint"),
+             rect(4, 11, 24, 11, plate), rect(7, 12, 18, 3, "metal"),
+             rect(8, 17, 16, 3, accent)]
+    track += [rect(x, y, 3, 3, "metal") for x in range(3, 29, 4) for y in [8, 22]]
+    if stage != "servo":
+        track += [rect(3, 12, 5, 9, "ink"), rect(4, 13, 3, 7, accent),
+                  rect(13, 15, 2, 6, "joint"), rect(18, 15, 2, 6, "joint")]
+    if stage == "boost":
+        track += [rect(24, 12, 5, 9, "ink"), rect(25, 13, 3, 7, "orange"),
+                  rect(10, 17, 2, 3, "white")]
+    part(f"mech-{stage}-track", track)
 
 for name, barrel, accent, twin in [
     ("mech-cannon", 8, "metal", False),

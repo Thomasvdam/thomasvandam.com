@@ -8,6 +8,13 @@ export const SPRITE_PARTS = {
 	mechTorso: { ...centered, path: "/images/arena/parts/mech-torso.png" },
 	mechWheel: { ...centered, path: "/images/arena/parts/mech-wheel.png" },
 	mechTrack: { ...centered, path: "/images/arena/parts/mech-track.png" },
+	mechServoWheel: { ...centered, path: "/images/arena/parts/mech-servo-wheel.png" },
+	mechSprintWheel: { ...centered, path: "/images/arena/parts/mech-sprint-wheel.png" },
+	mechBoostWheel: { ...centered, path: "/images/arena/parts/mech-boost-wheel.png" },
+	mechServoTrack: { ...centered, path: "/images/arena/parts/mech-servo-track.png" },
+	mechSprintTrack: { ...centered, path: "/images/arena/parts/mech-sprint-track.png" },
+	mechBoostTrack: { ...centered, path: "/images/arena/parts/mech-boost-track.png" },
+	mechSprintFoot: { ...centered, path: "/images/arena/parts/mech-sprint-foot.png" },
 	mechFoot: { ...centered, path: "/images/arena/parts/mech-foot.png" },
 	mechServoFoot: { ...centered, path: "/images/arena/parts/mech-servo-foot.png" },
 	mechBoostFoot: { ...centered, path: "/images/arena/parts/mech-boost-foot.png" },
@@ -35,7 +42,12 @@ export type Skin = Readonly<Record<string, SpritePart | undefined>>;
 export type UpgradeLevels = { damage: number; fireRate: number; speed: number };
 
 export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage = "legs"): Skin {
-	const foot = undercarriage === "wheels" ? "mechWheel" : undercarriage === "tracks" ? "mechTrack" : upgrades.speed >= 3 ? "mechBoostFoot" : upgrades.speed > 0 ? "mechServoFoot" : "mechFoot";
+	const stages: Record<Undercarriage, readonly SpritePart[]> = {
+		legs: ["mechFoot", "mechServoFoot", "mechSprintFoot", "mechBoostFoot"],
+		wheels: ["mechWheel", "mechServoWheel", "mechSprintWheel", "mechBoostWheel"],
+		tracks: ["mechTrack", "mechServoTrack", "mechSprintTrack", "mechBoostTrack"],
+	};
+	const foot = stages[undercarriage][Math.min(3, upgrades.speed)];
 	return {
 		chassis: "mechChassis", torso: "mechTorso", footL: foot, footR: foot,
 		weapon: upgrades.damage >= 3 ? "mechSiegeCannon" : upgrades.damage > 0 ? "mechHeavyCannon" : "mechCannon",

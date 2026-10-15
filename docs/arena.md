@@ -40,7 +40,9 @@ The transparent pixel parts live in `public/images/arena/parts/`. Regenerate the
 and the homepage thumbnails with `python3 tools/generate-arena-sprites.py`.
 The mech uses separate chassis, feet, torso, cannon, and cooler parts. Damage,
 firing-speed, and movement upgrades replace compatible cannon, cooler, and foot
-parts at ranks 1 and 3, while numerical upgrades continue to stack. Both bug skins
+parts as ranks increase. Cannons and coolers change at ranks 1 and 3; all three
+undercarriages have separate artwork at speed ranks 0, 1, 2, and 3. Speed is capped;
+damage and firing-speed ranks continue to stack. Both bug skins
 share one six-leg walking/hit/death rig; the winged variant adds optional wings.
 One burrows during the warning, the other descends and folds its wings on landing.
 Their chase behavior, damage, timing, and collision sizes are the same.
@@ -86,8 +88,14 @@ smaller patches provide alternate routes. Bugs move normally on all surfaces.
 
 These provisional multipliers apply to movement speed, including speed upgrades.
 Wheels/tracks reuse the foot attachment slots, with distance-driven tread motion
-instead of a walking stride. A speed upgrade improves their drive motor; their
-part shape stays consistent. Leg upgrades retain the existing servo appearance tiers.
+instead of a walking stride. Each speed rank swaps both sides to matching
+upgraded feet, wheels, or tread modules, using the same pivots and animation.
+
+Speed upgrades add 8% of base movement speed per rank, capped at three ranks
+(+24%). The card disappears at the cap, including during chained XP choices.
+The shared multiplier applies before terrain handling; even a fully upgraded
+base cannot overtake an unupgraded base with better handling on that surface.
+Swaps retain the numerical rank and immediately show its corresponding modules.
 
 Runs start on legs. XP level-ups offer only the three stat upgrades. After each
 floor, undercarriage swaps are free and preserve speed ranks, health, XP, and all
