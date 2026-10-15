@@ -5,14 +5,17 @@ export const ENEMY_RADIUS = 15;
 export const SPAWN_WARNING_TIME = 1.2;
 export const WAVES_PER_DEPTH = 3;
 export const DESCENT_TIME = 2.4;
+export const BASE_SPEED = 220;
+export const SPEED_RANK_BONUS = .08;
+export const MAX_SPEED_RANK = 3;
 export const UPGRADES = [
 	{ id: "damage", name: "More damage", description: "+1 damage per shot", key: "1" },
 	{ id: "fireRate", name: "Faster firing", description: "15% shorter time between shots", key: "2" },
-	{ id: "speed", name: "Move faster", description: "+25 movement speed", key: "3" },
+	{ id: "speed", name: "Move faster", description: "+8% base movement speed · max +24%", key: "3" },
 ] as const;
 export type StatUpgrade = typeof UPGRADES[number]["id"];
 export type Upgrade = StatUpgrade;
-export function upgradeChoices() { return UPGRADES.map(upgrade => ({ ...upgrade, kind: "stat" as const })); }
+export function upgradeChoices(game: Game) { return UPGRADES.filter(upgrade => upgrade.id !== "speed" || game.upgrades.speed < MAX_SPEED_RANK).map(upgrade => ({ ...upgrade, kind: "stat" as const })); }
 export function undercarriageChoices() { return UNDERCARRIAGES.map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 1) })); }
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
@@ -45,7 +48,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 		depth: 1, descent: 0, nextTerrain: null, terrain: createTerrain(seed, 1), terrainSeed: seed, undercarriage,
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], wave: 1, toSpawn: waveSize(1), spawnTimer: .5, intermission: 0,
-		level: 1, xp: 0, kills: 0, time: 0, damage: 1, shotInterval: .2, speed: 220, shotTimer: 0,
+		level: 1, xp: 0, kills: 0, time: 0, damage: 1, shotInterval: .2, speed: BASE_SPEED, shotTimer: 0,
 		upgrades: { damage: 0, fireRate: 0, speed: 0 }, nextId: 1, seed: seed >>> 0,
 	};
 }
@@ -59,12 +62,12 @@ export function togglePause(game: Game) {
 }
 export function chooseUpgrade(game: Game, upgrade: Upgrade) {
 	if (game.mode !== "upgrade") return;
-	const choice = upgradeChoices().find(choice => choice.id === upgrade);
+	const choice = upgradeChoices(game).find(choice => choice.id === upgrade);
 	if (!choice) return;
 	game.upgrades[choice.id]++;
 	if (upgrade === "damage") game.damage++;
 	if (upgrade === "fireRate") game.shotInterval = Math.max(.045, game.shotInterval * .85);
-	if (upgrade === "speed") game.speed = Math.min(420, game.speed + 25);
+	if (upgrade === "speed") game.speed = BASE_SPEED * (1 + game.upgrades.speed * SPEED_RANK_BONUS);
 	game.mode = "playing";
 	checkLevel(game);
 }

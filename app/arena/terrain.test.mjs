@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chooseUndercarriage, chooseUpgrade, DESCENT_TIME, newGame, start, step, togglePause, WAVES_PER_DEPTH, waveSize } from "./game.ts";
+import { chooseUndercarriage, chooseUpgrade, BASE_SPEED, MAX_SPEED_RANK, SPEED_RANK_BONUS, DESCENT_TIME, newGame, start, step, togglePause, WAVES_PER_DEPTH, waveSize } from "./game.ts";
 import { createTerrain, MOVEMENT, terrainAt, terrainSummary } from "./terrain.ts";
 import { mechSkin } from "./sprite-parts.ts";
 import { mechPose } from "./animation.ts";
@@ -18,7 +18,7 @@ test("each undercarriage applies its terrain handling to actual movement and spe
 		expect(game.player.x - before).toBeCloseTo(220 * MOVEMENT[undercarriage][terrain] * .25);
 		game.mode = "upgrade"; chooseUpgrade(game, "speed"); const upgraded = game.player.x;
 		advance(game, .25, { ...idle, move: { x: 1, y: 0 } });
-		expect(game.player.x - upgraded).toBeCloseTo(245 * MOVEMENT[undercarriage][terrain] * .25);
+		expect(game.player.x - upgraded).toBeCloseTo((BASE_SPEED * 1.08) * MOVEMENT[undercarriage][terrain] * .25);
 	}
 });
 
@@ -61,7 +61,7 @@ test("descent waits for every pickup and chained upgrade, and pauses without adv
 test("wheels and tracks reuse attachment bones and upper-body animation without a walking stride", () => {
 	for (const undercarriage of ["wheels", "tracks"]) {
 		const skin = mechSkin({ damage: 3, fireRate: 3, speed: 3 }, undercarriage);
-		expect(skin.footL).toBe(undercarriage === "wheels" ? "mechWheel" : "mechTrack"); expect(skin.footR).toBe(skin.footL);
+		expect(skin.footL).toBe(undercarriage === "wheels" ? "mechBoostWheel" : "mechBoostTrack"); expect(skin.footR).toBe(skin.footL);
 		const state = { distance: 11, walkBlend: 1, moveAngle: .5, aimAngle: 2, shotAge: .03, time: 1 };
 		const pose = mechPose({ ...state, undercarriage }); expect(pose.footL.x).toBe(0); expect(pose.upper.angle).toBe(2);
 		expect(pose.weapon).toEqual(mechPose(state).weapon);
@@ -71,7 +71,7 @@ test("wheels and tracks reuse attachment bones and upper-body animation without 
 test("only a cleared floor offers free undercarriage swaps and preserves the forecast through descent", async () => {
 	const { upgradeChoices, undercarriageChoices } = await import("./game.ts");
 	const game = clearedFloor();
-	expect(upgradeChoices().map(choice => choice.id)).toEqual(["damage", "fireRate", "speed"]);
+	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "fireRate", "speed"]);
 	expect(undercarriageChoices().map(choice => choice.id)).toEqual(["legs", "wheels", "tracks"]);
 	chooseUndercarriage(game, "wheels"); expect(game.undercarriage).toBe("legs");
 	game.mode = "upgrade"; chooseUpgrade(game, "wheels"); expect(game.mode).toBe("upgrade"); expect(game.undercarriage).toBe("legs");
@@ -99,5 +99,32 @@ test("handling has equal totals but distinct terrain advantages and floor foreca
 			expect(summary[0].count).toBeGreaterThan(summary[1].count); expect(summary.reduce((sum, surface) => sum + surface.count, 0)).toBe(126);
 		}
 		expect(dominant.size).toBe(3);
+	}
+});
+
+
+test("speed gains are noticeable, stop at three ranks, and cannot reverse any terrain matchup", () => {
+	const upgraded = newGame();
+	for (let rank = 1; rank <= MAX_SPEED_RANK; rank++) {
+		upgraded.mode = "upgrade"; chooseUpgrade(upgraded, "speed");
+		expect(upgraded.speed).toBeCloseTo(BASE_SPEED * (1 + rank * SPEED_RANK_BONUS));
+	}
+	expect(upgraded.speed / BASE_SPEED).toBeCloseTo(1.24);
+	upgraded.mode = "upgrade"; const capped = JSON.stringify(upgraded); chooseUpgrade(upgraded, "speed"); expect(JSON.stringify(upgraded)).toBe(capped);
+	for (const terrain of ["firm", "mud", "rubble"]) for (const slower of ["legs", "wheels", "tracks"]) for (const faster of ["legs", "wheels", "tracks"]) {
+		if (MOVEMENT[slower][terrain] < MOVEMENT[faster][terrain]) expect(upgraded.speed * MOVEMENT[slower][terrain]).toBeLessThan(BASE_SPEED * MOVEMENT[faster][terrain]);
+	}
+});
+
+test("capped speed disappears from choices, remaining upgrades work, and swapping retains maximum speed and visuals", async () => {
+	const { upgradeChoices } = await import("./game.ts");
+	const game = newGame();
+	for (let rank = 0; rank < MAX_SPEED_RANK; rank++) { game.mode = "upgrade"; chooseUpgrade(game, "speed"); }
+	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "fireRate"]);
+	game.mode = "upgrade"; chooseUpgrade(game, "damage"); expect(game.damage).toBe(2); expect(game.mode).toBe("playing");
+	for (const undercarriage of ["wheels", "tracks", "legs"]) {
+		game.mode = "loadout"; game.nextTerrain = [...game.terrain]; chooseUndercarriage(game, undercarriage);
+		expect(game.upgrades.speed).toBe(3); expect(game.speed).toBeCloseTo(BASE_SPEED * 1.24);
+		expect(mechSkin(game.upgrades, undercarriage).footL).toBe({legs:"mechBoostFoot",wheels:"mechBoostWheel",tracks:"mechBoostTrack"}[undercarriage]);
 	}
 });
