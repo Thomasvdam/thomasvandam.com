@@ -11,14 +11,9 @@ export const UPGRADES = [
 	{ id: "speed", name: "Move faster", description: "+25 movement speed", key: "3" },
 ] as const;
 export type StatUpgrade = typeof UPGRADES[number]["id"];
-export type Upgrade = StatUpgrade | Undercarriage;
-export type UpgradeChoice = { name: string; description: string; key: string } & ({ kind: "stat"; id: StatUpgrade } | { kind: "undercarriage"; id: Undercarriage });
-export function upgradeChoices(game: Game): UpgradeChoice[] {
-	return [
-		...UPGRADES.map(upgrade => ({ ...upgrade, kind: "stat" as const })),
-		...UNDERCARRIAGES.filter(part => part.id !== game.undercarriage).map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 4) })),
-	];
-}
+export type Upgrade = StatUpgrade;
+export function upgradeChoices() { return UPGRADES.map(upgrade => ({ ...upgrade, kind: "stat" as const })); }
+export function undercarriageChoices() { return UNDERCARRIAGES.map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 1) })); }
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Enemy = Vector & { id: number; health: number; maxHealth: number; speed: number; variant: BugVariant; angle: number; walkDistance: number; bornAt: number; hitAt: number };
@@ -27,10 +22,10 @@ export type Pickup = Vector & { id: number; value: number; attracted?: boolean }
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type BugRemains = Vector & { id: number; variant: BugVariant; angle: number; diedAt: number };
 export type Game = {
-	mode: "ready" | "playing" | "paused" | "upgrade" | "dead";
+	mode: "ready" | "playing" | "paused" | "upgrade" | "loadout" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
 	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[]; remains: BugRemains[];
-	depth: number; descent: number; terrain: Terrain[]; terrainSeed: number; undercarriage: Undercarriage;
+	depth: number; descent: number; nextTerrain: Terrain[] | null; terrain: Terrain[]; terrainSeed: number; undercarriage: Undercarriage;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	level: number; xp: number; kills: number; time: number;
 	damage: number; shotInterval: number; speed: number; shotTimer: number;
@@ -47,7 +42,7 @@ export const waveSize = (wave: number) => Math.min(100, 5 + wave * 3);
 
 export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	return {
-		depth: 1, descent: 0, terrain: createTerrain(seed, 1), terrainSeed: seed, undercarriage,
+		depth: 1, descent: 0, nextTerrain: null, terrain: createTerrain(seed, 1), terrainSeed: seed, undercarriage,
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], wave: 1, toSpawn: waveSize(1), spawnTimer: .5, intermission: 0,
 		level: 1, xp: 0, kills: 0, time: 0, damage: 1, shotInterval: .2, speed: 220, shotTimer: 0,
@@ -64,15 +59,21 @@ export function togglePause(game: Game) {
 }
 export function chooseUpgrade(game: Game, upgrade: Upgrade) {
 	if (game.mode !== "upgrade") return;
-	const choice = upgradeChoices(game).find(choice => choice.id === upgrade);
+	const choice = upgradeChoices().find(choice => choice.id === upgrade);
 	if (!choice) return;
-	if (choice.kind === "undercarriage") game.undercarriage = choice.id;
-	else game.upgrades[choice.id]++;
+	game.upgrades[choice.id]++;
 	if (upgrade === "damage") game.damage++;
 	if (upgrade === "fireRate") game.shotInterval = Math.max(.045, game.shotInterval * .85);
 	if (upgrade === "speed") game.speed = Math.min(420, game.speed + 25);
 	game.mode = "playing";
 	checkLevel(game);
+}
+export function chooseUndercarriage(game: Game, undercarriage: Undercarriage) {
+	if (game.mode !== "loadout" || !game.nextTerrain || !UNDERCARRIAGES.some(part => part.id === undercarriage)) return;
+	game.undercarriage = undercarriage;
+	game.mode = "playing";
+	game.descent = DESCENT_TIME;
+	game.bullets = [];
 }
 function checkLevel(game: Game) {
 	if (game.xp < xpNeeded(game.level)) return;
@@ -124,7 +125,8 @@ export function step(game: Game, input: Input, dt: number) {
 		game.descent = Math.max(0, game.descent - dt);
 		if (before > DESCENT_TIME / 2 && game.descent <= DESCENT_TIME / 2) {
 			game.depth++;
-			game.terrain = createTerrain(game.terrainSeed, game.depth);
+			game.terrain = game.nextTerrain!;
+			game.nextTerrain = null;
 			Object.assign(game.player, { x: FIELD.width / 2, y: FIELD.height / 2, walkBlend: 0 });
 			game.bullets = []; game.remains = [];
 		}
@@ -165,7 +167,7 @@ export function step(game: Game, input: Input, dt: number) {
 			if (game.wave % WAVES_PER_DEPTH === 0) {
 				// Finish all XP and upgrade choices before leaving this floor.
 				if (game.pickups.length > 0) game.intermission = dt;
-				else { game.descent = DESCENT_TIME; game.bullets = []; return; }
+				else { game.nextTerrain = createTerrain(game.terrainSeed, game.depth + 1); game.mode = "loadout"; return; }
 			} else { game.wave++; game.toSpawn = waveSize(game.wave); game.spawnTimer = .4; }
 		}
 	} else if (game.toSpawn > 0) {

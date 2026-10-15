@@ -8,7 +8,7 @@ function advance(game, seconds, input = idle) { for (let i = 0; i < Math.round(s
 function enemy(game, props = {}) { const result = { id: game.nextId++, x: game.player.x + 60, y: game.player.y, health: 1, maxHealth: 1, speed: 0, variant: "burrower", angle: 0, walkDistance: 0, bornAt: -10, hitAt: -10, ...props }; game.enemies.push(result); return result; }
 
 test("movement has equal diagonal speed and respects the fixed arena on every side", () => {
-	const game = newGame(); start(game); game.toSpawn = 1; game.spawnTimer = 1000; const initial = { ...game.player };
+	const game = newGame(); start(game); game.toSpawn = 1; game.spawnTimer = 1000; game.terrain.fill("firm"); const initial = { ...game.player };
 	advance(game, 1, { ...idle, move: { x: 1, y: 1 } });
 	expect(Math.hypot(game.player.x - initial.x, game.player.y - initial.y)).toBeCloseTo(game.speed, 5);
 	advance(game, 10, { ...idle, move: { x: 1, y: 1 } });

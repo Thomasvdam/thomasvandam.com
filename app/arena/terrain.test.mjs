@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { chooseUpgrade, DESCENT_TIME, newGame, start, step, togglePause, WAVES_PER_DEPTH, waveSize } from "./game.ts";
-import { createTerrain, MOVEMENT, terrainAt } from "./terrain.ts";
+import { chooseUndercarriage, chooseUpgrade, DESCENT_TIME, newGame, start, step, togglePause, WAVES_PER_DEPTH, waveSize } from "./game.ts";
+import { createTerrain, MOVEMENT, terrainAt, terrainSummary } from "./terrain.ts";
 import { mechSkin } from "./sprite-parts.ts";
 import { mechPose } from "./animation.ts";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false };
@@ -33,7 +33,8 @@ test("terrain is repeatable, changes with depth, keeps a firm arrival zone, and 
 test("the third cleared wave descends once, preserving health, XP and equipment", () => {
 	const game = clearedFloor(); game.undercarriage = "tracks"; game.player.health = 60; game.upgrades.damage = 2; game.damage = 3; game.xp = 2;
 	const oldTerrain = [...game.terrain];
-	advance(game, 3.1); expect(game.descent).toBeGreaterThan(0); expect(game.wave).toBe(3);
+	advance(game, 3.1); expect(game.mode).toBe("loadout"); expect(game.descent).toBe(0); expect(game.wave).toBe(3);
+	chooseUndercarriage(game, "tracks"); expect(game.descent).toBe(DESCENT_TIME);
 	const before = { ...game.player }; advance(game, .25, { ...idle, move: { x: 1, y: 1 }, fire: true });
 	expect(game.player.x).toBe(before.x); expect(game.bullets).toHaveLength(0); expect(game.spawns).toHaveLength(0);
 	advance(game, DESCENT_TIME);
@@ -49,7 +50,9 @@ test("descent waits for every pickup and chained upgrade, and pauses without adv
 	step(game, idle, 1 / 120); expect(game.descent).toBe(0);
 	advance(game, 2); expect(game.mode).toBe("upgrade"); expect(game.descent).toBe(0);
 	chooseUpgrade(game, "damage"); expect(game.mode).toBe("upgrade");
-	chooseUpgrade(game, "speed"); advance(game, .1); expect(game.descent).toBeGreaterThan(0); expect(game.pickups).toHaveLength(0);
+	chooseUpgrade(game, "speed"); advance(game, .1); expect(game.mode).toBe("loadout"); expect(game.descent).toBe(0); expect(game.pickups).toHaveLength(0);
+	const waiting = JSON.stringify(game); advance(game, 10); expect(JSON.stringify(game)).toBe(waiting);
+	chooseUndercarriage(game, "legs"); expect(game.descent).toBe(DESCENT_TIME);
 	togglePause(game); const paused = JSON.stringify(game); advance(game, 10); expect(JSON.stringify(game)).toBe(paused);
 	togglePause(game); advance(game, 3); expect(game.depth).toBe(2); expect(game.wave).toBe(4);
 	expect(newGame().depth).toBe(1); expect(newGame().descent).toBe(0);
@@ -65,18 +68,36 @@ test("wheels and tracks reuse attachment bones and upper-body animation without 
 	}
 });
 
-test("level-up choices offer unequipped undercarriages and swapping consumes one choice", async () => {
-	const { upgradeChoices } = await import("./game.ts");
-	const game = newGame();
-	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "fireRate", "speed", "wheels", "tracks"]);
-	chooseUpgrade(game, "wheels"); expect(game.undercarriage).toBe("legs");
-	game.mode = "upgrade"; game.player.health = 60; game.speed = 270; game.upgrades.speed = 2; game.xp = 1;
-	chooseUpgrade(game, "wheels");
+test("only a cleared floor offers free undercarriage swaps and preserves the forecast through descent", async () => {
+	const { upgradeChoices, undercarriageChoices } = await import("./game.ts");
+	const game = clearedFloor();
+	expect(upgradeChoices().map(choice => choice.id)).toEqual(["damage", "fireRate", "speed"]);
+	expect(undercarriageChoices().map(choice => choice.id)).toEqual(["legs", "wheels", "tracks"]);
+	chooseUndercarriage(game, "wheels"); expect(game.undercarriage).toBe("legs");
+	game.mode = "upgrade"; chooseUpgrade(game, "wheels"); expect(game.mode).toBe("upgrade"); expect(game.undercarriage).toBe("legs");
+	game.mode = "playing"; game.player.health = 60; game.speed = 270; game.upgrades.speed = 2; game.xp = 1;
+	advance(game, 3.1); expect(game.mode).toBe("loadout"); const forecast = [...game.nextTerrain];
+	expect(terrainSummary(forecast)[0].count).toBe(Math.max(...terrainSummary(forecast).map(surface => surface.count)));
+	chooseUpgrade(game, "damage"); expect(game.damage).toBe(1); expect(game.mode).toBe("loadout");
+	chooseUndercarriage(game, "wheels");
 	expect(game.mode).toBe("playing"); expect(game.undercarriage).toBe("wheels"); expect(game.speed).toBe(270);
 	expect(game.upgrades.speed).toBe(2); expect(game.player.health).toBe(60); expect(game.xp).toBe(1);
-	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "fireRate", "speed", "legs", "tracks"]);
-	game.mode = "upgrade"; chooseUpgrade(game, "wheels"); expect(game.mode).toBe("upgrade");
-	chooseUpgrade(game, "tracks"); expect(game.undercarriage).toBe("tracks");
-	game.mode = "upgrade"; chooseUpgrade(game, "legs"); expect(game.undercarriage).toBe("legs"); expect(game.upgrades.speed).toBe(2);
-	expect(newGame().undercarriage).toBe("legs");
+	chooseUndercarriage(game, "tracks"); expect(game.undercarriage).toBe("wheels");
+	advance(game, DESCENT_TIME); expect(game.terrain).toEqual(forecast); expect(game.nextTerrain).toBeNull();
+	expect(newGame().undercarriage).toBe("legs"); expect(newGame().nextTerrain).toBeNull();
+});
+
+test("handling has equal totals but distinct terrain advantages and floor forecasts vary", () => {
+	expect(MOVEMENT.legs).toEqual({ firm: 1, mud: .25, rubble: 1 });
+	expect(MOVEMENT.wheels).toEqual({ firm: 1.5, mud: .375, rubble: .375 });
+	expect(MOVEMENT.tracks).toEqual({ firm: .75, mud: .75, rubble: .75 });
+	for (const speeds of Object.values(MOVEMENT)) expect(Object.values(speeds).reduce((a, b) => a + b)).toBe(2.25);
+	for (const seed of [1, 47, 999, 4294967295]) {
+		const dominant = new Set();
+		for (let depth = 1; depth <= 3; depth++) {
+			const summary = terrainSummary(createTerrain(seed, depth)); dominant.add(summary[0].id); expect(summary.reduce((sum, surface) => sum + surface.percent, 0)).toBe(100);
+			expect(summary[0].count).toBeGreaterThan(summary[1].count); expect(summary.reduce((sum, surface) => sum + surface.count, 0)).toBe(126);
+		}
+		expect(dominant.size).toBe(3);
+	}
 });
