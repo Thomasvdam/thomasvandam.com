@@ -4,7 +4,7 @@ Visit `/arena`. The weapon fires continuously. Move with WASD or arrow keys and
 aim with the mouse; touch uses two virtual joysticks; standard-mapped controllers
 use the left stick to move and the right stick to aim. Controller Start pauses;
 the bottom face button starts, resumes, restarts, or confirms an upgrade. Use
-the D-pad or left stick to select an upgrade. Keyboard upgrade shortcuts are 1–3.
+the D-pad or left stick to select an upgrade. Keyboard upgrade shortcuts are 1–5.
 
 The arena is always 1120 × 720 world units. One world unit equals one CSS pixel;
 the camera follows independently on axes that do not fit the playfield and
@@ -61,3 +61,33 @@ devices as well as desktop movement, aiming, and responsive camera behavior.
 This version has one weapon, two bug appearances, and three repeatable upgrade
 choices. Speeds, wave sizes, health, XP thresholds, and upgrade strengths are
 provisional. Audio and more combat mechanics are future additions.
+
+### Burrow levels and terrain
+
+Each depth has three waves (`WAVES_PER_DEPTH`). After the last wave, all XP is
+attracted and any pending upgrade choices finish before a 2.4-second animated
+descent. The next arena is generated at the midpoint, with the mech centered on
+firm ground. Health, XP, equipment, and upgrades carry over; difficulty continues
+with the overall wave count. Movement and firing are disabled during transit;
+pausing also freezes the descent.
+
+Firm ground, mud (dark puddles), and rubble (light angular stones) form traversable
+80-unit tiles. Layouts are deterministic from the run seed and depth, using a
+separate random stream from combat. Bugs move normally on all surfaces.
+
+| Undercarriage | Firm | Mud | Rubble |
+| --- | --- | --- | --- |
+| Legs | 100% | 85% | 85% |
+| Wheels | 120% | 50% | 65% |
+| Tracks | 90% | 90% | 90% |
+
+These provisional multipliers apply to movement speed, including speed upgrades.
+Wheels/tracks reuse the foot attachment slots, with distance-driven tread motion
+instead of a walking stride. A speed upgrade improves their drive motor; their
+part shape stays consistent. Leg upgrades retain the existing servo appearance tiers.
+
+Runs start on legs. Every XP level-up offers the three stat upgrades plus the two
+undercarriages not currently equipped. A swap consumes that level's one upgrade
+choice and replaces the current base immediately, preserving speed ranks and all
+other run progress. Cards preview the replacement part and describe handling.
+Use keys 1–5, touch/click, or controller navigation and confirm to choose.

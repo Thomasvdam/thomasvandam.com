@@ -1,3 +1,4 @@
+import type { Undercarriage } from "./terrain";
 // All parts use the same 32px registration canvas. Art faces right (+X).
 // Legs hinge at (8, 16); all other parts attach at (16, 16).
 const centered = { width: 32, height: 32, pivotX: 16, pivotY: 16 };
@@ -5,6 +6,8 @@ const hinged = { ...centered, pivotX: 8 };
 export const SPRITE_PARTS = {
 	mechChassis: { ...centered, path: "/images/arena/parts/mech-chassis.png" },
 	mechTorso: { ...centered, path: "/images/arena/parts/mech-torso.png" },
+	mechWheel: { ...centered, path: "/images/arena/parts/mech-wheel.png" },
+	mechTrack: { ...centered, path: "/images/arena/parts/mech-track.png" },
 	mechFoot: { ...centered, path: "/images/arena/parts/mech-foot.png" },
 	mechServoFoot: { ...centered, path: "/images/arena/parts/mech-servo-foot.png" },
 	mechBoostFoot: { ...centered, path: "/images/arena/parts/mech-boost-foot.png" },
@@ -31,8 +34,8 @@ export type BugVariant = "burrower" | "flyer";
 export type Skin = Readonly<Record<string, SpritePart | undefined>>;
 export type UpgradeLevels = { damage: number; fireRate: number; speed: number };
 
-export function mechSkin(upgrades: UpgradeLevels): Skin {
-	const foot = upgrades.speed >= 3 ? "mechBoostFoot" : upgrades.speed > 0 ? "mechServoFoot" : "mechFoot";
+export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage = "legs"): Skin {
+	const foot = undercarriage === "wheels" ? "mechWheel" : undercarriage === "tracks" ? "mechTrack" : upgrades.speed >= 3 ? "mechBoostFoot" : upgrades.speed > 0 ? "mechServoFoot" : "mechFoot";
 	return {
 		chassis: "mechChassis", torso: "mechTorso", footL: foot, footR: foot,
 		weapon: upgrades.damage >= 3 ? "mechSiegeCannon" : upgrades.damage > 0 ? "mechHeavyCannon" : "mechCannon",
@@ -43,7 +46,7 @@ export const BUG_SKINS: Record<BugVariant, Skin> = {
 	burrower: { body: "bugRustBody", shell: "bugRustShell", head: "bugRustHead", legs: "bugRustLeg" },
 	flyer: { body: "bugOliveBody", shell: "bugOliveShell", head: "bugOliveHead", legs: "bugOliveLeg", wings: "bugWing" },
 };
-export function upgradePart(upgrades: UpgradeLevels, upgrade: keyof UpgradeLevels): SpritePart {
-	const skin = mechSkin({ ...upgrades, [upgrade]: upgrades[upgrade] + 1 });
+export function upgradePart(upgrades: UpgradeLevels, upgrade: keyof UpgradeLevels, undercarriage: Undercarriage = "legs"): SpritePart {
+	const skin = mechSkin({ ...upgrades, [upgrade]: upgrades[upgrade] + 1 }, undercarriage);
 	return skin[upgrade === "damage" ? "weapon" : upgrade === "fireRate" ? "cooler" : "footL"]!;
 }

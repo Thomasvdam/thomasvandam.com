@@ -68,3 +68,12 @@ recoil, shared bug poses, spawn timing, pause, and gameplay regressions. Run
 `./scripts/check` for full project validation. Inspect new parts in motion at
 desktop and phone sizes; tests can verify attachment and timing contracts but
 do not replace a visual check of the artwork.
+
+### Undercarriage modules
+
+`mechSkin(upgrades, undercarriage)` accepts `legs`, `wheels`, or `tracks`.
+Wheel/track modules share the centered 32px registration and `footL`/`footR`
+attachments. Pass the undercarriage to `mechPose` to disable the leg stride for
+wheeled/tracked bases; upper-body aiming and recoil use the same animation.
+`drawRig` accepts traveled distance for rolling tread marks. New compatible
+wheel/track artwork can replace the PNGs without changing combat or the rig.
