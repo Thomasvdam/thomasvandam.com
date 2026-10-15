@@ -24,12 +24,12 @@ export type Pickup = Vector & { id: number; value: number; attracted?: boolean }
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type BugRemains = Vector & { id: number; variant: BugVariant; angle: number; diedAt: number };
 export type Game = {
-	mode: "ready" | "playing" | "paused" | "upgrade" | "base" | "workshop" | "dead";
+	mode: "ready" | "playing" | "paused" | "upgrade" | "spend" | "base" | "workshop" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
 	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[]; remains: BugRemains[];
 	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
-	level: number; xp: number; kills: number; time: number;
+	bankedUpgrades: number; level: number; xp: number; kills: number; time: number;
 	shotTimer: number;
 	parts: { cannon: number; cooler: number; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
 };
@@ -54,7 +54,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 		hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage,
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
-		level: 1, xp: 0, kills: 0, time: 0, shotTimer: 0,
+		bankedUpgrades: 0, level: 1, xp: 0, kills: 0, time: 0, shotTimer: 0,
 		parts: { cannon: 0, cooler: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
 }
@@ -67,15 +67,31 @@ export function togglePause(game: Game) {
 	else if (game.mode === "paused") game.mode = "playing";
 }
 export function chooseUpgrade(game: Game, upgrade: Upgrade) {
-	if (game.mode !== "upgrade") return;
+	if (game.mode !== "upgrade" && game.mode !== "spend") return;
+	if (game.mode === "spend" && game.bankedUpgrades === 0) return;
 	const choice = upgradeChoices(game).find(choice => choice.id === upgrade);
 	if (!choice) return;
 	if (upgrade === "damage") game.parts.cannon++;
 	if (upgrade === "fireRate") game.parts.cooler++;
 	if (upgrade === "speed") game.parts.undercarriages[game.undercarriage]++;
+	if (game.mode === "spend") {
+		game.bankedUpgrades--;
+		if (game.bankedUpgrades === 0) game.mode = "workshop";
+	} else {
+		game.mode = "playing";
+		checkLevel(game);
+	}
+}
+export function bankUpgrade(game: Game) {
+	if (game.mode !== "upgrade") return;
+	game.bankedUpgrades++;
 	game.mode = "playing";
 	checkLevel(game);
 }
+export function openBankedUpgrades(game: Game) {
+	if (game.mode === "workshop" && game.bankedUpgrades > 0) game.mode = "spend";
+}
+export function closeBankedUpgrades(game: Game) { if (game.mode === "spend") game.mode = "workshop"; }
 export function openWorkshop(game: Game) { if (game.mode === "base") game.mode = "workshop"; }
 export function closeWorkshop(game: Game) { if (game.mode === "workshop") game.mode = "base"; }
 export function chooseUndercarriage(game: Game, undercarriage: Undercarriage) {

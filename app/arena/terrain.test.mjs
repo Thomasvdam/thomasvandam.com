@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, openWorkshop, BASE_SPEED, MAX_SPEED_RANK, SPEED_RANK_BONUS, newGame, playerStats, start, step, upgradeChoices, upgradeLevels, WAVES_PER_HIVE, waveSize } from "./game.ts";
 import { createHives } from "./hives.ts";
-import { createTerrain, MOVEMENT, terrainAt, terrainSummary } from "./terrain.ts";
+import { createTerrain, MOVEMENT, terrainAt, prevalentTerrain } from "./terrain.ts";
 import { mechSkin } from "./sprite-parts.ts";
 import { mechPose } from "./animation.ts";
 import { viewFromGame } from "./runtime.ts";
@@ -72,7 +72,7 @@ test("workshop is optional and reopenable, preserves hive choices, and never dep
 test("hive previews match deployed layouts and activity changes actual enemy pressure", () => {
 	for (const seed of [1, 47, 999, 4294967295]) {
 		const choices = createHives(seed, 0); expect(choices).toEqual(createHives(seed, 0));
-		expect(new Set(choices.map(hive => terrainSummary(hive.terrain)[0].id)).size).toBe(3);
+		expect(new Set(choices.map(hive => prevalentTerrain(hive.terrain))).size).toBe(3);
 		expect(new Set(choices.map(hive => hive.activity))).toEqual(new Set(["Low", "Moderate", "High"]));
 		const pressures = [];
 		for (const choice of [...choices].sort((a, b) => a.threat - b.threat)) {
