@@ -24,8 +24,9 @@ export function ArenaGame() {
 		runtime.current = instance;
 		return () => { instance.dispose(); if (runtime.current === instance) runtime.current = null; };
 	}, []);
-	useEffect(() => { if (["upgrade", "base", "workshop"].includes(view.mode)) firstUpgrade.current?.focus({ preventScroll: true }); }, [view.mode, view.level]);
+	useEffect(() => { if (["upgrade", "spend", "base", "workshop"].includes(view.mode)) firstUpgrade.current?.focus({ preventScroll: true }); }, [view.mode, view.level, view.bankedUpgrades]);
 	const clock = `${Math.floor(view.time / 60)}:${String(view.time % 60).padStart(2, "0")}`;
+	const selectedKind = view.controller ? view.choices[view.selection]?.kind : undefined;
 	const overlay = view.mode !== "playing" || !loaded || !!error;
 	return <div className={styles.page}>
 		<header className={styles.header}>
@@ -44,7 +45,7 @@ export function ArenaGame() {
 					<button disabled={!loaded || !!error} onClick={() => runtime.current?.action("restart")} aria-label="Restart game"><RotateCcw size={18} /></button>
 				</div>
 			</div>
-			<div className={styles.experience}><span>LVL {view.level}</span><progress max={view.xpNeeded} value={Math.min(view.xp, view.xpNeeded)} aria-label="Experience toward next level" /><span>{view.xp} / {view.xpNeeded} XP</span></div>
+			<div className={styles.experience}><span>LVL {view.level}</span><progress max={view.xpNeeded} value={Math.min(view.xp, view.xpNeeded)} aria-label="Experience toward next level" /><span>{view.xp} / {view.xpNeeded} XP</span>{view.bankedUpgrades > 0 && <span>{view.bankedUpgrades} BANKED</span>}</div>
 			<div className={styles.stage} data-playing={!overlay}>
 				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Arena playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
 				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</span></>}</div>}
@@ -60,21 +61,24 @@ export function ArenaGame() {
 							<div className={`${styles.upgrades} ${styles.hiveChoices}`}>{view.hives.map((hive, index) => <button ref={index === 0 ? firstUpgrade : undefined} key={hive.id} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.deploy(hive.id)}>
 								<span className={styles.upgradeTop}><strong>{hive.name}</strong><kbd>{index + 1}</kbd></span>
 								<span className={styles.activity}>Activity: {hive.activity}<small>Threat {hive.threat} · {hive.minBugs}–{hive.maxBugs} bugs / wave</small></span>
-								<span className={styles.hiveMap} aria-hidden="true">{hive.layout.map((terrain, tile) => <i key={tile} style={{ backgroundColor: { firm: "#454f35", mud: "#715533", rubble: "#89917b" }[terrain] }} />)}</span>
-								<span>Mostly {hive.forecast[0].name.toLowerCase()}</span>
-								<span className={styles.handling}>{hive.forecast.map(surface => <span key={surface.id}>{surface.name}<b>{surface.percent}%</b></span>)}</span>
+								<span>Mostly {hive.terrain.toLowerCase()}</span>
 								<small>Deploy ↗</small>
 							</button>)}</div>
-							<button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Open workshop</button>
-						</> : view.mode === "upgrade" || view.mode === "workshop" ? <>
-							{view.mode === "workshop" ? <><p className={styles.eyebrow}>Base / workshop</p><h2>Refit your mech.</h2><p>Choose an undercarriage. Each keeps its own upgrades.</p></> : <><p className={styles.eyebrow}>Level {view.level} / game paused</p><h2>Pick your edge.</h2><p>Choose one upgrade. Then get back in there.</p></>}
+							<button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Open workshop{view.bankedUpgrades > 0 ? ` · ${view.bankedUpgrades} banked` : ""}</button>
+						</> : view.mode === "upgrade" || view.mode === "spend" || view.mode === "workshop" ? <>
+							{view.mode === "workshop" ? <><p className={styles.eyebrow}>Base / workshop</p><h2>Refit your mech.</h2><p>Choose an undercarriage. Each keeps its own upgrades.</p></> : view.mode === "spend" ? <><p className={styles.eyebrow}>Workshop / {view.bankedUpgrades} banked</p><h2>Put them to work.</h2><p>Apply an upgrade to your equipped parts.</p></> : <><p className={styles.eyebrow}>Level {view.level} / game paused</p><h2>Pick your edge.</h2><p>Choose an upgrade or bank it for the workshop.</p></>}
 							<div className={styles.upgrades}>{view.choices.map((upgrade, index) => upgrade.kind === "stat" || upgrade.kind === "undercarriage" ? <button ref={index === 0 ? firstUpgrade : undefined} key={upgrade.id} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => upgrade.kind === "undercarriage" ? runtime.current?.equip(upgrade.id) : runtime.current?.upgrade(upgrade.id)}>
 								<span className={styles.upgradeTop}><span className={styles.upgradeArt} aria-hidden="true" style={{ backgroundImage: `url(${SPRITE_PARTS[upgrade.kind === "stat" ? upgradePart(view.upgrades, upgrade.id, view.undercarriage) : mechSkin({ ...view.upgrades, speed: view.parts[upgrade.id] }, upgrade.id).footL!].path})` }} /><kbd>{upgrade.key}</kbd></span>
 								<strong>{upgrade.name}{upgrade.kind === "undercarriage" && upgrade.id === view.undercarriage ? " / equipped" : ""}</strong><span>{upgrade.description}</span>
 								{upgrade.kind === "undercarriage" && <span className={styles.handling}>{(["firm", "rubble", "mud"] as const).map(terrain => <span key={terrain}>{TERRAIN_NAMES[terrain]} <b>{MOVEMENT[upgrade.id][terrain] * 100}%</b></span>)}</span>}
 								<small>{upgrade.kind === "undercarriage" ? `Speed rank ${view.parts[upgrade.id]} / 3` : <>{upgrade.id === "damage" ? "Cannon" : upgrade.id === "fireRate" ? "Cooling module" : view.undercarriage === "legs" ? "Leg servos" : "Drive motor"} · rank {view.upgrades[upgrade.id] + 1}</>}</small>
 							</button> : null)}</div>
-							{view.mode === "workshop" && <button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("hives")}><kbd>4</kbd> Back to hive selection</button>}
+							{view.mode === "upgrade" && <button className={`${styles.secondary} ${selectedKind === "bank" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("bank")}><kbd>4</kbd> Bank for later</button>}
+							{view.mode === "workshop" && <div className={styles.workshopActions}>
+								<button disabled={view.bankedUpgrades === 0} className={`${styles.secondary} ${selectedKind === "spend" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("spend")}><kbd>4</kbd> Spend banked upgrades ({view.bankedUpgrades})</button>
+								<button className={`${styles.secondary} ${selectedKind === "back" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("hives")}><kbd>5</kbd> Back to hive selection</button>
+							</div>}
+							{view.mode === "spend" && <button className={`${styles.secondary} ${selectedKind === "workshop" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Back to workshop</button>}
 							<p className={styles.hint}>{view.controller ? "D-pad or left stick to choose · A / bottom button to confirm" : "Tap a card, use its number, or press Tab and Enter"}</p>
 						</> : view.mode === "paused" ? <>
 							<p className={styles.eyebrow}>Game paused</p><h2>Take a breather.</h2><p>Your run is right where you left it.</p><button className={styles.primary} onClick={() => runtime.current?.action("pause")}>Resume game <Play size={16} /></button>
@@ -91,6 +95,6 @@ export function ArenaGame() {
 			<div className={styles.terrainInfo}><span>{UNDERCARRIAGES.find(part => part.id === view.undercarriage)?.name} / <b>{view.terrain === "firm" ? "Firm ground" : view.terrain === "mud" ? "Mud" : "Rubble"}</b></span><span className={styles.terrainLegend}><i />Firm <i />Mud <i />Rubble</span></div>
 			<footer className={styles.footer}><span className={styles.desktopHint}>WASD / arrows <b>move</b> · mouse <b>aim</b> · Esc <b>pause</b></span><span className={styles.touchHint}>Left stick <b>move</b> · right stick <b>aim</b></span><span className={styles.controller}><Gamepad2 size={15} />{view.controller ? "Controller connected" : "Controller ready"}</span></footer>
 		</section>
-		<p className={styles.status} role="status">{view.mode === "paused" ? "Game paused." : view.mode === "base" ? `At base. ${view.hivesCleared} hives eradicated. Choose a hive or open the workshop.` : view.mode === "workshop" ? "Workshop. Equip parts or return to hive selection." : view.mode === "upgrade" ? `Level ${view.level}. Choose an upgrade. Game paused.` : view.mode === "dead" ? `Run ended. ${view.hivesCleared} hives eradicated.` : ""}</p>
+		<p className={styles.status} role="status">{view.mode === "paused" ? "Game paused." : view.mode === "base" ? `At base. ${view.hivesCleared} hives eradicated. Choose a hive or open the workshop.` : view.mode === "workshop" ? "Workshop. Equip parts or return to hive selection." : view.mode === "spend" ? `${view.bankedUpgrades} banked upgrades. Apply to equipped parts or return to workshop.` : view.mode === "upgrade" ? `Level ${view.level}. Choose an upgrade. Game paused.` : view.mode === "dead" ? `Run ended. ${view.hivesCleared} hives eradicated.` : ""}</p>
 	</div>;
 }

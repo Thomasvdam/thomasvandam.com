@@ -9,13 +9,15 @@ The weapon fires continuously. Move with WASD or arrow keys and aim with the
 mouse; touch uses two virtual joysticks; standard-mapped controllers use the left
 stick to move and the right stick to aim. Start pauses, and the bottom face button
 confirms menu choices. Use the D-pad/left stick for menus. Number keys match cards:
-1–3 for upgrades, hives, or undercarriages, and 4 opens/closes the workshop. Escape
-closes the workshop or pauses active combat. Tab/Enter and click/tap also work.
+1–3 for upgrades, hives, or undercarriages. Key 4 banks a level-up, opens the
+workshop at base, or opens banked upgrades in the workshop. Key 5 returns from
+the workshop to hive selection. Escape returns from banked upgrades to the
+workshop, closes the workshop, or pauses active combat. Tab/Enter and click/tap also work.
 
 ## Base, workshop, and hives
 
-Three hive choices preview activity, threat, enemy counts per wave, a terrain map,
-and terrain coverage percentages. Activity changes enemy numbers, health, speed,
+Three hive choices preview activity, threat, enemy counts per wave, and the most prevalent
+terrain type. Activity changes enemy numbers, health, speed,
 and spawn pressure; threat increases as more hives are eradicated. Terrain and
 activity vary independently. Hive layouts are generated once per visit to base;
 opening the workshop does not reroll them. Deployment uses the exact previewed
@@ -28,6 +30,14 @@ wheel speed and visuals; switching back restores rank-3 legs. Cannon damage and
 cooler firing-speed ranks belong to those parts too. Stats and equipped visuals
 are derived from the current parts rather than copied across swaps. There is
 currently one cannon and one cooler, and three interchangeable undercarriages.
+
+Level-up pauses to offer an immediate upgrade or **Bank for later**. Banking
+resumes play, or presents the next choice when excess XP earns multiple levels.
+Banked upgrades persist across hives for this run. In the workshop, equip a part
+and open **Spend banked upgrades**. Each valid choice spends one saved upgrade
+on the equipped part. Remaining points can be kept, and spending the last returns
+to the workshop. Banking does not block returning to base after a hive. Spending
+is unavailable during combat; banked points reset on a new run.
 
 XP upgrades improve the equipped part. Speed adds 8% of base movement speed per
 rank and stops at rank 3 (+24%); that choice disappears when the equipped base is
@@ -64,8 +74,8 @@ when every scheduled enemy has appeared and died. Pending warnings count.
 Wave clears attract all remaining XP regardless of distance, preserving attraction
 through upgrade choices and subsequent waves. Ordinary intermissions last three
 seconds and advance automatically. After the third wave, all remaining XP and
-chained upgrade choices finish before returning to base. Base, workshop, pause,
-and upgrade screens freeze the simulation. Blur, hidden tabs, and controller
+chained upgrade choices are applied or banked before returning to base. Base,
+workshop, banked-spending, pause, and upgrade screens freeze the simulation. Blur, hidden tabs, and controller
 disconnection pause combat. Held inputs are cleared across overlays, and controller
 sticks must return to neutral before movement resumes.
 
@@ -73,7 +83,7 @@ sticks must return to neutral before movement resumes.
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
 - `hives.ts`: deterministic mission choices and activity/terrain previews.
-- `terrain.ts`: terrain generation, coverage, and undercarriage handling.
+- `terrain.ts`: terrain generation, prevalent terrain, and undercarriage handling.
 - `controls.ts`, `camera.ts`, `runtime.ts`: input, camera, lifecycle, and menus.
 - `renderer.ts`: Canvas 2D combat and workshop-pad rendering.
 - `animation.ts`, `sprite-parts.ts`: shared rigs, poses, and registered PNG parts.

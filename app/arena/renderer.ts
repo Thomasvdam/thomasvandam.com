@@ -31,7 +31,7 @@ export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Ri
 }
 
 export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number): Camera {
-	if (["ready", "base", "workshop"].includes(game.mode)) {
+	if (["ready", "base", "workshop", "spend"].includes(game.mode)) {
 		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
 		ctx.strokeStyle = "#334638"; ctx.lineWidth = 2;
