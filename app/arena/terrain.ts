@@ -2,16 +2,16 @@ export const TILE_SIZE = 80;
 export const TERRAIN_COLUMNS = 14;
 export const TERRAIN_ROWS = 9;
 export type Terrain = "firm" | "mud" | "rubble";
-export type Undercarriage = "legs" | "wheels" | "tracks";
+export type Undercarriage = "legs" | "wheels" | "treads";
 export const UNDERCARRIAGES = [
 	{ id: "legs", name: "Legs", description: "Full speed on firm ground and rubble. Mud is difficult." },
 	{ id: "wheels", name: "Wheels", description: "Fast on firm ground. Mud and rubble slow you down." },
-	{ id: "tracks", name: "Treads", description: "Slower, steady movement across every surface." },
+	{ id: "treads", name: "Treads", description: "Slower, steady movement across every surface." },
 ] as const;
 export const MOVEMENT: Record<Undercarriage, Record<Terrain, number>> = {
 	legs: { firm: 1, mud: .25, rubble: 1 },
 	wheels: { firm: 1.5, mud: .375, rubble: .375 },
-	tracks: { firm: .75, mud: .75, rubble: .75 },
+	treads: { firm: .75, mud: .75, rubble: .75 },
 };
 // A separate deterministic stream keeps terrain independent of combat/spawn randomness.
 export function createTerrain(seed: number, depth: number): Terrain[] {
