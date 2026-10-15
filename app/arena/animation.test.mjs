@@ -2,8 +2,9 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance } from "./animation";
 import { BUG_SKINS, mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
-import { chooseUpgrade, newGame, start, step, SPAWN_WARNING_TIME } from "./game";
+import { chooseUpgrade, newGame, start as prepare, chooseHive, upgradeLevels, step, SPAWN_WARNING_TIME } from "./game";
 
+function start(game) { prepare(game); chooseHive(game, game.hives.find(hive => hive.activity === "Low").id); }
 const levels = { damage: 0, fireRate: 0, speed: 0 };
 const mechState = { distance: 11, walkBlend: 1, moveAngle: 0, aimAngle: 0, shotAge: 1, time: 5 };
 const transforms = parts => parts.map(part => Object.fromEntries(Object.entries(part).filter(([key]) => key !== "sprite")));
@@ -93,7 +94,7 @@ test("simulation-driven walking, firing, and death effects freeze on overlays an
 	step(game, idle, 1 / 30); expect(JSON.stringify(game)).toBe(frozen);
 	chooseUpgrade(game, "damage"); for (let i = 0; i < 70; i++) step(game, idle, 1 / 120);
 	expect(game.remains).toHaveLength(0);
-	const fresh = newGame(); expect(fresh.player.walkDistance).toBe(0); expect(fresh.remains).toHaveLength(0); expect(mechSkin(fresh.upgrades)).toEqual(mechSkin(levels));
+	const fresh = newGame(); expect(fresh.player.walkDistance).toBe(0); expect(fresh.remains).toHaveLength(0); expect(mechSkin(upgradeLevels(fresh))).toEqual(mechSkin(levels));
 });
 
 test("every undercarriage has distinct artwork at each speed rank on the same animated attachments", () => {

@@ -1,16 +1,26 @@
 import { terrainAt, terrainSummary, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
 import { bindJoystick, keyboardVector, readGamepad } from "./controls";
-import { chooseUndercarriage, chooseUpgrade, newGame, start, step, togglePause, undercarriageChoices, upgradeChoices, WAVES_PER_DEPTH, xpNeeded, type Game, type Upgrade, type Vector } from "./game";
+import { chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, xpNeeded, type Game, type Upgrade, type Vector } from "./game";
 import { loadSprites, render } from "./renderer";
 
+function menuChoices(game: Game) {
+	if (game.mode === "upgrade") return upgradeChoices(game);
+	if (game.mode === "workshop") return [...undercarriageChoices(), { id: "back", name: "Choose a hive", key: "4", kind: "back" as const }];
+	if (game.mode === "base") return [
+		...game.hives.map((hive, index) => ({ id: hive.id, name: hive.name, key: String(index + 1), kind: "hive" as const })),
+		{ id: "workshop", name: "Workshop", key: "4", kind: "workshop" as const },
+	];
+	return [];
+}
 export type ArenaView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
-		destinationDepth: Math.floor(game.wave / WAVES_PER_DEPTH) + 1, depth: game.depth, descent: game.descent > 0, terrain: terrainAt(game.terrain, game.player.x, game.player.y), undercarriage: game.undercarriage,
+		hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
-		forecast: game.nextTerrain ? terrainSummary(game.nextTerrain) : null, choices: game.mode === "loadout" ? undercarriageChoices() : upgradeChoices(game), intermission: Math.ceil(game.intermission), upgrades: { ...game.upgrades }, controller, selection,
+		hives: game.hives.map(hive => ({ id: hive.id, name: hive.name, activity: hive.activity, threat: hive.threat, forecast: terrainSummary(hive.terrain), layout: hive.terrain, minBugs: waveSize(1, hive.threat), maxBugs: waveSize(3, hive.threat) })),
+		parts: { ...game.parts.undercarriages }, choices: menuChoices(game), intermission: Math.ceil(game.intermission), upgrades: upgradeLevels(game), controller, selection,
 	};
 }
 type RuntimeOptions = {
@@ -25,7 +35,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 	let mouse: Vector | null = null, aimSource: "mouse" | "touch" | "controller" = "mouse";
 	let selection = 0, viewKey = "", controller = false, previousPad = readGamepad(null), controllerBlocked = false;
 	const keys = new Set<string>();
-	const playing = () => game.mode === "playing" && game.descent === 0;
+	const playing = () => game.mode === "playing";
 	const moveStick = bindJoystick(options.movePad, options.moveThumb, playing);
 	const aimStick = bindJoystick(options.aimPad, options.aimThumb, playing);
 	const publish = () => {
@@ -37,12 +47,14 @@ export function createArenaRuntime(options: RuntimeOptions) {
 	};
 	const changed = () => { clearInput(); publish(); };
 	const focus = () => canvas.focus({ preventScroll: true });
-	const action = (name: "start" | "pause" | "restart") => {
+	const action = (name: "start" | "pause" | "restart" | "workshop" | "hives") => {
 		if (!loaded) return;
 		if (name === "start") start(game);
 		if (name === "pause") togglePause(game);
+		if (name === "workshop") openWorkshop(game);
+		if (name === "hives") closeWorkshop(game);
 		if (name === "restart") { game = newGame(crypto.getRandomValues(new Uint32Array(1))[0]); start(game); selection = 0; }
-		changed(); focus();
+		selection = 0; changed(); focus();
 	};
 	const upgrade = (id: Upgrade) => {
 		if (game.mode !== "upgrade") return;
@@ -50,20 +62,28 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (playing()) focus();
 	};
 	const equip = (id: Undercarriage) => {
-		if (game.mode !== "loadout") return;
-		chooseUndercarriage(game, id); selection = 0; changed(); focus();
+		if (game.mode !== "workshop") return;
+		chooseUndercarriage(game, id); changed();
 	};
-	const menuChoices = () => game.mode === "loadout" ? undercarriageChoices() : upgradeChoices(game);
+	const deploy = (id: string) => {
+		if (game.mode !== "base") return;
+		chooseHive(game, id); selection = 0; changed(); focus();
+	};
 	const confirmChoice = (index: number) => {
-		if (game.mode === "loadout") { const choice = undercarriageChoices()[index]; if (choice) equip(choice.id); }
-		else if (game.mode === "upgrade") { const choice = upgradeChoices(game)[index]; if (choice) upgrade(choice.id); }
+		const choice = menuChoices(game)[index];
+		if (!choice) return;
+		if (choice.kind === "undercarriage") equip(choice.id);
+		if (choice.kind === "stat") upgrade(choice.id);
+		if (choice.kind === "hive") deploy(choice.id);
+		if (choice.kind === "workshop") action("workshop");
+		if (choice.kind === "back") action("hives");
 	};
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
-		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action("pause"); return; }
-		if (["upgrade", "loadout"].includes(game.mode) && /^[1-3]$/.test(event.key)) {
-			event.preventDefault(); const choice = menuChoices().find(choice => choice.key === event.key);
+		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action(game.mode === "workshop" ? "hives" : "pause"); return; }
+		if (menuChoices(game).length > 0 && /^[1-4]$/.test(event.key)) {
+			event.preventDefault(); const choice = menuChoices(game).find(choice => choice.key === event.key);
 			if (!event.repeat && choice) confirmChoice(Number(choice.key) - 1); return;
 		}
 		if (interactive) return;
@@ -71,7 +91,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 			event.preventDefault(); if (event.repeat) return;
 			if (game.mode === "ready") action("start");
 			else if (game.mode === "dead") action("restart");
-			else if (!["upgrade", "loadout"].includes(game.mode)) action("pause");
+			else if (game.mode === "playing" || game.mode === "paused") action("pause");
 			return;
 		}
 		if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) {
@@ -108,12 +128,12 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (!pad.connected && previousPad.connected && game.mode === "playing") pauseForFocus();
 		if (document.hasFocus() && !document.hidden) {
 			if (pad.pause && !previousPad.pause) action("pause");
-			if (["upgrade", "loadout"].includes(game.mode)) {
-				if (pad.previous && !previousPad.previous) selection = (selection + menuChoices().length - 1) % menuChoices().length;
-				if (pad.next && !previousPad.next) selection = (selection + 1) % menuChoices().length;
+			if (menuChoices(game).length > 0) {
+				if (pad.previous && !previousPad.previous) selection = (selection + menuChoices(game).length - 1) % menuChoices(game).length;
+				if (pad.next && !previousPad.next) selection = (selection + 1) % menuChoices(game).length;
 			}
 			if (pad.confirm && !previousPad.confirm) {
-				if (["upgrade", "loadout"].includes(game.mode)) confirmChoice(selection);
+				if (menuChoices(game).length > 0) confirmChoice(selection);
 				else if (game.mode === "ready") action("start");
 				else if (game.mode === "dead") action("restart");
 				else if (game.mode === "paused") action("pause");
@@ -143,19 +163,19 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		loaded = true; resize(); onLoaded(); publish();
 		const tick = (now: number) => {
 			if (disposed) return;
-			const pad = pollController(), before = game.mode, descending = game.descent > 0;
+			const pad = pollController(), before = game.mode;
 			const elapsed = lastTime ? Math.min((now - lastTime) / 1000, .1) : 0; lastTime = now;
 			if (game.mode === "playing") {
 				accumulator += elapsed;
 				while (accumulator >= 1 / 120 && game.mode === "playing") { step(game, getInput(pad), 1 / 120); accumulator -= 1 / 120; }
 			} else accumulator = 0;
-			if (game.mode !== before || descending !== (game.descent > 0)) { selection = 0; clearInput(); }
+			if (game.mode !== before) { selection = 0; clearInput(); }
 			render(ctx, game, sprites, width, height, pixelRatio); publish(); frame = requestAnimationFrame(tick);
 		};
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
 	return {
-		action, upgrade, equip,
+		action, upgrade, equip, deploy,
 		dispose: () => {
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
 			window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup);
