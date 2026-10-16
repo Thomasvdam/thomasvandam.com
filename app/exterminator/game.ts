@@ -1,4 +1,4 @@
-import { BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, frontArmour, resolveBarriers, separateBugs, stepBugs, type BugVariant, type Enemy } from "./bugs";
+import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, frontArmour, resolveBarriers, separateBugs, stepBugs, type BugVariant, type Enemy } from "./bugs";
 import { WEAPONS, weaponSpec, weaponStats, weaponModLimit, type Weapon, type WeaponRanks } from "./weapons";
 import { createHives, type Hive } from "./hives";
 import { createTerrain, MOVEMENT, terrainAt, UNDERCARRIAGES, type Terrain, type Undercarriage } from "./terrain";
@@ -34,6 +34,7 @@ export function workshopServices(game: Game) {
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number; weapon: Exclude<Weapon, "flamethrower">; blastRadius: number };
+export type Lob = Vector & { id: number; target: Vector; age: number };
 export type Explosion = Vector & { id: number; radius: number; bornAt: number };
 export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: number };
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
@@ -41,7 +42,7 @@ export type BugRemains = Vector & { id: number; variant: BugVariant; angle: numb
 export type Game = {
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
-	enemies: Enemy[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
+	enemies: Enemy[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
 	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage; weapon: Weapon;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	money: number; lastJob: { name: string; payment: number } | null; kills: number; time: number;
@@ -67,7 +68,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	return {
 		hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage, weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
-		enemies: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
+		enemies: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
 		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
@@ -127,7 +128,7 @@ function returnToBase(game: Game) {
 	game.lastJob = { name: game.hive.name, payment: game.hive.payment };
 	game.hivesCleared++;
 	game.hive = null; game.hives = createHives(game.runSeed, game.hivesCleared);
-	game.bullets = []; game.remains = []; game.explosions = []; game.deflections = []; game.toSpawn = 0; game.intermission = 0;
+	game.lobs = []; game.bullets = []; game.remains = []; game.explosions = []; game.deflections = []; game.toSpawn = 0; game.intermission = 0;
 	game.mode = "base";
 }
 
@@ -289,6 +290,16 @@ export function step(game: Game, input: Input, dt: number) {
 		if (game.remains.length > 64) game.remains.shift();
 		return false;
 	});
+	const waveCleared = game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.length === 0;
+	if (waveCleared) game.lobs = [];
+	game.lobs = game.lobs.filter(lob => {
+		const previousAge = lob.age; lob.age += dt;
+		if (previousAge < BEETLE_FLIGHT_TIME && lob.age >= BEETLE_FLIGHT_TIME && player.invulnerable === 0 && Math.hypot(player.x - lob.target.x, player.y - lob.target.y) <= BEETLE_BLAST_RADIUS + PLAYER_RADIUS) {
+			player.health = Math.max(0, player.health - 20); player.invulnerable = .9;
+		}
+		return lob.age < BEETLE_FLIGHT_TIME + .3;
+	});
+	if (player.health === 0) { game.mode = "dead"; return; }
 	const lunged = game.enemies.some(enemy => lungeContacts.has(enemy.id));
 	const touching = game.enemies.some(enemy => enemy.variant !== "centipede" && Math.hypot(enemy.x - player.x, enemy.y - player.y) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
 	if (player.invulnerable === 0 && (lunged || touching)) {
@@ -296,7 +307,7 @@ export function step(game: Game, input: Input, dt: number) {
 		player.invulnerable = .9;
 		if (player.health === 0) { game.mode = "dead"; return; }
 	}
-	if (game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.length === 0 && game.intermission === 0) {
+	if (waveCleared && game.intermission === 0) {
 		game.intermission = 3;
 	}
 }

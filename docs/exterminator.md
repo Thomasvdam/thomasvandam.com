@@ -123,7 +123,7 @@ and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 ## Combat and waves
 
 
-Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs in
+Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs and dung beetles in
 job 3, and centipedes in job 4. One spawn in each group of three is drawn from the
 unlocked specialists, rotating by wave; the rest remain burrowers/winged chasers.
 Specialist health and movement scale with threat too. Provisional behavior:
@@ -136,7 +136,14 @@ Specialist health and movement scale with threat too. Provisional behavior:
 - **Evader:** predicts incoming bullet/rocket paths and sidesteps for 0.24 seconds,
   with a 0.65-second recovery between dodges. Receding/missing projectiles are
   ignored. Flame does not trigger dodging.
+- **Dung beetle:** retreats inside 240 units and approaches from beyond 340.
+  It stops to roll up a ball for 0.95 seconds, then lobs it at the player’s
+  position at release. A fixed 38-radius landing marker gives 0.9 seconds to
+  escape before impact deals 20 damage. It recovers for 1.4 seconds between
+  throws. Balls do not track the mech, damage only once on landing, and clear
+  when a wave ends. A released ball survives its thrower until the wave clears.
 - **Centipede:** circles the mech and trails seven solid segments behind its head.
+  Its base speed is 104 (112 in the first threat/wave), up from 78.
   The body blocks movement, deals no contact damage, and can be shot anywhere.
   All segments share health; blasts and flame apply damage once per bug. Killing
   it removes the barrier. It emerges coiled inside a larger spawn warning; body
@@ -178,7 +185,7 @@ sticks must return to neutral before movement resumes.
 Parts live in `public/images/exterminator/parts/`. Regenerate them and homepage thumbnails
 with `python3 tools/generate-exterminator-sprites.py`. Walking follows distance traveled;
 torso aiming and recoil remain independent of the base. Wheel/tread stages share
-distance-driven tread marks. All six bug skins share walking/hit/death animations. The centipede repeats the
+distance-driven tread marks. All seven bug skins share walking/hit/death animations. The centipede repeats the
 same registered body/leg parts along its simulated chain. Burrowing arrivals
 share the reveal pose; the winged chaser lands and folds its optional wings.
 See [the animation guide](exterminator-animation.md) for replacing parts without new rigs.
@@ -190,7 +197,7 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, six bug variants, and no audio. There is no saved progression between runs.
+Tuning is provisional. This version has four weapons, seven bug variants, and no audio. There is no saved progression between runs.
 
 Each bug skin has subtle warm/cool alternatives for body, shell, head, and legs.
 An individual mixes those parts deterministically from its ID, retaining the same

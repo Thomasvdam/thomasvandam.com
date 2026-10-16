@@ -110,10 +110,10 @@ test("deflections and specialist bodies freeze on pause and clear for a fresh ru
 });
 
 test("specialists are introduced over four jobs and preserve their identity through spawn warnings", () => {
-	const unlocked = ["lunger", "evader", "armoured", "centipede"];
+	const unlocked = [["lunger"], ["lunger", "evader"], ["lunger", "evader", "armoured", "beetle"], ["lunger", "evader", "armoured", "beetle", "centipede"]];
 	for (let cleared = 0; cleared < 4; cleared++) {
 		const variants = new Set(Array.from({ length: 36 }, (_, index) => bugForSpawn(cleared, 1, index)));
-		expect(variants).toEqual(new Set(["burrower", "flyer", ...unlocked.slice(0, cleared + 1)]));
+		expect(variants).toEqual(new Set(["burrower", "flyer", ...unlocked[cleared]]));
 		const game = setup(); game.hivesCleared = cleared; game.wave = 1;
 		for (let i = 0; i < 6; i++) { game.spawnTimer = 0; step(game, idle, 1 / 120); }
 		const warnings = game.spawns.map(warning => ({ ...warning })); game.toSpawn = 0; advance(game, 1.3);
@@ -125,7 +125,7 @@ test("specialist parts reuse the walking rig, with coiled centipede segments usi
 	const pose = bugPose({ distance: 8, angle: .4, time: 1 });
 	const geometry = parts => parts.map(part => Object.fromEntries(Object.entries(part).filter(([key]) => key !== "sprite")));
 	const base = resolveRig(BUG_RIG, BUG_SKINS.burrower, pose);
-	for (const variant of ["lunger", "evader", "centipede", "armoured"]) {
+	for (const variant of ["lunger", "evader", "centipede", "armoured", "beetle"]) {
 		expect(geometry(resolveRig(BUG_RIG, BUG_SKINS[variant], pose))).toEqual(geometry(base));
 		expect(spawnAppearance(variant, 0).reveal).toBe(0); expect(spawnAppearance(variant, 1).reveal).toBe(1);
 	}
