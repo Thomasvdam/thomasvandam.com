@@ -32,7 +32,7 @@ export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Ri
 }
 
 export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number): Camera {
-	if (["ready", "base", "workshop", "weapons", "spend"].includes(game.mode)) {
+	if (["ready", "base", "workshop", "weapons", "shop"].includes(game.mode)) {
 		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
 		ctx.strokeStyle = "#334638"; ctx.lineWidth = 2;
@@ -78,10 +78,6 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	for (const remains of game.remains) {
 		if (!visible(remains.x, remains.y)) continue;
 		drawBug(remains.variant, remains.x, remains.y, remains.angle, 0, 1, clamp((game.time - remains.diedAt) / .5, 0, 1));
-	}
-	for (const pickup of game.pickups) {
-		if (!visible(pickup.x, pickup.y, 20)) continue;
-		ctx.drawImage(sprites.xp, pickup.x - 8, pickup.y - 8, 16, 16);
 	}
 	for (const warning of game.spawns) {
 		if (!visible(warning.x, warning.y, 120)) continue;

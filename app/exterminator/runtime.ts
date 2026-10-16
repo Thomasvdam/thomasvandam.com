@@ -2,16 +2,15 @@ import { weaponSpec, type Weapon } from "./weapons";
 import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
 import { bindJoystick, keyboardVector, readGamepad } from "./controls";
-import { chooseWeapon, closeWeapons, openWeapons, weaponChoices, purchaseService, workshopServices, bankUpgrade, closeBankedUpgrades, openBankedUpgrades, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, xpNeeded, type Game, type Upgrade, type WorkshopService, type Vector } from "./game";
+import { chooseWeapon, closeWeapons, openWeapons, weaponChoices, purchaseService, workshopServices, closeShop, openShop, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, type Game, type Upgrade, type WorkshopService, type Vector } from "./game";
 import { loadSprites, render } from "./renderer";
 
 function menuChoices(game: Game) {
 	if (game.mode === "weapons") return [...weaponChoices(), { id: "workshop", name: "Back to workshop", key: "5", kind: "workshop" as const }];
-	if (game.mode === "upgrade") return [...upgradeChoices(game), { id: "bank", name: "Bank for later", key: "4", kind: "bank" as const }];
-	if (game.mode === "spend") return [...upgradeChoices(game), ...workshopServices(game), { id: "workshop", name: "Back to workshop", key: "6", kind: "workshop" as const }];
+	if (game.mode === "shop") return [...upgradeChoices(game), ...workshopServices(game), { id: "workshop", name: "Back to workshop", key: "6", kind: "workshop" as const }];
 	if (game.mode === "workshop") return [
 		...undercarriageChoices(),
-		...(game.bankedUpgrades > 0 ? [{ id: "spend", name: "Spend banked upgrades", key: "4", kind: "spend" as const }] : []),
+		{ id: "shop", name: "Upgrades & repairs", key: "4", kind: "shop" as const },
 		{ id: "back", name: "Choose a hive", key: "5", kind: "back" as const },
 		{ id: "weapons", name: "Change weapon", key: "6", kind: "weapons" as const },
 	];
@@ -27,11 +26,11 @@ export function viewFromGame(game: Game, controller = false, selection = 0) {
 		hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
-		sensorRank: game.parts.sensor, bankedUpgrades: game.bankedUpgrades, level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
+		sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
 		hives: game.hives.map(hive => {
 			const terrain = terrainByPrevalence(hive.terrain), difficultyKnown = game.parts.sensor >= 1;
 			return {
-				id: hive.id, name: hive.name, activity: difficultyKnown ? hive.activity : null,
+				id: hive.id, name: hive.name, payment: hive.payment, activity: difficultyKnown ? hive.activity : null,
 				threat: difficultyKnown ? hive.threat : null,
 				terrain: TERRAIN_NAMES[terrain[0]], secondaryTerrain: game.parts.sensor >= 2 && terrain[1] ? TERRAIN_NAMES[terrain[1]] : null,
 				minBugs: difficultyKnown ? waveSize(1, hive.threat) : null, maxBugs: difficultyKnown ? waveSize(3, hive.threat) : null,
@@ -64,26 +63,25 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	};
 	const changed = () => { clearInput(); publish(); };
 	const focus = () => canvas.focus({ preventScroll: true });
-	const action = (name: "start" | "pause" | "restart" | "workshop" | "hives" | "bank" | "spend" | "weapons") => {
+	const action = (name: "start" | "pause" | "restart" | "workshop" | "hives" | "shop" | "weapons") => {
 		if (!loaded) return;
 		if (name === "start") start(game);
 		if (name === "pause") togglePause(game);
-		if (name === "workshop") { if (game.mode === "spend") closeBankedUpgrades(game); else if (game.mode === "weapons") closeWeapons(game); else openWorkshop(game); }
-		if (name === "bank") bankUpgrade(game);
-		if (name === "spend") openBankedUpgrades(game);
+		if (name === "workshop") { if (game.mode === "shop") closeShop(game); else if (game.mode === "weapons") closeWeapons(game); else openWorkshop(game); }
+		if (name === "shop") openShop(game);
 		if (name === "hives") closeWorkshop(game);
 		if (name === "weapons") openWeapons(game);
 		if (name === "restart") { game = newGame(crypto.getRandomValues(new Uint32Array(1))[0]); start(game); selection = 0; }
 		selection = 0; changed(); focus();
 	};
 	const upgrade = (id: Upgrade) => {
-		if (game.mode !== "upgrade" && game.mode !== "spend") return;
+		if (game.mode !== "shop") return;
 		chooseUpgrade(game, id); selection = 0; changed();
-		if (playing()) focus();
+		focus();
 	};
 	const purchase = (id: WorkshopService) => {
-		if (game.mode !== "spend") return;
-		purchaseService(game, id); selection = 0; changed();
+		if (game.mode !== "shop") return;
+		purchaseService(game, id); selection = 0; changed(); focus();
 	};
 	const equip = (id: Undercarriage) => {
 		if (game.mode !== "workshop") return;
@@ -108,13 +106,12 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (choice.kind === "hive") deploy(choice.id);
 		if (choice.kind === "workshop") action("workshop");
 		if (choice.kind === "back") action("hives");
-		if (choice.kind === "bank") action("bank");
-		if (choice.kind === "spend") action("spend");
+		if (choice.kind === "shop") action("shop");
 	};
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
-		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action((game.mode === "spend" || game.mode === "weapons") ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
+		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action((game.mode === "shop" || game.mode === "weapons") ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
 		if (menuChoices(game).length > 0 && /^[1-6]$/.test(event.key)) {
 			event.preventDefault(); const index = menuChoices(game).findIndex(choice => choice.key === event.key);
 			if (!event.repeat && index >= 0) confirmChoice(index); return;

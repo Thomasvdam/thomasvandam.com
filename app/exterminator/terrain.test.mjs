@@ -10,12 +10,14 @@ function advance(game, seconds, input = idle) { for (let i = 0; i < Math.ceil(se
 function deploy(game) { start(game); chooseHive(game, game.hives.find(hive => hive.activity === "Low").id); }
 function finishHive(game) { game.wave = WAVES_PER_HIVE; game.toSpawn = 0; game.enemies = []; game.spawns = []; advance(game, 3.1); }
 
+function buy(game, id) { const mode = game.mode; game.mode = "shop"; game.money = 100000; chooseUpgrade(game, id); game.mode = mode; }
+
 test("each undercarriage applies its terrain handling to actual movement and speed upgrades", () => {
 	for (const undercarriage of ["legs", "wheels", "treads"]) for (const terrain of ["firm", "mud", "rubble"]) {
 		const game = newGame(1, undercarriage); deploy(game); game.terrain.fill(terrain); game.spawnTimer = 100;
 		const before = game.player.x; advance(game, .25, { ...idle, move: { x: 1, y: 0 } });
 		expect(game.player.x - before).toBeCloseTo(BASE_SPEED * MOVEMENT[undercarriage][terrain] * .25);
-		game.mode = "upgrade"; chooseUpgrade(game, "speed"); const upgraded = game.player.x;
+		buy(game, "speed"); const upgraded = game.player.x;
 		advance(game, .25, { ...idle, move: { x: 1, y: 0 } });
 		expect(game.player.x - upgraded).toBeCloseTo((BASE_SPEED * 1.08) * MOVEMENT[undercarriage][terrain] * .25);
 	}
@@ -34,24 +36,16 @@ test("ready opens base; hive completion returns to base without repairs or autom
 	chooseHive(game, "invalid"); expect(game.mode).toBe("base");
 	const candidate = game.hives[0], forecast = [...candidate.terrain]; chooseHive(game, candidate.id);
 	expect(game.mode).toBe("playing"); expect(game.hive.id).toBe(candidate.id); expect(game.terrain).toEqual(forecast);
-	game.player.health = 40; game.xp = 2; game.parts.weapons.cannon.damage = 2; game.parts.weapons.cannon.mod = 1;
+	game.player.health = 40; game.parts.weapons.cannon.damage = 2; game.parts.weapons.cannon.mod = 1;
 	finishHive(game);
 	expect(game.mode).toBe("base"); expect(game.hivesCleared).toBe(1); expect(game.player.health).toBe(40); expect(game.hive).toBeNull();
-	expect(game.xp).toBe(2); expect(playerStats(game).damage).toBe(3); expect(playerStats(game).shotInterval).toBeCloseTo(.17);
+	expect(playerStats(game).damage).toBe(3); expect(playerStats(game).shotInterval).toBeCloseTo(.17);
 	expect(game.bullets).toHaveLength(0); expect(game.hives).toHaveLength(3);
 	const waiting = JSON.stringify(game); advance(game, 20, { ...idle, move: { x: 1, y: 1 }, fire: true }); expect(JSON.stringify(game)).toBe(waiting);
 	const next = game.hives[1]; chooseHive(game, next.id);
 	expect(game.mode).toBe("playing"); expect(game.wave).toBe(1); expect(game.toSpawn).toBe(waveSize(1, next.threat));
-	expect(game.terrain).toEqual(next.terrain); expect(game.player.health).toBe(40); expect(game.xp).toBe(2);
+	expect(game.terrain).toEqual(next.terrain); expect(game.player.health).toBe(40);
 	expect(game.player.x).toBe(560); expect(game.player.y).toBe(360);
-});
-
-test("return to base waits for all XP and chained upgrade choices", () => {
-	const game = newGame(); deploy(game); game.wave = WAVES_PER_HIVE; game.toSpawn = 0; game.intermission = .001;
-	game.pickups.push({ id: 90, x: 30, y: 30, value: 15, attracted: true });
-	advance(game, 2); expect(game.mode).toBe("upgrade"); expect(game.hivesCleared).toBe(0);
-	chooseUpgrade(game, "damage"); expect(game.mode).toBe("upgrade"); chooseUpgrade(game, "speed");
-	advance(game, .1); expect(game.mode).toBe("base"); expect(game.pickups).toHaveLength(0); expect(game.hivesCleared).toBe(1);
 });
 
 test("workshop is optional and reopenable, preserves hive choices, and never deploys or repairs", () => {
@@ -88,11 +82,11 @@ test("hive previews match deployed layouts and activity changes actual enemy pre
 
 test("part speed ranks are independent, restored on re-equip, and reset for a new run", () => {
 	const game = newGame(); deploy(game);
-	for (let rank = 0; rank < 3; rank++) { game.mode = "upgrade"; chooseUpgrade(game, "speed"); }
+	for (let rank = 0; rank < 3; rank++) { buy(game, "speed"); }
 	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "weaponMod"]);
 	finishHive(game); openWorkshop(game); chooseUndercarriage(game, "wheels");
 	expect(upgradeLevels(game).speed).toBe(0); expect(playerStats(game).speed).toBe(BASE_SPEED); expect(mechSkin(upgradeLevels(game), "wheels").footL).toBe("mechWheel");
-	closeWorkshop(game); chooseHive(game, game.hives[0].id); game.mode = "upgrade"; chooseUpgrade(game, "speed");
+	closeWorkshop(game); chooseHive(game, game.hives[0].id); buy(game, "speed");
 	expect(game.parts.undercarriages).toEqual({ legs: 3, wheels: 1, treads: 0 });
 	finishHive(game); openWorkshop(game); chooseUndercarriage(game, "legs");
 	expect(upgradeLevels(game).speed).toBe(3); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * 1.24); expect(mechSkin(upgradeLevels(game), "legs").footL).toBe("mechBoostFoot");
@@ -105,12 +99,12 @@ test("handling budgets and capped speed retain terrain advantages", () => {
 	expect(MOVEMENT.legs).toEqual({ firm: 1, mud: .25, rubble: 1 }); expect(MOVEMENT.wheels).toEqual({ firm: 1.5, mud: .375, rubble: .375 }); expect(MOVEMENT.treads).toEqual({ firm: .75, mud: .75, rubble: .75 });
 	for (const speeds of Object.values(MOVEMENT)) expect(Object.values(speeds).reduce((a, b) => a + b)).toBe(2.25);
 	const game = newGame(); deploy(game);
-	for (let rank = 1; rank <= MAX_SPEED_RANK; rank++) { game.mode = "upgrade"; chooseUpgrade(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * (1 + rank * SPEED_RANK_BONUS)); }
-	game.mode = "upgrade"; const frozen = JSON.stringify(game); chooseUpgrade(game, "speed"); expect(JSON.stringify(game)).toBe(frozen);
+	for (let rank = 1; rank <= MAX_SPEED_RANK; rank++) { buy(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * (1 + rank * SPEED_RANK_BONUS)); }
+	game.mode = "shop"; const frozen = JSON.stringify(game); chooseUpgrade(game, "speed"); expect(JSON.stringify(game)).toBe(frozen);
 	for (const terrain of ["firm", "mud", "rubble"]) for (const slower of ["legs", "wheels", "treads"]) for (const faster of ["legs", "wheels", "treads"]) {
 		if (MOVEMENT[slower][terrain] < MOVEMENT[faster][terrain]) expect(playerStats(game).speed * MOVEMENT[slower][terrain]).toBeLessThan(BASE_SPEED * MOVEMENT[faster][terrain]);
 	}
-	chooseUpgrade(game, "damage"); expect(playerStats(game).damage).toBe(2); expect(game.mode).toBe("playing");
+	chooseUpgrade(game, "damage"); expect(playerStats(game).damage).toBe(2); expect(game.mode).toBe("shop");
 });
 
 test("wheels and treads reuse attachment bones and upper-body animation without walking", () => {
