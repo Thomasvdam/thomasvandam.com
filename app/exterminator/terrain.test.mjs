@@ -96,7 +96,7 @@ test("part speed ranks are independent, restored on re-equip, and reset for a ne
 });
 
 test("handling budgets and capped speed retain terrain advantages", () => {
-	expect(MOVEMENT.legs).toEqual({ firm: 1, mud: .25, rubble: 1 }); expect(MOVEMENT.wheels).toEqual({ firm: 1.5, mud: .375, rubble: .375 }); expect(MOVEMENT.treads).toEqual({ firm: .75, mud: .75, rubble: .75 });
+	expect(MOVEMENT.legs).toEqual({ firm: .9, mud: .25, rubble: 1.1 }); expect(MOVEMENT.wheels).toEqual({ firm: 1.5, mud: .375, rubble: .375 }); expect(MOVEMENT.treads).toEqual({ firm: .7, mud: .85, rubble: .7 });
 	for (const speeds of Object.values(MOVEMENT)) expect(Object.values(speeds).reduce((a, b) => a + b)).toBe(2.25);
 	const game = newGame(); deploy(game);
 	for (let rank = 1; rank <= MAX_SPEED_RANK; rank++) { buy(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * (1 + rank * SPEED_RANK_BONUS)); }

@@ -17,6 +17,10 @@ COLORS = {
     "rust": (161, 79, 48), "rustLight": (218, 144, 73), "oliveDark": (51, 66, 43),
     "olive": (109, 133, 72), "oliveLight": (179, 191, 106), "wing": (157, 182, 139),
     "wingLight": (211, 218, 164),
+    "redDark": (73, 32, 37), "red": (176, 60, 56), "redLight": (244, 147, 103),
+    "blueDark": (31, 56, 69), "blue": (66, 136, 151), "blueLight": (151, 218, 205),
+    "ochreDark": (77, 57, 28), "ochre": (160, 122, 49), "ochreLight": (232, 191, 101),
+    "slateDark": (39, 47, 54), "slate": (95, 114, 120), "slateLight": (178, 190, 175),
 }
 
 
@@ -177,7 +181,9 @@ for name, length, accent in [("mech-cooler", 8, "steel"), ("mech-vent-cooler", 1
         layers += [rect(x, 14, 1, 5, "joint"), rect(x + 1, 14, 1, 1, "light")]
     part(name, layers)
 
-for prefix, dark, base, highlight in [("rust", "rustDark", "rust", "rustLight"), ("olive", "oliveDark", "olive", "oliveLight")]:
+for prefix, dark, base, highlight in [("rust", "rustDark", "rust", "rustLight"), ("olive", "oliveDark", "olive", "oliveLight"),
+    ("lunger", "redDark", "red", "redLight"), ("evader", "blueDark", "blue", "blueLight"),
+    ("centipede", "ochreDark", "ochre", "ochreLight"), ("armoured", "slateDark", "slate", "slateLight")]:
     part(f"bug-{prefix}-body", [
         poly([(3, 12), (7, 7), (21, 7), (27, 12), (27, 21), (22, 25), (8, 25), (3, 20)], "ink"),
         poly([(5, 12), (8, 9), (21, 9), (25, 13), (25, 20), (21, 23), (8, 23), (5, 19)], dark),
@@ -203,6 +209,24 @@ for prefix, dark, base, highlight in [("rust", "rustDark", "rust", "rustLight"),
         poly([(8, 15), (12, 15), (18, 20), (26, 20), (27, 22), (17, 21), (11, 17), (8, 17)], base),
         rect(8, 15, 3, 1, highlight), rect(18, 19, 6, 1, highlight), rect(26, 21, 2, 2, dark),
     ])
+
+# Specialist parts retain the same rig registration, with distinct silhouettes.
+part("bug-lunger-shell", [poly([(3, 13), (9, 6), (17, 10), (22, 15), (22, 19), (9, 26), (3, 21)], "redDark"),
+    poly([(5, 14), (10, 9), (15, 12), (20, 16), (10, 23), (5, 20)], "red"),
+    rect(7, 12, 3, 10, "redLight"), rect(12, 13, 2, 7, "gold")])
+part("bug-lunger-head", [poly([(7, 12), (18, 9), (24, 12), (30, 7), (29, 15), (24, 17), (29, 20), (30, 26), (22, 22), (10, 22)], "ink"),
+    rect(10, 12, 12, 9, "red"), rect(19, 12, 4, 2, "gold"), rect(19, 19, 4, 2, "gold"), rect(26, 10, 2, 4, "redLight"), rect(26, 21, 2, 3, "redLight")])
+part("bug-evader-shell", [poly([(4, 16), (10, 7), (19, 10), (25, 16), (18, 24), (10, 25)], "blueDark"),
+    poly([(6, 16), (11, 10), (18, 12), (22, 16), (17, 21), (11, 22)], "blue"),
+    rect(8, 15, 11, 2, "blueLight"), rect(11, 11, 2, 3, "white"), rect(11, 19, 2, 3, "white")])
+part("bug-centipede-shell", [poly([(6, 11), (11, 7), (21, 8), (25, 13), (25, 21), (20, 25), (10, 24), (6, 20)], "ochreDark"),
+    rect(8, 11, 15, 10, "ochre"), rect(10, 9, 10, 3, "ochreLight"),
+    rect(12, 12, 2, 11, "ochreDark"), rect(18, 12, 2, 11, "ochreDark"), rect(21, 13, 2, 6, "gold")])
+part("bug-armoured-shell", [poly([(3, 11), (10, 3), (22, 3), (30, 8), (31, 24), (22, 29), (10, 29), (3, 21)], "ink"),
+    poly([(5, 12), (11, 5), (21, 5), (28, 10), (29, 22), (21, 27), (11, 27), (5, 20)], "slateDark"),
+    poly([(13, 7), (22, 6), (28, 11), (28, 21), (22, 26), (13, 25)], "slate"),
+    rect(23, 10, 4, 13, "slateLight"), rect(12, 6, 3, 20, "metal"), rect(18, 9, 3, 3, "slateLight"), rect(18, 21, 3, 3, "slateLight")])
+part("bug-armoured-head", [rect(10, 11, 12, 11, "ink"), rect(12, 13, 8, 7, "slateDark"), rect(18, 12, 3, 2, "orange"), rect(18, 19, 3, 2, "orange")])
 
 part("bug-wing", [
     poly([(7, 15), (13, 7), (23, 4), (28, 8), (30, 14), (27, 21), (17, 24), (10, 20)], "oliveDark"),
