@@ -96,7 +96,7 @@ test("part speed ranks are independent, restored on re-equip, and reset for a ne
 });
 
 test("handling budgets and capped speed retain terrain advantages", () => {
-	expect(MOVEMENT.legs).toEqual({ firm: .9, mud: .25, rubble: 1.1 }); expect(MOVEMENT.wheels).toEqual({ firm: 1.5, mud: .375, rubble: .375 }); expect(MOVEMENT.treads).toEqual({ firm: .7, mud: .85, rubble: .7 });
+	expect(MOVEMENT.legs).toEqual({ firm: 1, mud: .25, rubble: 1 }); expect(MOVEMENT.wheels).toEqual({ firm: 1.5, mud: .375, rubble: .375 }); expect(MOVEMENT.treads).toEqual({ firm: .7, mud: .85, rubble: .7 });
 	for (const speeds of Object.values(MOVEMENT)) expect(Object.values(speeds).reduce((a, b) => a + b)).toBe(2.25);
 	const game = newGame(); deploy(game);
 	for (let rank = 1; rank <= MAX_SPEED_RANK; rank++) { buy(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * (1 + rank * SPEED_RANK_BONUS)); }
@@ -113,4 +113,21 @@ test("wheels and treads reuse attachment bones and upper-body animation without 
 		const state = { distance: 11, walkBlend: 1, moveAngle: .5, aimAngle: 2, shotAge: .03, time: 1 };
 		const pose = mechPose({ ...state, undercarriage }); expect(pose.footL.x).toBe(0); expect(pose.upper.angle).toBe(2); expect(pose.weapon).toEqual(mechPose(state).weapon);
 	}
+});
+
+
+test("terrain and activity pairings vary independently across runs and base visits", () => {
+	const pairs = new Map(["firm", "mud", "rubble"].map(terrain => [terrain, new Set()]));
+	const visits = new Set(), runs = new Set();
+	for (let seed = 1; seed <= 40; seed++) {
+		for (let cleared = 0; cleared < 12; cleared++) {
+			const choices = createHives(seed, cleared);
+			for (const hive of choices) pairs.get(terrainByPrevalence(hive.terrain)[0]).add(hive.activity);
+			const signature = choices.map(hive => `${terrainByPrevalence(hive.terrain)[0]}:${hive.activity}`).join();
+			if (seed === 1) visits.add(signature);
+			if (cleared === 0) runs.add(signature);
+		}
+	}
+	for (const activities of pairs.values()) expect(activities.size).toBe(3);
+	expect(visits.size).toBeGreaterThan(5); expect(runs.size).toBeGreaterThan(15);
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { BUG_NAMES, BUG_TYPES, defaultComposition } from "./debug";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, HeartPulse, Radio, Pause, Play, RotateCcw } from "lucide-react";
@@ -24,6 +25,8 @@ export function ExterminatorGame() {
 	const moveThumb = useRef<HTMLSpanElement>(null), aimThumb = useRef<HTMLSpanElement>(null), firstUpgrade = useRef<HTMLButtonElement>(null);
 	const runtime = useRef<ReturnType<typeof createExterminatorRuntime> | null>(null);
 	const [view, setView] = useState<ExterminatorView>(() => viewFromGame(newGame()));
+	const [composition, setComposition] = useState(defaultComposition);
+	const debugTotal = Object.values(composition).reduce((sum, count) => sum + count, 0);
 	const [loaded, setLoaded] = useState(false), [error, setError] = useState("");
 	useEffect(() => {
 		if (!canvas.current || !movePad.current || !aimPad.current || !moveThumb.current || !aimThumb.current) return;
@@ -47,7 +50,7 @@ export function ExterminatorGame() {
 		<section className={styles.game} aria-label="Exterminator survival game">
 			<div className={styles.hud}>
 				<div className={styles.health}><span className={styles.label}>Health <strong>{view.health}<small> / 100</small></strong></span><meter min={0} max={100} value={view.health} aria-label="Health" /></div>
-				<div><span className={styles.label}>{view.hive ? "Wave" : "Hives cleared"}</span><strong>{view.hive ? view.wave : view.hivesCleared}{view.hive && <small className={styles.waveTotal}> / {WAVES_PER_HIVE}</small>}</strong></div>
+				<div><span className={styles.label}>{view.hive ? "Wave" : "Hives cleared"}</span><strong>{view.hive ? view.wave : view.hivesCleared}{view.hive && !view.debug && <small className={styles.waveTotal}> / {WAVES_PER_HIVE}</small>}</strong></div>
 				<div><span className={styles.label}>Kills</span><strong>{view.kills}</strong></div>
 				<div className={styles.time}><span className={styles.label}>Survived</span><strong>{clock}</strong></div>
 				<div className={styles.actions}>
@@ -55,10 +58,15 @@ export function ExterminatorGame() {
 					<button disabled={!loaded || !!error} onClick={() => runtime.current?.action("restart")} aria-label="Restart game"><RotateCcw size={18} /></button>
 				</div>
 			</div>
+			{view.debug && <details className={styles.debug} open>
+				<summary>Debug / manual waves</summary>
+				<div className={styles.debugCounts}>{BUG_TYPES.map(type => <label key={type}>{BUG_NAMES[type]}<input aria-label={`${BUG_NAMES[type]} count`} type="number" min="0" max="100" step="1" value={composition[type]} onChange={event => setComposition(current => ({ ...current, [type]: Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))) }))} /></label>)}</div>
+				<div className={styles.debugActions}><button disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode) || debugTotal === 0 || debugTotal > 100} onClick={() => runtime.current?.debugWave(composition)}>Spawn wave ({debugTotal})</button><span>{view.hive ? "Replaces the current wave. Up to 100 bugs. Automatic waves are off." : "Deploy to a hive, then spawn a wave. Automatic waves are off."}</span></div>
+			</details>}
 			<div className={styles.economy}><span>Funds <strong>${view.money}</strong></span>{view.payment !== null ? <span>Job payment <strong>${view.payment}</strong></span> : view.lastJob ? <span>{view.lastJob.name} cleared · <strong>+${view.lastJob.payment}</strong></span> : <span>Clear a hive. Collect your payment.</span>}</div>
 			<div className={styles.stage} data-playing={!overlay}>
 				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Exterminator playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
-				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</span></>}</div>}
+				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.debug && view.enemies === 0 ? "Waiting for a custom wave" : <>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</>}</span></>}</div>}
 				<div ref={movePad} className={`${styles.joystick} ${styles.movePad}`} role="group" aria-label="Movement joystick"><span ref={moveThumb} className={styles.thumb}><ArrowUpRight size={21} /></span><span className={styles.stickLabel}>MOVE</span></div>
 				<div ref={aimPad} className={`${styles.joystick} ${styles.aimPad}`} role="group" aria-label="Aim joystick"><span ref={aimThumb} className={styles.thumb}><Crosshair size={21} /></span><span className={styles.stickLabel}>AIM</span></div>
 				{overlay && <div className={styles.overlay}>

@@ -26,7 +26,7 @@ the hive sensor is upgraded. Sensor rank 1 reveals activity, threat, and enemy
 counts per wave; rank 2 also reveals the second most prevalent terrain. Hints
 remain textual, without maps or coverage percentages. Activity changes enemy numbers, health, speed,
 and spawn pressure; threat increases as more hives are eradicated. Terrain and
-activity vary independently. Hive layouts are generated once per visit to base;
+activity are shuffled independently on each visit to base, from a fresh random seed for each run. This avoids fixed terrain/difficulty pairings while preserving three distinct terrain choices and activity levels. Hive layouts are generated once per visit to base;
 opening the workshop does not reroll them. Deployment uses the exact previewed
 layout, with a firm arrival zone at the arena center.
 
@@ -85,7 +85,7 @@ on all surfaces. These provisional multipliers apply after part speed upgrades:
 
 | Undercarriage | Firm | Mud | Rubble |
 | --- | --- | --- | --- |
-| Legs | 90% | 25% | 110% |
+| Legs | 100% | 25% | 100% |
 | Wheels | 150% | 37.5% | 37.5% |
 | Treads | 70% | 85% | 70% |
 
@@ -128,19 +128,20 @@ job 3, centipedes in job 4, and acid spitters in job 5. One spawn in each group 
 unlocked specialists, rotating by wave; the rest remain burrowers/winged chasers.
 Specialist health and movement scale with threat too. Provisional behavior:
 
-- **Lunger:** approaches to 180 units, locks its direction, and winds up for 1.15
+- **Lunger:** approaches to 180 units, winds up for 1.15
   seconds with a visible 310-unit attack corridor. It then lunges at 680 units/s,
   followed by a recovery pause. A quick mech can leave the entire attack range
-  during the windup; poor terrain handling makes this harder. Swept lunge contact
+  during the windup; the bug can adjust its aim at just 0.15 radians/s (about 10° over the full windup), then commits to a straight lunge. Poor terrain handling makes this harder. Swept lunge contact
   deals 30 damage; other contact deals 20.
 - **Evader:** predicts incoming bullet/rocket paths and sidesteps for 0.24 seconds,
   with a 0.65-second recovery between dodges. Receding/missing projectiles are
   ignored. Flame does not trigger dodging.
 - **Dung beetle:** retreats inside 240 units and approaches from beyond 340.
-  It stops to roll up a ball for 0.95 seconds, then lobs it at the player’s
+  It continuously rolls a ball while moving, even outside throwing range. After
+  0.95 seconds the ball is ready, and it lobs it immediately once the player is
+  within 380 units, targeting the player’s
   position at release. A fixed 38-radius landing marker gives 0.9 seconds to
-  escape before impact deals 20 damage. It recovers for 1.4 seconds between
-  throws. Balls do not track the mech, damage only once on landing, and clear
+  escape before impact deals 20 damage. It starts rolling its next ball immediately after every throw. Balls do not track the mech, damage only once on landing, and clear
   when a wave ends. A released ball survives its thrower until the wave clears.
 - **Acid spitter:** keeps its distance and seeks a position 90 units behind a
   nearby armoured bug relative to the mech. It shifts sideways out of cover
@@ -213,3 +214,19 @@ Each bug skin has subtle warm/cool alternatives for body, shell, head, and legs.
 An individual mixes those parts deterministically from its ID, retaining the same
 appearance through its spawn warning, movement, hit effects, and death. The visual
 choices do not alter health, movement, armour, collision shapes, or animation.
+
+## Debug waves
+
+Open `/exterminator#debug` to reveal the manual-wave panel. Choose a hive normally;
+deployment waits without spawning enemies. Set a count for each of the eight bug
+types and click **Spawn wave**. Counts must total 1–100. All types are available,
+including specialists not yet unlocked in the run. Custom waves retain normal
+spawn warnings, movement, combat, terrain, and part stats.
+
+Spawning replaces the current wave, including pending arrivals, enemies,
+projectiles, and cosmetic effects. It keeps the mech and its upgrades/health and
+works while paused without resuming. Clearing a debug wave waits for the next
+manual spawn; automatic progression and job completion are disabled. Restart
+keeps debug mode while the hash is present. Remove `#debug` to hide the panel and
+resume normal progression; queued debug arrivals are cancelled. The controls
+collapse to leave more room for the playfield on small screens.

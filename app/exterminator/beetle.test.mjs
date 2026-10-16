@@ -29,16 +29,16 @@ test("beetles retreat nearby, approach from far away, and hold their preferred t
 
 test("beetles visibly prepare a ball before throwing and commit to a fixed landing spot", () => {
 	const game = setup(), enemy = bug(game); advance(game, .5);
-	expect(enemy.state.phase).toBe("roll"); expect(enemy.state.remaining).toBe(BEETLE_ROLL_TIME);
-	advance(game, .8); expect(game.lobs).toHaveLength(0); expect(enemy.x).toBe(840);
-	advance(game, .2); expect(game.lobs).toHaveLength(1); expect(enemy.state.phase).toBe("recover");
+	expect(enemy.state.phase).toBe("roll"); expect(enemy.state.remaining).toBeCloseTo(BEETLE_ROLL_TIME - .5);
+	advance(game, .4); expect(game.lobs).toHaveLength(0); expect(enemy.x).toBe(840);
+	advance(game, .2); expect(game.lobs).toHaveLength(1); expect(enemy.state.phase).toBe("roll");
 	const target = { ...game.lobs[0].target }; advance(game, .4, { ...idle, move: { x: 0, y: 1 } });
 	expect(game.lobs[0].target).toEqual(target); expect(game.player.y).toBeGreaterThan(target.y); expect(game.lobs).toHaveLength(1);
 });
 
 test("lobs deal area damage once on landing, including the edge of the mech footprint", () => {
 	for (const offset of [0, BEETLE_BLAST_RADIUS + PLAYER_RADIUS - 1, BEETLE_BLAST_RADIUS + PLAYER_RADIUS + 1]) {
-		const game = setup(); bug(game); lob(game, { x: game.player.x + offset, y: game.player.y });
+		const game = setup(); const enemy = bug(game); enemy.state.remaining = 100; lob(game, { x: game.player.x + offset, y: game.player.y });
 		advance(game, BEETLE_FLIGHT_TIME - .05); expect(game.player.health).toBe(100);
 		advance(game, .1); expect(game.player.health).toBe(offset > BEETLE_BLAST_RADIUS + PLAYER_RADIUS ? 100 : 80);
 		const health = game.player.health; advance(game, .3); expect(game.player.health).toBe(health); expect(game.lobs).toHaveLength(0);
@@ -73,4 +73,13 @@ test("beetles unlock on job three and remain in the specialist rotation thereaft
 		const variants = Array.from({ length: 60 }, (_, i) => bugForSpawn(cleared, 1, i));
 		expect(variants.includes("beetle")).toBe(cleared >= 2);
 	}
+});
+
+
+test("beetles prepare while out of range and release a ready ball immediately on entering range", () => {
+	const game = setup(), enemy = bug(game, "beetle", 1050); enemy.speed = 0;
+	advance(game, BEETLE_ROLL_TIME + .2); expect(enemy.state.phase).toBe("ready"); expect(game.lobs).toHaveLength(0);
+	enemy.x = game.player.x + 350; step(game, idle, 1 / 120);
+	expect(game.lobs).toHaveLength(1); expect(enemy.state.phase).toBe("roll"); expect(enemy.state.remaining).toBe(BEETLE_ROLL_TIME);
+	advance(game, .5); expect(enemy.state.remaining).toBeCloseTo(BEETLE_ROLL_TIME - .5);
 });

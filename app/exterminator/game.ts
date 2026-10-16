@@ -43,6 +43,7 @@ export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: 
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type BugRemains = Vector & { id: number; variant: BugVariant; angle: number; diedAt: number; segments: Vector[] };
 export type Game = {
+	debug: { queue: BugVariant[]; total: number } | null;
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
 	enemies: Enemy[]; acid: Acid[]; acidImpacts: AcidImpact[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
@@ -69,7 +70,7 @@ export function playerStats(game: Game) {
 
 export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	return {
-		hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage, weapon: "cannon",
+		debug: null, hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage, weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
@@ -121,7 +122,7 @@ export function chooseHive(game: Game, id: string) {
 	if (!hive) return;
 	game.lastJob = null;
 	game.hive = hive; game.terrain = hive.terrain; game.hives = [];
-	game.wave = 1; game.toSpawn = waveSize(1, hive.threat); game.spawnTimer = .5; game.intermission = 0; game.shotTimer = 0;
+	game.wave = 1; game.toSpawn = game.debug ? 0 : waveSize(1, hive.threat); game.spawnTimer = .5; game.intermission = 0; game.shotTimer = 0;
 	Object.assign(game.player, { x: FIELD.width / 2, y: FIELD.height / 2, walkBlend: 0, invulnerable: 0, shotAt: -10 });
 	game.mode = "playing";
 }
@@ -141,14 +142,15 @@ function random(game: Game) {
 }
 function warnSpawn(game: Game) {
 	// Every third warning puts pressure on the current position; the rest cover the whole arena.
-	const nearPlayer = (waveSize(game.wave, game.hive?.threat) - game.toSpawn) % 3 === 2;
+	const index = (game.debug?.total ?? waveSize(game.wave, game.hive?.threat)) - game.toSpawn;
+	const nearPlayer = index % 3 === 2;
 	const angle = nearPlayer ? random(game) * Math.PI * 2 : 0;
 	const radius = nearPlayer ? Math.sqrt(random(game)) * 90 : 0;
 	const position = nearPlayer ? {
 		x: clamp(game.player.x + Math.cos(angle) * radius, ENEMY_RADIUS, FIELD.width - ENEMY_RADIUS),
 		y: clamp(game.player.y + Math.sin(angle) * radius, ENEMY_RADIUS, FIELD.height - ENEMY_RADIUS),
 	} : { x: ENEMY_RADIUS + random(game) * (FIELD.width - ENEMY_RADIUS * 2), y: ENEMY_RADIUS + random(game) * (FIELD.height - ENEMY_RADIUS * 2) };
-	const variant = bugForSpawn(game.hivesCleared, game.wave, waveSize(game.wave, game.hive?.threat) - game.toSpawn);
+	const variant = game.debug ? game.debug.queue.shift()! : bugForSpawn(game.hivesCleared, game.wave, index);
 	game.spawns.push({ ...position, id: game.nextId++, remaining: SPAWN_WARNING_TIME, variant });
 }
 function spawnEnemy(game: Game, warning: SpawnWarning) {
@@ -326,7 +328,7 @@ export function step(game: Game, input: Input, dt: number) {
 		player.invulnerable = .9;
 		if (player.health === 0) { game.mode = "dead"; return; }
 	}
-	if (waveCleared && game.intermission === 0) {
+	if (waveCleared && game.intermission === 0 && !game.debug) {
 		game.intermission = 3;
 	}
 }
