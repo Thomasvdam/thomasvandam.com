@@ -64,7 +64,7 @@ export function mechPose(state: { distance: number; walkBlend: number; moveAngle
 		cooler: { y: Math.sin(state.time * 6) * .3 + recoil * .7 },
 	};
 }
-export function bugPose(state: { distance: number; angle: number; time: number; spawnProgress?: number; deathProgress?: number; rolling?: boolean }): Pose {
+export function bugPose(state: { distance: number; angle: number; time: number; spawnProgress?: number; deathProgress?: number; rolling?: boolean; spitCharge?: number }): Pose {
 	const phase = state.distance / 32 * Math.PI * 2;
 	const spawn = state.spawnProgress ?? 1, death = state.deathProgress ?? 0;
 	const pose: Record<string, Transform> = {
@@ -77,6 +77,10 @@ export function bugPose(state: { distance: number; angle: number; time: number; 
 	for (let side = 0; side < 2; side++) for (let row = 0; row < 3; row++) {
 		const stride = Math.sin(phase + (side + row) % 2 * Math.PI);
 		pose[`leg${side === 0 ? "L" : "R"}${row}`] = { angle: stride * .17 + (side === 0 ? 1 : -1) * death * .9, x: stride * .7, scaleX: 1 - death * .25 };
+	}
+	if (state.spitCharge) {
+		pose.shell = { ...pose.shell, scaleY: 1 + state.spitCharge * .16 };
+		pose.head = { ...pose.head, x: -state.spitCharge * 2, scaleX: 1 + state.spitCharge * .12 };
 	}
 	if (state.rolling) {
 		const roll = .65 + Math.sin(state.time * 16) * .15;

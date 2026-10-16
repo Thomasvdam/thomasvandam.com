@@ -1,11 +1,12 @@
+import { stepAcidSpitter } from "./acid";
 import type { Bullet, Game, Vector } from "./game";
 
-export type BugVariant = "burrower" | "flyer" | "lunger" | "evader" | "centipede" | "armoured" | "beetle";
+export type BugVariant = "burrower" | "flyer" | "lunger" | "evader" | "centipede" | "armoured" | "beetle" | "spitter";
 export const BUG_SPECS: Record<BugVariant, { health: number; speed: number; radius: number }> = {
 	burrower: { health: 1, speed: 60, radius: 15 }, flyer: { health: 1, speed: 60, radius: 15 },
 	lunger: { health: 3, speed: 68, radius: 15 }, evader: { health: 2, speed: 76, radius: 13 },
 	centipede: { health: 7, speed: 104, radius: 12 }, armoured: { health: 5, speed: 54, radius: 18 },
-	beetle: { health: 3, speed: 88, radius: 16 },
+	beetle: { health: 3, speed: 88, radius: 16 }, spitter: { health: 3, speed: 100, radius: 15 },
 };
 export const BEETLE_ROLL_TIME = .95;
 export const BEETLE_FLIGHT_TIME = .9;
@@ -27,7 +28,8 @@ export type Enemy = EnemyBase & (
 	{ variant: "evader"; state: { phase: "chase" | "dodge"; remaining: number; cooldown: number; direction: Vector } } |
 	{ variant: "centipede"; state: { segments: Vector[] } } |
 	{ variant: "armoured"; state: { phase: "chase" } } |
-	{ variant: "beetle"; state: { phase: "seek" | "roll" | "recover"; remaining: number } }
+	{ variant: "beetle"; state: { phase: "seek" | "roll" | "recover"; remaining: number } } |
+	{ variant: "spitter"; state: { phase: "cover" | "peek" | "windup"; remaining: number; coverId: number | null; side: number; target: Vector } }
 );
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 export const angleDifference = (target: number, current: number) => Math.atan2(Math.sin(target - current), Math.cos(target - current));
@@ -38,6 +40,7 @@ export function bugForSpawn(cleared: number, wave: number, index: number): BugVa
 	if (cleared >= 1) specialists.push("evader");
 	if (cleared >= 2) specialists.push("armoured", "beetle");
 	if (cleared >= 3) specialists.push("centipede");
+	if (cleared >= 4) specialists.push("spitter");
 	return specialists[(Math.floor(index / 3) + wave - 1) % specialists.length];
 }
 export function createBug(options: { variant: BugVariant; id: number; position: Vector; player: Vector; threat: number; wave: number; time: number; bounds: Bounds }): Enemy {
@@ -45,6 +48,7 @@ export function createBug(options: { variant: BugVariant; id: number; position: 
 	const angle = Math.atan2(player.y - position.y, player.x - position.x);
 	const health = spec.health * (1 + Math.floor((threat - 1) / 2));
 	const base = { x: clamp(position.x, spec.radius, bounds.width - spec.radius), y: clamp(position.y, spec.radius, bounds.height - spec.radius), id, health, maxHealth: health, speed: Math.min(variant === "armoured" ? 85 : 160, spec.speed + threat * (variant === "armoured" ? 2 : 5) + wave * 3), angle, walkDistance: 12, bornAt: time, hitAt: -10, blockedAt: -10 };
+	if (variant === "spitter") return { ...base, variant, state: { phase: "cover", remaining: .6, coverId: null, side: id % 2 ? 1 : -1, target: { ...player } } };
 	if (variant === "beetle") return { ...base, variant, state: { phase: "seek", remaining: .5 } };
 	if (variant === "lunger") return { ...base, variant, state: { phase: "approach", remaining: 0, direction: angle, distance: 0 } };
 	if (variant === "evader") return { ...base, variant, state: { phase: "chase", remaining: 0, cooldown: 0, direction: { x: 0, y: 0 } } };
@@ -92,7 +96,9 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 		if (enemy.health <= 0) continue;
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
 		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
-		if (enemy.variant === "lunger") {
+		if (enemy.variant === "spitter") {
+			stepAcidSpitter(game, enemy, dt, bounds);
+		} else if (enemy.variant === "lunger") {
 			const state = enemy.state;
 			if (state.phase === "approach") {
 				enemy.angle = desired;

@@ -1,3 +1,4 @@
+import { ACID_RADIUS } from "./acid";
 import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, frontArmour, resolveBarriers, separateBugs, stepBugs, type BugVariant, type Enemy } from "./bugs";
 import { WEAPONS, weaponSpec, weaponStats, weaponModLimit, type Weapon, type WeaponRanks } from "./weapons";
 import { createHives, type Hive } from "./hives";
@@ -34,6 +35,8 @@ export function workshopServices(game: Game) {
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number; weapon: Exclude<Weapon, "flamethrower">; blastRadius: number };
+export type Acid = Vector & { id: number; owner: number; vx: number; vy: number; life: number };
+export type AcidImpact = Vector & { id: number; bornAt: number };
 export type Lob = Vector & { id: number; target: Vector; age: number };
 export type Explosion = Vector & { id: number; radius: number; bornAt: number };
 export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: number };
@@ -42,7 +45,7 @@ export type BugRemains = Vector & { id: number; variant: BugVariant; angle: numb
 export type Game = {
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
-	enemies: Enemy[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
+	enemies: Enemy[]; acid: Acid[]; acidImpacts: AcidImpact[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
 	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage; weapon: Weapon;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	money: number; lastJob: { name: string; payment: number } | null; kills: number; time: number;
@@ -68,7 +71,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	return {
 		hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage, weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
-		enemies: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
+		enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
 		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
@@ -128,7 +131,7 @@ function returnToBase(game: Game) {
 	game.lastJob = { name: game.hive.name, payment: game.hive.payment };
 	game.hivesCleared++;
 	game.hive = null; game.hives = createHives(game.runSeed, game.hivesCleared);
-	game.lobs = []; game.bullets = []; game.remains = []; game.explosions = []; game.deflections = []; game.toSpawn = 0; game.intermission = 0;
+	game.acid = []; game.acidImpacts = []; game.lobs = []; game.bullets = []; game.remains = []; game.explosions = []; game.deflections = []; game.toSpawn = 0; game.intermission = 0;
 	game.mode = "base";
 }
 
@@ -151,10 +154,10 @@ function warnSpawn(game: Game) {
 function spawnEnemy(game: Game, warning: SpawnWarning) {
 	game.enemies.push(createBug({ variant: warning.variant, id: warning.id, position: warning, player: game.player, threat: game.hive?.threat ?? 1, wave: game.wave, time: game.time, bounds: FIELD }));
 }
-function circleHitTime(bullet: Bullet, enemy: Vector, enemyRadius: number, previous: Vector) {
+function circleHitTime(bullet: Vector, enemy: Vector, enemyRadius: number, previous: Vector, projectileRadius = 4) {
 	// First circle intersection along the swept path, independent of enemy array order.
 	const dx = bullet.x - previous.x, dy = bullet.y - previous.y;
-	const ox = previous.x - enemy.x, oy = previous.y - enemy.y, radius = enemyRadius + 4;
+	const ox = previous.x - enemy.x, oy = previous.y - enemy.y, radius = enemyRadius + projectileRadius;
 	const c = ox * ox + oy * oy - radius * radius;
 	if (c <= 0) return 0;
 	const a = dx * dx + dy * dy, b = ox * dx + oy * dy;
@@ -163,10 +166,10 @@ function circleHitTime(bullet: Bullet, enemy: Vector, enemyRadius: number, previ
 	const t = (-b - Math.sqrt(discriminant)) / a;
 	return t >= 0 && t <= 1 ? t : Infinity;
 }
-function bulletHitTime(bullet: Bullet, enemy: Enemy, previous: Vector) {
+function bulletHitTime(bullet: Vector, enemy: Enemy, previous: Vector, projectileRadius = 4) {
 	const radius = BUG_SPECS[enemy.variant].radius;
-	let time = circleHitTime(bullet, enemy, radius, previous);
-	if (enemy.variant === "centipede") for (const segment of enemy.state.segments) time = Math.min(time, circleHitTime(bullet, segment, radius, previous));
+	let time = circleHitTime(bullet, enemy, radius, previous, projectileRadius);
+	if (enemy.variant === "centipede") for (const segment of enemy.state.segments) time = Math.min(time, circleHitTime(bullet, segment, radius, previous, projectileRadius));
 	return time;
 }
 function deflect(game: Game, bullet: Bullet, enemy: Enemy) {
@@ -218,6 +221,7 @@ export function step(game: Game, input: Input, dt: number) {
 	if (game.mode !== "playing" || !Number.isFinite(dt) || dt <= 0) return;
 	dt = Math.min(dt, 1 / 30);
 	game.time += dt;
+	game.acidImpacts = game.acidImpacts.filter(impact => game.time - impact.bornAt < .25);
 	game.deflections = game.deflections.filter(effect => game.time - effect.bornAt < .18);
 	game.explosions = game.explosions.filter(explosion => game.time - explosion.bornAt < .35);
 	game.remains = game.remains.filter(remains => game.time - remains.diedAt < .5);
@@ -291,7 +295,22 @@ export function step(game: Game, input: Input, dt: number) {
 		return false;
 	});
 	const waveCleared = game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.length === 0;
-	if (waveCleared) game.lobs = [];
+	if (waveCleared) { game.lobs = []; game.acid = []; }
+	game.acid = game.acid.filter(acid => {
+		const previous = { x: acid.x, y: acid.y }, travelTime = Math.min(dt, acid.life);
+		acid.x += acid.vx * travelTime; acid.y += acid.vy * travelTime; acid.life -= dt;
+		const playerHit = circleHitTime(acid, player, PLAYER_RADIUS, previous, ACID_RADIUS);
+		let bugHit = Infinity;
+		for (const enemy of game.enemies) if (enemy.id !== acid.owner && enemy.health > 0) bugHit = Math.min(bugHit, bulletHitTime(acid, enemy, previous, ACID_RADIUS));
+		const hit = Math.min(playerHit, bugHit);
+		if (hit < Infinity) {
+			if (playerHit < bugHit && player.invulnerable === 0) { player.health = Math.max(0, player.health - 20); player.invulnerable = .9; }
+			game.acidImpacts.push({ id: acid.id, x: previous.x + (acid.x - previous.x) * hit, y: previous.y + (acid.y - previous.y) * hit, bornAt: game.time });
+			if (game.acidImpacts.length > 64) game.acidImpacts.shift();
+			return false;
+		}
+		return acid.life > 0 && acid.x >= 0 && acid.y >= 0 && acid.x <= FIELD.width && acid.y <= FIELD.height;
+	});
 	game.lobs = game.lobs.filter(lob => {
 		const previousAge = lob.age; lob.age += dt;
 		if (previousAge < BEETLE_FLIGHT_TIME && lob.age >= BEETLE_FLIGHT_TIME && player.invulnerable === 0 && Math.hypot(player.x - lob.target.x, player.y - lob.target.y) <= BEETLE_BLAST_RADIUS + PLAYER_RADIUS) {

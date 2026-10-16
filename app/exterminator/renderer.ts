@@ -1,3 +1,4 @@
+import { ACID_WINDUP } from "./acid";
 import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS, LUNGE_DISTANCE, LUNGE_WINDUP, ARMOUR_HALF_ANGLE, type BugVariant } from "./bugs";
 import { weaponStats } from "./weapons";
 import { TILE_SIZE, TERRAIN_COLUMNS } from "./terrain";
@@ -73,7 +74,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.save(); ctx.globalAlpha *= opacity; ctx.fillStyle = "#040b09";
 		ctx.beginPath(); ctx.ellipse(x, y + 4, radius, radius * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	};
-	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = [], rolling = false) => {
+	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = [], rolling = false, spitCharge = 0) => {
 		const skin = bugSkin(variant, appearance);
 		if (variant === "centipede") {
 			for (let i = segments.length - 1; i >= 0; i--) {
@@ -82,7 +83,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 				drawRig(ctx, sprites, BUG_RIG, { ...skin, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8, flash);
 			}
 		}
-		drawRig(ctx, sprites, BUG_RIG, skin, bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress, rolling }), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
+		drawRig(ctx, sprites, BUG_RIG, skin, bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge }), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
 	};
 	for (const remains of game.remains) {
 		if (!visible(remains.x, remains.y) && !(remains.variant === "centipede" && remains.segments.some(segment => visible(segment.x, segment.y)))) continue;
@@ -116,6 +117,20 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		const age = game.time - effect.bornAt, x = effect.x + effect.vx * age, y = effect.y + effect.vy * age;
 		ctx.save(); ctx.globalAlpha = 1 - age / .18; ctx.strokeStyle = "#e9df9c"; ctx.lineWidth = 2;
 		ctx.beginPath(); ctx.moveTo(x - effect.vx * .035, y - effect.vy * .035); ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
+	}
+	for (const acid of game.acid) {
+		if (!visible(acid.x, acid.y, 25)) continue;
+		ctx.save(); ctx.translate(acid.x, acid.y); ctx.rotate(Math.atan2(acid.vy, acid.vx));
+		ctx.strokeStyle = "#bce36377"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-17, 0); ctx.lineTo(-5, 0); ctx.stroke();
+		ctx.drawImage(sprites.acid, -10, -8, 20, 16); ctx.restore();
+	}
+	for (const impact of game.acidImpacts) {
+		const progress = (game.time - impact.bornAt) / .25;
+		ctx.save(); ctx.globalAlpha = 1 - progress; ctx.fillStyle = "#bce363";
+		for (let i = 0; i < 7; i++) {
+			const angle = i * Math.PI * 2 / 7 + impact.id, radius = 4 + progress * 14;
+			ctx.fillRect(impact.x + Math.cos(angle) * radius - 2, impact.y + Math.sin(angle) * radius - 2, 4, 4);
+		} ctx.restore();
 	}
 	for (const bullet of game.bullets) {
 		if (!visible(bullet.x, bullet.y, 20)) continue;
@@ -198,6 +213,12 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			ctx.save(); ctx.strokeStyle = game.time - enemy.blockedAt < .12 ? "#f4e7a6" : "#a5b8ad88"; ctx.lineWidth = 3;
 			ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 24, enemy.angle - ARMOUR_HALF_ANGLE, enemy.angle + ARMOUR_HALF_ANGLE); ctx.stroke(); ctx.restore();
 		}
+		const spitCharge = enemy.variant === "spitter" && enemy.state.phase === "windup" ? 1 - enemy.state.remaining / ACID_WINDUP : 0;
+		if (enemy.variant === "spitter" && enemy.state.phase === "windup") {
+			ctx.save(); ctx.strokeStyle = "#bce36388"; ctx.lineWidth = 1 + spitCharge; ctx.setLineDash([3, 7]);
+			ctx.beginPath(); ctx.moveTo(enemy.x, enemy.y); ctx.lineTo(enemy.state.target.x, enemy.state.target.y); ctx.stroke(); ctx.setLineDash([]);
+			ctx.fillStyle = "#d7ee84"; ctx.beginPath(); ctx.arc(enemy.x + Math.cos(enemy.angle) * 24, enemy.y + Math.sin(enemy.angle) * 24, 2 + spitCharge * 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+		}
 		const segments = enemy.variant === "centipede" ? enemy.state.segments : [];
 		for (const segment of segments) shadow(segment.x, segment.y, 14);
 		shadow(enemy.x, enemy.y, BUG_SPECS[enemy.variant].radius + 7);
@@ -205,7 +226,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		if (enemy.variant === "lunger" && enemy.state.phase === "windup") {
 			ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.angle); ctx.scale(.85, 1.12); ctx.rotate(-enemy.angle); ctx.translate(-enemy.x, -enemy.y);
 		}
-		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle" && enemy.state.phase === "roll");
+		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle" && enemy.state.phase === "roll", spitCharge);
 		ctx.restore();
 		if (enemy.variant === "beetle" && enemy.state.phase === "roll") {
 			const progress = 1 - enemy.state.remaining / BEETLE_ROLL_TIME, size = 5 + progress * 15;

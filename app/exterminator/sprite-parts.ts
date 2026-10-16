@@ -120,6 +120,19 @@ export const SPRITE_PARTS = {
 	bugBeetleLegB: { ...hinged, path: "/images/exterminator/parts/bug-beetle-leg-b.png" },
 	bugBeetleLegC: { ...hinged, path: "/images/exterminator/parts/bug-beetle-leg-c.png" },
 	dungBall: { ...centered, path: "/images/exterminator/dung-ball.png" },
+	bugSpitterBody: { ...centered, path: "/images/exterminator/parts/bug-spitter-body.png" },
+	bugSpitterBodyB: { ...centered, path: "/images/exterminator/parts/bug-spitter-body-b.png" },
+	bugSpitterBodyC: { ...centered, path: "/images/exterminator/parts/bug-spitter-body-c.png" },
+	bugSpitterShell: { ...centered, path: "/images/exterminator/parts/bug-spitter-shell.png" },
+	bugSpitterShellB: { ...centered, path: "/images/exterminator/parts/bug-spitter-shell-b.png" },
+	bugSpitterShellC: { ...centered, path: "/images/exterminator/parts/bug-spitter-shell-c.png" },
+	bugSpitterHead: { ...centered, path: "/images/exterminator/parts/bug-spitter-head.png" },
+	bugSpitterHeadB: { ...centered, path: "/images/exterminator/parts/bug-spitter-head-b.png" },
+	bugSpitterHeadC: { ...centered, path: "/images/exterminator/parts/bug-spitter-head-c.png" },
+	bugSpitterLeg: { ...hinged, path: "/images/exterminator/parts/bug-spitter-leg.png" },
+	bugSpitterLegB: { ...hinged, path: "/images/exterminator/parts/bug-spitter-leg-b.png" },
+	bugSpitterLegC: { ...hinged, path: "/images/exterminator/parts/bug-spitter-leg-c.png" },
+	acid: { ...centered, path: "/images/exterminator/acid.png" },
 	bugWing: { ...hinged, path: "/images/exterminator/parts/bug-wing.png" },
 	rocket: { ...centered, path: "/images/exterminator/rocket.png" },
 	flame: { ...centered, path: "/images/exterminator/flame.png" },
@@ -149,6 +162,7 @@ export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage =
 	};
 }
 export const BUG_SKINS: Record<BugVariant, Skin> = {
+	spitter: { body: "bugSpitterBody", shell: "bugSpitterShell", head: "bugSpitterHead", legs: "bugSpitterLeg" },
 	beetle: { body: "bugBeetleBody", shell: "bugBeetleShell", head: "bugBeetleHead", legs: "bugBeetleLeg" },
 	burrower: { body: "bugRustBody", shell: "bugRustShell", head: "bugRustHead", legs: "bugRustLeg" },
 	flyer: { body: "bugOliveBody", shell: "bugOliveShell", head: "bugOliveHead", legs: "bugOliveLeg", wings: "bugWing" },
@@ -158,6 +172,10 @@ export const BUG_SKINS: Record<BugVariant, Skin> = {
 	armoured: { body: "bugArmouredBody", shell: "bugArmouredShell", head: "bugArmouredHead", legs: "bugArmouredLeg" },
 };
 const BUG_PART_VARIANTS: Partial<Record<SpritePart, readonly SpritePart[]>> = {
+	bugSpitterBody: ["bugSpitterBody", "bugSpitterBodyB", "bugSpitterBodyC"],
+	bugSpitterShell: ["bugSpitterShell", "bugSpitterShellB", "bugSpitterShellC"],
+	bugSpitterHead: ["bugSpitterHead", "bugSpitterHeadB", "bugSpitterHeadC"],
+	bugSpitterLeg: ["bugSpitterLeg", "bugSpitterLegB", "bugSpitterLegC"],
 	bugBeetleBody: ["bugBeetleBody", "bugBeetleBodyB", "bugBeetleBodyC"],
 	bugBeetleShell: ["bugBeetleShell", "bugBeetleShellB", "bugBeetleShellC"],
 	bugBeetleHead: ["bugBeetleHead", "bugBeetleHeadB", "bugBeetleHeadC"],

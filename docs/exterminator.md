@@ -124,7 +124,7 @@ and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 
 
 Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs and dung beetles in
-job 3, and centipedes in job 4. One spawn in each group of three is drawn from the
+job 3, centipedes in job 4, and acid spitters in job 5. One spawn in each group of three is drawn from the
 unlocked specialists, rotating by wave; the rest remain burrowers/winged chasers.
 Specialist health and movement scale with threat too. Provisional behavior:
 
@@ -142,6 +142,15 @@ Specialist health and movement scale with threat too. Provisional behavior:
   escape before impact deals 20 damage. It recovers for 1.4 seconds between
   throws. Balls do not track the mech, damage only once on landing, and clear
   when a wave ends. A released ball survives its thrower until the wave clears.
+- **Acid spitter:** keeps its distance and seeks a position 90 units behind a
+  nearby armoured bug relative to the mech. It shifts sideways out of cover
+  for a clear lane, telegraphs its fixed aim for 0.55 seconds, then spits a
+  straight projectile at 300 units/s. Acid deals 20 damage on impact, stops on
+  other live bugs (including centipede segments) without hurting them, and
+  expires after 2.2 seconds. The spitter rechecks the lane before firing and
+  returns to cover during its 1.6-second recovery. Without usable armour it
+  kites at 240–330 units and sidesteps blocked lanes. Cover follows the player
+  and shield positions; dead or unusable shields are replaced or abandoned.
 - **Centipede:** circles the mech and trails seven solid segments behind its head.
   Its base speed is 104 (112 in the first threat/wave), up from 78.
   The body blocks movement, deals no contact damage, and can be shot anywhere.
@@ -173,6 +182,7 @@ sticks must return to neutral before movement resumes.
 ## Code and sprites
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
+- `acid.ts`: spitter cover/peek behavior, firing lanes, and acid tuning.
 - `bugs.ts`: specialist states, spawning, movement, hit geometry, and barriers.
 - `weapons.ts`: weapon definitions, upgrade descriptions, and derived combat stats.
 - `hives.ts`: deterministic mission choices and activity/terrain previews.
@@ -185,7 +195,7 @@ sticks must return to neutral before movement resumes.
 Parts live in `public/images/exterminator/parts/`. Regenerate them and homepage thumbnails
 with `python3 tools/generate-exterminator-sprites.py`. Walking follows distance traveled;
 torso aiming and recoil remain independent of the base. Wheel/tread stages share
-distance-driven tread marks. All seven bug skins share walking/hit/death animations. The centipede repeats the
+distance-driven tread marks. All eight bug skins share walking/hit/death animations. The centipede repeats the
 same registered body/leg parts along its simulated chain. Burrowing arrivals
 share the reveal pose; the winged chaser lands and folds its optional wings.
 See [the animation guide](exterminator-animation.md) for replacing parts without new rigs.
@@ -197,7 +207,7 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, seven bug variants, and no audio. There is no saved progression between runs.
+Tuning is provisional. This version has four weapons, eight bug variants, and no audio. There is no saved progression between runs.
 
 Each bug skin has subtle warm/cool alternatives for body, shell, head, and legs.
 An individual mixes those parts deterministically from its ID, retaining the same
