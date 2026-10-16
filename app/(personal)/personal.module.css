@@ -352,9 +352,9 @@
 	.phaseTen .coverBottom { font-size: 9px; letter-spacing: 0; }
 }
 
-.arena { background: #1c2824; color: #e5e8d7; }
-.arenaField { position: absolute; right: -14px; top: 95px; width: 200px; height: 150px; transform: rotate(-15deg); border: 1px solid #547186; background: linear-gradient(#a6e9ed14 1px, transparent 1px), linear-gradient(90deg, #a6e9ed14 1px, transparent 1px); background-size: 30px 30px; }
-.arenaField i { position: absolute; width: 36px; height: 36px; background: url('/images/arena/enemy.png') center / contain no-repeat; image-rendering: pixelated; }
-.arenaField i:nth-child(1) { left: 65px; top: 55px; background-image: url('/images/arena/player.png'); transform: rotate(-35deg); }
-.arenaField i:nth-child(2) { right: 15px; top: 15px; }
-.arenaField i:nth-child(3) { left: 15px; bottom: 15px; background-image: url('/images/arena/flyer.png'); }
+.exterminator { background: #1c2824; color: #e5e8d7; }
+.exterminatorField { position: absolute; right: -14px; top: 95px; width: 200px; height: 150px; transform: rotate(-15deg); border: 1px solid #547186; background: linear-gradient(#a6e9ed14 1px, transparent 1px), linear-gradient(90deg, #a6e9ed14 1px, transparent 1px); background-size: 30px 30px; }
+.exterminatorField i { position: absolute; width: 36px; height: 36px; background: url('/images/exterminator/enemy.png') center / contain no-repeat; image-rendering: pixelated; }
+.exterminatorField i:nth-child(1) { left: 65px; top: 55px; background-image: url('/images/exterminator/player.png'); transform: rotate(-35deg); }
+.exterminatorField i:nth-child(2) { right: 15px; top: 15px; }
+.exterminatorField i:nth-child(3) { left: 15px; bottom: 15px; background-image: url('/images/exterminator/flyer.png'); }

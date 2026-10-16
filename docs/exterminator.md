@@ -1,6 +1,6 @@
-# Arena foundation
+# Exterminator foundation
 
-Visit `/arena`. Start a run, choose a hive at base, and eradicate its three waves.
+Visit `/exterminator`. Start a run, choose a hive at base, and eradicate its three waves.
 Return to base, optionally refit in the workshop, and choose another hive.
 Health does not refill automatically at base; full repairs can be purchased with a banked upgrade. XP, level, and part upgrades last for the current
 run; death/restart creates a fresh mech and inventory.
@@ -120,18 +120,18 @@ sticks must return to neutral before movement resumes.
 - `controls.ts`, `camera.ts`, `runtime.ts`: input, camera, lifecycle, and menus.
 - `renderer.ts`: Canvas 2D combat and workshop-pad rendering.
 - `animation.ts`, `sprite-parts.ts`: shared rigs, poses, and registered PNG parts.
-- `arena-game.tsx`: HUD, hive selection, workshop, and upgrade screens.
+- `exterminator-game.tsx`: HUD, hive selection, workshop, and upgrade screens.
 
-Parts live in `public/images/arena/parts/`. Regenerate them and homepage thumbnails
-with `python3 tools/generate-arena-sprites.py`. Walking follows distance traveled;
+Parts live in `public/images/exterminator/parts/`. Regenerate them and homepage thumbnails
+with `python3 tools/generate-exterminator-sprites.py`. Walking follows distance traveled;
 torso aiming and recoil remain independent of the base. Wheel/tread stages share
 distance-driven tread marks. Both bug skins share walking/hit/death animations;
 one burrows during its warning, and the other lands and folds its optional wings.
-See [the animation guide](arena-animation.md) for replacing parts without new rigs.
+See [the animation guide](exterminator-animation.md) for replacing parts without new rigs.
 
 ## Validation
 
-`bun test app/arena` covers combat, XP, input mapping, camera, hive/base/workshop
+`bun test app/exterminator` covers combat, XP, input mapping, camera, hive/base/workshop
 transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
