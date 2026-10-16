@@ -147,6 +147,30 @@ for name, barrel, accent, twin in [
         layers += [rect(18, 15, 10, 2, "ink"), rect(24, 10, 3, 3, "gold"), rect(24, 21, 3, 2, "gold")]
     part(name, layers)
 
+# Alternate weapons share the same weapon bone, pivot, and upgrade stages.
+for stage, accent in [("", "metal"), ("heavy-", "gold"), ("siege-", "orange")]:
+    for weapon in ["shotgun", "rpg", "flamethrower"]:
+        layers = [rect(6, 10, 13, 13, "ink"), rect(8, 12, 9, 9, "steel"),
+                  rect(9, 12, 7, 3, accent)]
+        if weapon == "shotgun":
+            layers += [rect(15, 10, 13, 13, "ink"), rect(16, 11, 10, 11, "metal"),
+                       rect(19, 12, 8, 3, "joint"), rect(19, 18, 8, 3, "joint"),
+                       rect(25, 11, 3, 11, accent)]
+        elif weapon == "rpg":
+            layers += [rect(3, 12, 26, 9, "ink"), rect(4, 13, 24, 7, "armor"),
+                       rect(22, 11, 7, 11, "ink"), rect(23, 12, 5, 9, accent),
+                       rect(26, 13, 2, 7, "joint"), rect(4, 13, 3, 7, "orange")]
+        else:
+            layers += [rect(13, 11, 16, 11, "ink"), rect(15, 13, 12, 7, "metal"),
+                       rect(23, 12, 6, 9, accent), rect(26, 14, 3, 5, "joint"),
+                       rect(5, 19, 11, 7, "ink"), rect(6, 20, 9, 5, "rust"),
+                       rect(8, 20, 5, 2, "orange")]
+        if stage:
+            layers += [rect(9, 18, 3, 3, accent), rect(13, 18, 2, 3, "white")]
+        if stage == "siege-":
+            layers += [rect(17, 8, 7, 3, "ink"), rect(18, 9, 5, 2, accent)]
+        part(f"mech-{stage}{weapon}", layers)
+
 for name, length, accent in [("mech-cooler", 8, "steel"), ("mech-vent-cooler", 12, "gold"), ("mech-twin-cooler", 16, "orange")]:
     layers = [rect(16 - length // 2, 12, length, 10, "ink"), rect(17 - length // 2, 13, length - 2, 7, accent)]
     for x in range(18 - length // 2, 15 + length // 2, 3):
@@ -187,6 +211,8 @@ part("bug-wing", [
     poly([(10, 16), (26, 13), (26, 14), (11, 18)], "olive"),
     poly([(16, 13), (18, 21), (16, 21), (14, 14)], "olive"),
 ])
+save("rocket", board([rect(5, 12, 19, 9, "ink"), rect(8, 13, 15, 7, "metal"), poly([(23, 12), (30, 16), (23, 21)], "orange"), rect(3, 14, 6, 5, "gold"), rect(10, 10, 5, 3, "armor"), rect(10, 21, 5, 3, "armor")]))
+save("flame", board([poly([(2, 16), (11, 11), (15, 4), (20, 11), (26, 8), (30, 17), (25, 24), (16, 29), (6, 23)], "orange"), poly([(6, 16), (15, 12), (18, 8), (22, 17), (19, 24), (10, 22)], "gold"), rect(10, 15, 8, 6, "white")]))
 save("bullet", board([rect(7, 13, 20, 6, "orange"), rect(11, 14, 15, 4, "gold"), rect(21, 14, 5, 4, "white")]))
 save("xp", board([
     poly([(16, 4), (28, 16), (16, 28), (4, 16)], "ink"),

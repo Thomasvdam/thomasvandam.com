@@ -1,3 +1,4 @@
+import { WEAPONS, weaponSpec, weaponStats, weaponModLimit, type Weapon, type WeaponRanks } from "./weapons";
 import { createHives, type Hive } from "./hives";
 import { createTerrain, MOVEMENT, terrainAt, UNDERCARRIAGES, type Terrain, type Undercarriage } from "./terrain";
 export const FIELD = { width: 1120, height: 720 };
@@ -8,13 +9,16 @@ export const WAVES_PER_HIVE = 3;
 export const BASE_SPEED = 220;
 export const SPEED_RANK_BONUS = .08;
 export const MAX_SPEED_RANK = 3;
-export const UPGRADES = [
-	{ id: "damage", name: "More damage", description: "+1 damage per shot", key: "1" },
-	{ id: "fireRate", name: "Faster firing", description: "15% shorter time between shots", key: "2" },
-	{ id: "speed", name: "Move faster", description: "+8% base movement speed · max +24%", key: "3" },
-] as const;
-export type Upgrade = typeof UPGRADES[number]["id"];
-export function upgradeChoices(game: Game) { return UPGRADES.filter(upgrade => upgrade.id !== "speed" || upgradeLevels(game).speed < MAX_SPEED_RANK).map(upgrade => ({ ...upgrade, kind: "stat" as const })); }
+export type Upgrade = "damage" | "weaponMod" | "speed";
+export function upgradeChoices(game: Game) {
+	const spec = weaponSpec(game.weapon);
+	return [
+		{ id: "damage" as const, name: spec.damageLabel, description: spec.damageDescription, key: "1", kind: "stat" as const },
+		...(game.parts.weapons[game.weapon].mod < weaponModLimit(game.weapon) ? [{ id: "weaponMod" as const, name: spec.modLabel, description: spec.modDescription, key: "2", kind: "stat" as const }] : []),
+		...(upgradeLevels(game).speed < MAX_SPEED_RANK ? [{ id: "speed" as const, name: "Move faster", description: "+8% base movement speed · max +24%", key: "3", kind: "stat" as const }] : []),
+	];
+}
+export function weaponChoices() { return WEAPONS.map((part, index) => ({ ...part, kind: "weapon" as const, key: String(index + 1) })); }
 export function undercarriageChoices() { return UNDERCARRIAGES.map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 1) })); }
 export const MAX_SENSOR_RANK = 2;
 export type WorkshopService = "heal" | "sensor";
@@ -27,19 +31,20 @@ export function workshopServices(game: Game) {
 export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Enemy = Vector & { id: number; health: number; maxHealth: number; speed: number; variant: BugVariant; angle: number; walkDistance: number; bornAt: number; hitAt: number };
-export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number };
+export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number; weapon: Exclude<Weapon, "flamethrower">; blastRadius: number };
+export type Explosion = Vector & { id: number; radius: number; bornAt: number };
 export type Pickup = Vector & { id: number; value: number; attracted?: boolean };
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type BugRemains = Vector & { id: number; variant: BugVariant; angle: number; diedAt: number };
 export type Game = {
-	mode: "ready" | "playing" | "paused" | "upgrade" | "spend" | "base" | "workshop" | "dead";
+	mode: "ready" | "playing" | "paused" | "upgrade" | "spend" | "base" | "workshop" | "weapons" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
-	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[]; remains: BugRemains[];
-	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage;
+	enemies: Enemy[]; bullets: Bullet[]; pickups: Pickup[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[];
+	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage; weapon: Weapon;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	bankedUpgrades: number; level: number; xp: number; kills: number; time: number;
 	shotTimer: number;
-	parts: { cannon: number; cooler: number; sensor: number; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
+	parts: { weapons: Record<Weapon, WeaponRanks>; sensor: number; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
 };
 
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -50,20 +55,20 @@ export function limitVector(vector: Vector): Vector {
 export const xpNeeded = (level: number) => 4 + level * 2;
 export const waveSize = (wave: number, threat = 1) => Math.min(100, 5 + wave * 3 + (threat - 1) * 3);
 export function upgradeLevels(game: Game) {
-	return { damage: game.parts.cannon, fireRate: game.parts.cooler, speed: game.parts.undercarriages[game.undercarriage] };
+	return { damage: game.parts.weapons[game.weapon].damage, weaponMod: game.parts.weapons[game.weapon].mod, speed: game.parts.undercarriages[game.undercarriage] };
 }
 export function playerStats(game: Game) {
 	const levels = upgradeLevels(game);
-	return { damage: 1 + levels.damage, shotInterval: Math.max(.045, .2 * .85 ** levels.fireRate), speed: BASE_SPEED * (1 + levels.speed * SPEED_RANK_BONUS) };
+	return { ...weaponStats(game.weapon, game.parts.weapons[game.weapon]), speed: BASE_SPEED * (1 + levels.speed * SPEED_RANK_BONUS) };
 }
 
 export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	return {
-		hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage,
+		hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage, weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
-		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
+		enemies: [], bullets: [], pickups: [], spawns: [], remains: [], explosions: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		bankedUpgrades: 0, level: 1, xp: 0, kills: 0, time: 0, shotTimer: 0,
-		parts: { cannon: 0, cooler: 0, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
+		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
 }
 
@@ -79,8 +84,8 @@ export function chooseUpgrade(game: Game, upgrade: Upgrade) {
 	if (game.mode === "spend" && game.bankedUpgrades === 0) return;
 	const choice = upgradeChoices(game).find(choice => choice.id === upgrade);
 	if (!choice) return;
-	if (upgrade === "damage") game.parts.cannon++;
-	if (upgrade === "fireRate") game.parts.cooler++;
+	if (upgrade === "damage") game.parts.weapons[game.weapon].damage++;
+	if (upgrade === "weaponMod") game.parts.weapons[game.weapon].mod++;
 	if (upgrade === "speed") game.parts.undercarriages[game.undercarriage]++;
 	if (game.mode === "spend") {
 		spendBankedUpgrade(game);
@@ -110,6 +115,12 @@ export function openBankedUpgrades(game: Game) {
 }
 export function closeBankedUpgrades(game: Game) { if (game.mode === "spend") game.mode = "workshop"; }
 export function openWorkshop(game: Game) { if (game.mode === "base") game.mode = "workshop"; }
+export function openWeapons(game: Game) { if (game.mode === "workshop") game.mode = "weapons"; }
+export function closeWeapons(game: Game) { if (game.mode === "weapons") game.mode = "workshop"; }
+export function chooseWeapon(game: Game, weapon: Weapon) {
+	if (game.mode !== "weapons" || !WEAPONS.some(part => part.id === weapon)) return;
+	game.weapon = weapon;
+}
 export function closeWorkshop(game: Game) { if (game.mode === "workshop") game.mode = "base"; }
 export function chooseUndercarriage(game: Game, undercarriage: Undercarriage) {
 	if (game.mode !== "workshop" || !UNDERCARRIAGES.some(part => part.id === undercarriage)) return;
@@ -127,7 +138,7 @@ export function chooseHive(game: Game, id: string) {
 function returnToBase(game: Game) {
 	game.hivesCleared++;
 	game.hive = null; game.hives = createHives(game.runSeed, game.hivesCleared);
-	game.bullets = []; game.remains = []; game.toSpawn = 0; game.intermission = 0;
+	game.bullets = []; game.remains = []; game.explosions = []; game.toSpawn = 0; game.intermission = 0;
 	game.mode = "base";
 }
 
@@ -164,18 +175,58 @@ function dropXp(game: Game, enemy: Enemy) {
 		nearest.value++;
 	}
 }
-function hitByBullet(bullet: Bullet, enemy: Enemy, previous: Vector) {
-	// Swept collision avoids tunneling through a sprite between simulation steps.
+function bulletHitTime(bullet: Bullet, enemy: Enemy, previous: Vector) {
+	// First circle intersection along the swept path, independent of enemy array order.
 	const dx = bullet.x - previous.x, dy = bullet.y - previous.y;
-	const lengthSquared = dx * dx + dy * dy;
-	const t = lengthSquared ? clamp(((enemy.x - previous.x) * dx + (enemy.y - previous.y) * dy) / lengthSquared, 0, 1) : 0;
-	return Math.hypot(enemy.x - previous.x - dx * t, enemy.y - previous.y - dy * t) <= ENEMY_RADIUS + 4;
+	const ox = previous.x - enemy.x, oy = previous.y - enemy.y, radius = ENEMY_RADIUS + 4;
+	const c = ox * ox + oy * oy - radius * radius;
+	if (c <= 0) return 0;
+	const a = dx * dx + dy * dy, b = ox * dx + oy * dy;
+	const discriminant = b * b - a * c;
+	if (a === 0 || discriminant < 0) return Infinity;
+	const t = (-b - Math.sqrt(discriminant)) / a;
+	return t >= 0 && t <= 1 ? t : Infinity;
+}
+function damageEnemy(game: Game, enemy: Enemy, damage: number) {
+	enemy.health -= damage; enemy.hitAt = game.time;
+}
+function explode(game: Game, bullet: Bullet) {
+	for (const enemy of game.enemies) {
+		if (enemy.health > 0 && Math.hypot(enemy.x - bullet.x, enemy.y - bullet.y) <= bullet.blastRadius + ENEMY_RADIUS) damageEnemy(game, enemy, bullet.damage);
+	}
+	game.explosions.push({ id: game.nextId++, x: bullet.x, y: bullet.y, radius: bullet.blastRadius, bornAt: game.time });
+	if (game.explosions.length > 32) game.explosions.shift();
+}
+export const FLAME_HALF_ANGLE = Math.PI / 6;
+function fireWeapon(game: Game, dt: number) {
+	const player = game.player, stats = playerStats(game);
+	const x = Math.cos(player.angle), y = Math.sin(player.angle);
+	if (game.weapon === "flamethrower") {
+		// Continuous damage integrates with simulation time, rather than a firing cooldown.
+		const origin = { x: player.x + x * 20 + y * 6.25, y: player.y + y * 20 - x * 6.25 };
+		for (const enemy of game.enemies) {
+			const dx = enemy.x - origin.x, dy = enemy.y - origin.y, distance = Math.hypot(dx, dy);
+			const angle = Math.atan2(dy, dx) - player.angle;
+			const offset = Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle)));
+			if (enemy.health > 0 && distance <= stats.range + ENEMY_RADIUS && (distance <= ENEMY_RADIUS || offset <= FLAME_HALF_ANGLE + Math.asin(Math.min(1, ENEMY_RADIUS / distance)))) damageEnemy(game, enemy, stats.damage * dt);
+		}
+		player.shotAt = game.time;
+		return;
+	}
+	if (game.shotTimer > 0 || game.bullets.length + stats.pellets > 256) return;
+	for (let i = 0; i < stats.pellets; i++) {
+		const angle = player.angle + (game.weapon === "shotgun" ? (i / (stats.pellets - 1) - .5) * Math.PI / 3 : 0);
+		game.bullets.push({ id: game.nextId++, x: player.x + x * 20 + y * 6.25, y: player.y + y * 20 - x * 6.25, vx: Math.cos(angle) * stats.projectileSpeed, vy: Math.sin(angle) * stats.projectileSpeed, life: stats.range / stats.projectileSpeed, damage: stats.damage, weapon: game.weapon, blastRadius: stats.blastRadius });
+	}
+	game.shotTimer = stats.shotInterval;
+	player.shotAt = game.time;
 }
 
 export function step(game: Game, input: Input, dt: number) {
 	if (game.mode !== "playing" || !Number.isFinite(dt) || dt <= 0) return;
 	dt = Math.min(dt, 1 / 30);
 	game.time += dt;
+	game.explosions = game.explosions.filter(explosion => game.time - explosion.bornAt < .35);
 	game.remains = game.remains.filter(remains => game.time - remains.diedAt < .5);
 	const move = limitVector(input.move), player = game.player;
 	const previousPlayer = { x: player.x, y: player.y };
@@ -194,12 +245,7 @@ export function step(game: Game, input: Input, dt: number) {
 	player.invulnerable = Math.max(0, player.invulnerable - dt);
 	if (Math.hypot(input.aim.x, input.aim.y) > .01) player.angle = Math.atan2(input.aim.y, input.aim.x);
 	game.shotTimer = Math.max(0, game.shotTimer - dt);
-	if (input.fire && game.shotTimer === 0 && game.bullets.length < 256) {
-		const x = Math.cos(player.angle), y = Math.sin(player.angle);
-		game.bullets.push({ id: game.nextId++, x: player.x + x * 20 + y * 6.25, y: player.y + y * 20 - x * 6.25, vx: x * 640, vy: y * 640, life: 1.7, damage: stats.damage });
-		game.shotTimer = stats.shotInterval;
-		player.shotAt = game.time;
-	}
+	if (input.fire) fireWeapon(game, dt);
 	game.spawns = game.spawns.filter(warning => {
 		warning.remaining = Math.max(0, warning.remaining - dt);
 		if (warning.remaining > 0) return true;
@@ -224,10 +270,26 @@ export function step(game: Game, input: Input, dt: number) {
 	}
 	game.bullets = game.bullets.filter(bullet => {
 		const previous = { x: bullet.x, y: bullet.y };
-		bullet.x += bullet.vx * dt; bullet.y += bullet.vy * dt; bullet.life -= dt;
-		const hit = game.enemies.find(enemy => enemy.health > 0 && hitByBullet(bullet, enemy, previous));
-		if (hit) { hit.health -= bullet.damage; hit.hitAt = game.time; return false; }
-		return bullet.life > 0 && bullet.x >= 0 && bullet.y >= 0 && bullet.x <= FIELD.width && bullet.y <= FIELD.height;
+		const travelTime = Math.min(dt, bullet.life);
+		bullet.x += bullet.vx * travelTime; bullet.y += bullet.vy * travelTime; bullet.life -= dt;
+		let hit: Enemy | undefined, hitTime = Infinity;
+		for (const enemy of game.enemies) {
+			if (enemy.health <= 0) continue;
+			const t = bulletHitTime(bullet, enemy, previous);
+			if (t < hitTime) { hit = enemy; hitTime = t; }
+		}
+		if (hit) {
+			bullet.x = previous.x + (bullet.x - previous.x) * hitTime; bullet.y = previous.y + (bullet.y - previous.y) * hitTime;
+			if (bullet.weapon === "rpg") explode(game, bullet);
+			else damageEnemy(game, hit, bullet.damage);
+			return false;
+		}
+		const expired = bullet.life <= 0 || bullet.x < 0 || bullet.y < 0 || bullet.x > FIELD.width || bullet.y > FIELD.height;
+		if (expired && bullet.weapon === "rpg") {
+			bullet.x = clamp(bullet.x, 0, FIELD.width); bullet.y = clamp(bullet.y, 0, FIELD.height);
+			explode(game, bullet);
+		}
+		return !expired;
 	});
 	game.enemies = game.enemies.filter(enemy => {
 		if (enemy.health > 0) return true;

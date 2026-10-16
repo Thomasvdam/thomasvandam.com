@@ -28,9 +28,9 @@ test("manual aim controls shots; neutral aim retains direction and projectiles e
 
 test("swept shots kill, drop XP, and armored enemies require enough damage", () => {
 	const game = newGame(); start(game); enemy(game, { x: 100, y: 100, health: 2, maxHealth: 2 });
-	game.bullets.push({ id: 100, x: 60, y: 100, vx: 2400, vy: 0, damage: 1, life: 1 });
+	game.bullets.push({ id: 100, x: 60, y: 100, vx: 2400, vy: 0, damage: 1, life: 1, weapon: "cannon", blastRadius: 0 });
 	step(game, idle, 1 / 30); expect(game.enemies[0].health).toBe(1); expect(game.kills).toBe(0);
-	game.bullets.push({ id: 101, x: 60, y: 100, vx: 2400, vy: 0, damage: 1, life: 1 });
+	game.bullets.push({ id: 101, x: 60, y: 100, vx: 2400, vy: 0, damage: 1, life: 1, weapon: "cannon", blastRadius: 0 });
 	step(game, idle, 1 / 30); expect(game.enemies).toHaveLength(0); expect(game.kills).toBe(1); expect(game.pickups[0].value).toBe(1);
 });
 
@@ -40,7 +40,7 @@ test("level-up freezes the complete simulation and preserves excess XP across mu
 	step(game, idle, 1 / 120); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(2);
 	const frozen = JSON.stringify(game); advance(game, 3, { ...idle, move: { x: 1, y: 1 }, fire: true }); expect(JSON.stringify(game)).toBe(frozen);
 	chooseUpgrade(game, "damage"); expect(playerStats(game).damage).toBe(2); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(3);
-	chooseUpgrade(game, "fireRate"); expect(playerStats(game).shotInterval).toBeCloseTo(.17); expect(game.mode).toBe("playing"); expect(game.xp).toBe(2);
+	chooseUpgrade(game, "weaponMod"); expect(playerStats(game).shotInterval).toBeCloseTo(.17); expect(game.mode).toBe("playing"); expect(game.xp).toBe(2);
 	chooseUpgrade(game, "speed"); expect(playerStats(game).speed).toBe(220); // No upgrade without a pending choice.
 	game.mode = "upgrade"; chooseUpgrade(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(237.6);
 });
@@ -61,7 +61,7 @@ test("contact damage has invulnerability, death freezes play, and a fresh run re
 	advance(game, .5); expect(game.player.health).toBe(80);
 	advance(game, 4); expect(game.mode).toBe("dead"); expect(game.player.health).toBe(0);
 	const ended = JSON.stringify(game); advance(game, 2); expect(JSON.stringify(game)).toBe(ended);
-	const reset = newGame(); expect(reset.mode).toBe("ready"); expect(reset.kills).toBe(0); expect(reset.xp).toBe(0); expect(upgradeLevels(reset)).toEqual({ damage: 0, fireRate: 0, speed: 0 });
+	const reset = newGame(); expect(reset.mode).toBe("ready"); expect(reset.kills).toBe(0); expect(reset.xp).toBe(0); expect(upgradeLevels(reset)).toEqual({ damage: 0, weaponMod: 0, speed: 0 });
 });
 
 test("spawn warnings are stationary, harmless, and last the full delay before an enemy can hit", () => {

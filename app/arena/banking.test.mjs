@@ -38,7 +38,7 @@ test("banked upgrades are spent only in the workshop, cost one each, and apply t
 	const frozen = JSON.stringify(game); advance(game, 10); expect(JSON.stringify(game)).toBe(frozen);
 	chooseUpgrade(game, "speed"); expect(game.bankedUpgrades).toBe(2); expect(game.parts.undercarriages).toEqual({ legs: 0, wheels: 1, treads: 0 }); expect(game.mode).toBe("spend");
 	closeBankedUpgrades(game); chooseUndercarriage(game, "treads"); openBankedUpgrades(game); chooseUpgrade(game, "speed"); chooseUpgrade(game, "damage");
-	expect(game.bankedUpgrades).toBe(0); expect(game.mode).toBe("workshop"); expect(game.parts.undercarriages).toEqual({ legs: 0, wheels: 1, treads: 1 }); expect(game.parts.cannon).toBe(1); expect(game.player.health).toBe(40);
+	expect(game.bankedUpgrades).toBe(0); expect(game.mode).toBe("workshop"); expect(game.parts.undercarriages).toEqual({ legs: 0, wheels: 1, treads: 1 }); expect(game.parts.weapons.cannon.damage).toBe(1); expect(game.player.health).toBe(40);
 	const parts = JSON.stringify(game.parts); chooseUpgrade(game, "speed"); openBankedUpgrades(game); expect(game.mode).toBe("workshop"); expect(JSON.stringify(game.parts)).toBe(parts);
 });
 
