@@ -133,6 +133,8 @@ export const SPRITE_PARTS = {
 	bugSpitterLegB: { ...hinged, path: "/images/exterminator/parts/bug-spitter-leg-b.png" },
 	bugSpitterLegC: { ...hinged, path: "/images/exterminator/parts/bug-spitter-leg-c.png" },
 	acid: { ...centered, path: "/images/exterminator/acid.png" },
+	bugWingB: { ...hinged, path: "/images/exterminator/parts/bug-wing-b.png" },
+	bugWingC: { ...hinged, path: "/images/exterminator/parts/bug-wing-c.png" },
 	bugWing: { ...hinged, path: "/images/exterminator/parts/bug-wing.png" },
 	rocket: { ...centered, path: "/images/exterminator/rocket.png" },
 	flame: { ...centered, path: "/images/exterminator/flame.png" },
@@ -171,7 +173,8 @@ export const BUG_SKINS: Record<BugVariant, Skin> = {
 	centipede: { body: "bugCentipedeBody", shell: "bugCentipedeShell", head: "bugCentipedeHead", legs: "bugCentipedeLeg" },
 	armoured: { body: "bugArmouredBody", shell: "bugArmouredShell", head: "bugArmouredHead", legs: "bugArmouredLeg" },
 };
-const BUG_PART_VARIANTS: Partial<Record<SpritePart, readonly SpritePart[]>> = {
+export const BUG_PART_VARIANTS: Partial<Record<SpritePart, readonly SpritePart[]>> = {
+	bugWing: ["bugWing", "bugWingB", "bugWingC"],
 	bugSpitterBody: ["bugSpitterBody", "bugSpitterBodyB", "bugSpitterBodyC"],
 	bugSpitterShell: ["bugSpitterShell", "bugSpitterShellB", "bugSpitterShellC"],
 	bugSpitterHead: ["bugSpitterHead", "bugSpitterHeadB", "bugSpitterHeadC"],
@@ -208,7 +211,7 @@ const BUG_PART_VARIANTS: Partial<Record<SpritePart, readonly SpritePart[]>> = {
 export function bugSkin(variant: BugVariant, appearance: number): Skin {
 	const skin = { ...BUG_SKINS[variant] };
 	let seed = Math.imul(appearance + 1, 2654435761) >>> 0;
-	for (const slot of ["body", "shell", "head", "legs"]) {
+	for (const slot of ["body", "shell", "head", "legs", "wings"]) {
 		seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
 		const part = skin[slot], alternatives = part && BUG_PART_VARIANTS[part];
 		if (alternatives) skin[slot] = alternatives[seed % alternatives.length];

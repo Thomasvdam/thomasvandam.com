@@ -105,15 +105,17 @@ chain. The dying chain retains those positions so all segments fade together.
 The dung beetle uses the same rig with an optional rolling pose for its front
 legs. Its growing/spinning ball, airborne arc, landing marker, and impact fragments
 follow simulation state and time, so they freeze on pause. Beetle parts also have
-independent warm/cool variants. Acid spitters use an optional charge pose that
+three compatible visual versions. Acid spitters use an optional charge pose that
 expands the sac and retracts the head on the same bones. The locked aiming line,
 acid glob sprite, and impact droplets follow simulation time. New spitter parts
-retain the same registration and warm/cool alternatives. No per-skin animation timeline is required.
+retain the same registration and three visual versions. No per-skin animation timeline is required.
 
 ### Individual appearance
 
-`bugSkin(type, id)` independently chooses stock/warm/cool registered parts for
-each body, shell, head and leg slot. The sprite generator creates these palette
-alternatives and small shell markings. Pivots, outlines, rig bones, and collision
-geometry stay the same. The warning, living actor, and remains all use the same
+`bugSkin(type, id)` independently chooses stock, crested/banded, or ridged/spined
+parts for each body, shell, head, leg, and optional wing slot. There are exactly
+three versions of every bug part. The generator uses stronger light/dark palettes,
+broad markings, and different plate/crest/limb/wing outlines so the versions read
+at normal play size. Pivots, rig bones, animation geometry, and collision shapes
+stay the same; cosmetic outlines can differ within the 32px registration canvas. The warning, living actor, and remains all use the same
 ID; centipede segments repeat that individual’s body/leg selection.
