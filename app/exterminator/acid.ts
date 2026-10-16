@@ -10,7 +10,7 @@ type Spitter = Extract<Enemy, { variant: "spitter" }>;
 const distance = (a: Vector, b: Vector) => Math.hypot(a.x - b.x, a.y - b.y);
 
 export function acidLineClear(from: Vector, to: Vector, enemies: Enemy[], owner: number) {
-	return !enemies.some(enemy => enemy.id !== owner && enemy.health > 0 && enemyCircles(enemy).some(circle => distanceToSegment(circle, from, to) <= circle.radius + ACID_RADIUS + 2));
+	return !enemies.some(enemy => enemy.variant === "armoured" && enemy.id !== owner && enemy.health > 0 && enemyCircles(enemy).some(circle => distanceToSegment(circle, from, to) <= circle.radius + ACID_RADIUS + 2));
 }
 function coverPoint(armour: Enemy, player: Vector, bounds: Bounds): Vector | null {
 	const length = distance(armour, player);
@@ -70,7 +70,7 @@ export function stepAcidSpitter(game: Game, enemy: Spitter, dt: number, bounds: 
 		const flank = flanks.find(candidate => acidLineClear(candidate.point, player, game.enemies, enemy.id)) ?? flanks[0];
 		state.side = flank.side; walkTo(enemy, flank.point, dt, bounds);
 	} else if (!acidLineClear(enemy, player, game.enemies, enemy.id)) {
-		// Without armour, sidestep a crowded firing lane rather than shooting allies.
+		// Without armour, sidestep armour that obstructs the firing lane.
 		walkTo(enemy, { x: enemy.x - Math.sin(angle) * state.side * 100, y: enemy.y + Math.cos(angle) * state.side * 100 }, dt, bounds);
 	}
 }

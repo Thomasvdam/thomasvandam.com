@@ -54,10 +54,10 @@ test("a spitter reacquires cover after a shield dies and ignores unusable wall c
 	replacement.health = 0; const wall = bug(game, "armoured", 1100); wall.speed = 0; advance(game, .1); expect(enemy.state.coverId).toBeNull(); expect(Number.isFinite(enemy.x + enemy.y)).toBe(true);
 });
 
-test("windup aim stays fixed and an ally entering the lane cancels the shot", () => {
+test("windup aim stays fixed and armour entering the lane cancels the shot", () => {
 	const game = setup(), enemy = bug(game); advance(game, .65); expect(enemy.state.phase).toBe("windup");
 	const target = { ...enemy.state.target }; game.player.y += 100; advance(game, .1); expect(enemy.state.target).toEqual(target);
-	const blocker = bug(game, "burrower", 700); blocker.speed = 0; advance(game, ACID_WINDUP);
+	const blocker = bug(game, "armoured", 700); blocker.speed = 0; advance(game, ACID_WINDUP);
 	expect(game.acid).toHaveLength(0); expect(enemy.state.phase).toBe("peek");
 });
 
@@ -69,7 +69,7 @@ test("acid travels straight, hits the mech once, and can be dodged after release
 	}
 });
 
-test("swept acid resolves the closest bug before the player, ignores its owner, and deals no friendly damage", () => {
+test("swept acid resolves the closest armoured bug before the player, ignores its owner, and deals no friendly damage", () => {
 	for (const blocker of [false, true]) {
 		const game = setup(), owner = bug(game, "spitter", 1000, 100); owner.speed = 0;
 		const behind = bug(game, "burrower", 400); behind.speed = 0;
@@ -81,11 +81,11 @@ test("swept acid resolves the closest bug before the player, ignores its owner, 
 	const game = setup(), owner = bug(game, "spitter", 850); owner.speed = 0; acid(game, { owner: owner.id, x: owner.x }); advance(game, 1); expect(game.player.health).toBe(80);
 });
 
-test("centipede segments block both aiming lanes and in-flight acid", () => {
+test("centipede segments allow both aiming lanes and in-flight acid", () => {
 	const game = setup(), worm = bug(game, "centipede", 740); worm.speed = 0;
 	worm.state.segments.forEach((segment, i) => { segment.x = worm.x - (i + 1) * SEGMENT_SPACING; segment.y = worm.y; });
-	expect(acidLineClear({ x: 630, y: 300 }, { x: 630, y: 430 }, game.enemies, -1)).toBe(false);
-	acid(game); advance(game, .3); expect(game.acid).toHaveLength(0); expect(game.player.health).toBe(100); expect(worm.health).toBe(worm.maxHealth);
+	expect(acidLineClear({ x: 630, y: 300 }, { x: 630, y: 430 }, game.enemies, -1)).toBe(true);
+	acid(game); advance(game, .3); expect(game.acid).toHaveLength(0); expect(game.player.health).toBe(80); expect(worm.health).toBe(worm.maxHealth);
 });
 
 test("acid respects invulnerability, pause, death, expiry, wave clear, and fresh-run reset", () => {
@@ -106,4 +106,18 @@ test("released acid survives its source until wave clear, while killed spitters 
 	expect(game.player.health).toBe(80);
 	const other = setup(), dead = bug(other); dead.state.phase = "windup"; dead.state.remaining = .001; dead.health = 0;
 	step(other, idle, 1 / 120); expect(other.acid).toHaveLength(0);
+});
+
+
+test("ordinary bugs never obstruct spitter preparation or absorb released acid", () => {
+	for (const variant of ["burrower", "flyer", "lunger", "evader", "beetle", "spitter"]) {
+		const game = setup(), enemy = bug(game, "spitter", 850), other = bug(game, variant, 700); other.speed = 0;
+		if (variant === "spitter") other.state.remaining = 100;
+		if (variant === "beetle") other.state.remaining = 100;
+		expect(acidLineClear(enemy, game.player, game.enemies, enemy.id)).toBe(true);
+		advance(game, .65); expect(enemy.state.phase).toBe("windup");
+		advance(game, .6); expect(game.acid.some(shot => shot.owner === enemy.id)).toBe(true);
+		const health = other.health; game.acid = []; acid(game, { owner: enemy.id, x: 800, vx: -10000 });
+		step(game, idle, 1 / 30); expect(game.player.health).toBe(80); expect(other.health).toBe(health);
+	}
 });
