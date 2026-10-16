@@ -1,14 +1,14 @@
 """Hand-authored 32px pixel parts; fixed pivots, no imaging dependencies.
 
 Parts face right and attach at (16,16); bug limbs hinge at (8,16).
-Animation is independent of artwork: app/arena/animation.ts.
+Animation is independent of artwork: app/exterminator/animation.ts.
 """
 from pathlib import Path
 import math
 import struct
 import zlib
 
-ROOT = Path(__file__).resolve().parent.parent / "public" / "images" / "arena"
+ROOT = Path(__file__).resolve().parent.parent / "public" / "images" / "exterminator"
 COLORS = {
     "ink": (13, 24, 24), "joint": (38, 52, 48), "steel": (69, 89, 83),
     "metal": (112, 137, 126), "light": (178, 196, 159), "armor": (116, 151, 122),

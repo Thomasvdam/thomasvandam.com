@@ -1,14 +1,14 @@
-# Modular Arena sprites
+# Modular Exterminator sprites
 
 Animation, artwork, and gameplay are separate. A **rig** is an ordered list of
 attachment points (bones). A **pose** moves those points. A **skin** assigns PNG
 parts to the rig's named slots. The same pose works with every compatible skin.
 The renderer composes the parts; no whole-character sprite sheet is required.
 
-`app/arena/animation.ts` defines `MECH_RIG`, `BUG_RIG`, their shared animation
-functions, and the parent-transform resolver. `app/arena/sprite-parts.ts` holds
+`app/exterminator/animation.ts` defines `MECH_RIG`, `BUG_RIG`, their shared animation
+functions, and the parent-transform resolver. `app/exterminator/sprite-parts.ts` holds
 image paths, dimensions, pivots, and skin assignments. Part art is authored in
-`tools/generate-arena-sprites.py`; PNGs are committed so running the game needs
+`tools/generate-exterminator-sprites.py`; PNGs are committed so running the game needs
 neither Python nor a generation step.
 
 ## Part registration
@@ -34,7 +34,7 @@ The parent bone must precede its children; `layer` controls rendering order.
 
 ## Add a visual variant
 
-1. Create registered PNGs under `public/images/arena/parts/` and add their paths
+1. Create registered PNGs under `public/images/exterminator/parts/` and add their paths
    and pivots to `SPRITE_PARTS`.
 2. Assign those part IDs to a skin's existing slots. A new beetle shell, head, or
    leg can replace one slot while the other slots keep their current parts.
@@ -66,7 +66,7 @@ becomes active only when the existing 1.2-second warning ends.
 
 ## Check changes
 
-Run `bun test app/arena` for registration, compatibility, independent aim/walking,
+Run `bun test app/exterminator` for registration, compatibility, independent aim/walking,
 recoil, shared bug poses, spawn timing, pause, and gameplay regressions. Run
 `./scripts/check` for full project validation. Inspect new parts in motion at
 desktop and phone sizes; tests can verify attachment and timing contracts but
