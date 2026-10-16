@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chooseUpgrade, ENEMY_RADIUS, FIELD, newGame, PLAYER_RADIUS, SPAWN_WARNING_TIME, start as prepare, chooseHive, playerStats, upgradeLevels, step, togglePause, waveSize, xpNeeded } from "./game";
+import { ENEMY_RADIUS, FIELD, newGame, PLAYER_RADIUS, SPAWN_WARNING_TIME, start as prepare, chooseHive, playerStats, upgradeLevels, step, togglePause, waveSize } from "./game";
 import { cameraFor, screenToWorld } from "./camera";
 import { viewFromGame } from "./runtime";
 
@@ -26,33 +26,22 @@ test("manual aim controls shots; neutral aim retains direction and projectiles e
 	advance(game, 2); expect(game.bullets).toHaveLength(0);
 });
 
-test("swept shots kill, drop XP, and armored enemies require enough damage", () => {
+test("swept shots kill and armored enemies require enough damage", () => {
 	const game = newGame(); start(game); enemy(game, { x: 100, y: 100, health: 2, maxHealth: 2 });
 	game.bullets.push({ id: 100, x: 60, y: 100, vx: 2400, vy: 0, damage: 1, life: 1, weapon: "cannon", blastRadius: 0 });
 	step(game, idle, 1 / 30); expect(game.enemies[0].health).toBe(1); expect(game.kills).toBe(0);
 	game.bullets.push({ id: 101, x: 60, y: 100, vx: 2400, vy: 0, damage: 1, life: 1, weapon: "cannon", blastRadius: 0 });
-	step(game, idle, 1 / 30); expect(game.enemies).toHaveLength(0); expect(game.kills).toBe(1); expect(game.pickups[0].value).toBe(1);
+	step(game, idle, 1 / 30); expect(game.enemies).toHaveLength(0); expect(game.kills).toBe(1); expect(game.money).toBe(0);
 });
 
-test("level-up freezes the complete simulation and preserves excess XP across multiple choices", () => {
-	const game = newGame(); start(game);
-	game.pickups.push({ id: 100, x: game.player.x, y: game.player.y, value: xpNeeded(1) + xpNeeded(2) + 2 });
-	step(game, idle, 1 / 120); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(2);
-	const frozen = JSON.stringify(game); advance(game, 3, { ...idle, move: { x: 1, y: 1 }, fire: true }); expect(JSON.stringify(game)).toBe(frozen);
-	chooseUpgrade(game, "damage"); expect(playerStats(game).damage).toBe(2); expect(game.mode).toBe("upgrade"); expect(game.level).toBe(3);
-	chooseUpgrade(game, "weaponMod"); expect(playerStats(game).shotInterval).toBeCloseTo(.17); expect(game.mode).toBe("playing"); expect(game.xp).toBe(2);
-	chooseUpgrade(game, "speed"); expect(playerStats(game).speed).toBe(220); // No upgrade without a pending choice.
-	game.mode = "upgrade"; chooseUpgrade(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(237.6);
-});
-
-test("waves finish only after all spawns and enemies; the next starts automatically and collects remaining XP", () => {
+test("waves finish only after all spawns and enemies; the next starts automatically without paying for partial completion", () => {
 	const game = newGame(); start(game); game.toSpawn = 1; game.spawnTimer = 100;
 	step(game, idle, 1 / 120); expect(game.intermission).toBe(0);
 	game.toSpawn = 0; const last = enemy(game, { x: 100, y: 100 });
 	step(game, idle, 1 / 120); expect(game.intermission).toBe(0);
 	last.health = 0; step(game, idle, 1 / 120); expect(game.intermission).toBe(3);
 	const remaining = game.intermission; togglePause(game); advance(game, 10); expect(game.intermission).toBe(remaining);
-	togglePause(game); advance(game, 3.1); expect(game.wave).toBe(2); expect(game.toSpawn).toBe(waveSize(2)); expect(game.pickups).toHaveLength(0); expect(game.xp).toBe(1);
+	togglePause(game); advance(game, 3.1); expect(game.wave).toBe(2); expect(game.toSpawn).toBe(waveSize(2)); expect(game.money).toBe(0);
 });
 
 test("contact damage has invulnerability, death freezes play, and a fresh run resets progression", () => {
@@ -61,7 +50,7 @@ test("contact damage has invulnerability, death freezes play, and a fresh run re
 	advance(game, .5); expect(game.player.health).toBe(80);
 	advance(game, 4); expect(game.mode).toBe("dead"); expect(game.player.health).toBe(0);
 	const ended = JSON.stringify(game); advance(game, 2); expect(JSON.stringify(game)).toBe(ended);
-	const reset = newGame(); expect(reset.mode).toBe("ready"); expect(reset.kills).toBe(0); expect(reset.xp).toBe(0); expect(upgradeLevels(reset)).toEqual({ damage: 0, weaponMod: 0, speed: 0 });
+	const reset = newGame(); expect(reset.mode).toBe("ready"); expect(reset.kills).toBe(0); expect(reset.money).toBe(0); expect(upgradeLevels(reset)).toEqual({ damage: 0, weaponMod: 0, speed: 0 });
 });
 
 test("spawn warnings are stationary, harmless, and last the full delay before an enemy can hit", () => {
@@ -75,11 +64,10 @@ test("spawn warnings are stationary, harmless, and last the full delay before an
 	advance(game, 2 / 120); expect(game.spawns).toHaveLength(0); expect(game.enemies[0].id).toBe(warning.id); expect(game.player.health).toBe(80);
 });
 
-test("spawn warnings freeze during pauses and upgrade choices", () => {
+test("spawn warnings freeze during pauses", () => {
 	const game = newGame(); start(game); game.spawnTimer = 0; step(game, idle, 1 / 120);
 	togglePause(game); const paused = JSON.stringify(game); advance(game, 4); expect(JSON.stringify(game)).toBe(paused);
-	togglePause(game); game.mode = "upgrade"; const upgrading = JSON.stringify(game); advance(game, 4); expect(JSON.stringify(game)).toBe(upgrading);
-	chooseUpgrade(game, "damage"); advance(game, .5); expect(game.enemies).toHaveLength(0); expect(game.spawns[0].remaining).toBeCloseTo(SPAWN_WARNING_TIME - .5);
+	togglePause(game); advance(game, .5); expect(game.enemies).toHaveLength(0); expect(game.spawns[0].remaining).toBeCloseTo(SPAWN_WARNING_TIME - .5);
 });
 
 test("arena-wide spawn warnings fit inside bounds and may appear directly on the player", () => {
@@ -92,11 +80,10 @@ test("arena-wide spawn warnings fit inside bounds and may appear directly on the
 	expect(matching.spawns[0].x).toBe(warning.x); expect(matching.spawns[0].y).toBe(warning.y); expect(matching.player.health).toBe(100);
 });
 
-test("pending spawn warnings prevent a wave clear and global XP attraction", () => {
+test("pending spawn warnings prevent a wave clear and payment", () => {
 	const game = newGame(); start(game); game.toSpawn = 0;
 	game.spawns.push({ id: 100, x: 100, y: 100, remaining: 2, variant: "burrower" });
-	game.pickups.push({ id: 101, x: 50, y: 50, value: 1 });
-	step(game, idle, 1 / 120); expect(game.intermission).toBe(0); expect(game.pickups[0].attracted).toBeFalsy(); expect(game.pickups[0].x).toBe(50);
+	step(game, idle, 1 / 120); expect(game.intermission).toBe(0); expect(game.money).toBe(0);
 });
 
 test("each group of three spawn warnings pressures the player's position even in a corner", () => {
@@ -115,36 +102,6 @@ test("moving away from a warning avoids the hit when the enemy appears", () => {
 	game.spawns.push({ id: 100, x: game.player.x, y: game.player.y, remaining: SPAWN_WARNING_TIME, variant: "burrower" });
 	advance(game, SPAWN_WARNING_TIME + .1, { ...idle, move: { x: 1, y: 0 } });
 	expect(game.enemies).toHaveLength(1); expect(game.player.health).toBe(100); expect(game.player.x).toBeGreaterThan(game.enemies[0].x + 100);
-});
-
-test("clearing a wave attracts all distant XP immediately and conserves its value through a level-up pause", () => {
-	const game = newGame(); start(game); game.toSpawn = 0;
-	Object.assign(game.player, { x: 20, y: 20 });
-	game.pickups.push({ id: 100, x: 1100, y: 700, value: 2 }, { id: 101, x: 1000, y: 600, value: 3 }, { id: 102, x: 20, y: 700, value: 2 });
-	enemy(game, { health: 0, x: 1000, y: 700 });
-	step(game, idle, 1 / 120); expect(game.intermission).toBe(3); expect(game.pickups.every(drop => drop.attracted)).toBe(true);
-	expect(game.pickups[0].x).toBeLessThan(1100); expect(game.pickups[2].y).toBeLessThan(700);
-	advance(game, 2); expect(game.mode).toBe("upgrade");
-	const conserved = game.xp + xpNeeded(1) + game.pickups.reduce((sum, drop) => sum + drop.value, 0); expect(conserved).toBe(8);
-	const frozen = JSON.stringify(game); advance(game, 2); expect(JSON.stringify(game)).toBe(frozen);
-	chooseUpgrade(game, "speed"); advance(game, 2); expect(game.pickups).toHaveLength(0); expect(game.xp).toBe(2); expect(game.wave).toBe(2);
-});
-
-test("wave-clear attraction stays attached to pickups across wave transitions and resets on a fresh run", () => {
-	const game = newGame(); start(game); game.toSpawn = 0; game.intermission = .01;
-	game.pickups.push({ id: 100, x: 20, y: 20, value: 1, attracted: true });
-	const before = game.pickups[0].x; advance(game, .1);
-	expect(game.wave).toBe(2); expect(game.pickups[0].attracted).toBe(true); expect(game.pickups[0].x).toBeGreaterThan(before);
-	expect(newGame().spawns).toHaveLength(0); expect(newGame().pickups).toHaveLength(0);
-});
-
-test("XP attraction conserves values and accumulated drops stay bounded", () => {
-	const game = newGame(); start(game);
-	for (let i = 0; i < 512; i++) game.pickups.push({ id: game.nextId++, x: 100, y: 100, value: 1 });
-	enemy(game, { health: 0, x: 100, y: 100 }); step(game, idle, 1 / 120);
-	expect(game.pickups).toHaveLength(512); expect(game.pickups.reduce((sum, drop) => sum + drop.value, 0)).toBe(513);
-	game.pickups = [{ id: 2000, x: game.player.x + 80, y: game.player.y, value: 2 }];
-	advance(game, .5); expect(game.pickups).toHaveLength(0); expect(game.xp).toBe(2);
 });
 
 test("camera follows only the axes that do not fit, clamps at edges, and projects mouse aim", () => {

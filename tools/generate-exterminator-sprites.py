@@ -16,7 +16,7 @@ COLORS = {
     "gold": (231, 189, 100), "orange": (226, 128, 68), "rustDark": (76, 43, 35),
     "rust": (161, 79, 48), "rustLight": (218, 144, 73), "oliveDark": (51, 66, 43),
     "olive": (109, 133, 72), "oliveLight": (179, 191, 106), "wing": (157, 182, 139),
-    "wingLight": (211, 218, 164), "xp": (143, 202, 115),
+    "wingLight": (211, 218, 164),
 }
 
 
@@ -214,11 +214,7 @@ part("bug-wing", [
 save("rocket", board([rect(5, 12, 19, 9, "ink"), rect(8, 13, 15, 7, "metal"), poly([(23, 12), (30, 16), (23, 21)], "orange"), rect(3, 14, 6, 5, "gold"), rect(10, 10, 5, 3, "armor"), rect(10, 21, 5, 3, "armor")]))
 save("flame", board([poly([(2, 16), (11, 11), (15, 4), (20, 11), (26, 8), (30, 17), (25, 24), (16, 29), (6, 23)], "orange"), poly([(6, 16), (15, 12), (18, 8), (22, 17), (19, 24), (10, 22)], "gold"), rect(10, 15, 8, 6, "white")]))
 save("bullet", board([rect(7, 13, 20, 6, "orange"), rect(11, 14, 15, 4, "gold"), rect(21, 14, 5, 4, "white")]))
-save("xp", board([
-    poly([(16, 4), (28, 16), (16, 28), (4, 16)], "ink"),
-    poly([(16, 7), (25, 16), (16, 25), (7, 16)], "xp"),
-    poly([(16, 11), (21, 16), (16, 21), (11, 16)], "darkArmor"), rect(15, 12, 2, 3, "light"),
-]))
+
 
 
 def thumbnail(name, layers, scale=1.65):

@@ -46,7 +46,6 @@ export const SPRITE_PARTS = {
 	rocket: { ...centered, path: "/images/exterminator/rocket.png" },
 	flame: { ...centered, path: "/images/exterminator/flame.png" },
 	bullet: { ...centered, path: "/images/exterminator/bullet.png" },
-	xp: { ...centered, path: "/images/exterminator/xp.png" },
 } as const;
 export type SpritePart = keyof typeof SPRITE_PARTS;
 export type BugVariant = "burrower" | "flyer";
