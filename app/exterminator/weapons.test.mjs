@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { chooseHive, chooseWeapon, chooseUpgrade, closeWeapons, closeWorkshop, newGame, openBankedUpgrades, openWeapons, openWorkshop, playerStats, start, step, upgradeChoices } from "./game";
+import { chooseHive, chooseWeapon, chooseUpgrade, closeWeapons, closeWorkshop, newGame, openShop, openWeapons, openWorkshop, playerStats, start, step, upgradeChoices } from "./game";
 import { WEAPONS, weaponModLimit } from "./weapons";
 import { viewFromGame } from "./runtime";
 import { mechSkin, SPRITE_PARTS } from "./sprite-parts";
@@ -8,26 +8,26 @@ const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
 function setup(weapon) { const game = newGame(); start(game); openWorkshop(game); openWeapons(game); chooseWeapon(game, weapon); closeWeapons(game); closeWorkshop(game); chooseHive(game, game.hives[0].id); game.toSpawn = 1; game.spawnTimer = 1000; return game; }
 function advance(game, duration, fire = false, dt = 1 / 120) { for (let i = 0; i < Math.round(duration / dt); i++) step(game, { ...idle, fire }, dt); }
 function bug(game, dx, dy = -6.25, health = 100) { const enemy = { id: game.nextId++, x: game.player.x + dx, y: game.player.y + dy, health, maxHealth: health, speed: 0, variant: "burrower", angle: 0, walkDistance: 0, bornAt: -10, hitAt: -10 }; game.enemies.push(enemy); return enemy; }
-function upgrade(game, id) { game.mode = "upgrade"; chooseUpgrade(game, id); }
+function upgrade(game, id) { game.mode = "shop"; game.money = 100000; chooseUpgrade(game, id); game.mode = "playing"; }
 
 test("all weapons are available at base, swaps are guarded, and each weapon retains its own upgrade set", () => {
 	const game = newGame(); start(game); openWorkshop(game); openWeapons(game);
 	expect(viewFromGame(game).choices.filter(choice => choice.kind === "weapon").map(choice => choice.id)).toEqual(WEAPONS.map(weapon => weapon.id));
-	const hives = JSON.stringify(game.hives); game.bankedUpgrades = 12;
+	const hives = JSON.stringify(game.hives); game.money = 1200;
 	for (const [index, weapon] of WEAPONS.entries()) {
-		chooseWeapon(game, weapon.id); closeWeapons(game); openBankedUpgrades(game); chooseUpgrade(game, "damage"); chooseUpgrade(game, "weaponMod");
+		chooseWeapon(game, weapon.id); closeWeapons(game); openShop(game); chooseUpgrade(game, "damage"); chooseUpgrade(game, "weaponMod");
 		expect(game.parts.weapons[weapon.id]).toEqual({ damage: 1, mod: 1 });
-		expect(game.bankedUpgrades).toBe(10 - index * 2);
+		expect(game.money).toBe(1000 - index * 200);
 		game.mode = "workshop"; openWeapons(game);
 	}
 	chooseWeapon(game, "shotgun"); expect(game.parts.weapons.shotgun).toEqual({ damage: 1, mod: 1 }); expect(JSON.stringify(game.hives)).toBe(hives);
-	for (const mode of ["ready", "playing", "paused", "upgrade", "spend", "base", "workshop", "dead"]) {
+	for (const mode of ["ready", "playing", "paused", "shop", "base", "workshop", "dead"]) {
 		game.mode = mode; const before = JSON.stringify(game); chooseWeapon(game, "rpg"); expect(JSON.stringify(game)).toBe(before);
 	}
 	const fresh = newGame(); expect(fresh.weapon).toBe("cannon"); for (const ranks of Object.values(fresh.parts.weapons)) expect(ranks).toEqual({ damage: 0, mod: 0 });
 });
 
-test("each weapon offers its own upgrades and capped modifications never consume a banked point", () => {
+test("each weapon offers its own upgrades and capped modifications never consume money", () => {
 	const labels = ["Faster firing", "More pellets", "Wider blast", "Longer flame"];
 	for (const [index, spec] of WEAPONS.entries()) {
 		const game = setup(spec.id), before = playerStats(game);
@@ -39,7 +39,7 @@ test("each weapon offers its own upgrades and capped modifications never consume
 		if (spec.id === "rpg") expect(after.blastRadius).toBe(before.blastRadius + 15);
 		if (spec.id === "flamethrower") expect(after.range).toBe(before.range + 20);
 		upgrade(game, "damage"); expect(playerStats(game).damage).toBeGreaterThan(before.damage);
-		game.parts.weapons[spec.id].mod = weaponModLimit(spec.id); game.mode = "spend"; game.bankedUpgrades = 2;
+		game.parts.weapons[spec.id].mod = weaponModLimit(spec.id); game.mode = "shop"; game.money = 200;
 		const frozen = JSON.stringify(game); chooseUpgrade(game, "weaponMod"); expect(JSON.stringify(game)).toBe(frozen);
 		expect(upgradeChoices(game).map(choice => choice.key)).toEqual(["1", "3"]);
 	}
@@ -103,11 +103,11 @@ test("weapon and damage-stage sprites share the same rig and animation attachmen
 	expect(art.size).toBe(12);
 });
 
-test("rocket expiry detonates at its range limit without overshooting, and area kills award XP once per bug", () => {
+test("rocket expiry detonates at its range limit without overshooting, and area kills count once per bug", () => {
 	const game = setup("rpg"), target = bug(game, 105, -6.25, 4); bug(game, 110, 20, 4);
 	game.bullets.push({ id: game.nextId++, x: game.player.x, y: target.y, vx: 12000, vy: 0, life: .005, damage: 4, weapon: "rpg", blastRadius: 65 });
 	step(game, idle, 1 / 30);
 	expect(game.explosions[0].x).toBeCloseTo(game.player.x + 60); expect(game.kills).toBe(2); expect(game.enemies).toHaveLength(0);
-	expect(game.pickups.reduce((total, drop) => total + drop.value, 0)).toBe(2);
+	expect(game.money).toBe(0);
 	advance(game, .1); expect(game.kills).toBe(2);
 });

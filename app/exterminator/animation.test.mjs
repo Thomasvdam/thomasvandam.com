@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance } from "./animation";
 import { BUG_SKINS, mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
-import { chooseUpgrade, newGame, start as prepare, chooseHive, upgradeLevels, step, SPAWN_WARNING_TIME } from "./game";
+import { newGame, start as prepare, chooseHive, upgradeLevels, step, SPAWN_WARNING_TIME } from "./game";
 
 function start(game) { prepare(game); chooseHive(game, game.hives.find(hive => hive.activity === "Low").id); }
 const levels = { damage: 0, weaponMod: 0, speed: 0 };
@@ -90,9 +90,9 @@ test("simulation-driven walking, firing, and death effects freeze on overlays an
 	step(game, { move: { x: 1, y: 0 }, aim: { x: 0, y: 1 }, fire: true }, 1 / 120);
 	expect(game.player.walkDistance).toBeGreaterThan(0); expect(game.player.shotAt).toBe(game.time);
 	game.remains.push({ id: 999, x: 100, y: 100, variant: "flyer", angle: 0, diedAt: game.time });
-	game.mode = "upgrade"; const frozen = JSON.stringify(game);
+	game.mode = "paused"; const frozen = JSON.stringify(game);
 	step(game, idle, 1 / 30); expect(JSON.stringify(game)).toBe(frozen);
-	chooseUpgrade(game, "damage"); for (let i = 0; i < 70; i++) step(game, idle, 1 / 120);
+	game.mode = "playing"; for (let i = 0; i < 70; i++) step(game, idle, 1 / 120);
 	expect(game.remains).toHaveLength(0);
 	const fresh = newGame(); expect(fresh.player.walkDistance).toBe(0); expect(fresh.remains).toHaveLength(0); expect(mechSkin(upgradeLevels(fresh))).toEqual(mechSkin(levels));
 });
