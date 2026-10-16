@@ -11,7 +11,8 @@ stick to move and the right stick to aim. Start pauses, and the bottom face butt
 confirms menu choices. Use the D-pad/left stick for menus. Number keys match cards:
 1–3 for upgrades, hives, or undercarriages. Key 4 banks a level-up, opens the
 workshop at base, or opens banked upgrades in the workshop. In the spending menu, keys 4/5 purchase healing/sensor ranks and 6 returns to
-the workshop. Key 5 returns from
+the workshop. Key 6 opens weapon selection in the workshop. In weapon selection, keys 1–4 equip
+a weapon and key 5 returns to the workshop. Key 5 returns from
 the workshop to hive selection. Escape returns from banked upgrades to the
 workshop, closes the workshop, or pauses active combat. Tab/Enter and click/tap also work.
 
@@ -29,10 +30,9 @@ layout, with a firm arrival zone at the arena center.
 The workshop can be opened and reopened before deployment. Equipping a base
 stays in the workshop; return to hive selection when ready. Each undercarriage
 stores its own speed rank. Switching from rank-3 legs to stock wheels gives stock
-wheel speed and visuals; switching back restores rank-3 legs. Cannon damage and
-cooler firing-speed ranks belong to those parts too. Stats and equipped visuals
+wheel speed and visuals; switching back restores rank-3 legs. Each weapon stores its own damage and modification ranks. Stats and equipped visuals
 are derived from the current parts rather than copied across swaps. There is
-currently one cannon and one cooler, and three interchangeable undercarriages.
+four interchangeable weapons and three undercarriages, all available from the start.
 
 Level-up pauses to offer an immediate upgrade or **Bank for later**. Banking
 resumes play, or presents the next choice when excess XP earns multiple levels.
@@ -47,7 +47,7 @@ ranks can reveal insect composition or rewards when those systems exist.
 
 XP upgrades improve the equipped part. Speed adds 8% of base movement speed per
 rank and stops at rank 3 (+24%); that choice disappears when the equipped base is
-capped and returns if a lower-rank base is equipped. Cannons and coolers change
+capped and returns if a lower-rank base is equipped. Weapon bodies and modification modules change
 appearance at ranks 1 and 3. All undercarriages have stock, servo, sprint, and
 boost artwork for ranks 0–3.
 
@@ -70,6 +70,32 @@ on all surfaces. These provisional multipliers apply after part speed upgrades:
 All bases total 225% across the three surfaces. Even a fully upgraded base cannot
 overtake an unupgraded base with better handling on that same surface.
 
+## Weapons
+
+Open **Change weapon** in the workshop. Equipping stays on that screen; return
+to the workshop to spend banked upgrades, or to hive selection to deploy. Weapons
+cannot be changed during combat. Each weapon retains its own upgrade ranks for
+the current run. Damage and modification upgrades apply only to the equipped
+weapon; movement still upgrades the equipped undercarriage.
+
+| Weapon | Firing behavior | Damage upgrade | Modification upgrade |
+| --- | --- | --- | --- |
+| Cannon | Accurate automatic shots, long range | +1 per shot | 15% shorter interval, up to 10 ranks |
+| Shotgun | 5 pellets over a 60° fan, 240 range | +0.25 per pellet | +2 pellets, up to 13 |
+| RPG | A rocket every 1.25 seconds; 65-radius impact blast | +2 blast damage | +15 radius, up to 125 |
+| Flamethrower | Continuous 60° cone, 140 reach | +2 damage per second | +20 reach, up to 220 |
+
+These are provisional values. The shotgun has a fixed burst interval; more pellets
+fill its existing fan. Rockets hit the first bug along their path and apply blast
+damage once to each bug in range, including that target. They also detonate at
+the end of their range or at the arena boundary. The flamethrower deals damage to
+all bugs inside its cone each simulation step, with no projectile or firing-rate
+upgrade. Flame and explosion visuals follow simulation time and freeze on pause.
+Capped modifications disappear from upgrade choices without spending points.
+
+All four weapons have registered stock/rank-1/rank-3 PNG parts and share the same
+aiming/recoil rig. No bug weaknesses or resistances are applied yet.
+
 ## Combat and XP
 
 Enemy arrivals have 1.2-second stationary warnings. Two spawns in each group of
@@ -88,6 +114,7 @@ sticks must return to neutral before movement resumes.
 ## Code and sprites
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
+- `weapons.ts`: weapon definitions, upgrade descriptions, and derived combat stats.
 - `hives.ts`: deterministic mission choices and activity/terrain previews.
 - `terrain.ts`: terrain generation, prevalent terrain, and undercarriage handling.
 - `controls.ts`, `camera.ts`, `runtime.ts`: input, camera, lifecycle, and menus.
@@ -109,5 +136,5 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has one weapon, two bug appearances sharing
+Tuning is provisional. This version has four weapons, two bug appearances sharing
 chase behavior, and no audio. There is no saved progression between runs.

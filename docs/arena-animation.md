@@ -23,7 +23,7 @@ size in the rig independently of the PNG's resolution.
 | --- | --- | --- |
 | Mech chassis, torso | 16, 16 | `chassis`, `torso` |
 | Mech feet | 16, 16 | `footL`, `footR` |
-| Mech gun, cooling module | 16, 16 | `weapon`, `cooler` |
+| Mech gun, modification module | 16, 16 | `weapon`, `cooler` |
 | Bug body, shell, head | 16, 16 | `body`, `shell`, `head` |
 | Bug legs | 8, 16 | `legs` (reused by six bones) |
 | Bug wings | 8, 16 | `wings` (optional, reused by two bones) |
@@ -49,15 +49,16 @@ speed, health, or damage.
 
 ## Player upgrades
 
-`mechSkin` maps damage ranks to cannon parts, firing-speed ranks to cooler parts,
-and movement ranks to both feet, wheels, or treads. Cannons and coolers have
+`mechSkin(upgrades, undercarriage, weapon)` maps damage ranks to each weapon’s
+own parts, weapon modification ranks to the side module, and movement ranks to
+both feet, wheels, or treads. All four weapons and the modification modules have
 base, rank-1, and rank-3 artwork; higher ranks use the final appearance. All three
 undercarriages have distinct stock, servo (rank 1), sprint (rank 2), and boost
 (rank 3) parts. Speed is capped at rank 3 in gameplay. `upgradePart` previews the next part in
 the upgrade card. To add another visual tier, register its PNG and extend that
 mapping. The animation does not change.
 
-The chassis and feet follow movement; the torso, gun, and cooler follow aim.
+The chassis and feet follow movement; the torso, gun, and side module follow aim.
 Walking phase uses actual distance traveled, so blocked movement does not make
 the feet run. `shotAt` drives shared recoil. Bugs carry their skin ID from warning
 to live enemy to cosmetic death effect. Warning motion has no collision; the bug
@@ -86,3 +87,9 @@ modules retain the `Wheel` or `Tread` sprite-key suffix for that renderer detail
 Speed ranks belong to individual undercarriages in `game.parts.undercarriages`.
 Use `upgradeLevels(game)` for the equipped rig. Workshop previews substitute the
 previewed part's own rank, so unequipped parts never inherit another base's art.
+
+Weapon ranks live in `game.parts.weapons`; damage and modification ranks are
+independent for cannon, shotgun, RPG, and flamethrower. Swapping only changes the
+equipped ID. All weapon skins use the same weapon bone and 32px registration.
+Flame particles and rocket blasts are separate cosmetic layers driven by the
+simulation clock; they do not require alternate character animations.
