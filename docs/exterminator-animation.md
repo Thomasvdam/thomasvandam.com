@@ -103,3 +103,11 @@ ricochet feedback also follow simulation state. Centipede segments repeat the sa
 rig with the head slot omitted, phase-offset walking, and positions from the body
 chain. The dying chain retains those positions so all segments fade together.
 No per-skin animation timeline is required.
+
+### Individual appearance
+
+`bugSkin(type, id)` independently chooses stock/warm/cool registered parts for
+each body, shell, head and leg slot. The sprite generator creates these palette
+alternatives and small shell markings. Pivots, outlines, rig bones, and collision
+geometry stay the same. The warning, living actor, and remains all use the same
+ID; centipede segments repeat that individual’s body/leg selection.
