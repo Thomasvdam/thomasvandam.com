@@ -303,7 +303,7 @@ export function step(game: Game, input: Input, dt: number) {
 		acid.x += acid.vx * travelTime; acid.y += acid.vy * travelTime; acid.life -= dt;
 		const playerHit = circleHitTime(acid, player, PLAYER_RADIUS, previous, ACID_RADIUS);
 		let bugHit = Infinity;
-		for (const enemy of game.enemies) if (enemy.id !== acid.owner && enemy.health > 0) bugHit = Math.min(bugHit, bulletHitTime(acid, enemy, previous, ACID_RADIUS));
+		for (const enemy of game.enemies) if (enemy.variant === "armoured" && enemy.id !== acid.owner && enemy.health > 0) bugHit = Math.min(bugHit, bulletHitTime(acid, enemy, previous, ACID_RADIUS));
 		const hit = Math.min(playerHit, bugHit);
 		if (hit < Infinity) {
 			if (playerHit < bugHit && player.invulnerable === 0) { player.health = Math.max(0, player.health - 20); player.invulnerable = .9; }

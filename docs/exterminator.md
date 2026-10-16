@@ -147,8 +147,9 @@ Specialist health and movement scale with threat too. Provisional behavior:
   nearby armoured bug relative to the mech. It shifts sideways out of cover
   for a clear lane, telegraphs its fixed aim for 0.55 seconds, then spits a
   straight projectile at 300 units/s. Acid deals 20 damage on impact, stops on
-  other live bugs (including centipede segments) without hurting them, and
-  expires after 2.2 seconds. The spitter rechecks the lane before firing and
+  live armoured bugs without hurting them, and
+  expires after 2.2 seconds. Other bugs, including centipede segments, do not block aiming or acid.
+  The spitter rechecks the lane for armour before firing and
   returns to cover during its 1.6-second recovery. Without usable armour it
   kites at 240–330 units and sidesteps blocked lanes. Cover follows the player
   and shield positions; dead or unusable shields are replaced or abandoned.
