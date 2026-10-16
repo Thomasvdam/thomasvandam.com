@@ -1,4 +1,4 @@
-import { BUG_SPECS, LUNGE_DISTANCE, LUNGE_WINDUP, ARMOUR_HALF_ANGLE, type BugVariant } from "./bugs";
+import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS, LUNGE_DISTANCE, LUNGE_WINDUP, ARMOUR_HALF_ANGLE, type BugVariant } from "./bugs";
 import { weaponStats } from "./weapons";
 import { TILE_SIZE, TERRAIN_COLUMNS } from "./terrain";
 import { cameraFor, type Camera } from "./camera";
@@ -73,7 +73,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.save(); ctx.globalAlpha *= opacity; ctx.fillStyle = "#040b09";
 		ctx.beginPath(); ctx.ellipse(x, y + 4, radius, radius * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	};
-	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = []) => {
+	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = [], rolling = false) => {
 		const skin = bugSkin(variant, appearance);
 		if (variant === "centipede") {
 			for (let i = segments.length - 1; i >= 0; i--) {
@@ -82,7 +82,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 				drawRig(ctx, sprites, BUG_RIG, { ...skin, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8, flash);
 			}
 		}
-		drawRig(ctx, sprites, BUG_RIG, skin, bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress }), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
+		drawRig(ctx, sprites, BUG_RIG, skin, bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress, rolling }), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
 	};
 	for (const remains of game.remains) {
 		if (!visible(remains.x, remains.y) && !(remains.variant === "centipede" && remains.segments.some(segment => visible(segment.x, segment.y)))) continue;
@@ -127,6 +127,28 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			const size = bullet.weapon === "shotgun" ? 9 : 16;
 			ctx.drawImage(sprites.bullet, -size / 2, -size / 2, size, size);
 		} ctx.restore();
+	}
+	for (const lob of game.lobs) {
+		const progress = clamp(lob.age / BEETLE_FLIGHT_TIME, 0, 1), target = lob.target;
+		const x = lob.x + (target.x - lob.x) * progress, y = lob.y + (target.y - lob.y) * progress;
+		const elevation = Math.sin(progress * Math.PI) * 80;
+		ctx.save();
+		if (progress < 1) {
+			ctx.fillStyle = "#dcaa6533"; ctx.strokeStyle = "#f2c480"; ctx.lineWidth = 2;
+			ctx.beginPath(); ctx.arc(target.x, target.y, BEETLE_BLAST_RADIUS, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+			ctx.beginPath(); ctx.moveTo(target.x - 7, target.y); ctx.lineTo(target.x + 7, target.y); ctx.moveTo(target.x, target.y - 7); ctx.lineTo(target.x, target.y + 7); ctx.stroke();
+			ctx.beginPath(); ctx.arc(target.x, target.y, BEETLE_BLAST_RADIUS * (1 - progress), 0, Math.PI * 2); ctx.stroke();
+			shadow(x, y, 8, .35); ctx.translate(x, y - elevation); ctx.rotate(lob.age * 9);
+			ctx.drawImage(sprites.dungBall, -10, -10, 20, 20);
+		} else {
+			const fade = 1 - (lob.age - BEETLE_FLIGHT_TIME) / .3;
+			ctx.globalAlpha = fade; ctx.fillStyle = "#b79a57";
+			for (let i = 0; i < 9; i++) {
+				const angle = i * Math.PI * 2 / 9 + lob.id, distance = BEETLE_BLAST_RADIUS * (1 - fade * .7);
+				ctx.fillRect(target.x + Math.cos(angle) * distance - 3, target.y + Math.sin(angle) * distance - 3, 6, 6);
+			}
+		}
+		ctx.restore();
 	}
 	for (const explosion of game.explosions) {
 		if (!visible(explosion.x, explosion.y, explosion.radius)) continue;
@@ -183,8 +205,13 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		if (enemy.variant === "lunger" && enemy.state.phase === "windup") {
 			ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.angle); ctx.scale(.85, 1.12); ctx.rotate(-enemy.angle); ctx.translate(-enemy.x, -enemy.y);
 		}
-		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments);
+		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle" && enemy.state.phase === "roll");
 		ctx.restore();
+		if (enemy.variant === "beetle" && enemy.state.phase === "roll") {
+			const progress = 1 - enemy.state.remaining / BEETLE_ROLL_TIME, size = 5 + progress * 15;
+			ctx.save(); ctx.translate(enemy.x + Math.cos(enemy.angle) * 26, enemy.y + Math.sin(enemy.angle) * 26); ctx.rotate(game.time * 8);
+			ctx.drawImage(sprites.dungBall, -size / 2, -size / 2, size, size); ctx.restore();
+		}
 		if (enemy.maxHealth > 1) {
 			ctx.fillStyle = "#172219"; ctx.fillRect(enemy.x - 13, enemy.y - 32, 26, 3);
 			ctx.fillStyle = "#d39b65"; ctx.fillRect(enemy.x - 13, enemy.y - 32, 26 * enemy.health / enemy.maxHealth, 3);

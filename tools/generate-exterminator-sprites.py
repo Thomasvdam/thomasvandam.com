@@ -20,6 +20,7 @@ COLORS = {
     "redDark": (73, 32, 37), "red": (176, 60, 56), "redLight": (244, 147, 103),
     "blueDark": (31, 56, 69), "blue": (66, 136, 151), "blueLight": (151, 218, 205),
     "ochreDark": (77, 57, 28), "ochre": (160, 122, 49), "ochreLight": (232, 191, 101),
+    "violetDark": (49, 36, 57), "violet": (113, 78, 125), "violetLight": (185, 144, 181),
     "slateDark": (39, 47, 54), "slate": (95, 114, 120), "slateLight": (178, 190, 175),
 }
 
@@ -183,7 +184,7 @@ for name, length, accent in [("mech-cooler", 8, "steel"), ("mech-vent-cooler", 1
 
 for prefix, dark, base, highlight in [("rust", "rustDark", "rust", "rustLight"), ("olive", "oliveDark", "olive", "oliveLight"),
     ("lunger", "redDark", "red", "redLight"), ("evader", "blueDark", "blue", "blueLight"),
-    ("centipede", "ochreDark", "ochre", "ochreLight"), ("armoured", "slateDark", "slate", "slateLight")]:
+    ("centipede", "ochreDark", "ochre", "ochreLight"), ("armoured", "slateDark", "slate", "slateLight"), ("beetle", "violetDark", "violet", "violetLight")]:
     part(f"bug-{prefix}-body", [
         poly([(3, 12), (7, 7), (21, 7), (27, 12), (27, 21), (22, 25), (8, 25), (3, 20)], "ink"),
         poly([(5, 12), (8, 9), (21, 9), (25, 13), (25, 20), (21, 23), (8, 23), (5, 19)], dark),
@@ -227,6 +228,16 @@ part("bug-armoured-shell", [poly([(3, 11), (10, 3), (22, 3), (30, 8), (31, 24), 
     poly([(13, 7), (22, 6), (28, 11), (28, 21), (22, 26), (13, 25)], "slate"),
     rect(23, 10, 4, 13, "slateLight"), rect(12, 6, 3, 20, "metal"), rect(18, 9, 3, 3, "slateLight"), rect(18, 21, 3, 3, "slateLight")])
 part("bug-armoured-head", [rect(10, 11, 12, 11, "ink"), rect(12, 13, 8, 7, "slateDark"), rect(18, 12, 3, 2, "orange"), rect(18, 19, 3, 2, "orange")])
+
+part("bug-beetle-shell", [poly([(2, 12), (7, 5), (18, 4), (25, 9), (27, 16), (24, 24), (15, 28), (6, 25), (2, 20)], "ink"),
+    poly([(4, 12), (8, 7), (17, 6), (23, 10), (25, 16), (22, 23), (15, 26), (7, 23), (4, 19)], "violetDark"),
+    poly([(7, 11), (12, 8), (20, 10), (23, 16), (20, 22), (12, 24), (7, 20)], "violet"),
+    rect(8, 11, 11, 2, "violetLight"), rect(14, 8, 2, 16, "violetDark"), rect(7, 15, 2, 5, "violetLight")])
+part("bug-beetle-head", [poly([(9, 12), (19, 9), (24, 12), (29, 15), (30, 18), (24, 18), (20, 23), (9, 21)], "ink"),
+    rect(11, 12, 10, 9, "violet"), rect(19, 12, 3, 2, "gold"), rect(19, 19, 3, 2, "gold"), rect(24, 15, 4, 2, "violetLight")])
+save("dung-ball", board([poly([(5, 10), (11, 4), (21, 4), (28, 11), (28, 21), (21, 28), (11, 28), (4, 21)], "ink"),
+    poly([(7, 11), (12, 6), (20, 6), (26, 12), (26, 20), (20, 26), (12, 26), (6, 20)], "rustDark"),
+    rect(9, 10, 12, 10, "ochreDark"), rect(10, 8, 9, 3, "ochre"), rect(8, 13, 3, 6, "ochre"), rect(18, 18, 5, 4, "oliveDark"), rect(13, 20, 3, 3, "rust")]))
 
 part("bug-wing", [
     poly([(7, 15), (13, 7), (23, 4), (28, 8), (30, 14), (27, 21), (17, 24), (10, 20)], "oliveDark"),

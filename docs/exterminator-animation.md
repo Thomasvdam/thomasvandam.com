@@ -96,13 +96,16 @@ simulation clock; they do not require alternate character animations.
 
 ### Specialist bugs
 
-Lunger, evader, centipede, and armoured skins register body/shell/head/leg PNGs
+Lunger, evader, centipede, armoured, and dung beetle skins register body/shell/head/leg PNGs
 on the existing bug rig. The lunger crouches the composed rig during windup; its
 attack corridor follows the direction locked by the simulation. Armour facing and
 ricochet feedback also follow simulation state. Centipede segments repeat the same
 rig with the head slot omitted, phase-offset walking, and positions from the body
 chain. The dying chain retains those positions so all segments fade together.
-No per-skin animation timeline is required.
+The dung beetle uses the same rig with an optional rolling pose for its front
+legs. Its growing/spinning ball, airborne arc, landing marker, and impact fragments
+follow simulation state and time, so they freeze on pause. Beetle parts also have
+independent warm/cool variants. No per-skin animation timeline is required.
 
 ### Individual appearance
 
