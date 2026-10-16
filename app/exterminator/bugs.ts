@@ -1,11 +1,15 @@
 import type { Bullet, Game, Vector } from "./game";
 
-export type BugVariant = "burrower" | "flyer" | "lunger" | "evader" | "centipede" | "armoured";
+export type BugVariant = "burrower" | "flyer" | "lunger" | "evader" | "centipede" | "armoured" | "beetle";
 export const BUG_SPECS: Record<BugVariant, { health: number; speed: number; radius: number }> = {
 	burrower: { health: 1, speed: 60, radius: 15 }, flyer: { health: 1, speed: 60, radius: 15 },
 	lunger: { health: 3, speed: 68, radius: 15 }, evader: { health: 2, speed: 76, radius: 13 },
-	centipede: { health: 7, speed: 78, radius: 12 }, armoured: { health: 5, speed: 54, radius: 18 },
+	centipede: { health: 7, speed: 104, radius: 12 }, armoured: { health: 5, speed: 54, radius: 18 },
+	beetle: { health: 3, speed: 88, radius: 16 },
 };
+export const BEETLE_ROLL_TIME = .95;
+export const BEETLE_FLIGHT_TIME = .9;
+export const BEETLE_BLAST_RADIUS = 38;
 export const LUNGE_TRIGGER = 180;
 export const LUNGE_DISTANCE = 310;
 export const LUNGE_WINDUP = 1.15;
@@ -22,22 +26,26 @@ export type Enemy = EnemyBase & (
 	{ variant: "lunger"; state: { phase: "approach" | "windup" | "lunge" | "recover"; remaining: number; direction: number; distance: number } } |
 	{ variant: "evader"; state: { phase: "chase" | "dodge"; remaining: number; cooldown: number; direction: Vector } } |
 	{ variant: "centipede"; state: { segments: Vector[] } } |
-	{ variant: "armoured"; state: { phase: "chase" } }
+	{ variant: "armoured"; state: { phase: "chase" } } |
+	{ variant: "beetle"; state: { phase: "seek" | "roll" | "recover"; remaining: number } }
 );
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 export const angleDifference = (target: number, current: number) => Math.atan2(Math.sin(target - current), Math.cos(target - current));
 
 export function bugForSpawn(cleared: number, wave: number, index: number): BugVariant {
 	if (index % 3 !== 2) return index % 2 === 0 ? "burrower" : "flyer";
-	const specialists: BugVariant[] = ["lunger", "evader", "armoured", "centipede"];
-	const available = Math.min(4, cleared + 1);
-	return specialists[(Math.floor(index / 3) + wave - 1) % available];
+	const specialists: BugVariant[] = ["lunger"];
+	if (cleared >= 1) specialists.push("evader");
+	if (cleared >= 2) specialists.push("armoured", "beetle");
+	if (cleared >= 3) specialists.push("centipede");
+	return specialists[(Math.floor(index / 3) + wave - 1) % specialists.length];
 }
 export function createBug(options: { variant: BugVariant; id: number; position: Vector; player: Vector; threat: number; wave: number; time: number; bounds: Bounds }): Enemy {
 	const { variant, id, position, player, threat, wave, time, bounds } = options, spec = BUG_SPECS[variant];
 	const angle = Math.atan2(player.y - position.y, player.x - position.x);
 	const health = spec.health * (1 + Math.floor((threat - 1) / 2));
 	const base = { x: clamp(position.x, spec.radius, bounds.width - spec.radius), y: clamp(position.y, spec.radius, bounds.height - spec.radius), id, health, maxHealth: health, speed: Math.min(variant === "armoured" ? 85 : 160, spec.speed + threat * (variant === "armoured" ? 2 : 5) + wave * 3), angle, walkDistance: 12, bornAt: time, hitAt: -10, blockedAt: -10 };
+	if (variant === "beetle") return { ...base, variant, state: { phase: "seek", remaining: .5 } };
 	if (variant === "lunger") return { ...base, variant, state: { phase: "approach", remaining: 0, direction: angle, distance: 0 } };
 	if (variant === "evader") return { ...base, variant, state: { phase: "chase", remaining: 0, cooldown: 0, direction: { x: 0, y: 0 } } };
 	if (variant === "centipede") return { ...base, variant, state: { segments: Array.from({ length: SEGMENT_COUNT - 1 }, (_, i) => ({
@@ -119,6 +127,21 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 					const sign = clearance(side) >= clearance(-side) ? side : -side;
 					state.direction = { x: perpendicular.x * sign, y: perpendicular.y * sign }; state.phase = "dodge"; state.remaining = .24; state.cooldown = .65;
 				} else { move(enemy, toward, Math.min(distance, enemy.speed * dt), bounds); enemy.angle = desired; }
+			}
+		} else if (enemy.variant === "beetle") {
+			const state = enemy.state;
+			enemy.angle = desired;
+			state.remaining = Math.max(0, state.remaining - dt);
+			if (state.phase === "roll") {
+				if (state.remaining === 0) {
+					if (game.lobs.length < 64) game.lobs.push({ id: game.nextId++, x: enemy.x + toward.x * 22, y: enemy.y + toward.y * 22, target: { x: player.x, y: player.y }, age: 0 });
+					state.phase = "recover"; state.remaining = 1.4;
+				}
+			} else {
+				// Retreat when crowded, close only enough to bring the mech into throwing range.
+				const direction = distance < 240 ? -1 : distance > 340 ? 1 : 0;
+				move(enemy, { x: toward.x * direction, y: toward.y * direction }, enemy.speed * dt, bounds);
+				if (state.remaining === 0 && distance <= 380) { state.phase = "roll"; state.remaining = BEETLE_ROLL_TIME; }
 			}
 		} else if (enemy.variant === "armoured") {
 			const error = angleDifference(desired, enemy.angle);
