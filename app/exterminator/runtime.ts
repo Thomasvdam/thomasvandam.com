@@ -21,7 +21,7 @@ function menuChoices(game: Game) {
 	];
 	return [];
 }
-export type ArenaView = ReturnType<typeof viewFromGame>;
+export type ExterminatorView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
 		hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
@@ -42,10 +42,10 @@ export function viewFromGame(game: Game, controller = false, selection = 0) {
 }
 type RuntimeOptions = {
 	canvas: HTMLCanvasElement; movePad: HTMLElement; moveThumb: HTMLElement; aimPad: HTMLElement; aimThumb: HTMLElement;
-	onViewChange: (view: ArenaView) => void; onLoaded: () => void; onError: (message: string) => void;
+	onViewChange: (view: ExterminatorView) => void; onLoaded: () => void; onError: (message: string) => void;
 };
 
-export function createArenaRuntime(options: RuntimeOptions) {
+export function createExterminatorRuntime(options: RuntimeOptions) {
 	const { canvas, onViewChange, onLoaded, onError } = options;
 	let game = newGame(crypto.getRandomValues(new Uint32Array(1))[0]);
 	let disposed = false, loaded = false, frame = 0, width = 1, height = 1, pixelRatio = 1, accumulator = 0, lastTime = 0;

@@ -94,9 +94,9 @@ export default function Home() {
 						<p>A small companion for Letters from Whitechapel.</p>
 					</article>
 					<article>
-						<Link href="/arena" className={`${styles.cover} ${styles.arena}`}>
-							<h3>The<br />arena.</h3>
-							<div className={styles.arenaField} aria-hidden="true"><i /><i /><i /></div>
+						<Link href="/exterminator" className={`${styles.cover} ${styles.exterminator}`}>
+							<h3>Extermi<br />nator.</h3>
+							<div className={styles.exterminatorField} aria-hidden="true"><i /><i /><i /></div>
 							<div className={styles.coverBottom}><span>06 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>See how long you can keep going.</p>

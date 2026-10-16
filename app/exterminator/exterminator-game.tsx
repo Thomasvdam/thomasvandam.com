@@ -6,11 +6,11 @@ import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, HeartPulse, Radio, Pause,
 import { MOVEMENT, TERRAIN_NAMES, UNDERCARRIAGES } from "./terrain";
 import { newGame, WAVES_PER_HIVE } from "./game";
 import { mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
-import { createArenaRuntime, viewFromGame, type ArenaView } from "./runtime";
-import styles from "./arena.module.css";
+import { createExterminatorRuntime, viewFromGame, type ExterminatorView } from "./runtime";
+import styles from "./exterminator.module.css";
 
-type PartChoice = Extract<ArenaView["choices"][number], { kind: "stat" | "weapon" | "undercarriage" }>;
-function partArt(view: ArenaView, choice: PartChoice) {
+type PartChoice = Extract<ExterminatorView["choices"][number], { kind: "stat" | "weapon" | "undercarriage" }>;
+function partArt(view: ExterminatorView, choice: PartChoice) {
 	if (choice.kind === "stat") return upgradePart(view.upgrades, choice.id, view.undercarriage, view.weapon);
 	if (choice.kind === "weapon") {
 		const ranks = view.weaponRanks[choice.id];
@@ -19,15 +19,15 @@ function partArt(view: ArenaView, choice: PartChoice) {
 	return mechSkin({ ...view.upgrades, speed: view.parts[choice.id] }, choice.id).footL!;
 }
 
-export function ArenaGame() {
+export function ExterminatorGame() {
 	const canvas = useRef<HTMLCanvasElement>(null), movePad = useRef<HTMLDivElement>(null), aimPad = useRef<HTMLDivElement>(null);
 	const moveThumb = useRef<HTMLSpanElement>(null), aimThumb = useRef<HTMLSpanElement>(null), firstUpgrade = useRef<HTMLButtonElement>(null);
-	const runtime = useRef<ReturnType<typeof createArenaRuntime> | null>(null);
-	const [view, setView] = useState<ArenaView>(() => viewFromGame(newGame()));
+	const runtime = useRef<ReturnType<typeof createExterminatorRuntime> | null>(null);
+	const [view, setView] = useState<ExterminatorView>(() => viewFromGame(newGame()));
 	const [loaded, setLoaded] = useState(false), [error, setError] = useState("");
 	useEffect(() => {
 		if (!canvas.current || !movePad.current || !aimPad.current || !moveThumb.current || !aimThumb.current) return;
-		const instance = createArenaRuntime({
+		const instance = createExterminatorRuntime({
 			canvas: canvas.current, movePad: movePad.current, aimPad: aimPad.current, moveThumb: moveThumb.current, aimThumb: aimThumb.current,
 			onViewChange: setView, onLoaded: () => setLoaded(true), onError: setError,
 		});
@@ -41,10 +41,10 @@ export function ArenaGame() {
 	return <div className={styles.page}>
 		<header className={styles.header}>
 			<Link href="/" className={styles.back} aria-label="Back to Thomas van Dam"><ArrowLeft size={15} /><span>Thomas van Dam</span></Link>
-			<div className={styles.title}><h1>ARENA<span>.</span></h1><span className={styles.eyebrow}>Mech / bugs / survival</span></div>
+			<div className={styles.title}><h1>EXTERMINATOR<span>.</span></h1><span className={styles.eyebrow}>Mech / bugs / survival</span></div>
 			<span className={styles.prototype}>Work in progress</span>
 		</header>
-		<section className={styles.game} aria-label="Arena survival game">
+		<section className={styles.game} aria-label="Exterminator survival game">
 			<div className={styles.hud}>
 				<div className={styles.health}><span className={styles.label}>Health <strong>{view.health}<small> / 100</small></strong></span><meter min={0} max={100} value={view.health} aria-label="Health" /></div>
 				<div><span className={styles.label}>{view.hive ? "Wave" : "Hives cleared"}</span><strong>{view.hive ? view.wave : view.hivesCleared}{view.hive && <small className={styles.waveTotal}> / {WAVES_PER_HIVE}</small>}</strong></div>
@@ -57,14 +57,14 @@ export function ArenaGame() {
 			</div>
 			<div className={styles.experience}><span>LVL {view.level}</span><progress max={view.xpNeeded} value={Math.min(view.xp, view.xpNeeded)} aria-label="Experience toward next level" /><span>{view.xp} / {view.xpNeeded} XP</span>{view.bankedUpgrades > 0 && <span>{view.bankedUpgrades} BANKED</span>}</div>
 			<div className={styles.stage} data-playing={!overlay}>
-				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Arena playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
+				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Exterminator playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
 				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</span></>}</div>}
 				<div ref={movePad} className={`${styles.joystick} ${styles.movePad}`} role="group" aria-label="Movement joystick"><span ref={moveThumb} className={styles.thumb}><ArrowUpRight size={21} /></span><span className={styles.stickLabel}>MOVE</span></div>
 				<div ref={aimPad} className={`${styles.joystick} ${styles.aimPad}`} role="group" aria-label="Aim joystick"><span ref={aimThumb} className={styles.thumb}><Crosshair size={21} /></span><span className={styles.stickLabel}>AIM</span></div>
 				{overlay && <div className={styles.overlay}>
 					<div className={styles.card}>
 						{error ? <><p className={styles.eyebrow}>Unable to start</p><h2>Try another round.</h2><p>{error}</p><button className={styles.primary} onClick={() => window.location.reload()}>Reload game <RotateCcw size={16} /></button></>
-						: !loaded ? <><p className={styles.eyebrow}>Arena</p><h2>Getting ready…</h2></>
+						: !loaded ? <><p className={styles.eyebrow}>Exterminator</p><h2>Getting ready…</h2></>
 						: view.mode === "base" ? <>
 							<p className={styles.eyebrow}>Base / {view.hivesCleared} hives eradicated</p><h2>Choose your next hive.</h2>
 							<div className={`${styles.upgrades} ${styles.hiveChoices}`}>{view.hives.map((hive, index) => <button ref={index === 0 ? firstUpgrade : undefined} key={hive.id} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.deploy(hive.id)}>
