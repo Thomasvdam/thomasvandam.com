@@ -4,12 +4,12 @@ export const TERRAIN_ROWS = 9;
 export type Terrain = "firm" | "mud" | "rubble";
 export type Undercarriage = "legs" | "wheels" | "treads";
 export const UNDERCARRIAGES = [
-	{ id: "legs", name: "Legs", description: "Best on rubble, steady on firm ground. Mud is difficult." },
+	{ id: "legs", name: "Legs", description: "Steady on firm ground and rubble. Mud is difficult." },
 	{ id: "wheels", name: "Wheels", description: "Fast on firm ground. Mud and rubble slow you down." },
 	{ id: "treads", name: "Treads", description: "Best in mud. Slower on firm ground and rubble." },
 ] as const;
 export const MOVEMENT: Record<Undercarriage, Record<Terrain, number>> = {
-	legs: { firm: .9, mud: .25, rubble: 1.1 },
+	legs: { firm: 1, mud: .25, rubble: 1 },
 	wheels: { firm: 1.5, mud: .375, rubble: .375 },
 	treads: { firm: .7, mud: .85, rubble: .7 },
 };

@@ -11,7 +11,7 @@ function enemy(game, props = {}) { const result = { id: game.nextId++, x: game.p
 test("movement has equal diagonal speed and respects the fixed arena on every side", () => {
 	const game = newGame(); start(game); game.toSpawn = 1; game.spawnTimer = 1000; game.terrain.fill("firm"); const initial = { ...game.player };
 	advance(game, 1, { ...idle, move: { x: 1, y: 1 } });
-	expect(Math.hypot(game.player.x - initial.x, game.player.y - initial.y)).toBeCloseTo(playerStats(game).speed * .9, 5);
+	expect(Math.hypot(game.player.x - initial.x, game.player.y - initial.y)).toBeCloseTo(playerStats(game).speed, 5);
 	advance(game, 10, { ...idle, move: { x: 1, y: 1 } });
 	expect(game.player.x).toBe(FIELD.width - PLAYER_RADIUS); expect(game.player.y).toBe(FIELD.height - PLAYER_RADIUS);
 	game.enemies = []; advance(game, 10, { ...idle, move: { x: -1, y: -1 } });

@@ -226,9 +226,9 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		if (enemy.variant === "lunger" && enemy.state.phase === "windup") {
 			ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.angle); ctx.scale(.85, 1.12); ctx.rotate(-enemy.angle); ctx.translate(-enemy.x, -enemy.y);
 		}
-		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle" && enemy.state.phase === "roll", spitCharge);
+		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle", spitCharge);
 		ctx.restore();
-		if (enemy.variant === "beetle" && enemy.state.phase === "roll") {
+		if (enemy.variant === "beetle") {
 			const progress = 1 - enemy.state.remaining / BEETLE_ROLL_TIME, size = 5 + progress * 15;
 			ctx.save(); ctx.translate(enemy.x + Math.cos(enemy.angle) * 26, enemy.y + Math.sin(enemy.angle) * 26); ctx.rotate(game.time * 8);
 			ctx.drawImage(sprites.dungBall, -size / 2, -size / 2, size, size); ctx.restore();

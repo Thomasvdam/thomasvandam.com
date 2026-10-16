@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ARMOUR_HALF_ANGLE, BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, LUNGE_DISTANCE, LUNGE_TRIGGER, LUNGE_WINDUP, SEGMENT_SPACING } from "./bugs";
+import { ARMOUR_HALF_ANGLE, BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, LUNGE_DISTANCE, LUNGE_TRIGGER, LUNGE_WINDUP, LUNGE_WINDUP_TURN_RATE, SEGMENT_SPACING } from "./bugs";
 import { chooseHive, FIELD, newGame, PLAYER_RADIUS, start, step } from "./game";
 import { BUG_RIG, bugPose, resolveRig, spawnAppearance } from "./animation";
 import { BUG_SKINS } from "./sprite-parts";
@@ -10,11 +10,15 @@ function advance(game, seconds, input = idle, dt = 1 / 120) { for (let i = 0; i 
 function shot(game, { x, y, vx, vy = 0, weapon = "cannon", damage = 1, blastRadius = 0, life = 1 }) { game.bullets.push({ id: game.nextId++, x, y, vx, vy, life, weapon, damage, blastRadius }); }
 function straighten(enemy) { enemy.speed = 0; enemy.angle = 0; enemy.state.segments.forEach((segment, i) => { segment.x = enemy.x - (i + 1) * SEGMENT_SPACING; segment.y = enemy.y; }); }
 
-test("lunger locks its warning direction, holds still for the windup, and lunges beyond its trigger range", () => {
+test("lunger turns slightly during windup, then locks the lunge direction beyond its trigger range", () => {
 	const game = setup(); Object.assign(game.player, { x: 480, y: 360 }); const enemy = bug(game, "lunger", 300);
-	step(game, idle, 1 / 120); expect(enemy.state.phase).toBe("windup"); expect(enemy.state.remaining).toBe(LUNGE_WINDUP); expect(enemy.state.direction).toBe(0);
-	game.player.y = 500; advance(game, LUNGE_WINDUP - .05); expect(enemy.x).toBe(300); expect(enemy.y).toBe(360); expect(enemy.state.direction).toBe(0);
-	advance(game, .65); expect(enemy.x).toBeCloseTo(300 + LUNGE_DISTANCE); expect(enemy.y).toBe(360); expect(enemy.state.phase).toBe("recover"); expect(game.player.health).toBe(100); expect(LUNGE_DISTANCE).toBeGreaterThan(LUNGE_TRIGGER);
+	step(game, idle, 1 / 120); expect(enemy.state.phase).toBe("windup"); expect(enemy.state.remaining).toBe(LUNGE_WINDUP);
+	game.player.y = 500; advance(game, LUNGE_WINDUP - .05);
+	expect(enemy.x).toBe(300); expect(enemy.y).toBe(360); expect(enemy.state.direction).toBeCloseTo((LUNGE_WINDUP - .05) * LUNGE_WINDUP_TURN_RATE);
+	while (enemy.state.phase === "windup") step(game, idle, 1 / 120);
+	const direction = enemy.state.direction; expect(direction).toBeLessThan(.18);
+	game.player.y = 100; advance(game, .6);
+	expect(enemy.state.direction).toBe(direction); expect(enemy.x).toBeCloseTo(300 + Math.cos(direction) * LUNGE_DISTANCE); expect(enemy.y).toBeCloseTo(360 + Math.sin(direction) * LUNGE_DISTANCE); expect(enemy.state.phase).toBe("recover"); expect(game.player.health).toBe(100); expect(LUNGE_DISTANCE).toBeGreaterThan(LUNGE_TRIGGER);
 });
 
 test("a fast mech can outrun the charge before it lunges; slow terrain leaves it in the attack path", () => {
