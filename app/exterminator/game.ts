@@ -1,4 +1,4 @@
-import { BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, frontArmour, resolveBarriers, stepBugs, type BugVariant, type Enemy } from "./bugs";
+import { BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, frontArmour, resolveBarriers, separateBugs, stepBugs, type BugVariant, type Enemy } from "./bugs";
 import { WEAPONS, weaponSpec, weaponStats, weaponModLimit, type Weapon, type WeaponRanks } from "./weapons";
 import { createHives, type Hive } from "./hives";
 import { createTerrain, MOVEMENT, terrainAt, UNDERCARRIAGES, type Terrain, type Undercarriage } from "./terrain";
@@ -256,6 +256,7 @@ export function step(game: Game, input: Input, dt: number) {
 		if (game.spawnTimer <= 0) { warnSpawn(game); game.toSpawn--; game.spawnTimer += Math.max(.18, .7 - game.wave * .025 - ((game.hive?.threat ?? 1) - 1) * .06); }
 	}
 	const lungeContacts = stepBugs(game, dt, FIELD, PLAYER_RADIUS);
+	separateBugs(game.enemies, FIELD);
 	resolveBarriers(player, game.enemies, PLAYER_RADIUS, FIELD);
 	game.bullets = game.bullets.filter(bullet => {
 		const previous = { x: bullet.x, y: bullet.y };

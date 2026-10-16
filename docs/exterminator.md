@@ -141,9 +141,16 @@ Specialist health and movement scale with threat too. Provisional behavior:
   All segments share health; blasts and flame apply damage once per bug. Killing
   it removes the barrier. It emerges coiled inside a larger spawn warning; body
   rendering stays visible even when the head leaves the camera.
-- **Armoured bug:** crawls and turns at most 0.7 radians/s, moving at a quarter of
-  its speed while turning sharply. Its roughly 140° front arc deflects bullets and
+- **Armoured bug:** crawls and turns at most 0.7 radians/s, moving at 55% of
+  its speed while turning sharply. Its base speed is 54 (up to 85 with threat),
+  so it keeps pressure on the player without matching the faster chasers. Its roughly 140° front arc deflects bullets and
   strongly resists flame. Slow turns give players time to flank it.
+
+Live bugs also separate from one another, including centipede segments. A local
+collision solver keeps distinct footprints with a small clearance and handles
+new overlapping spawns and walls. Centipedes move as a whole during separation
+so their body does not break apart. Dead bugs immediately stop blocking. This
+prevents kiting an entire swarm into one overlapping blast target.
 
 Enemy arrivals have 1.2-second stationary warnings. Two spawns in each group of
 three can appear anywhere; the third appears within 90 units of the player's
@@ -184,3 +191,8 @@ registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
 Tuning is provisional. This version has four weapons, six bug variants, and no audio. There is no saved progression between runs.
+
+Each bug skin has subtle warm/cool alternatives for body, shell, head, and legs.
+An individual mixes those parts deterministically from its ID, retaining the same
+appearance through its spawn warning, movement, hit effects, and death. The visual
+choices do not alter health, movement, armour, collision shapes, or animation.
