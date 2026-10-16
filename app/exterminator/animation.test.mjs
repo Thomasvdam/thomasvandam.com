@@ -78,7 +78,7 @@ test("every swappable part has a real PNG matching its declared registration can
 test("variant identity survives its warning; spawn timing and physical collision remain unchanged", () => {
 	const game = newGame(); start(game); game.spawnTimer = 0;
 	for (let i = 0; i < 3; i++) { game.spawnTimer = 0; step(game, idle, 1 / 120); }
-	expect(game.spawns.map(spawn => spawn.variant)).toEqual(["burrower", "flyer", "burrower"]);
+	expect(game.spawns.map(spawn => spawn.variant)).toEqual(["burrower", "flyer", "lunger"]);
 	const warnings = game.spawns.map(spawn => ({ ...spawn }));
 	game.toSpawn = 0;
 	for (let i = 0; i < Math.ceil(SPAWN_WARNING_TIME * 120) + 1; i++) step(game, idle, 1 / 120);
