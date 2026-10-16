@@ -264,18 +264,83 @@ save("bullet", board([rect(7, 13, 20, 6, "orange"), rect(11, 14, 15, 4, "gold"),
 
 
 
-# Subtle per-part cosmetic alternatives: identical registration and silhouette.
-# Small palette shifts preserve each combat type's identifying colour family.
+# Three compatible appearances per bug part: stock, banded/crested, ridged/spined.
+# Larger markings and silhouette changes read at gameplay size; pivots stay fixed.
+BUG_PALETTES = {
+    "rust": ("rustDark", "rust", "rustLight"), "olive": ("oliveDark", "olive", "oliveLight"),
+    "lunger": ("redDark", "red", "redLight"), "evader": ("blueDark", "blue", "blueLight"),
+    "centipede": ("ochreDark", "ochre", "ochreLight"), "armoured": ("slateDark", "slate", "slateLight"),
+    "beetle": ("violetDark", "violet", "violetLight"), "spitter": ("acidDark", "acid", "acidLight"),
+}
+
+
+def paint(pixels, layers, masked=False):
+    overlay = board(layers)
+    for y, row in enumerate(overlay):
+        for x, color in enumerate(row):
+            if color and (not masked or (pixels[y][x] and pixels[y][x] != COLORS["ink"])):
+                pixels[y][x] = color
+
+
 for name, pixels in list(PARTS.items()):
-    if not name.startswith("bug-") or name == "bug-wing":
+    if not name.startswith("bug-"):
         continue
-    for suffix, factors in [("b", (1.08, 1.02, .91)), ("c", (.92, 1.04, 1.10))]:
-        variant = [[tuple(max(0, min(255, round(channel * factor))) for channel, factor in zip(color, factors)) if color else None for color in row] for row in pixels]
-        if name.endswith("-shell"):
-            # A few differently placed shell markings, without changing its outline.
-            for x, y in ([(10, 13), (18, 19)] if suffix == "b" else [(11, 18), (19, 13)]):
-                if variant[y][x]:
-                    variant[y][x] = tuple(min(255, channel + 24) for channel in variant[y][x])
+    wing = name == "bug-wing"
+    prefix, kind = ("olive", "wing") if wing else name.split("-")[1:]
+    dark, base, light = (COLORS[key] for key in BUG_PALETTES[prefix])
+    for suffix in ["b", "c"]:
+        def tint(color):
+            if not color or color == COLORS["ink"]:
+                return color
+            if suffix == "b":
+                return tuple(min(255, round(channel * .7 + highlight * .3)) for channel, highlight in zip(color, light))
+            return tuple(min(255, round(channel * factor)) for channel, factor in zip(color, (.72, .86, 1.08)))
+        variant = [[tint(color) for color in row] for row in pixels]
+        if kind == "shell":
+            if suffix == "b":
+                paint(variant, [poly([(4, 12), (7, 4), (14, 3), (17, 9), (12, 13)], "ink"),
+                                poly([(6, 11), (9, 6), (13, 5), (15, 9), (11, 11)], base)])
+                paint(variant, [rect(8, 8, 4, 17, light), rect(17, 10, 3, 14, light), rect(12, 13, 4, 7, dark)], True)
+            else:
+                paint(variant, [poly([(3, 12), (4, 5), (10, 9), (13, 4), (17, 9), (21, 6), (24, 13)], "ink"),
+                                poly([(5, 12), (6, 8), (10, 12), (14, 7), (17, 12), (21, 9), (22, 13)], base)])
+                paint(variant, [rect(7, 12, 16, 3, dark), rect(7, 18, 16, 3, dark),
+                                rect(9, 11, 11, 2, light), rect(9, 17, 11, 2, light), rect(10, 23, 9, 2, light)], True)
+        elif kind == "body":
+            if suffix == "b":
+                paint(variant, [poly([(1, 11), (6, 8), (12, 11), (12, 23), (5, 25), (1, 21)], "ink"),
+                                rect(3, 12, 7, 9, base), rect(4, 12, 3, 9, light)])
+            else:
+                paint(variant, [poly([(2, 16), (6, 9), (9, 12), (9, 21), (6, 25)], "ink"),
+                                poly([(4, 16), (7, 12), (8, 20), (6, 22)], light)])
+                paint(variant, [rect(8, 10, 3, 14, dark), rect(15, 10, 3, 14, dark), rect(21, 10, 2, 14, light)], True)
+        elif kind == "head":
+            if suffix == "b":
+                paint(variant, [poly([(7, 12), (9, 5), (15, 5), (19, 11)], "ink"),
+                                poly([(10, 10), (11, 7), (14, 7), (16, 10)], light)])
+                paint(variant, [rect(10, 12, 6, 9, light), rect(12, 15, 4, 3, dark)], True)
+            else:
+                paint(variant, [poly([(8, 12), (5, 5), (9, 6), (13, 12)], "ink"),
+                                poly([(8, 21), (5, 28), (9, 27), (13, 21)], "ink"),
+                                rect(7, 7, 2, 4, light), rect(7, 22, 2, 4, light)])
+                paint(variant, [rect(10, 13, 10, 3, dark), rect(11, 18, 8, 3, light)], True)
+        elif kind == "leg":
+            if suffix == "b":
+                paint(variant, [poly([(12, 14), (18, 14), (23, 18), (23, 23), (17, 24), (12, 19)], "ink"),
+                                poly([(14, 16), (18, 16), (21, 19), (21, 21), (17, 22), (14, 18)], light)])
+            else:
+                paint(variant, [poly([(23, 18), (29, 18), (31, 24), (27, 29), (25, 26), (27, 23)], "ink"),
+                                poly([(25, 20), (28, 20), (29, 24), (27, 26), (28, 23)], light)])
+                paint(variant, [rect(11, 14, 3, 6, light), rect(19, 19, 4, 3, dark)], True)
+        else:  # Optional wings: broad banded membranes or angular split tips.
+            if suffix == "b":
+                paint(variant, [poly([(10, 13), (17, 3), (25, 2), (30, 8), (30, 18), (24, 25), (15, 25)], "ink"),
+                                poly([(12, 13), (18, 5), (24, 4), (28, 9), (28, 17), (23, 23), (16, 23)], light),
+                                poly([(13, 17), (27, 8), (28, 11), (15, 21)], dark)])
+            else:
+                paint(variant, [poly([(12, 12), (25, 2), (30, 5), (25, 13), (31, 14), (27, 23), (17, 27)], "ink"),
+                                poly([(14, 13), (25, 5), (27, 6), (22, 15), (28, 16), (25, 21), (18, 24)], base),
+                                poly([(15, 14), (25, 6), (24, 10), (17, 17)], light)])
         save(f"parts/{name}-{suffix}", variant)
 
 
