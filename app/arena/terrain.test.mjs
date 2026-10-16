@@ -34,7 +34,7 @@ test("ready opens base; hive completion returns to base without repairs or autom
 	chooseHive(game, "invalid"); expect(game.mode).toBe("base");
 	const candidate = game.hives[0], forecast = [...candidate.terrain]; chooseHive(game, candidate.id);
 	expect(game.mode).toBe("playing"); expect(game.hive.id).toBe(candidate.id); expect(game.terrain).toEqual(forecast);
-	game.player.health = 40; game.xp = 2; game.parts.cannon = 2; game.parts.cooler = 1;
+	game.player.health = 40; game.xp = 2; game.parts.weapons.cannon.damage = 2; game.parts.weapons.cannon.mod = 1;
 	finishHive(game);
 	expect(game.mode).toBe("base"); expect(game.hivesCleared).toBe(1); expect(game.player.health).toBe(40); expect(game.hive).toBeNull();
 	expect(game.xp).toBe(2); expect(playerStats(game).damage).toBe(3); expect(playerStats(game).shotInterval).toBeCloseTo(.17);
@@ -89,7 +89,7 @@ test("hive previews match deployed layouts and activity changes actual enemy pre
 test("part speed ranks are independent, restored on re-equip, and reset for a new run", () => {
 	const game = newGame(); deploy(game);
 	for (let rank = 0; rank < 3; rank++) { game.mode = "upgrade"; chooseUpgrade(game, "speed"); }
-	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "fireRate"]);
+	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "weaponMod"]);
 	finishHive(game); openWorkshop(game); chooseUndercarriage(game, "wheels");
 	expect(upgradeLevels(game).speed).toBe(0); expect(playerStats(game).speed).toBe(BASE_SPEED); expect(mechSkin(upgradeLevels(game), "wheels").footL).toBe("mechWheel");
 	closeWorkshop(game); chooseHive(game, game.hives[0].id); game.mode = "upgrade"; chooseUpgrade(game, "speed");
@@ -98,7 +98,7 @@ test("part speed ranks are independent, restored on re-equip, and reset for a ne
 	expect(upgradeLevels(game).speed).toBe(3); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * 1.24); expect(mechSkin(upgradeLevels(game), "legs").footL).toBe("mechBoostFoot");
 	chooseUndercarriage(game, "wheels"); expect(upgradeLevels(game).speed).toBe(1); expect(mechSkin(upgradeLevels(game), "wheels").footL).toBe("mechServoWheel");
 	game.mode = "dead"; const frozen = JSON.stringify(game); chooseUndercarriage(game, "treads"); chooseUpgrade(game, "speed"); expect(JSON.stringify(game)).toBe(frozen);
-	const fresh = newGame(); expect(fresh.parts).toEqual({ cannon: 0, cooler: 0, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }); expect(fresh.hivesCleared).toBe(0);
+	const fresh = newGame(); expect(fresh.parts).toEqual({ weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }); expect(fresh.hivesCleared).toBe(0);
 });
 
 test("handling budgets and capped speed retain terrain advantages", () => {
@@ -115,7 +115,7 @@ test("handling budgets and capped speed retain terrain advantages", () => {
 
 test("wheels and treads reuse attachment bones and upper-body animation without walking", () => {
 	for (const undercarriage of ["wheels", "treads"]) {
-		const skin = mechSkin({ damage: 3, fireRate: 3, speed: 3 }, undercarriage); expect(skin.footL).toBe(undercarriage === "wheels" ? "mechBoostWheel" : "mechBoostTread"); expect(skin.footR).toBe(skin.footL);
+		const skin = mechSkin({ damage: 3, weaponMod: 3, speed: 3 }, undercarriage); expect(skin.footL).toBe(undercarriage === "wheels" ? "mechBoostWheel" : "mechBoostTread"); expect(skin.footR).toBe(skin.footL);
 		const state = { distance: 11, walkBlend: 1, moveAngle: .5, aimAngle: 2, shotAge: .03, time: 1 };
 		const pose = mechPose({ ...state, undercarriage }); expect(pose.footL.x).toBe(0); expect(pose.upper.angle).toBe(2); expect(pose.weapon).toEqual(mechPose(state).weapon);
 	}

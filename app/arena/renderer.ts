@@ -1,6 +1,7 @@
+import { weaponStats } from "./weapons";
 import { TILE_SIZE, TERRAIN_COLUMNS } from "./terrain";
 import { cameraFor, type Camera } from "./camera";
-import { clamp, FIELD, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
+import { clamp, FIELD, FLAME_HALF_ANGLE, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
 import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
 import { BUG_SKINS, mechSkin, SPRITE_PARTS, type BugVariant, type Skin, type SpritePart } from "./sprite-parts";
 
@@ -31,14 +32,14 @@ export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Ri
 }
 
 export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number): Camera {
-	if (["ready", "base", "workshop", "spend"].includes(game.mode)) {
+	if (["ready", "base", "workshop", "weapons", "spend"].includes(game.mode)) {
 		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
 		ctx.strokeStyle = "#334638"; ctx.lineWidth = 2;
 		for (let x = 0; x < width; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
 		for (let y = 0; y < height; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
 		ctx.strokeStyle = "#8d9b5a"; ctx.lineWidth = 4; ctx.strokeRect(width / 2 - 100, height / 2 - 85, 200, 170);
-		drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage), mechPose({ distance: 0, walkBlend: 0, moveAngle: 0, aimAngle: 0, shotAge: 10, time: game.time, undercarriage: game.undercarriage }), width / 2, height / 2, 2);
+		drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage, game.weapon), mechPose({ distance: 0, walkBlend: 0, moveAngle: 0, aimAngle: 0, shotAge: 10, time: game.time, undercarriage: game.undercarriage }), width / 2, height / 2, 2);
 		return cameraFor(game.player, width, height);
 	}
 	const camera = cameraFor(game.player, width, height);
@@ -109,7 +110,40 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	for (const bullet of game.bullets) {
 		if (!visible(bullet.x, bullet.y, 20)) continue;
 		ctx.save(); ctx.translate(bullet.x, bullet.y); ctx.rotate(Math.atan2(bullet.vy, bullet.vx));
-		ctx.drawImage(sprites.bullet, -8, -8, 16, 16); ctx.restore();
+		if (bullet.weapon === "rpg") {
+			ctx.fillStyle = "#e2a455"; ctx.fillRect(-15 - Math.sin(game.time * 50) * 3, -2, 10, 4);
+			ctx.drawImage(sprites.rocket, -16, -12, 32, 24);
+		} else {
+			const size = bullet.weapon === "shotgun" ? 9 : 16;
+			ctx.drawImage(sprites.bullet, -size / 2, -size / 2, size, size);
+		} ctx.restore();
+	}
+	for (const explosion of game.explosions) {
+		if (!visible(explosion.x, explosion.y, explosion.radius)) continue;
+		const progress = clamp((game.time - explosion.bornAt) / .35, 0, 1);
+		ctx.save(); ctx.translate(explosion.x, explosion.y); ctx.globalAlpha = 1 - progress;
+		ctx.fillStyle = "#ed9a4b55"; ctx.strokeStyle = "#f3c579"; ctx.lineWidth = 3 * (1 - progress) + 1;
+		ctx.beginPath(); ctx.arc(0, 0, explosion.radius * (.6 + progress * .4), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+		for (let i = 0; i < 8; i++) {
+			const angle = i * Math.PI / 4 + explosion.id;
+			const distance = explosion.radius * (.2 + progress * .65), size = 38 * (1 - progress) + 8;
+			ctx.drawImage(sprites.flame, Math.cos(angle) * distance - size / 2, Math.sin(angle) * distance - size / 2, size, size);
+		}
+		ctx.restore();
+	}
+	if (game.weapon === "flamethrower" && game.time - game.player.shotAt < .025) {
+		const range = weaponStats(game.weapon, game.parts.weapons[game.weapon]).range;
+		ctx.save(); ctx.translate(game.player.x, game.player.y); ctx.rotate(game.player.angle); ctx.translate(20, -6.25);
+		ctx.fillStyle = "#e58d3a33";
+		ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, range, -FLAME_HALF_ANGLE, FLAME_HALF_ANGLE); ctx.closePath(); ctx.fill();
+		for (let lane = -2; lane <= 2; lane++) for (let i = 0; i < 5; i++) {
+			const progress = ((game.time * 2.4 + i / 5 + lane * .07) % 1 + 1) % 1;
+			const angle = lane / 2 * FLAME_HALF_ANGLE * .85;
+			const distance = 8 + progress * (range - 8), size = 16 + progress * 25;
+			ctx.globalAlpha = (1 - progress) * .8;
+			ctx.drawImage(sprites.flame, Math.cos(angle) * distance - size / 2, Math.sin(angle) * distance - size / 2, size, size);
+		}
+		ctx.restore();
 	}
 	for (const enemy of game.enemies) {
 		if (!visible(enemy.x, enemy.y)) continue;
@@ -132,9 +166,9 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	ctx.strokeStyle = "#c9dfa077"; ctx.beginPath(); ctx.moveTo(player.x + Math.cos(player.angle) * 29, player.y + Math.sin(player.angle) * 29); ctx.lineTo(player.x + Math.cos(player.angle) * 46, player.y + Math.sin(player.angle) * 46); ctx.stroke();
 	ctx.save();
 	ctx.globalAlpha = player.invulnerable > 0 && Math.floor(player.invulnerable * 14) % 2 ? .35 : 1;
-	drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage), mechPose({ distance: player.walkDistance, walkBlend: player.walkBlend, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: game.time - player.shotAt, time: game.time, undercarriage: game.undercarriage }), player.x, player.y, 1.25, false, player.walkDistance);
+	drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage, game.weapon), mechPose({ distance: player.walkDistance, walkBlend: player.walkBlend, moveAngle: player.moveAngle, aimAngle: player.angle, shotAge: game.time - player.shotAt, time: game.time, undercarriage: game.undercarriage }), player.x, player.y, 1.25, false, player.walkDistance);
 	ctx.restore();
-	if (game.time - player.shotAt < .045 && game.mode === "playing") {
+	if (game.weapon !== "flamethrower" && game.time - player.shotAt < .045 && game.mode === "playing") {
 		ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
 		ctx.fillStyle = "#f5e7ae"; ctx.fillRect(22, -9, 8, 5); ctx.fillStyle = "#e2a455"; ctx.fillRect(25, -10, 2, 7); ctx.restore();
 	}

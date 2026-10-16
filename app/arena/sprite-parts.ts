@@ -1,3 +1,4 @@
+import type { Weapon } from "./weapons";
 import type { Undercarriage } from "./terrain";
 // All parts use the same 32px registration canvas. Art faces right (+X).
 // Legs hinge at (8, 16); all other parts attach at (16, 16).
@@ -21,6 +22,15 @@ export const SPRITE_PARTS = {
 	mechCannon: { ...centered, path: "/images/arena/parts/mech-cannon.png" },
 	mechHeavyCannon: { ...centered, path: "/images/arena/parts/mech-heavy-cannon.png" },
 	mechSiegeCannon: { ...centered, path: "/images/arena/parts/mech-siege-cannon.png" },
+	mechShotgun: { ...centered, path: "/images/arena/parts/mech-shotgun.png" },
+	mechHeavyShotgun: { ...centered, path: "/images/arena/parts/mech-heavy-shotgun.png" },
+	mechSiegeShotgun: { ...centered, path: "/images/arena/parts/mech-siege-shotgun.png" },
+	mechRpg: { ...centered, path: "/images/arena/parts/mech-rpg.png" },
+	mechHeavyRpg: { ...centered, path: "/images/arena/parts/mech-heavy-rpg.png" },
+	mechSiegeRpg: { ...centered, path: "/images/arena/parts/mech-siege-rpg.png" },
+	mechFlamethrower: { ...centered, path: "/images/arena/parts/mech-flamethrower.png" },
+	mechHeavyFlamethrower: { ...centered, path: "/images/arena/parts/mech-heavy-flamethrower.png" },
+	mechSiegeFlamethrower: { ...centered, path: "/images/arena/parts/mech-siege-flamethrower.png" },
 	mechCooler: { ...centered, path: "/images/arena/parts/mech-cooler.png" },
 	mechVentCooler: { ...centered, path: "/images/arena/parts/mech-vent-cooler.png" },
 	mechTwinCooler: { ...centered, path: "/images/arena/parts/mech-twin-cooler.png" },
@@ -33,32 +43,40 @@ export const SPRITE_PARTS = {
 	bugOliveHead: { ...centered, path: "/images/arena/parts/bug-olive-head.png" },
 	bugOliveLeg: { ...hinged, path: "/images/arena/parts/bug-olive-leg.png" },
 	bugWing: { ...hinged, path: "/images/arena/parts/bug-wing.png" },
+	rocket: { ...centered, path: "/images/arena/rocket.png" },
+	flame: { ...centered, path: "/images/arena/flame.png" },
 	bullet: { ...centered, path: "/images/arena/bullet.png" },
 	xp: { ...centered, path: "/images/arena/xp.png" },
 } as const;
 export type SpritePart = keyof typeof SPRITE_PARTS;
 export type BugVariant = "burrower" | "flyer";
 export type Skin = Readonly<Record<string, SpritePart | undefined>>;
-export type UpgradeLevels = { damage: number; fireRate: number; speed: number };
+export type UpgradeLevels = { damage: number; weaponMod: number; speed: number };
 
-export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage = "legs"): Skin {
+export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage = "legs", weapon: Weapon = "cannon"): Skin {
 	const stages: Record<Undercarriage, readonly SpritePart[]> = {
 		legs: ["mechFoot", "mechServoFoot", "mechSprintFoot", "mechBoostFoot"],
 		wheels: ["mechWheel", "mechServoWheel", "mechSprintWheel", "mechBoostWheel"],
 		treads: ["mechTread", "mechServoTread", "mechSprintTread", "mechBoostTread"],
 	};
+	const weapons: Record<Weapon, readonly SpritePart[]> = {
+		cannon: ["mechCannon", "mechHeavyCannon", "mechSiegeCannon"],
+		shotgun: ["mechShotgun", "mechHeavyShotgun", "mechSiegeShotgun"],
+		rpg: ["mechRpg", "mechHeavyRpg", "mechSiegeRpg"],
+		flamethrower: ["mechFlamethrower", "mechHeavyFlamethrower", "mechSiegeFlamethrower"],
+	};
 	const foot = stages[undercarriage][Math.min(3, upgrades.speed)];
 	return {
 		chassis: "mechChassis", torso: "mechTorso", footL: foot, footR: foot,
-		weapon: upgrades.damage >= 3 ? "mechSiegeCannon" : upgrades.damage > 0 ? "mechHeavyCannon" : "mechCannon",
-		cooler: upgrades.fireRate >= 3 ? "mechTwinCooler" : upgrades.fireRate > 0 ? "mechVentCooler" : "mechCooler",
+		weapon: weapons[weapon][upgrades.damage >= 3 ? 2 : upgrades.damage > 0 ? 1 : 0],
+		cooler: upgrades.weaponMod >= 3 ? "mechTwinCooler" : upgrades.weaponMod > 0 ? "mechVentCooler" : "mechCooler",
 	};
 }
 export const BUG_SKINS: Record<BugVariant, Skin> = {
 	burrower: { body: "bugRustBody", shell: "bugRustShell", head: "bugRustHead", legs: "bugRustLeg" },
 	flyer: { body: "bugOliveBody", shell: "bugOliveShell", head: "bugOliveHead", legs: "bugOliveLeg", wings: "bugWing" },
 };
-export function upgradePart(upgrades: UpgradeLevels, upgrade: keyof UpgradeLevels, undercarriage: Undercarriage = "legs"): SpritePart {
-	const skin = mechSkin({ ...upgrades, [upgrade]: upgrades[upgrade] + 1 }, undercarriage);
-	return skin[upgrade === "damage" ? "weapon" : upgrade === "fireRate" ? "cooler" : "footL"]!;
+export function upgradePart(upgrades: UpgradeLevels, upgrade: keyof UpgradeLevels, undercarriage: Undercarriage = "legs", weapon: Weapon = "cannon"): SpritePart {
+	const skin = mechSkin({ ...upgrades, [upgrade]: upgrades[upgrade] + 1 }, undercarriage, weapon);
+	return skin[upgrade === "damage" ? "weapon" : upgrade === "weaponMod" ? "cooler" : "footL"]!;
 }

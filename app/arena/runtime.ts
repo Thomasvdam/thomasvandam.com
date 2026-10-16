@@ -1,16 +1,19 @@
+import { weaponSpec, type Weapon } from "./weapons";
 import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
 import { bindJoystick, keyboardVector, readGamepad } from "./controls";
-import { purchaseService, workshopServices, bankUpgrade, closeBankedUpgrades, openBankedUpgrades, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, xpNeeded, type Game, type Upgrade, type WorkshopService, type Vector } from "./game";
+import { chooseWeapon, closeWeapons, openWeapons, weaponChoices, purchaseService, workshopServices, bankUpgrade, closeBankedUpgrades, openBankedUpgrades, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, xpNeeded, type Game, type Upgrade, type WorkshopService, type Vector } from "./game";
 import { loadSprites, render } from "./renderer";
 
 function menuChoices(game: Game) {
+	if (game.mode === "weapons") return [...weaponChoices(), { id: "workshop", name: "Back to workshop", key: "5", kind: "workshop" as const }];
 	if (game.mode === "upgrade") return [...upgradeChoices(game), { id: "bank", name: "Bank for later", key: "4", kind: "bank" as const }];
 	if (game.mode === "spend") return [...upgradeChoices(game), ...workshopServices(game), { id: "workshop", name: "Back to workshop", key: "6", kind: "workshop" as const }];
 	if (game.mode === "workshop") return [
 		...undercarriageChoices(),
 		...(game.bankedUpgrades > 0 ? [{ id: "spend", name: "Spend banked upgrades", key: "4", kind: "spend" as const }] : []),
 		{ id: "back", name: "Choose a hive", key: "5", kind: "back" as const },
+		{ id: "weapons", name: "Change weapon", key: "6", kind: "weapons" as const },
 	];
 	if (game.mode === "base") return [
 		...game.hives.map((hive, index) => ({ id: hive.id, name: hive.name, key: String(index + 1), kind: "hive" as const })),
@@ -22,6 +25,7 @@ export type ArenaView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
 		hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
+		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		sensorRank: game.parts.sensor, bankedUpgrades: game.bankedUpgrades, level: game.level, xp: game.xp, xpNeeded: xpNeeded(game.level), kills: game.kills, time: Math.floor(game.time),
 		hives: game.hives.map(hive => {
@@ -60,14 +64,15 @@ export function createArenaRuntime(options: RuntimeOptions) {
 	};
 	const changed = () => { clearInput(); publish(); };
 	const focus = () => canvas.focus({ preventScroll: true });
-	const action = (name: "start" | "pause" | "restart" | "workshop" | "hives" | "bank" | "spend") => {
+	const action = (name: "start" | "pause" | "restart" | "workshop" | "hives" | "bank" | "spend" | "weapons") => {
 		if (!loaded) return;
 		if (name === "start") start(game);
 		if (name === "pause") togglePause(game);
-		if (name === "workshop") { if (game.mode === "spend") closeBankedUpgrades(game); else openWorkshop(game); }
+		if (name === "workshop") { if (game.mode === "spend") closeBankedUpgrades(game); else if (game.mode === "weapons") closeWeapons(game); else openWorkshop(game); }
 		if (name === "bank") bankUpgrade(game);
 		if (name === "spend") openBankedUpgrades(game);
 		if (name === "hives") closeWorkshop(game);
+		if (name === "weapons") openWeapons(game);
 		if (name === "restart") { game = newGame(crypto.getRandomValues(new Uint32Array(1))[0]); start(game); selection = 0; }
 		selection = 0; changed(); focus();
 	};
@@ -84,6 +89,10 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		if (game.mode !== "workshop") return;
 		chooseUndercarriage(game, id); changed();
 	};
+	const equipWeapon = (id: Weapon) => {
+		if (game.mode !== "weapons") return;
+		chooseWeapon(game, id); changed();
+	};
 	const deploy = (id: string) => {
 		if (game.mode !== "base") return;
 		chooseHive(game, id); selection = 0; changed(); focus();
@@ -92,6 +101,8 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		const choice = menuChoices(game)[index];
 		if (!choice) return;
 		if (choice.kind === "undercarriage") equip(choice.id);
+		if (choice.kind === "weapon") equipWeapon(choice.id);
+		if (choice.kind === "weapons") action("weapons");
 		if (choice.kind === "stat") upgrade(choice.id);
 		if (choice.kind === "service") purchase(choice.id);
 		if (choice.kind === "hive") deploy(choice.id);
@@ -103,7 +114,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
-		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action(game.mode === "spend" ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
+		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action((game.mode === "spend" || game.mode === "weapons") ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
 		if (menuChoices(game).length > 0 && /^[1-6]$/.test(event.key)) {
 			event.preventDefault(); const index = menuChoices(game).findIndex(choice => choice.key === event.key);
 			if (!event.repeat && index >= 0) confirmChoice(index); return;
@@ -197,7 +208,7 @@ export function createArenaRuntime(options: RuntimeOptions) {
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
 	return {
-		action, upgrade, purchase, equip, deploy,
+		action, upgrade, purchase, equip, equipWeapon, deploy,
 		dispose: () => {
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
 			window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup);

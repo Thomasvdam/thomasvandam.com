@@ -5,21 +5,21 @@ import { BUG_SKINS, mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
 import { chooseUpgrade, newGame, start as prepare, chooseHive, upgradeLevels, step, SPAWN_WARNING_TIME } from "./game";
 
 function start(game) { prepare(game); chooseHive(game, game.hives.find(hive => hive.activity === "Low").id); }
-const levels = { damage: 0, fireRate: 0, speed: 0 };
+const levels = { damage: 0, weaponMod: 0, speed: 0 };
 const mechState = { distance: 11, walkBlend: 1, moveAngle: 0, aimAngle: 0, shotAge: 1, time: 5 };
 const transforms = parts => parts.map(part => Object.fromEntries(Object.entries(part).filter(([key]) => key !== "sprite")));
 const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false };
 
 test("upgrades replace compatible parts without changing attachment points or animation", () => {
 	const pose = mechPose(mechState), base = resolveRig(MECH_RIG, mechSkin(levels), pose);
-	for (const upgrade of ["damage", "fireRate", "speed"]) {
+	for (const upgrade of ["damage", "weaponMod", "speed"]) {
 		for (const rank of [1, 3, 9]) {
 			const skin = mechSkin({ ...levels, [upgrade]: rank }), upgraded = resolveRig(MECH_RIG, skin, pose);
 			expect(transforms(upgraded)).toEqual(transforms(base));
 			const changed = upgraded.filter((part, index) => part.sprite !== base[index].sprite).map(part => part.bone);
-			expect(changed).toEqual(upgrade === "damage" ? ["weapon"] : upgrade === "fireRate" ? ["cooler"] : ["footL", "footR"]);
+			expect(changed).toEqual(upgrade === "damage" ? ["weapon"] : upgrade === "weaponMod" ? ["cooler"] : ["footL", "footR"]);
 		}
-		expect(upgradePart(levels, upgrade)).not.toBe(mechSkin(levels)[upgrade === "damage" ? "weapon" : upgrade === "fireRate" ? "cooler" : "footL"]);
+		expect(upgradePart(levels, upgrade)).not.toBe(mechSkin(levels)[upgrade === "damage" ? "weapon" : upgrade === "weaponMod" ? "cooler" : "footL"]);
 	}
 });
 
