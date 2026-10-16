@@ -15,6 +15,7 @@ export const LUNGE_TRIGGER = 180;
 export const LUNGE_DISTANCE = 310;
 export const LUNGE_WINDUP = 1.15;
 export const LUNGE_SPEED = 680;
+export const LUNGE_WINDUP_TURN_RATE = .15;
 export const ARMOUR_HALF_ANGLE = Math.PI * .39;
 export const FRONT_FLAME_MULTIPLIER = .15;
 export const SEGMENT_SPACING = 18;
@@ -28,7 +29,7 @@ export type Enemy = EnemyBase & (
 	{ variant: "evader"; state: { phase: "chase" | "dodge"; remaining: number; cooldown: number; direction: Vector } } |
 	{ variant: "centipede"; state: { segments: Vector[] } } |
 	{ variant: "armoured"; state: { phase: "chase" } } |
-	{ variant: "beetle"; state: { phase: "seek" | "roll" | "recover"; remaining: number } } |
+	{ variant: "beetle"; state: { phase: "roll" | "ready"; remaining: number } } |
 	{ variant: "spitter"; state: { phase: "cover" | "peek" | "windup"; remaining: number; coverId: number | null; side: number; target: Vector } }
 );
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
@@ -49,7 +50,7 @@ export function createBug(options: { variant: BugVariant; id: number; position: 
 	const health = spec.health * (1 + Math.floor((threat - 1) / 2));
 	const base = { x: clamp(position.x, spec.radius, bounds.width - spec.radius), y: clamp(position.y, spec.radius, bounds.height - spec.radius), id, health, maxHealth: health, speed: Math.min(variant === "armoured" ? 85 : 160, spec.speed + threat * (variant === "armoured" ? 2 : 5) + wave * 3), angle, walkDistance: 12, bornAt: time, hitAt: -10, blockedAt: -10 };
 	if (variant === "spitter") return { ...base, variant, state: { phase: "cover", remaining: .6, coverId: null, side: id % 2 ? 1 : -1, target: { ...player } } };
-	if (variant === "beetle") return { ...base, variant, state: { phase: "seek", remaining: .5 } };
+	if (variant === "beetle") return { ...base, variant, state: { phase: "roll", remaining: BEETLE_ROLL_TIME } };
 	if (variant === "lunger") return { ...base, variant, state: { phase: "approach", remaining: 0, direction: angle, distance: 0 } };
 	if (variant === "evader") return { ...base, variant, state: { phase: "chase", remaining: 0, cooldown: 0, direction: { x: 0, y: 0 } } };
 	if (variant === "centipede") return { ...base, variant, state: { segments: Array.from({ length: SEGMENT_COUNT - 1 }, (_, i) => ({
@@ -105,6 +106,7 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 				if (distance <= LUNGE_TRIGGER) { state.phase = "windup"; state.remaining = LUNGE_WINDUP; state.direction = desired; }
 				else move(enemy, toward, Math.min(distance - LUNGE_TRIGGER, enemy.speed * dt), bounds);
 			} else if (state.phase === "windup") {
+				state.direction += clamp(angleDifference(desired, state.direction), -LUNGE_WINDUP_TURN_RATE * dt, LUNGE_WINDUP_TURN_RATE * dt); enemy.angle = state.direction;
 				state.remaining = Math.max(0, state.remaining - dt);
 				if (state.remaining === 0) { state.phase = "lunge"; state.distance = LUNGE_DISTANCE; }
 			} else if (state.phase === "lunge") {
@@ -138,16 +140,12 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 			const state = enemy.state;
 			enemy.angle = desired;
 			state.remaining = Math.max(0, state.remaining - dt);
-			if (state.phase === "roll") {
-				if (state.remaining === 0) {
-					if (game.lobs.length < 64) game.lobs.push({ id: game.nextId++, x: enemy.x + toward.x * 22, y: enemy.y + toward.y * 22, target: { x: player.x, y: player.y }, age: 0 });
-					state.phase = "recover"; state.remaining = 1.4;
-				}
-			} else {
-				// Retreat when crowded, close only enough to bring the mech into throwing range.
-				const direction = distance < 240 ? -1 : distance > 340 ? 1 : 0;
-				move(enemy, { x: toward.x * direction, y: toward.y * direction }, enemy.speed * dt, bounds);
-				if (state.remaining === 0 && distance <= 380) { state.phase = "roll"; state.remaining = BEETLE_ROLL_TIME; }
+			const direction = distance < 240 ? -1 : distance > 340 ? 1 : 0;
+			move(enemy, { x: toward.x * direction, y: toward.y * direction }, enemy.speed * dt, bounds);
+			if (state.remaining === 0) state.phase = "ready";
+			if (state.phase === "ready" && distance <= 380 && game.lobs.length < 64) {
+				game.lobs.push({ id: game.nextId++, x: enemy.x + toward.x * 22, y: enemy.y + toward.y * 22, target: { x: player.x, y: player.y }, age: 0 });
+				state.phase = "roll"; state.remaining = BEETLE_ROLL_TIME;
 			}
 		} else if (enemy.variant === "armoured") {
 			const error = angleDifference(desired, enemy.angle);

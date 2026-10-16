@@ -1,3 +1,4 @@
+import { setDebug, spawnDebugWave, type WaveComposition } from "./debug";
 import { weaponSpec, type Weapon } from "./weapons";
 import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
@@ -23,7 +24,7 @@ function menuChoices(game: Game) {
 export type ExterminatorView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
-		hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
+		debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
@@ -46,7 +47,8 @@ type RuntimeOptions = {
 
 export function createExterminatorRuntime(options: RuntimeOptions) {
 	const { canvas, onViewChange, onLoaded, onError } = options;
-	let game = newGame(crypto.getRandomValues(new Uint32Array(1))[0]);
+	const freshGame = () => { const next = newGame(crypto.getRandomValues(new Uint32Array(1))[0]); setDebug(next, window.location.hash === "#debug"); return next; };
+	let game = freshGame();
 	let disposed = false, loaded = false, frame = 0, width = 1, height = 1, pixelRatio = 1, accumulator = 0, lastTime = 0;
 	let mouse: Vector | null = null, aimSource: "mouse" | "touch" | "controller" = "mouse";
 	let selection = 0, viewKey = "", controller = false, previousPad = readGamepad(null), controllerBlocked = false;
@@ -71,7 +73,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (name === "shop") openShop(game);
 		if (name === "hives") closeWorkshop(game);
 		if (name === "weapons") openWeapons(game);
-		if (name === "restart") { game = newGame(crypto.getRandomValues(new Uint32Array(1))[0]); start(game); selection = 0; }
+		if (name === "restart") { game = freshGame(); start(game); selection = 0; }
 		selection = 0; changed(); focus();
 	};
 	const upgrade = (id: Upgrade) => {
@@ -108,6 +110,8 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (choice.kind === "back") action("hives");
 		if (choice.kind === "shop") action("shop");
 	};
+	const debugWave = (composition: WaveComposition) => { if (!loaded) return; spawnDebugWave(game, composition); changed(); focus(); };
+	const hashchange = () => { setDebug(game, window.location.hash === "#debug"); changed(); };
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
@@ -147,6 +151,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		canvas.width = Math.round(width * pixelRatio); canvas.height = Math.round(height * pixelRatio);
 	};
 	const observer = new ResizeObserver(resize); observer.observe(canvas);
+	window.addEventListener("hashchange", hashchange);
 	window.addEventListener("keydown", keydown); window.addEventListener("keyup", keyup);
 	window.addEventListener("blur", pauseForFocus); document.addEventListener("visibilitychange", visibility);
 	canvas.addEventListener("pointermove", pointermove); canvas.addEventListener("pointerdown", pointerdown); canvas.addEventListener("contextmenu", contextmenu);
@@ -205,9 +210,10 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
 	return {
-		action, upgrade, purchase, equip, equipWeapon, deploy,
+		action, upgrade, purchase, equip, equipWeapon, deploy, debugWave,
 		dispose: () => {
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
+			window.removeEventListener("hashchange", hashchange);
 			window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup);
 			window.removeEventListener("blur", pauseForFocus); document.removeEventListener("visibilitychange", visibility);
 			canvas.removeEventListener("pointermove", pointermove); canvas.removeEventListener("pointerdown", pointerdown); canvas.removeEventListener("contextmenu", contextmenu);
