@@ -1,0 +1,173 @@
+import type { Bullet, Game, Vector } from "./game";
+
+export type BugVariant = "burrower" | "flyer" | "lunger" | "evader" | "centipede" | "armoured";
+export const BUG_SPECS: Record<BugVariant, { health: number; speed: number; radius: number }> = {
+	burrower: { health: 1, speed: 60, radius: 15 }, flyer: { health: 1, speed: 60, radius: 15 },
+	lunger: { health: 3, speed: 68, radius: 15 }, evader: { health: 2, speed: 76, radius: 13 },
+	centipede: { health: 7, speed: 78, radius: 12 }, armoured: { health: 5, speed: 34, radius: 18 },
+};
+export const LUNGE_TRIGGER = 180;
+export const LUNGE_DISTANCE = 310;
+export const LUNGE_WINDUP = 1.15;
+export const LUNGE_SPEED = 680;
+export const ARMOUR_HALF_ANGLE = Math.PI * .39;
+export const FRONT_FLAME_MULTIPLIER = .15;
+export const SEGMENT_SPACING = 18;
+export const SEGMENT_COUNT = 8;
+type Bounds = { width: number; height: number };
+type EnemyBase = Vector & { id: number; health: number; maxHealth: number; speed: number; angle: number; walkDistance: number; bornAt: number; hitAt: number; blockedAt: number };
+export type Enemy = EnemyBase & (
+	{ variant: "burrower" | "flyer"; state: { phase: "chase" } } |
+	{ variant: "lunger"; state: { phase: "approach" | "windup" | "lunge" | "recover"; remaining: number; direction: number; distance: number } } |
+	{ variant: "evader"; state: { phase: "chase" | "dodge"; remaining: number; cooldown: number; direction: Vector } } |
+	{ variant: "centipede"; state: { segments: Vector[] } } |
+	{ variant: "armoured"; state: { phase: "chase" } }
+);
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+export const angleDifference = (target: number, current: number) => Math.atan2(Math.sin(target - current), Math.cos(target - current));
+
+export function bugForSpawn(cleared: number, wave: number, index: number): BugVariant {
+	if (index % 3 !== 2) return index % 2 === 0 ? "burrower" : "flyer";
+	const specialists: BugVariant[] = ["lunger", "evader", "armoured", "centipede"];
+	const available = Math.min(4, cleared + 1);
+	return specialists[(Math.floor(index / 3) + wave - 1) % available];
+}
+export function createBug(options: { variant: BugVariant; id: number; position: Vector; player: Vector; threat: number; wave: number; time: number; bounds: Bounds }): Enemy {
+	const { variant, id, position, player, threat, wave, time, bounds } = options, spec = BUG_SPECS[variant];
+	const angle = Math.atan2(player.y - position.y, player.x - position.x);
+	const health = spec.health * (1 + Math.floor((threat - 1) / 2));
+	const base = { x: clamp(position.x, spec.radius, bounds.width - spec.radius), y: clamp(position.y, spec.radius, bounds.height - spec.radius), id, health, maxHealth: health, speed: Math.min(variant === "armoured" ? 55 : 160, spec.speed + threat * (variant === "armoured" ? 2 : 5) + wave * 3), angle, walkDistance: 12, bornAt: time, hitAt: -10, blockedAt: -10 };
+	if (variant === "lunger") return { ...base, variant, state: { phase: "approach", remaining: 0, direction: angle, distance: 0 } };
+	if (variant === "evader") return { ...base, variant, state: { phase: "chase", remaining: 0, cooldown: 0, direction: { x: 0, y: 0 } } };
+	if (variant === "centipede") return { ...base, variant, state: { segments: Array.from({ length: SEGMENT_COUNT - 1 }, (_, i) => ({
+		x: clamp(position.x + Math.cos(angle + Math.PI + i * .8) * (10 + i * 2.5), spec.radius, bounds.width - spec.radius),
+		y: clamp(position.y + Math.sin(angle + Math.PI + i * .8) * (10 + i * 2.5), spec.radius, bounds.height - spec.radius),
+	})) } };
+	if (variant === "armoured") return { ...base, variant, state: { phase: "chase" } };
+	return { ...base, variant, state: { phase: "chase" } };
+}
+export function enemyCircles(enemy: Enemy): (Vector & { radius: number })[] {
+	const radius = BUG_SPECS[enemy.variant].radius;
+	return [{ x: enemy.x, y: enemy.y, radius }, ...(enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment, radius })) : [])];
+}
+export function distanceToSegment(point: Vector, from: Vector, to: Vector) {
+	const dx = to.x - from.x, dy = to.y - from.y, length = dx * dx + dy * dy;
+	const t = length ? clamp(((point.x - from.x) * dx + (point.y - from.y) * dy) / length, 0, 1) : 0;
+	return Math.hypot(point.x - from.x - dx * t, point.y - from.y - dy * t);
+}
+export function frontArmour(enemy: Enemy, source: Vector) {
+	return enemy.variant === "armoured" && Math.abs(angleDifference(Math.atan2(source.y - enemy.y, source.x - enemy.x), enemy.angle)) <= ARMOUR_HALF_ANGLE;
+}
+function move(enemy: Enemy, direction: Vector, distance: number, bounds: Bounds) {
+	const before = { x: enemy.x, y: enemy.y }, radius = BUG_SPECS[enemy.variant].radius;
+	enemy.x = clamp(enemy.x + direction.x * distance, radius, bounds.width - radius);
+	enemy.y = clamp(enemy.y + direction.y * distance, radius, bounds.height - radius);
+	const travel = Math.hypot(enemy.x - before.x, enemy.y - before.y); enemy.walkDistance += travel;
+	return travel;
+}
+function incomingProjectile(enemy: Enemy, bullets: Bullet[]) {
+	let closest: Bullet | null = null, earliest = Infinity;
+	for (const bullet of bullets) {
+		const speedSquared = bullet.vx * bullet.vx + bullet.vy * bullet.vy;
+		if (!speedSquared) continue;
+		const t = ((enemy.x - bullet.x) * bullet.vx + (enemy.y - bullet.y) * bullet.vy) / speedSquared;
+		if (t < 0 || t > Math.min(.35, bullet.life) || t >= earliest) continue;
+		if (Math.hypot(bullet.x + bullet.vx * t - enemy.x, bullet.y + bullet.vy * t - enemy.y) > 29) continue;
+		earliest = t; closest = bullet;
+	}
+	return closest;
+}
+export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: number): Set<number> {
+	const lungeContacts = new Set<number>(), player = game.player;
+	for (const enemy of game.enemies) {
+		if (enemy.health <= 0) continue;
+		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
+		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
+		if (enemy.variant === "lunger") {
+			const state = enemy.state;
+			if (state.phase === "approach") {
+				enemy.angle = desired;
+				if (distance <= LUNGE_TRIGGER) { state.phase = "windup"; state.remaining = LUNGE_WINDUP; state.direction = desired; }
+				else move(enemy, toward, Math.min(distance - LUNGE_TRIGGER, enemy.speed * dt), bounds);
+			} else if (state.phase === "windup") {
+				state.remaining = Math.max(0, state.remaining - dt);
+				if (state.remaining === 0) { state.phase = "lunge"; state.distance = LUNGE_DISTANCE; }
+			} else if (state.phase === "lunge") {
+				const before = { x: enemy.x, y: enemy.y }, travel = Math.min(state.distance, LUNGE_SPEED * dt);
+				const moved = move(enemy, { x: Math.cos(state.direction), y: Math.sin(state.direction) }, travel, bounds);
+				state.distance = Math.max(0, state.distance - travel);
+				if (distanceToSegment(player, before, enemy) <= playerRadius + BUG_SPECS.lunger.radius) lungeContacts.add(enemy.id);
+				if (state.distance === 0 || moved < travel * .5) { state.phase = "recover"; state.remaining = .65; }
+			} else {
+				state.remaining = Math.max(0, state.remaining - dt);
+				if (state.remaining === 0) state.phase = "approach";
+			}
+		} else if (enemy.variant === "evader") {
+			const state = enemy.state;
+			state.cooldown = Math.max(0, state.cooldown - dt);
+			if (state.phase === "dodge") {
+				move(enemy, state.direction, 220 * dt, bounds); enemy.angle = Math.atan2(state.direction.y, state.direction.x);
+				state.remaining = Math.max(0, state.remaining - dt);
+				if (state.remaining === 0) state.phase = "chase";
+			} else {
+				const bullet = state.cooldown === 0 ? incomingProjectile(enemy, game.bullets) : null;
+				if (bullet) {
+					const speed = Math.hypot(bullet.vx, bullet.vy), perpendicular = { x: -bullet.vy / speed, y: bullet.vx / speed };
+					const side = Math.sign((enemy.x - bullet.x) * perpendicular.x + (enemy.y - bullet.y) * perpendicular.y) || (enemy.id % 2 ? 1 : -1);
+					const clearance = (sign: number) => Math.min(enemy.x + perpendicular.x * sign * 60, bounds.width - enemy.x - perpendicular.x * sign * 60, enemy.y + perpendicular.y * sign * 60, bounds.height - enemy.y - perpendicular.y * sign * 60);
+					const sign = clearance(side) >= clearance(-side) ? side : -side;
+					state.direction = { x: perpendicular.x * sign, y: perpendicular.y * sign }; state.phase = "dodge"; state.remaining = .24; state.cooldown = .65;
+				} else { move(enemy, toward, Math.min(distance, enemy.speed * dt), bounds); enemy.angle = desired; }
+			}
+		} else if (enemy.variant === "armoured") {
+			const error = angleDifference(desired, enemy.angle);
+			enemy.angle += clamp(error, -.7 * dt, .7 * dt);
+			const alignment = Math.abs(angleDifference(desired, enemy.angle));
+			const pace = alignment > .3 ? .25 : 1;
+			move(enemy, { x: Math.cos(enemy.angle), y: Math.sin(enemy.angle) }, Math.min(distance, enemy.speed * pace * dt), bounds);
+		} else if (enemy.variant === "centipede") {
+			// Circle the mech, laying a moving barrier rather than chasing into contact.
+			const side = enemy.id % 2 ? 1 : -1, radial = clamp((distance - 130) / 65, -1, 1);
+			const vx = toward.x * radial - toward.y * side, vy = toward.y * radial + toward.x * side;
+			const target = Math.atan2(vy, vx); enemy.angle += clamp(angleDifference(target, enemy.angle), -2.4 * dt, 2.4 * dt);
+			move(enemy, { x: Math.cos(enemy.angle), y: Math.sin(enemy.angle) }, enemy.speed * dt, bounds);
+			let leader: Vector = enemy;
+			for (const segment of enemy.state.segments) {
+				const sx = leader.x - segment.x, sy = leader.y - segment.y, length = Math.hypot(sx, sy);
+				if (length > SEGMENT_SPACING) { segment.x = leader.x - sx / length * SEGMENT_SPACING; segment.y = leader.y - sy / length * SEGMENT_SPACING; }
+				leader = segment;
+			}
+		} else { move(enemy, toward, Math.min(distance, enemy.speed * dt), bounds); enemy.angle = desired; }
+	}
+	return lungeContacts;
+}
+function separateFromCircle(player: Vector, circle: Vector, radius: number, fallback: number, playerRadius: number, bounds: Bounds) {
+	const dx = player.x - circle.x, dy = player.y - circle.y, distance = Math.hypot(dx, dy);
+	const nx = distance > .0001 ? dx / distance : Math.cos(fallback), ny = distance > .0001 ? dy / distance : Math.sin(fallback);
+	const projected = { x: clamp(circle.x + nx * radius, playerRadius, bounds.width - playerRadius), y: clamp(circle.y + ny * radius, playerRadius, bounds.height - playerRadius) };
+	if (Math.hypot(projected.x - circle.x, projected.y - circle.y) >= radius - .001) return projected;
+	// When a moving body pins the mech against a wall, separate along that wall.
+	const candidates: Vector[] = [];
+	for (const x of [playerRadius, bounds.width - playerRadius]) {
+		const squared = radius * radius - (x - circle.x) ** 2;
+		if (squared >= 0) for (const sign of [-1, 1]) candidates.push({ x, y: circle.y + sign * Math.sqrt(squared) });
+	}
+	for (const y of [playerRadius, bounds.height - playerRadius]) {
+		const squared = radius * radius - (y - circle.y) ** 2;
+		if (squared >= 0) for (const sign of [-1, 1]) candidates.push({ x: circle.x + sign * Math.sqrt(squared), y });
+	}
+	return candidates.filter(point => point.x >= playerRadius && point.x <= bounds.width - playerRadius && point.y >= playerRadius && point.y <= bounds.height - playerRadius)
+		.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))[0] ?? projected;
+}
+export function resolveBarriers(player: Vector, enemies: Enemy[], playerRadius: number, bounds: Bounds) {
+	const barriers = enemies.filter(enemy => enemy.variant === "centipede" && enemy.health > 0).flatMap(enemy => enemyCircles(enemy).map(circle => ({ ...circle, angle: enemy.angle })));
+	for (let pass = 0; pass < 12; pass++) {
+		let adjusted = false;
+		for (const circle of barriers) {
+			const distance = Math.hypot(player.x - circle.x, player.y - circle.y), radius = playerRadius + circle.radius;
+			if (distance >= radius - .001) continue;
+			Object.assign(player, separateFromCircle(player, circle, radius, circle.angle + Math.PI / 2, playerRadius, bounds)); adjusted = true;
+		}
+		if (!adjusted) break;
+	}
+}

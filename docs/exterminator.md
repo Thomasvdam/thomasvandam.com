@@ -85,9 +85,9 @@ on all surfaces. These provisional multipliers apply after part speed upgrades:
 
 | Undercarriage | Firm | Mud | Rubble |
 | --- | --- | --- | --- |
-| Legs | 100% | 25% | 100% |
+| Legs | 90% | 25% | 110% |
 | Wheels | 150% | 37.5% | 37.5% |
-| Treads | 75% | 75% | 75% |
+| Treads | 70% | 85% | 70% |
 
 All bases total 225% across the three surfaces. Even a fully upgraded base cannot
 overtake an unupgraded base with better handling on that same surface.
@@ -116,9 +116,34 @@ upgrade. Flame and explosion visuals follow simulation time and freeze on pause.
 Capped modifications disappear from upgrade choices without spending money.
 
 All four weapons have registered stock/rank-1/rank-3 PNG parts and share the same
-aiming/recoil rig. No bug weaknesses or resistances are applied yet.
+aiming/recoil rig. Armoured bugs deflect front-facing cannon/shotgun rounds and reduce frontal
+flame damage to 15%; rockets still detonate and deal their blast damage. Flanks
+and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 
 ## Combat and waves
+
+
+Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs in
+job 3, and centipedes in job 4. One spawn in each group of three is drawn from the
+unlocked specialists, rotating by wave; the rest remain burrowers/winged chasers.
+Specialist health and movement scale with threat too. Provisional behavior:
+
+- **Lunger:** approaches to 180 units, locks its direction, and winds up for 1.15
+  seconds with a visible 310-unit attack corridor. It then lunges at 680 units/s,
+  followed by a recovery pause. A quick mech can leave the entire attack range
+  during the windup; poor terrain handling makes this harder. Swept lunge contact
+  deals 30 damage; other contact deals 20.
+- **Evader:** predicts incoming bullet/rocket paths and sidesteps for 0.24 seconds,
+  with a 0.65-second recovery between dodges. Receding/missing projectiles are
+  ignored. Flame does not trigger dodging.
+- **Centipede:** circles the mech and trails seven solid segments behind its head.
+  The body blocks movement, deals no contact damage, and can be shot anywhere.
+  All segments share health; blasts and flame apply damage once per bug. Killing
+  it removes the barrier. It emerges coiled inside a larger spawn warning; body
+  rendering stays visible even when the head leaves the camera.
+- **Armoured bug:** crawls and turns at most 0.7 radians/s, moving at a quarter of
+  its speed while turning sharply. Its roughly 140° front arc deflects bullets and
+  strongly resists flame. Slow turns give players time to flank it.
 
 Enemy arrivals have 1.2-second stationary warnings. Two spawns in each group of
 three can appear anywhere; the third appears within 90 units of the player's
@@ -134,6 +159,7 @@ sticks must return to neutral before movement resumes.
 ## Code and sprites
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
+- `bugs.ts`: specialist states, spawning, movement, hit geometry, and barriers.
 - `weapons.ts`: weapon definitions, upgrade descriptions, and derived combat stats.
 - `hives.ts`: deterministic mission choices and activity/terrain previews.
 - `terrain.ts`: terrain generation, prevalent terrain, and undercarriage handling.
@@ -145,8 +171,9 @@ sticks must return to neutral before movement resumes.
 Parts live in `public/images/exterminator/parts/`. Regenerate them and homepage thumbnails
 with `python3 tools/generate-exterminator-sprites.py`. Walking follows distance traveled;
 torso aiming and recoil remain independent of the base. Wheel/tread stages share
-distance-driven tread marks. Both bug skins share walking/hit/death animations;
-one burrows during its warning, and the other lands and folds its optional wings.
+distance-driven tread marks. All six bug skins share walking/hit/death animations. The centipede repeats the
+same registered body/leg parts along its simulated chain. Burrowing arrivals
+share the reveal pose; the winged chaser lands and folds its optional wings.
 See [the animation guide](exterminator-animation.md) for replacing parts without new rigs.
 
 ## Validation
@@ -156,5 +183,4 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, two bug appearances sharing
-chase behavior, and no audio. There is no saved progression between runs.
+Tuning is provisional. This version has four weapons, six bug variants, and no audio. There is no saved progression between runs.

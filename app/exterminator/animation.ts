@@ -1,6 +1,7 @@
 import type { Undercarriage } from "./terrain";
 import { clamp } from "./game";
-import type { BugVariant, Skin, SpritePart } from "./sprite-parts";
+import type { Skin, SpritePart } from "./sprite-parts";
+import type { BugVariant } from "./bugs";
 
 export type Bone = { id: string; parent?: string; x: number; y: number; angle?: number; slot?: string; layer: number; flipY?: boolean };
 export type Rig = readonly Bone[];

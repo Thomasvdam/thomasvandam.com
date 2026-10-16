@@ -93,3 +93,13 @@ independent for cannon, shotgun, RPG, and flamethrower. Swapping only changes th
 equipped ID. All weapon skins use the same weapon bone and 32px registration.
 Flame particles and rocket blasts are separate cosmetic layers driven by the
 simulation clock; they do not require alternate character animations.
+
+### Specialist bugs
+
+Lunger, evader, centipede, and armoured skins register body/shell/head/leg PNGs
+on the existing bug rig. The lunger crouches the composed rig during windup; its
+attack corridor follows the direction locked by the simulation. Armour facing and
+ricochet feedback also follow simulation state. Centipede segments repeat the same
+rig with the head slot omitted, phase-offset walking, and positions from the body
+chain. The dying chain retains those positions so all segments fade together.
+No per-skin animation timeline is required.

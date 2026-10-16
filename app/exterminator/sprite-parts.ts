@@ -1,3 +1,4 @@
+import type { BugVariant } from "./bugs";
 import type { Weapon } from "./weapons";
 import type { Undercarriage } from "./terrain";
 // All parts use the same 32px registration canvas. Art faces right (+X).
@@ -42,13 +43,28 @@ export const SPRITE_PARTS = {
 	bugOliveShell: { ...centered, path: "/images/exterminator/parts/bug-olive-shell.png" },
 	bugOliveHead: { ...centered, path: "/images/exterminator/parts/bug-olive-head.png" },
 	bugOliveLeg: { ...hinged, path: "/images/exterminator/parts/bug-olive-leg.png" },
+	bugLungerBody: { ...centered, path: "/images/exterminator/parts/bug-lunger-body.png" },
+	bugLungerShell: { ...centered, path: "/images/exterminator/parts/bug-lunger-shell.png" },
+	bugLungerHead: { ...centered, path: "/images/exterminator/parts/bug-lunger-head.png" },
+	bugLungerLeg: { ...hinged, path: "/images/exterminator/parts/bug-lunger-leg.png" },
+	bugEvaderBody: { ...centered, path: "/images/exterminator/parts/bug-evader-body.png" },
+	bugEvaderShell: { ...centered, path: "/images/exterminator/parts/bug-evader-shell.png" },
+	bugEvaderHead: { ...centered, path: "/images/exterminator/parts/bug-evader-head.png" },
+	bugEvaderLeg: { ...hinged, path: "/images/exterminator/parts/bug-evader-leg.png" },
+	bugCentipedeBody: { ...centered, path: "/images/exterminator/parts/bug-centipede-body.png" },
+	bugCentipedeShell: { ...centered, path: "/images/exterminator/parts/bug-centipede-shell.png" },
+	bugCentipedeHead: { ...centered, path: "/images/exterminator/parts/bug-centipede-head.png" },
+	bugCentipedeLeg: { ...hinged, path: "/images/exterminator/parts/bug-centipede-leg.png" },
+	bugArmouredBody: { ...centered, path: "/images/exterminator/parts/bug-armoured-body.png" },
+	bugArmouredShell: { ...centered, path: "/images/exterminator/parts/bug-armoured-shell.png" },
+	bugArmouredHead: { ...centered, path: "/images/exterminator/parts/bug-armoured-head.png" },
+	bugArmouredLeg: { ...hinged, path: "/images/exterminator/parts/bug-armoured-leg.png" },
 	bugWing: { ...hinged, path: "/images/exterminator/parts/bug-wing.png" },
 	rocket: { ...centered, path: "/images/exterminator/rocket.png" },
 	flame: { ...centered, path: "/images/exterminator/flame.png" },
 	bullet: { ...centered, path: "/images/exterminator/bullet.png" },
 } as const;
 export type SpritePart = keyof typeof SPRITE_PARTS;
-export type BugVariant = "burrower" | "flyer";
 export type Skin = Readonly<Record<string, SpritePart | undefined>>;
 export type UpgradeLevels = { damage: number; weaponMod: number; speed: number };
 
@@ -74,6 +90,10 @@ export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage =
 export const BUG_SKINS: Record<BugVariant, Skin> = {
 	burrower: { body: "bugRustBody", shell: "bugRustShell", head: "bugRustHead", legs: "bugRustLeg" },
 	flyer: { body: "bugOliveBody", shell: "bugOliveShell", head: "bugOliveHead", legs: "bugOliveLeg", wings: "bugWing" },
+	lunger: { body: "bugLungerBody", shell: "bugLungerShell", head: "bugLungerHead", legs: "bugLungerLeg" },
+	evader: { body: "bugEvaderBody", shell: "bugEvaderShell", head: "bugEvaderHead", legs: "bugEvaderLeg" },
+	centipede: { body: "bugCentipedeBody", shell: "bugCentipedeShell", head: "bugCentipedeHead", legs: "bugCentipedeLeg" },
+	armoured: { body: "bugArmouredBody", shell: "bugArmouredShell", head: "bugArmouredHead", legs: "bugArmouredLeg" },
 };
 export function upgradePart(upgrades: UpgradeLevels, upgrade: keyof UpgradeLevels, undercarriage: Undercarriage = "legs", weapon: Weapon = "cannon"): SpritePart {
 	const skin = mechSkin({ ...upgrades, [upgrade]: upgrades[upgrade] + 1 }, undercarriage, weapon);
