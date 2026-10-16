@@ -241,6 +241,21 @@ save("bullet", board([rect(7, 13, 20, 6, "orange"), rect(11, 14, 15, 4, "gold"),
 
 
 
+# Subtle per-part cosmetic alternatives: identical registration and silhouette.
+# Small palette shifts preserve each combat type's identifying colour family.
+for name, pixels in list(PARTS.items()):
+    if not name.startswith("bug-") or name == "bug-wing":
+        continue
+    for suffix, factors in [("b", (1.08, 1.02, .91)), ("c", (.92, 1.04, 1.10))]:
+        variant = [[tuple(max(0, min(255, round(channel * factor))) for channel, factor in zip(color, factors)) if color else None for color in row] for row in pixels]
+        if name.endswith("-shell"):
+            # A few differently placed shell markings, without changing its outline.
+            for x, y in ([(10, 13), (18, 19)] if suffix == "b" else [(11, 18), (19, 13)]):
+                if variant[y][x]:
+                    variant[y][x] = tuple(min(255, channel + 24) for channel in variant[y][x])
+        save(f"parts/{name}-{suffix}", variant)
+
+
 def thumbnail(name, layers, scale=1.65):
     pixels = [[None for _ in range(64)] for _ in range(64)]
     for part_name, x, y, angle, pivot_x, flip in layers:

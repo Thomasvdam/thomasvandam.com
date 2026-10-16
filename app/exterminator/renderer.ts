@@ -4,7 +4,7 @@ import { TILE_SIZE, TERRAIN_COLUMNS } from "./terrain";
 import { cameraFor, type Camera } from "./camera";
 import { clamp, FIELD, FLAME_HALF_ANGLE, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
 import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
-import { BUG_SKINS, mechSkin, SPRITE_PARTS, type Skin, type SpritePart } from "./sprite-parts";
+import { bugSkin, mechSkin, SPRITE_PARTS, type Skin, type SpritePart } from "./sprite-parts";
 
 export type Sprites = Record<SpritePart, HTMLImageElement>;
 export async function loadSprites(): Promise<Sprites> {
@@ -73,19 +73,20 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.save(); ctx.globalAlpha *= opacity; ctx.fillStyle = "#040b09";
 		ctx.beginPath(); ctx.ellipse(x, y + 4, radius, radius * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	};
-	const drawBug = (variant: BugVariant, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = []) => {
+	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = []) => {
+		const skin = bugSkin(variant, appearance);
 		if (variant === "centipede") {
 			for (let i = segments.length - 1; i >= 0; i--) {
 				const segment = segments[i], leader = i === 0 ? { x, y } : segments[i - 1];
 				const segmentAngle = Math.atan2(leader.y - segment.y, leader.x - segment.x);
-				drawRig(ctx, sprites, BUG_RIG, { ...BUG_SKINS.centipede, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8, flash);
+				drawRig(ctx, sprites, BUG_RIG, { ...skin, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8, flash);
 			}
 		}
-		drawRig(ctx, sprites, BUG_RIG, BUG_SKINS[variant], bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress }), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
+		drawRig(ctx, sprites, BUG_RIG, skin, bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress }), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
 	};
 	for (const remains of game.remains) {
 		if (!visible(remains.x, remains.y) && !(remains.variant === "centipede" && remains.segments.some(segment => visible(segment.x, segment.y)))) continue;
-		drawBug(remains.variant, remains.x, remains.y, remains.angle, 0, 1, clamp((game.time - remains.diedAt) / .5, 0, 1), false, remains.segments);
+		drawBug(remains.variant, remains.id, remains.x, remains.y, remains.angle, 0, 1, clamp((game.time - remains.diedAt) / .5, 0, 1), false, remains.segments);
 	}
 	for (const warning of game.spawns) {
 		if (!visible(warning.x, warning.y, 120)) continue;
@@ -108,7 +109,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			ctx.beginPath(); ctx.ellipse(warning.x, warning.y, Math.max(.01, appearance.reveal * 42), Math.max(.01, appearance.reveal * 32), 0, 0, Math.PI * 2); ctx.clip();
 		}
 		ctx.translate(warning.x, warning.y - appearance.elevation); ctx.scale(appearance.scale, appearance.scale);
-		drawBug(warning.variant, 0, 0, Math.atan2(game.player.y - warning.y, game.player.x - warning.x), progress * 12, progress, 0, false, warning.variant === "centipede" ? Array.from({ length: 7 }, (_, i) => ({ x: Math.cos(i * .8) * (10 + i * 2.5), y: Math.sin(i * .8) * (10 + i * 2.5) })) : []);
+		drawBug(warning.variant, warning.id, 0, 0, Math.atan2(game.player.y - warning.y, game.player.x - warning.x), progress * 12, progress, 0, false, warning.variant === "centipede" ? Array.from({ length: 7 }, (_, i) => ({ x: Math.cos(i * .8) * (10 + i * 2.5), y: Math.sin(i * .8) * (10 + i * 2.5) })) : []);
 		ctx.restore();
 	}
 	for (const effect of game.deflections) {
@@ -182,7 +183,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		if (enemy.variant === "lunger" && enemy.state.phase === "windup") {
 			ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.angle); ctx.scale(.85, 1.12); ctx.rotate(-enemy.angle); ctx.translate(-enemy.x, -enemy.y);
 		}
-		drawBug(enemy.variant, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments);
+		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments);
 		ctx.restore();
 		if (enemy.maxHealth > 1) {
 			ctx.fillStyle = "#172219"; ctx.fillRect(enemy.x - 13, enemy.y - 32, 26, 3);
