@@ -211,9 +211,12 @@ Manually verify simultaneous touch, physical controllers, and subjective motion.
 
 Tuning is provisional. This version has four weapons, eight bug variants, and no audio. There is no saved progression between runs.
 
-Each bug skin has subtle warm/cool alternatives for body, shell, head, and legs.
+Each bug part has three appearances: stock, brighter crested/banded, and darker
+ridged/spined. This includes body, shell, head, legs, and optional wings.
 An individual mixes those parts deterministically from its ID, retaining the same
-appearance through its spawn warning, movement, hit effects, and death. The visual
+appearance through its spawn warning, movement, hit effects, and death. Broader plates, knee guards, hooked feet, head crests/feelers,
+segmented shell markings, and alternate wing shapes remain visible at gameplay
+size. Pivots and animation attachments stay fixed. The visual
 choices do not alter health, movement, armour, collision shapes, or animation.
 
 ## Debug waves
