@@ -1,12 +1,14 @@
 import { ACID_WINDUP } from "./acid";
-import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS, LUNGE_DISTANCE, LUNGE_WINDUP, ARMOUR_HALF_ANGLE, type BugVariant } from "./bugs";
+import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS, LUNGE_DISTANCE, LUNGE_WINDUP, ARMOUR_HALF_ANGLE, type BugVariant } from "./bug-types";
 import { weaponStats } from "./weapons";
-import { TILE_SIZE, TERRAIN_COLUMNS } from "./terrain";
+import { TILE_SIZE, TERRAIN_COLUMNS, TERRAIN_ROWS, type Terrain } from "./terrain";
 import { cameraFor, type Camera } from "./camera";
-import { clamp, FIELD, FLAME_HALF_ANGLE, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
+import { clamp } from "./math";
+import { FIELD, FLAME_HALF_ANGLE, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
 import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
 import { bugSkin, mechSkin, SPRITE_PARTS, type Skin, type SpritePart } from "./sprite-parts";
 
+const BASE_MODES = new Set<Game["mode"]>(["ready", "base", "workshop", "weapons", "shop"]);
 export type Sprites = Record<SpritePart, HTMLImageElement>;
 export async function loadSprites(): Promise<Sprites> {
 	const entries = await Promise.all(Object.entries(SPRITE_PARTS).map(async ([name, spec]) => {
@@ -33,26 +35,11 @@ export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Ri
 	ctx.restore();
 }
 
-export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number): Camera {
-	if (["ready", "base", "workshop", "weapons", "shop"].includes(game.mode)) {
-		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
-		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
-		ctx.strokeStyle = "#334638"; ctx.lineWidth = 2;
-		for (let x = 0; x < width; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
-		for (let y = 0; y < height; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
-		ctx.strokeStyle = "#8d9b5a"; ctx.lineWidth = 4; ctx.strokeRect(width / 2 - 100, height / 2 - 85, 200, 170);
-		drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage, game.weapon), mechPose({ distance: 0, walkBlend: 0, moveAngle: 0, aimAngle: 0, shotAge: 10, time: game.time, undercarriage: game.undercarriage }), width / 2, height / 2, 2);
-		return cameraFor(game.player, width, height);
-	}
-	const camera = cameraFor(game.player, width, height);
-	ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
-	ctx.fillStyle = "#101817"; ctx.fillRect(0, 0, width, height);
-	ctx.save(); ctx.translate(camera.offsetX - camera.x, camera.offsetY - camera.y);
-	ctx.save(); ctx.beginPath(); ctx.rect(0, 0, FIELD.width, FIELD.height); ctx.clip();
+export function drawTerrain(ctx: CanvasRenderingContext2D, tiles: Terrain[], variation: number) {
 	// Every surface uses a distinct texture as well as color.
-	for (let row = 0; row < 9; row++) for (let column = 0; column < TERRAIN_COLUMNS; column++) {
-		const x = column * TILE_SIZE, y = row * TILE_SIZE, terrain = game.terrain[row * TERRAIN_COLUMNS + column];
-		const shade = (row + column + game.hivesCleared) % 2;
+	for (let row = 0; row < TERRAIN_ROWS; row++) for (let column = 0; column < TERRAIN_COLUMNS; column++) {
+		const x = column * TILE_SIZE, y = row * TILE_SIZE, terrain = tiles[row * TERRAIN_COLUMNS + column];
+		const shade = (row + column + variation) % 2;
 		ctx.fillStyle = terrain === "mud" ? (shade ? "#483e2d" : "#433929") : terrain === "rubble" ? (shade ? "#40473e" : "#3a4239") : (shade ? "#2d3328" : "#293026");
 		ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 		for (let i = 0; i < 9; i++) {
@@ -69,6 +56,42 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			}
 		}
 	}
+}
+
+// A runtime owns one bounded background cache. Terrain arrays are immutable during a job.
+export function createRenderer(makeCanvas = () => document.createElement("canvas")) {
+	let tiles: Terrain[] | undefined, variation = -1, ratio = 0;
+	const background = makeCanvas(), context = background.getContext("2d")!;
+	return (ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number) => {
+		if (BASE_MODES.has(game.mode)) return render(ctx, game, sprites, width, height, pixelRatio);
+		if (tiles !== game.terrain || variation !== game.hivesCleared % 2 || ratio !== pixelRatio) {
+			tiles = game.terrain; variation = game.hivesCleared % 2; ratio = pixelRatio;
+			background.width = Math.round(FIELD.width * ratio); background.height = Math.round(FIELD.height * ratio);
+			context.setTransform(ratio, 0, 0, ratio, 0, 0); context.imageSmoothingEnabled = false;
+			drawTerrain(context, tiles, variation);
+		}
+		return render(ctx, game, sprites, width, height, pixelRatio, background);
+	};
+}
+
+export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource): Camera {
+	if (BASE_MODES.has(game.mode)) {
+		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
+		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
+		ctx.strokeStyle = "#334638"; ctx.lineWidth = 2;
+		for (let x = 0; x < width; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+		for (let y = 0; y < height; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+		ctx.strokeStyle = "#8d9b5a"; ctx.lineWidth = 4; ctx.strokeRect(width / 2 - 100, height / 2 - 85, 200, 170);
+		drawRig(ctx, sprites, MECH_RIG, mechSkin(upgradeLevels(game), game.undercarriage, game.weapon), mechPose({ distance: 0, walkBlend: 0, moveAngle: 0, aimAngle: 0, shotAge: 10, time: game.time, undercarriage: game.undercarriage }), width / 2, height / 2, 2);
+		return cameraFor(game.player, width, height);
+	}
+	const camera = cameraFor(game.player, width, height);
+	ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
+	ctx.fillStyle = "#101817"; ctx.fillRect(0, 0, width, height);
+	ctx.save(); ctx.translate(camera.offsetX - camera.x, camera.offsetY - camera.y);
+	ctx.save(); ctx.beginPath(); ctx.rect(0, 0, FIELD.width, FIELD.height); ctx.clip();
+	if (terrainLayer) ctx.drawImage(terrainLayer, 0, 0, FIELD.width, FIELD.height);
+	else drawTerrain(ctx, game.terrain, game.hivesCleared);
 	const visible = (x: number, y: number, margin = 70) => x >= camera.x - margin && x <= camera.x + width + margin && y >= camera.y - margin && y <= camera.y + height + margin;
 	const shadow = (x: number, y: number, radius = 20, opacity = .35) => {
 		ctx.save(); ctx.globalAlpha *= opacity; ctx.fillStyle = "#040b09";

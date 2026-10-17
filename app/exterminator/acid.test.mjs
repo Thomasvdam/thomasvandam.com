@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { ACID_WINDUP, acidLineClear } from "./acid";
-import { bugForSpawn, createBug, distanceToSegment, SEGMENT_SPACING } from "./bugs";
+import { bugForSpawn, createBug } from "./bugs";
+import { distanceToSegment } from "./math";
+import { SEGMENT_SPACING } from "./bug-types";
 import { chooseHive, FIELD, newGame, start, step } from "./game";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
 function setup() { const game = newGame(47); start(game); chooseHive(game, game.hives[0].id); game.toSpawn = 1; game.spawnTimer = 1000; game.terrain.fill("firm"); return game; }

@@ -1,39 +1,7 @@
+import { BUG_SPECS, BEETLE_ROLL_TIME, LUNGE_TRIGGER, LUNGE_DISTANCE, LUNGE_WINDUP, LUNGE_SPEED, LUNGE_WINDUP_TURN_RATE, ARMOUR_HALF_ANGLE, SEGMENT_SPACING, SEGMENT_COUNT, BUG_CLEARANCE, type BugVariant, type Enemy } from "./bug-types";
 import { stepAcidSpitter } from "./acid";
-import type { Bullet, Game, Vector } from "./game";
-
-export type BugVariant = "burrower" | "flyer" | "lunger" | "evader" | "centipede" | "armoured" | "beetle" | "spitter";
-export const BUG_SPECS: Record<BugVariant, { health: number; speed: number; radius: number }> = {
-	burrower: { health: 1, speed: 60, radius: 15 }, flyer: { health: 1, speed: 60, radius: 15 },
-	lunger: { health: 3, speed: 68, radius: 15 }, evader: { health: 2, speed: 76, radius: 13 },
-	centipede: { health: 7, speed: 104, radius: 12 }, armoured: { health: 5, speed: 54, radius: 18 },
-	beetle: { health: 3, speed: 88, radius: 16 }, spitter: { health: 3, speed: 100, radius: 15 },
-};
-export const BEETLE_ROLL_TIME = .95;
-export const BEETLE_FLIGHT_TIME = .9;
-export const BEETLE_BLAST_RADIUS = 38;
-export const LUNGE_TRIGGER = 180;
-export const LUNGE_DISTANCE = 310;
-export const LUNGE_WINDUP = 1.15;
-export const LUNGE_SPEED = 680;
-export const LUNGE_WINDUP_TURN_RATE = .15;
-export const ARMOUR_HALF_ANGLE = Math.PI * .39;
-export const FRONT_FLAME_MULTIPLIER = .15;
-export const SEGMENT_SPACING = 18;
-export const SEGMENT_COUNT = 8;
-export const BUG_CLEARANCE = 6;
-type Bounds = { width: number; height: number };
-type EnemyBase = Vector & { id: number; health: number; maxHealth: number; speed: number; angle: number; walkDistance: number; bornAt: number; hitAt: number; blockedAt: number };
-export type Enemy = EnemyBase & (
-	{ variant: "burrower" | "flyer"; state: { phase: "chase" } } |
-	{ variant: "lunger"; state: { phase: "approach" | "windup" | "lunge" | "recover"; remaining: number; direction: number; distance: number } } |
-	{ variant: "evader"; state: { phase: "chase" | "dodge"; remaining: number; cooldown: number; direction: Vector } } |
-	{ variant: "centipede"; state: { segments: Vector[] } } |
-	{ variant: "armoured"; state: { phase: "chase" } } |
-	{ variant: "beetle"; state: { phase: "roll" | "ready"; remaining: number } } |
-	{ variant: "spitter"; state: { phase: "cover" | "peek" | "windup"; remaining: number; coverId: number | null; side: number; target: Vector } }
-);
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-export const angleDifference = (target: number, current: number) => Math.atan2(Math.sin(target - current), Math.cos(target - current));
+import type { Bullet, Game } from "./game";
+import { clamp, angleDifference, distanceToSegment, type Vector, type Bounds } from "./math";
 
 export function bugForSpawn(cleared: number, wave: number, index: number): BugVariant {
 	if (index % 3 !== 2) return index % 2 === 0 ? "burrower" : "flyer";
@@ -64,11 +32,7 @@ export function enemyCircles(enemy: Enemy): (Vector & { radius: number })[] {
 	const radius = BUG_SPECS[enemy.variant].radius;
 	return [{ x: enemy.x, y: enemy.y, radius }, ...(enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment, radius })) : [])];
 }
-export function distanceToSegment(point: Vector, from: Vector, to: Vector) {
-	const dx = to.x - from.x, dy = to.y - from.y, length = dx * dx + dy * dy;
-	const t = length ? clamp(((point.x - from.x) * dx + (point.y - from.y) * dy) / length, 0, 1) : 0;
-	return Math.hypot(point.x - from.x - dx * t, point.y - from.y - dy * t);
-}
+
 export function frontArmour(enemy: Enemy, source: Vector) {
 	return enemy.variant === "armoured" && Math.abs(angleDifference(Math.atan2(source.y - enemy.y, source.x - enemy.x), enemy.angle)) <= ARMOUR_HALF_ANGLE;
 }
@@ -188,50 +152,57 @@ function separateFromCircle(player: Vector, circle: Vector, radius: number, fall
 		.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))[0] ?? projected;
 }
 export function resolveBarriers(player: Vector, enemies: Enemy[], playerRadius: number, bounds: Bounds) {
-	const barriers = enemies.filter(enemy => enemy.variant === "centipede" && enemy.health > 0).flatMap(enemy => enemyCircles(enemy).map(circle => ({ ...circle, angle: enemy.angle })));
+	const barriers = enemies.filter((enemy): enemy is Extract<Enemy, { variant: "centipede" }> => enemy.variant === "centipede" && enemy.health > 0);
+	const radius = playerRadius + BUG_SPECS.centipede.radius;
 	for (let pass = 0; pass < 12; pass++) {
 		let adjusted = false;
-		for (const circle of barriers) {
-			const distance = Math.hypot(player.x - circle.x, player.y - circle.y), radius = playerRadius + circle.radius;
-			if (distance >= radius - .001) continue;
-			Object.assign(player, separateFromCircle(player, circle, radius, circle.angle + Math.PI / 2, playerRadius, bounds)); adjusted = true;
+		for (const enemy of barriers) for (let i = -1; i < enemy.state.segments.length; i++) {
+			const circle = i < 0 ? enemy : enemy.state.segments[i];
+			if (Math.hypot(player.x - circle.x, player.y - circle.y) >= radius - .001) continue;
+			Object.assign(player, separateFromCircle(player, circle, radius, enemy.angle + Math.PI / 2, playerRadius, bounds)); adjusted = true;
 		}
 		if (!adjusted) break;
 	}
 }
 
-function translateBug(enemy: Enemy, dx: number, dy: number, bounds: Bounds) {
-	const radius = BUG_SPECS[enemy.variant].radius;
+type CollisionBody = { enemy: Enemy; points: Vector[]; radius: number; mass: number; minX: number; maxX: number; minY: number; maxY: number };
+function translateBug(body: CollisionBody, dx: number, dy: number, bounds: Bounds) {
+	const { enemy, radius } = body;
 	if (enemy.variant !== "centipede") {
 		enemy.x = clamp(enemy.x + dx, radius, bounds.width - radius); enemy.y = clamp(enemy.y + dy, radius, bounds.height - radius);
 		return;
 	}
-	const points = [enemy, ...enemy.state.segments];
-	let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-	for (const point of points) { minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x); minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y); }
-	dx = clamp(dx, radius - minX, bounds.width - radius - maxX); dy = clamp(dy, radius - minY, bounds.height - radius - maxY);
-	for (const point of points) { point.x += dx; point.y += dy; }
+	// Relaxation only translates a chain: its bounds need measuring once per solve.
+	dx = clamp(dx, radius - body.minX, bounds.width - radius - body.maxX); dy = clamp(dy, radius - body.minY, bounds.height - radius - body.maxY);
+	for (const point of body.points) { point.x += dx; point.y += dy; }
+	body.minX += dx; body.maxX += dx; body.minY += dy; body.maxY += dy;
 }
 export function separateBugs(enemies: Enemy[], bounds: Bounds) {
 	// Broad-phase cells keep the solver local, including every centipede segment.
 	const nodes = enemies.filter(enemy => enemy.health > 0).flatMap(enemy => {
 		const radius = BUG_SPECS[enemy.variant].radius, mass = enemy.variant === "centipede" ? 8 : enemy.variant === "armoured" ? 2 : 1;
-		return (enemy.variant === "centipede" ? [enemy, ...enemy.state.segments] : [enemy]).map(point => ({ enemy, point, radius, mass }));
+		const points = enemy.variant === "centipede" ? [enemy, ...enemy.state.segments] : [enemy];
+		const body: CollisionBody = { enemy, points, radius, mass, minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+		for (const point of points) { body.minX = Math.min(body.minX, point.x); body.maxX = Math.max(body.maxX, point.x); body.minY = Math.min(body.minY, point.y); body.maxY = Math.max(body.maxY, point.y); }
+		return points.map(point => ({ enemy, point, radius, mass, body }));
 	});
 	const cellSize = 48, stride = Math.ceil(bounds.width / cellSize) + 2, pairs: number[] = [];
+	const heads = new Int32Array(stride * (Math.ceil(bounds.height / cellSize) + 2));
+	const next = new Int32Array(nodes.length), cells = new Int32Array(nodes.length);
+	const offsets = [-stride - 1, -1, stride - 1, -stride, 0, stride, -stride + 1, 1, stride + 1];
 	let refresh = true;
 	for (let pass = 0; pass < 96; pass++) {
 		const fresh = refresh || pass % 8 === 0;
 		if (fresh) {
-			const grid = new Map<number, number[]>(); pairs.length = 0;
-			for (let i = 0; i < nodes.length; i++) {
-				const { point } = nodes[i], key = Math.floor(point.x / cellSize) + Math.floor(point.y / cellSize) * stride;
-				const cell = grid.get(key); if (cell) cell.push(i); else grid.set(key, [i]);
+			heads.fill(-1); pairs.length = 0;
+			// Build in reverse so each linked cell visits nodes in stable ascending order.
+			for (let i = nodes.length - 1; i >= 0; i--) {
+				const { point } = nodes[i], key = Math.floor(point.x / cellSize) + 1 + (Math.floor(point.y / cellSize) + 1) * stride;
+				cells[i] = key; next[i] = heads[key]; heads[key] = i;
 			}
-			for (let i = 0; i < nodes.length; i++) {
-				const a = nodes[i], cx = Math.floor(a.point.x / cellSize), cy = Math.floor(a.point.y / cellSize);
-				for (let gx = cx - 1; gx <= cx + 1; gx++) for (let gy = cy - 1; gy <= cy + 1; gy++) for (const j of grid.get(gx + gy * stride) ?? []) {
-					if (j > i && a.enemy !== nodes[j].enemy) pairs.push(i, j);
+			for (let i = 0; i < nodes.length; i++) for (const offset of offsets) {
+				for (let j = heads[cells[i] + offset]; j !== -1; j = next[j]) {
+					if (j > i && nodes[i].enemy !== nodes[j].enemy) pairs.push(i, j);
 				}
 			}
 		}
@@ -244,14 +215,14 @@ export function separateBugs(enemies: Enemy[], bounds: Bounds) {
 			overlap = Math.max(overlap, penetration);
 			const angle = distance > .0001 ? 0 : ((Math.imul(a.enemy.id, 73856093) ^ Math.imul(b.enemy.id, 19349663)) >>> 0) / 4294967296 * Math.PI * 2;
 			const nx = distance > .0001 ? dx / distance : Math.cos(angle), ny = distance > .0001 ? dy / distance : Math.sin(angle);
-			translateBug(a.enemy, -nx * penetration * b.mass / (a.mass + b.mass), -ny * penetration * b.mass / (a.mass + b.mass), bounds);
-			translateBug(b.enemy, nx * penetration * a.mass / (a.mass + b.mass), ny * penetration * a.mass / (a.mass + b.mass), bounds);
+			translateBug(a.body, -nx * penetration * b.mass / (a.mass + b.mass), -ny * penetration * b.mass / (a.mass + b.mass), bounds);
+			translateBug(b.body, nx * penetration * a.mass / (a.mass + b.mass), ny * penetration * a.mass / (a.mass + b.mass), bounds);
 			// A wall may absorb one body's share; let the other use the remaining room.
 			const remaining = minimum - Math.hypot(b.point.x - a.point.x, b.point.y - a.point.y);
 			if (remaining > .02) {
-				translateBug(b.enemy, nx * remaining, ny * remaining, bounds);
+				translateBug(b.body, nx * remaining, ny * remaining, bounds);
 				const rest = minimum - Math.hypot(b.point.x - a.point.x, b.point.y - a.point.y);
-				if (rest > .02) translateBug(a.enemy, -nx * rest, -ny * rest, bounds);
+				if (rest > .02) translateBug(a.body, -nx * rest, -ny * rest, bounds);
 			}
 		}
 		if (overlap <= .02 && fresh) break;

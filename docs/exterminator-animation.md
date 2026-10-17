@@ -5,7 +5,8 @@ attachment points (bones). A **pose** moves those points. A **skin** assigns PNG
 parts to the rig's named slots. The same pose works with every compatible skin.
 The renderer composes the parts; no whole-character sprite sheet is required.
 
-`app/exterminator/animation.ts` defines `MECH_RIG`, `BUG_RIG`, their shared animation
+Immutable rig hierarchies and paint order are compiled once and reused across
+poses and skins. `app/exterminator/animation.ts` defines `MECH_RIG`, `BUG_RIG`, their shared animation
 functions, and the parent-transform resolver. `app/exterminator/sprite-parts.ts` holds
 image paths, dimensions, pivots, and skin assignments. Part art is authored in
 `tools/generate-exterminator-sprites.py`; PNGs are committed so running the game needs
@@ -98,7 +99,7 @@ simulation clock; they do not require alternate character animations.
 
 Lunger, evader, centipede, armoured, dung beetle, and acid spitter skins register body/shell/head/leg PNGs
 on the existing bug rig. The lunger crouches the composed rig during windup; its
-attack corridor follows the direction locked by the simulation. Armour facing and
+attack corridor follows the limited windup turn and locks when the lunge begins. Armour facing and
 ricochet feedback also follow simulation state. Centipede segments repeat the same
 rig with the head slot omitted, phase-offset walking, and positions from the body
 chain. The dying chain retains those positions so all segments fade together.

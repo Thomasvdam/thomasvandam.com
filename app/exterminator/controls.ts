@@ -1,4 +1,4 @@
-import { clamp, limitVector, type Vector } from "./game";
+import { clamp, limitVector, type Vector } from "./math";
 
 export function stickVector(x: number, y: number, deadzone = .18): Vector {
 	const length = Math.hypot(x, y);

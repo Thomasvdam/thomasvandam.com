@@ -1,5 +1,5 @@
-import { BUG_SPECS, type BugVariant } from "./bugs";
-import { WAVES_PER_HIVE, type Game } from "./game";
+import { BUG_SPECS, type BugVariant } from "./bug-types";
+import { clearCombat, WAVES_PER_HIVE, type Game } from "./game";
 export const BUG_TYPES = Object.keys(BUG_SPECS) as BugVariant[];
 export const BUG_NAMES: Record<BugVariant, string> = { burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter" };
 export type WaveComposition = Record<BugVariant, number>;
@@ -18,7 +18,6 @@ export function spawnDebugWave(game: Game, composition: WaveComposition) {
 	if (total === 0 || total > 100) return;
 	if (game.debug.total > 0) game.wave++;
 	game.debug = { queue: BUG_TYPES.flatMap(type => Array<BugVariant>(composition[type]).fill(type)), total };
-	game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
-	game.remains = []; game.explosions = []; game.deflections = []; game.acidImpacts = [];
+	clearCombat(game);
 	game.toSpawn = total; game.spawnTimer = 0; game.intermission = 0;
 }

@@ -3,8 +3,9 @@ import { weaponSpec, type Weapon } from "./weapons";
 import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
 import { bindJoystick, keyboardVector, readGamepad } from "./controls";
-import { chooseWeapon, closeWeapons, openWeapons, weaponChoices, purchaseService, workshopServices, closeShop, openShop, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, type Game, type Upgrade, type WorkshopService, type Vector } from "./game";
-import { loadSprites, render } from "./renderer";
+import { chooseWeapon, closeWeapons, openWeapons, weaponChoices, purchaseService, workshopServices, closeShop, openShop, chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, newGame, openWorkshop, start, step, togglePause, undercarriageChoices, upgradeChoices, upgradeLevels, waveSize, type Game, type Upgrade, type WorkshopService } from "./game";
+import type { Vector } from "./math";
+import { loadSprites, createRenderer } from "./renderer";
 
 function menuChoices(game: Game) {
 	if (game.mode === "weapons") return [...weaponChoices(), { id: "workshop", name: "Back to workshop", key: "5", kind: "workshop" as const }];
@@ -51,6 +52,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	let game = freshGame();
 	let disposed = false, loaded = false, frame = 0, width = 1, height = 1, pixelRatio = 1, accumulator = 0, lastTime = 0;
 	let mouse: Vector | null = null, aimSource: "mouse" | "touch" | "controller" = "mouse";
+	let needsDraw = true;
 	let selection = 0, viewKey = "", controller = false, previousPad = readGamepad(null), controllerBlocked = false;
 	const keys = new Set<string>();
 	const playing = () => game.mode === "playing";
@@ -58,7 +60,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	const aimStick = bindJoystick(options.aimPad, options.aimThumb, playing);
 	const publish = () => {
 		const view = viewFromGame(game, controller, selection), key = JSON.stringify(view);
-		if (key !== viewKey) { viewKey = key; onViewChange(view); }
+		if (key !== viewKey) { viewKey = key; needsDraw = true; onViewChange(view); }
 	};
 	const clearInput = () => {
 		keys.clear(); mouse = null; moveStick.reset(); aimStick.reset(); accumulator = 0; controllerBlocked = true;
@@ -146,6 +148,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	const visibility = () => { if (document.hidden) pauseForFocus(); };
 	const contextmenu = (event: Event) => event.preventDefault();
 	const resize = () => {
+		needsDraw = true;
 		const bounds = canvas.getBoundingClientRect(); width = Math.max(1, bounds.width); height = Math.max(1, bounds.height);
 		pixelRatio = Math.min(2, window.devicePixelRatio || 1);
 		canvas.width = Math.round(width * pixelRatio); canvas.height = Math.round(height * pixelRatio);
@@ -195,6 +198,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	if (!ctx) onError("Your browser could not open the playfield. Try another browser.");
 	else void loadSprites().then(sprites => {
 		if (disposed) return;
+		const render = createRenderer();
 		loaded = true; resize(); onLoaded(); publish();
 		const tick = (now: number) => {
 			if (disposed) return;
@@ -205,7 +209,9 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 				while (accumulator >= 1 / 120 && game.mode === "playing") { step(game, getInput(pad), 1 / 120); accumulator -= 1 / 120; }
 			} else accumulator = 0;
 			if (game.mode !== before) { selection = 0; clearInput(); }
-			render(ctx, game, sprites, width, height, pixelRatio); publish(); frame = requestAnimationFrame(tick);
+			publish();
+			if (game.mode === "playing" || needsDraw) { render(ctx, game, sprites, width, height, pixelRatio); needsDraw = false; }
+			frame = requestAnimationFrame(tick);
 		};
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
