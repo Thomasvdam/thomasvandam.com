@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS, bugForSpawn, createBug } from "./bugs";
+import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS } from "./bug-types";
+import { bugForSpawn, createBug } from "./bugs";
 import { chooseHive, FIELD, newGame, PLAYER_RADIUS, start, step } from "./game";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
 function setup() {

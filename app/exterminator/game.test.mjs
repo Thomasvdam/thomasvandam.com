@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ENEMY_RADIUS, FIELD, newGame, PLAYER_RADIUS, SPAWN_WARNING_TIME, start as prepare, chooseHive, playerStats, upgradeLevels, step, togglePause, waveSize } from "./game";
+import { SPAWN_MARGIN, FIELD, newGame, PLAYER_RADIUS, SPAWN_WARNING_TIME, start as prepare, chooseHive, playerStats, upgradeLevels, step, togglePause, waveSize } from "./game";
 import { cameraFor, screenToWorld } from "./camera";
 import { viewFromGame } from "./runtime";
 
@@ -26,7 +26,7 @@ test("manual aim controls shots; neutral aim retains direction and projectiles e
 	advance(game, 2); expect(game.bullets).toHaveLength(0);
 });
 
-test("swept shots kill and armored enemies require enough damage", () => {
+test("swept shots kill and higher-health enemies require enough damage", () => {
 	const game = newGame(); start(game); enemy(game, { x: 100, y: 100, health: 2, maxHealth: 2 });
 	game.bullets.push({ id: 100, x: 60, y: 100, vx: 2400, vy: 0, damage: 1, life: 1, weapon: "cannon", blastRadius: 0 });
 	step(game, idle, 1 / 30); expect(game.enemies[0].health).toBe(1); expect(game.kills).toBe(0);
@@ -73,8 +73,8 @@ test("spawn warnings freeze during pauses", () => {
 test("arena-wide spawn warnings fit inside bounds and may appear directly on the player", () => {
 	const game = newGame(200); start(game); game.spawnTimer = 0;
 	step(game, idle, 1 / 120); const warning = game.spawns[0];
-	expect(warning.x).toBeGreaterThanOrEqual(ENEMY_RADIUS); expect(warning.x).toBeLessThanOrEqual(FIELD.width - ENEMY_RADIUS);
-	expect(warning.y).toBeGreaterThanOrEqual(ENEMY_RADIUS); expect(warning.y).toBeLessThanOrEqual(FIELD.height - ENEMY_RADIUS);
+	expect(warning.x).toBeGreaterThanOrEqual(SPAWN_MARGIN); expect(warning.x).toBeLessThanOrEqual(FIELD.width - SPAWN_MARGIN);
+	expect(warning.y).toBeGreaterThanOrEqual(SPAWN_MARGIN); expect(warning.y).toBeLessThanOrEqual(FIELD.height - SPAWN_MARGIN);
 	const matching = newGame(200); start(matching); matching.spawnTimer = 0;
 	Object.assign(matching.player, { x: warning.x, y: warning.y }); step(matching, idle, 1 / 120);
 	expect(matching.spawns[0].x).toBe(warning.x); expect(matching.spawns[0].y).toBe(warning.y); expect(matching.player.health).toBe(100);
@@ -92,8 +92,8 @@ test("each group of three spawn warnings pressures the player's position even in
 		for (let i = 0; i < 3; i++) { game.spawnTimer = 0; step(game, idle, 1 / 120); }
 		expect(game.spawns).toHaveLength(3); const nearby = game.spawns[2];
 		expect(Math.hypot(nearby.x - position.x, nearby.y - position.y)).toBeLessThanOrEqual(92);
-		expect(nearby.x).toBeGreaterThanOrEqual(ENEMY_RADIUS); expect(nearby.x).toBeLessThanOrEqual(FIELD.width - ENEMY_RADIUS);
-		expect(nearby.y).toBeGreaterThanOrEqual(ENEMY_RADIUS); expect(nearby.y).toBeLessThanOrEqual(FIELD.height - ENEMY_RADIUS);
+		expect(nearby.x).toBeGreaterThanOrEqual(SPAWN_MARGIN); expect(nearby.x).toBeLessThanOrEqual(FIELD.width - SPAWN_MARGIN);
+		expect(nearby.y).toBeGreaterThanOrEqual(SPAWN_MARGIN); expect(nearby.y).toBeLessThanOrEqual(FIELD.height - SPAWN_MARGIN);
 	}
 });
 

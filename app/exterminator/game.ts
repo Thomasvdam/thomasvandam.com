@@ -1,11 +1,13 @@
+import { clamp, limitVector, type Vector } from "./math";
 import { ACID_RADIUS } from "./acid";
-import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, frontArmour, resolveBarriers, separateBugs, stepBugs, type BugVariant, type Enemy } from "./bugs";
+import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BUG_SPECS, FRONT_FLAME_MULTIPLIER, type BugVariant, type Enemy } from "./bug-types";
+import { bugForSpawn, createBug, enemyCircles, frontArmour, resolveBarriers, separateBugs, stepBugs } from "./bugs";
 import { WEAPONS, weaponSpec, weaponStats, weaponModLimit, type Weapon, type WeaponRanks } from "./weapons";
 import { createHives, type Hive } from "./hives";
 import { createTerrain, MOVEMENT, terrainAt, UNDERCARRIAGES, type Terrain, type Undercarriage } from "./terrain";
 export const FIELD = { width: 1120, height: 720 };
 export const PLAYER_RADIUS = 14;
-export const ENEMY_RADIUS = 15;
+export const SPAWN_MARGIN = 15;
 export const SPAWN_WARNING_TIME = 1.2;
 export const WAVES_PER_HIVE = 3;
 export const BASE_SPEED = 220;
@@ -32,7 +34,6 @@ export function workshopServices(game: Game) {
 	if (game.parts.sensor < MAX_SENSOR_RANK) choices.push({ id: "sensor", name: "Upgrade hive sensor", description: game.parts.sensor === 0 ? "Reveal hive difficulty." : "Reveal the second most prevalent terrain.", cost: upgradeCost(game.parts.sensor, 150), key: "5", kind: "service" });
 	return choices;
 }
-export type Vector = { x: number; y: number };
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number; weapon: Exclude<Weapon, "flamethrower">; blastRadius: number };
 export type Acid = Vector & { id: number; owner: number; vx: number; vy: number; life: number };
@@ -54,11 +55,6 @@ export type Game = {
 	parts: { weapons: Record<Weapon, WeaponRanks>; sensor: number; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
 };
 
-export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-export function limitVector(vector: Vector): Vector {
-	const magnitude = Math.hypot(vector.x, vector.y);
-	return magnitude > 1 ? { x: vector.x / magnitude, y: vector.y / magnitude } : vector;
-}
 export const waveSize = (wave: number, threat = 1) => Math.min(100, 5 + wave * 3 + (threat - 1) * 3);
 export function upgradeLevels(game: Game) {
 	return { damage: game.parts.weapons[game.weapon].damage, weaponMod: game.parts.weapons[game.weapon].mod, speed: game.parts.undercarriages[game.undercarriage] };
@@ -78,6 +74,11 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	};
 }
 
+// All combat lifetimes end together when replacing a wave or returning to base.
+export function clearCombat(game: Game) {
+	game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
+	game.remains = []; game.explosions = []; game.deflections = []; game.acidImpacts = [];
+}
 export function start(game: Game) {
 	if (game.mode === "ready") game.mode = "base";
 }
@@ -132,7 +133,7 @@ function returnToBase(game: Game) {
 	game.lastJob = { name: game.hive.name, payment: game.hive.payment };
 	game.hivesCleared++;
 	game.hive = null; game.hives = createHives(game.runSeed, game.hivesCleared);
-	game.acid = []; game.acidImpacts = []; game.lobs = []; game.bullets = []; game.remains = []; game.explosions = []; game.deflections = []; game.toSpawn = 0; game.intermission = 0;
+	clearCombat(game); game.toSpawn = 0; game.intermission = 0;
 	game.mode = "base";
 }
 
@@ -147,9 +148,9 @@ function warnSpawn(game: Game) {
 	const angle = nearPlayer ? random(game) * Math.PI * 2 : 0;
 	const radius = nearPlayer ? Math.sqrt(random(game)) * 90 : 0;
 	const position = nearPlayer ? {
-		x: clamp(game.player.x + Math.cos(angle) * radius, ENEMY_RADIUS, FIELD.width - ENEMY_RADIUS),
-		y: clamp(game.player.y + Math.sin(angle) * radius, ENEMY_RADIUS, FIELD.height - ENEMY_RADIUS),
-	} : { x: ENEMY_RADIUS + random(game) * (FIELD.width - ENEMY_RADIUS * 2), y: ENEMY_RADIUS + random(game) * (FIELD.height - ENEMY_RADIUS * 2) };
+		x: clamp(game.player.x + Math.cos(angle) * radius, SPAWN_MARGIN, FIELD.width - SPAWN_MARGIN),
+		y: clamp(game.player.y + Math.sin(angle) * radius, SPAWN_MARGIN, FIELD.height - SPAWN_MARGIN),
+	} : { x: SPAWN_MARGIN + random(game) * (FIELD.width - SPAWN_MARGIN * 2), y: SPAWN_MARGIN + random(game) * (FIELD.height - SPAWN_MARGIN * 2) };
 	const variant = game.debug ? game.debug.queue.shift()! : bugForSpawn(game.hivesCleared, game.wave, index);
 	game.spawns.push({ ...position, id: game.nextId++, remaining: SPAWN_WARNING_TIME, variant });
 }

@@ -41,8 +41,7 @@ four interchangeable weapons and three undercarriages, all available from the st
 
 A hive job pays once after all three waves are cleared and the mech returns to
 base. Kills and individual waves pay nothing; failed jobs pay nothing. There are
-no XP drops, levels, in-combat upgrade choices, or banked upgrade points. Combat
-continues through each wave without upgrade interruptions. The HUD shows current
+Combat continues through each wave without upgrade interruptions. The HUD shows current
 funds and the active job's quoted payment; returning to base shows the completed
 job's payment until the next deployment.
 
@@ -154,7 +153,7 @@ Specialist health and movement scale with threat too. Provisional behavior:
   kites at 240–330 units and sidesteps blocked lanes. Cover follows the player
   and shield positions; dead or unusable shields are replaced or abandoned.
 - **Centipede:** circles the mech and trails seven solid segments behind its head.
-  Its base speed is 104 (112 in the first threat/wave), up from 78.
+  Its base speed is 104 (112 in the first threat/wave).
   The body blocks movement, deals no contact damage, and can be shot anywhere.
   All segments share health; blasts and flame apply damage once per bug. Killing
   it removes the barrier. It emerges coiled inside a larger spawn warning; body
@@ -185,12 +184,14 @@ sticks must return to neutral before movement resumes.
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
 - `acid.ts`: spitter cover/peek behavior, firing lanes, and acid tuning.
-- `bugs.ts`: specialist states, spawning, movement, hit geometry, and barriers.
+- `bug-types.ts`: bug definitions, specialist states, and tuning.
+- `bugs.ts`: spawning, behavior, hit geometry, crowd separation, and barriers.
+- `math.ts`: shared vectors, bounds, and geometry helpers.
 - `weapons.ts`: weapon definitions, upgrade descriptions, and derived combat stats.
 - `hives.ts`: deterministic mission choices and activity/terrain previews.
 - `terrain.ts`: terrain generation, prevalent terrain, and undercarriage handling.
 - `controls.ts`, `camera.ts`, `runtime.ts`: input, camera, lifecycle, and menus.
-- `renderer.ts`: Canvas 2D combat and workshop-pad rendering.
+- `renderer.ts`: Canvas 2D combat and workshop-pad rendering, with a runtime-owned terrain cache.
 - `animation.ts`, `sprite-parts.ts`: shared rigs, poses, and registered PNG parts.
 - `exterminator-game.tsx`: HUD, hive selection, workshop, and upgrade screens.
 
@@ -234,3 +235,23 @@ manual spawn; automatic progression and job completion are disabled. Restart
 keeps debug mode while the hash is present. Remove `#debug` to hide the panel and
 resume normal progression; queued debug arrivals are cancelled. The controls
 collapse to leave more room for the playfield on small screens.
+
+## Rendering and performance
+
+The runtime retains one terrain canvas for the current layout, lighting parity,
+and pixel density. Camera movement and viewport resizing reuse that layer; a new
+hive or density change rebuilds it. Terrain arrays are immutable during a job.
+Pause and base/workshop screens redraw only when their view or size changes.
+Shared immutable rigs cache parent indices and paint order, while each draw still
+uses the current pose and equipped parts.
+
+Crowd separation uses a bounded linked-cell grid and stable candidate ordering.
+Each solve measures centipede bounds once, then updates those bounds as the whole
+chain translates. Player barriers visit the existing body points directly.
+Spitters choose cover in one pass and test armour directly, without sorting or
+allocating collider arrays for each firing-lane check.
+
+Run `bun tools/benchmark-exterminator.ts` for deterministic 100-bug simulation
+samples (chasers, mixed specialists, and centipede-heavy crowds). It reports mean,
+median, and 95th-percentile step time after warmup; timings are diagnostic, not CI
+thresholds or a guarantee of mobile-device performance.

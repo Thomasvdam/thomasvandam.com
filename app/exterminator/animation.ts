@@ -1,7 +1,7 @@
 import type { Undercarriage } from "./terrain";
-import { clamp } from "./game";
+import { clamp } from "./math";
 import type { Skin, SpritePart } from "./sprite-parts";
-import type { BugVariant } from "./bugs";
+import type { BugVariant } from "./bug-types";
 
 export type Bone = { id: string; parent?: string; x: number; y: number; angle?: number; slot?: string; layer: number; flipY?: boolean };
 export type Rig = readonly Bone[];
@@ -29,27 +29,42 @@ export const BUG_RIG: Rig = [
 	{ id: "head", parent: "root", x: 10, y: 0, slot: "head", layer: 4 },
 ];
 
-// Resolve parent transforms once. Swapping a skin never changes the pose or bone geometry.
+// Rigs are immutable. Validate hierarchy and sort paint order once, rather than per part/frame.
+type CompiledRig = { parents: number[]; paintOrder: number[] };
+const compiledRigs = new WeakMap<Rig, CompiledRig>();
+function compileRig(rig: Rig): CompiledRig {
+	const cached = compiledRigs.get(rig);
+	if (cached) return cached;
+	const indices = new Map<string, number>(), parents: number[] = [];
+	for (const [i, bone] of rig.entries()) {
+		const parent = bone.parent ? indices.get(bone.parent) : -1;
+		if (parent === undefined) throw new Error(`Parent ${bone.parent} must precede ${bone.id}`);
+		parents.push(parent); indices.set(bone.id, i);
+	}
+	const compiled = { parents, paintOrder: rig.map((_, i) => i).sort((a, b) => rig[a].layer - rig[b].layer) };
+	compiledRigs.set(rig, compiled); return compiled;
+}
 export function resolveRig(rig: Rig, skin: Skin, pose: Pose): ResolvedPart[] {
-	const resolved = new Map<string, { x: number; y: number; angle: number; scaleX: number; scaleY: number; opacity: number }>();
-	const parts: ResolvedPart[] = [];
-	for (const bone of rig) {
-		const local = pose[bone.id] ?? {}, parent = bone.parent ? resolved.get(bone.parent) : undefined;
-		if (bone.parent && !parent) throw new Error(`Parent ${bone.parent} must precede ${bone.id}`);
+	const { parents, paintOrder } = compileRig(rig);
+	const resolved: { x: number; y: number; angle: number; scaleX: number; scaleY: number; opacity: number }[] = [];
+	for (let i = 0; i < rig.length; i++) {
+		const bone = rig[i], local = pose[bone.id] ?? {}, parent = resolved[parents[i]];
 		const px = (bone.x + (local.x ?? 0)) * (parent?.scaleX ?? 1), py = (bone.y + (local.y ?? 0)) * (parent?.scaleY ?? 1);
 		const angle = parent?.angle ?? 0, cos = Math.cos(angle), sin = Math.sin(angle);
-		const result = {
+		resolved.push({
 			x: (parent?.x ?? 0) + px * cos - py * sin, y: (parent?.y ?? 0) + px * sin + py * cos,
 			angle: angle + (bone.angle ?? 0) + (local.angle ?? 0),
 			scaleX: (parent?.scaleX ?? 1) * (local.scaleX ?? 1),
 			scaleY: (parent?.scaleY ?? 1) * (local.scaleY ?? 1) * (bone.flipY ? -1 : 1),
 			opacity: (parent?.opacity ?? 1) * (local.opacity ?? 1),
-		};
-		resolved.set(bone.id, result);
-		const sprite = bone.slot ? skin[bone.slot] : undefined;
-		if (sprite) parts.push({ ...result, bone: bone.id, sprite, layer: bone.layer });
+		});
 	}
-	return parts.sort((a, b) => a.layer - b.layer);
+	const parts: ResolvedPart[] = [];
+	for (const i of paintOrder) {
+		const bone = rig[i], sprite = bone.slot ? skin[bone.slot] : undefined;
+		if (sprite) parts.push({ ...resolved[i], bone: bone.id, sprite, layer: bone.layer });
+	}
+	return parts;
 }
 
 export function mechPose(state: { distance: number; walkBlend: number; moveAngle: number; aimAngle: number; shotAge: number; time: number; undercarriage?: Undercarriage }): Pose {

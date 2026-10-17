@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { BUG_SPECS, createBug, enemyCircles, separateBugs } from "./bugs";
+import { BUG_SPECS } from "./bug-types";
+import { createBug, enemyCircles, separateBugs } from "./bugs";
 import { chooseHive, FIELD, newGame, start, step } from "./game";
 import { bugSkin, BUG_SKINS, SPRITE_PARTS } from "./sprite-parts";
 import { BUG_RIG, bugPose, resolveRig } from "./animation";

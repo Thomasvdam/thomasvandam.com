@@ -1,4 +1,5 @@
-import { clamp, FIELD, type Vector } from "./game";
+import { clamp, type Vector } from "./math";
+import { FIELD } from "./game";
 
 export type Camera = { x: number; y: number; width: number; height: number; offsetX: number; offsetY: number };
 export function cameraFor(player: Vector, width: number, height: number): Camera {

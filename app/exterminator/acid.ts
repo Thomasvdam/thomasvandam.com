@@ -1,16 +1,16 @@
-import { BUG_SPECS, distanceToSegment, enemyCircles, type Enemy } from "./bugs";
-import type { Game, Vector } from "./game";
+import { BUG_SPECS, type Enemy } from "./bug-types";
+import type { Game } from "./game";
+import { distanceToSegment, type Vector, type Bounds } from "./math";
 
 export const ACID_RADIUS = 5;
 export const ACID_SPEED = 300;
 export const ACID_WINDUP = .55;
 export const ACID_LIFETIME = 2.2;
-type Bounds = { width: number; height: number };
 type Spitter = Extract<Enemy, { variant: "spitter" }>;
 const distance = (a: Vector, b: Vector) => Math.hypot(a.x - b.x, a.y - b.y);
 
 export function acidLineClear(from: Vector, to: Vector, enemies: Enemy[], owner: number) {
-	return !enemies.some(enemy => enemy.variant === "armoured" && enemy.id !== owner && enemy.health > 0 && enemyCircles(enemy).some(circle => distanceToSegment(circle, from, to) <= circle.radius + ACID_RADIUS + 2));
+	return !enemies.some(enemy => enemy.variant === "armoured" && enemy.id !== owner && enemy.health > 0 && distanceToSegment(enemy, from, to) <= BUG_SPECS.armoured.radius + ACID_RADIUS + 2);
 }
 function coverPoint(armour: Enemy, player: Vector, bounds: Bounds): Vector | null {
 	const length = distance(armour, player);
@@ -41,10 +41,14 @@ export function stepAcidSpitter(game: Game, enemy: Spitter, dt: number, bounds: 
 	}
 	const range = distance(enemy, player), angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
 	enemy.angle = angle;
-	const covers = game.enemies.filter(other => other.variant === "armoured" && other.health > 0)
-		.flatMap(armour => { const point = coverPoint(armour, player, bounds); return point ? [{ armour, point }] : []; })
-		.sort((a, b) => (distance(enemy, a.point) - (a.armour.id === state.coverId ? 50 : 0)) - (distance(enemy, b.point) - (b.armour.id === state.coverId ? 50 : 0)));
-	const cover = covers[0]; state.coverId = cover?.armour.id ?? null;
+	let cover: { armour: Enemy; point: Vector } | undefined, bestScore = Infinity;
+	for (const armour of game.enemies) {
+		if (armour.variant !== "armoured" || armour.health <= 0) continue;
+		const point = coverPoint(armour, player, bounds);
+		if (!point) continue;
+		const score = distance(enemy, point) - (armour.id === state.coverId ? 50 : 0);
+		if (score < bestScore) { cover = { armour, point }; bestScore = score; }
+	} state.coverId = cover?.armour.id ?? null;
 	if (range < 170) {
 		walkTo(enemy, { x: enemy.x - Math.cos(angle) * 100, y: enemy.y - Math.sin(angle) * 100 }, dt, bounds);
 		state.phase = "cover";

@@ -43,7 +43,7 @@ test("all cannons use the same recoil and cooldown; aiming rotates recoil with t
 	}
 });
 
-test("both bug skins share a six-leg animation and registration, with wings optional", () => {
+test("grounded and winged skins share a six-leg animation and registration", () => {
 	const pose = bugPose({ distance: 8, angle: .5, time: 2 });
 	const burrower = resolveRig(BUG_RIG, BUG_SKINS.burrower, pose), flyer = resolveRig(BUG_RIG, BUG_SKINS.flyer, pose);
 	expect(burrower.filter(part => part.bone.startsWith("leg"))).toHaveLength(6);

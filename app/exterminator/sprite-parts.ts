@@ -1,4 +1,4 @@
-import type { BugVariant } from "./bugs";
+import type { BugVariant } from "./bug-types";
 import type { Weapon } from "./weapons";
 import type { Undercarriage } from "./terrain";
 // All parts use the same 32px registration canvas. Art faces right (+X).

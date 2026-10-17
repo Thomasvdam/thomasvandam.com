@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { ARMOUR_HALF_ANGLE, BUG_SPECS, bugForSpawn, createBug, enemyCircles, FRONT_FLAME_MULTIPLIER, LUNGE_DISTANCE, LUNGE_TRIGGER, LUNGE_WINDUP, LUNGE_WINDUP_TURN_RATE, SEGMENT_SPACING } from "./bugs";
+import { ARMOUR_HALF_ANGLE, BUG_SPECS, FRONT_FLAME_MULTIPLIER, LUNGE_DISTANCE, LUNGE_TRIGGER, LUNGE_WINDUP, LUNGE_WINDUP_TURN_RATE, SEGMENT_SPACING } from "./bug-types";
+import { bugForSpawn, createBug, enemyCircles } from "./bugs";
 import { chooseHive, FIELD, newGame, PLAYER_RADIUS, start, step } from "./game";
 import { BUG_RIG, bugPose, resolveRig, spawnAppearance } from "./animation";
 import { BUG_SKINS } from "./sprite-parts";
