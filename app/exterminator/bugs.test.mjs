@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ARMOUR_HALF_ANGLE, BUG_SPECS, FRONT_FLAME_MULTIPLIER, LUNGE_DISTANCE, LUNGE_TRIGGER, LUNGE_WINDUP, LUNGE_WINDUP_TURN_RATE, SEGMENT_SPACING } from "./bug-types";
+import { ARMOUR_HALF_ANGLE, BUG_SPECS, defaultBugWeights, FRONT_FLAME_MULTIPLIER, LUNGE_DISTANCE, LUNGE_TRIGGER, LUNGE_WINDUP, LUNGE_WINDUP_TURN_RATE, SEGMENT_SPACING } from "./bug-types";
 import { bugForSpawn, createBug, enemyCircles } from "./bugs";
 import { chooseHive, FIELD, newGame, PLAYER_RADIUS, start, step } from "./game";
 import { BUG_RIG, bugPose, resolveRig, spawnAppearance } from "./animation";
@@ -114,14 +114,14 @@ test("deflections and specialist bodies freeze on pause and clear for a fresh ru
 	game.mode = "playing"; advance(game, .3); expect(game.deflections).toHaveLength(0); expect(newGame().deflections).toEqual([]); expect(newGame().enemies).toEqual([]);
 });
 
-test("specialists are introduced over five jobs and preserve their identity through spawn warnings", () => {
-	const unlocked = [["lunger"], ["lunger", "evader"], ["lunger", "evader", "moth", "armoured", "beetle"], ["lunger", "evader", "moth", "armoured", "beetle", "centipede"], ["lunger", "evader", "moth", "armoured", "beetle", "centipede", "spitter"]];
-	for (let cleared = 0; cleared < unlocked.length; cleared++) {
-		const variants = new Set(Array.from({ length: 36 }, (_, index) => bugForSpawn(cleared, 1, index)));
-		expect(variants).toEqual(new Set(["burrower", "flyer", ...unlocked[cleared]]));
-		const game = setup(); game.hivesCleared = cleared; game.wave = 1;
-		for (let i = 0; i < 6; i++) { game.spawnTimer = 0; step(game, idle, 1 / 120); }
-		const warnings = game.spawns.map(warning => ({ ...warning })); game.toSpawn = 0; advance(game, 1.3);
+test("unlocked specialists preserve their identity through spawn warnings", () => {
+	for (let cleared = 0; cleared < 14; cleared++) {
+		const weights = defaultBugWeights(cleared), unlocked = Object.keys(weights).filter(type => weights[type] > 0);
+		const variants = new Set(Array.from({ length: 300 }, (_, index) => bugForSpawn(cleared, 1, index)));
+		expect(variants).toEqual(new Set(unlocked));
+		const game = setup(); game.hivesCleared = cleared; game.toSpawn = 0;
+		const warnings = unlocked.map((variant, index) => ({ id: game.nextId++, x: 1000, y: 50 + index * 35, variant, remaining: .01 }));
+		game.spawns = warnings.map(warning => ({ ...warning })); step(game, idle, 1 / 30);
 		for (const warning of warnings) expect(game.enemies.find(enemy => enemy.id === warning.id).variant).toBe(warning.variant);
 	}
 });

@@ -13,8 +13,8 @@ function bug(game, variant = "spitter", x = 850, y = 360) {
 function advance(game, seconds, input = idle) { for (let i = 0; i < Math.round(seconds * 120); i++) step(game, input, 1 / 120); }
 function acid(game, options = {}) { game.acid.push({ id: game.nextId++, owner: -1, x: 650, y: 360, vx: -300, vy: 0, life: 2.2, ...options }); }
 
-test("acid spitters unlock in job five, then retain their warning identity", () => {
-	for (let cleared = 0; cleared < 8; cleared++) expect(Array.from({ length: 90 }, (_, i) => bugForSpawn(cleared, 1, i)).includes("spitter")).toBe(cleared >= 4);
+test("acid spitters unlock in hive seven, then retain their warning identity", () => {
+	for (let cleared = 0; cleared < 8; cleared++) expect(Array.from({ length: 90 }, (_, i) => bugForSpawn(cleared, 1, i)).includes("spitter")).toBe(cleared >= 6);
 	const game = setup(); game.spawns.push({ id: 99, x: 850, y: 360, variant: "spitter", remaining: .01 }); step(game, idle, 1 / 30);
 	expect(game.enemies.find(enemy => enemy.id === 99).variant).toBe("spitter");
 });

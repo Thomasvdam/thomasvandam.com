@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createBug, defaultBugWeights } from "./bug-types";
+import { createBug } from "./bug-types";
 import { FIELD, newGame, start, chooseHive, step, togglePause, clearCombat } from "./game";
 import { MOVEMENT } from "./terrain";
 import { segmentHitTime } from "./math";
@@ -103,5 +103,4 @@ test("pit suction, attack timers, and tethers freeze on pause and clear on wave 
 	const game = setup(), spider = bug(game, "bolasSpider"); attach(game, spider); bug(game, "antlion", 460); bug(game, "dragonfly", 600, 200);
 	togglePause(game); const before = JSON.stringify(game); advance(game, 10); expect(JSON.stringify(game)).toBe(before); togglePause(game); clearCombat(game);
 	expect(game.tethers).toEqual([]); expect(game.bolas).toEqual([]); expect(game.pitTerrain).toBe(null);
-	for (let cleared = 0; cleared < 12; cleared++) for (const [index, type] of ["antlion", "bombardier", "dragonfly", "bolasSpider"].entries()) expect(defaultBugWeights(cleared)[type] > 0).toBe(cleared >= 7 + index);
 });

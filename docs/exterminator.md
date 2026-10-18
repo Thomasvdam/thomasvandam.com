@@ -97,7 +97,7 @@ rebuild only mech beam shapes. No per-frame pixel readbacks are used.
 
 ### Moths and light attackers
 
-Moth swarms unlock in hive 3, participate in hive themes/scanner intel, and spawn
+Moth swarms unlock in hive 2, participate in hive themes/scanner intel, and spawn
 as six individually damageable, 1-health flyers per encounter. Their broad wings
 and antennae use three mixed appearances per part. Moths seek the nearest
 unblocked light, including the mech's front/rear lamps and installed corners.
@@ -151,8 +151,9 @@ more of one type, few of one type, none of one type, or mainly two/three types.
 Rank-3 sensor hints describe the same weights used by all three combat waves.
 “No” means zero spawns of that type for the entire job; “few” is a reduced chance,
 not a guaranteed sighting. Themes only use bugs unlocked at the current job.
-The basic mix gives two thirds of spawns to burrowers/flyers and divides the rest
-among unlocked specialists; themes skew that mix. A low-discrepancy weighted
+The first hive contains only burrowers/flyers. From hive 2, the basic mix gives two
+thirds of spawns to burrowers/flyers and divides the rest among unlocked
+specialists; themes skew that mix. A low-discrepancy weighted
 sequence spreads the population through short waves. Debug waves continue to
 use the manually requested initial spawns, overriding the hive theme; queens
 still bring their two guards and produce eggs.
@@ -251,10 +252,29 @@ and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 ## Combat and waves
 
 
-Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs and dung beetles in
-job 3 (alongside moth swarms), centipedes in job 4, acid spitters in job 5, slugs in job 6, queen ant colonies in job 7, antlions in job 8, bombardiers in job 9, dragonflies in job 10, bolas spiders in job 11, and backpack assassins in job 12.
-The baseline weighted mix reserves two thirds for burrowers/flyers and shares the
-rest among unlocked specialists; each hive theme skews those weights. Ants and
+Normal progression counts completed hives within the current run, with three
+waves per hive. New types become eligible on this schedule:
+
+| Hive | New bugs |
+| --- | --- |
+| 1 | Burrower, flyer |
+| 2 | Moth swarm, evader |
+| 3 | Lunger |
+| 4–6 | Centipede, dung beetle, armoured bug: one per hive in random order |
+| 5 | Light-attacking variants of eligible bugs also become possible |
+| 7 | Acid spitter |
+| 8–10 | Slug, antlion, bombardier beetle: one per hive in random order |
+| 11 | Queen ant colony, with worker/soldier/bullet ants and eggs |
+| 12–14 | Dragonfly, bolas spider, backpack assassin: one per hive in random order |
+
+Each random group is shuffled independently from the run seed. Unlocks stay
+available through later hives; choosing another offer, opening the workshop, or
+advancing a wave never rerolls the order. Fresh runs can have different orders.
+Individual hive themes can still exclude eligible types. Schematic couriers keep
+their separate every-third-hive schedule.
+
+From hive 2, the baseline weighted mix reserves two thirds for burrowers/flyers
+and shares the rest among unlocked specialists; each hive theme skews those weights. Ants and
 eggs are produced by colonies rather than selected as independent normal spawns.
 Specialist health and movement scale with threat too. Provisional behavior:
 

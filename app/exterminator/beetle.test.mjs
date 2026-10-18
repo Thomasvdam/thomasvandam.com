@@ -69,11 +69,14 @@ test("a released ball survives its thrower's death until the wave clears, but a 
 	step(other, idle, 1 / 120); expect(other.lobs).toHaveLength(0);
 });
 
-test("beetles unlock on job three and remain eligible in the baseline mix thereafter", () => {
-	for (let cleared = 0; cleared < 7; cleared++) {
+test("beetles unlock once within hives four through six and remain eligible in the baseline mix thereafter", () => {
+	let firstHive = null;
+	for (let cleared = 0; cleared < 15; cleared++) {
 		const variants = Array.from({ length: 60 }, (_, i) => bugForSpawn(cleared, 1, i));
-		expect(variants.includes("beetle")).toBe(cleared >= 2);
+		if (variants.includes("beetle") && firstHive === null) firstHive = cleared + 1;
+		expect(variants.includes("beetle")).toBe(firstHive !== null);
 	}
+	expect(firstHive).toBeGreaterThanOrEqual(4); expect(firstHive).toBeLessThanOrEqual(6);
 });
 
 

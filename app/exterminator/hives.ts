@@ -15,7 +15,7 @@ export function createHives(seed: number, cleared: number): Hive[] {
 	const surfaces = shuffle<Terrain>(["firm", "mud", "rubble"]);
 	const activities = shuffle([0, 1, 2]);
 	const names = ["Low", "Moderate", "High"] as const;
-	const baseline = defaultBugWeights(cleared);
+	const baseline = defaultBugWeights(cleared, seed);
 	const themes = shuffle<HiveEnemyMix["kind"]>(["more", "few", "none", "mainly"]);
 	return surfaces.map((_, index) => {
 		const layout = cleared * 3 + index + 1;
