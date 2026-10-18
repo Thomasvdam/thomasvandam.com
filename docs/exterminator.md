@@ -56,6 +56,9 @@ this browser, including future runs and reloads after leaving debug mode. It is
 available before deployment and reports **All schematics enabled** once complete.
 Existing recovered ownership remains intact.
 
+The debug **Give $1,000** button adds $1,000 to the current run on every press,
+immediately making those funds available for upgrades. Funds reset with the run.
+
 Hive offers announce eligible courier hunts. The HUD distinguishes searching,
 carrying cargo that needs extraction, and a successfully recovered schematic.
 Workshop cards/counts report ownership across future runs.
