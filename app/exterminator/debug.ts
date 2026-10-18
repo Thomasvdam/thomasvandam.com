@@ -1,7 +1,6 @@
-import { BUG_SPECS, type BugVariant } from "./bug-types";
+import { BUG_TYPES, type BugVariant } from "./bug-types";
 import { clearCombat, WAVES_PER_HIVE, type Game } from "./game";
-export const BUG_TYPES = Object.keys(BUG_SPECS) as BugVariant[];
-export const BUG_NAMES: Record<BugVariant, string> = { burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter" };
+export { BUG_TYPES, BUG_NAMES } from "./bug-types";
 export type WaveComposition = Record<BugVariant, number>;
 export const defaultComposition = (): WaveComposition => Object.fromEntries(BUG_TYPES.map(type => [type, type === "burrower" ? 8 : 0])) as WaveComposition;
 export function setDebug(game: Game, enabled: boolean) {

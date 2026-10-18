@@ -26,12 +26,12 @@ export function upgradeChoices(game: Game) {
 }
 export function weaponChoices() { return WEAPONS.map((part, index) => ({ ...part, kind: "weapon" as const, key: String(index + 1) })); }
 export function undercarriageChoices() { return UNDERCARRIAGES.map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 1) })); }
-export const MAX_SENSOR_RANK = 2;
+export const MAX_SENSOR_RANK = 3;
 export type WorkshopService = "heal" | "sensor";
 export function workshopServices(game: Game) {
 	const choices: { id: WorkshopService; name: string; description: string; cost: number; key: string; kind: "service" }[] = [];
 	if (game.player.health < 100) choices.push({ id: "heal", name: "Full heal", description: "Restore health to 100.", cost: HEAL_COST, key: "4", kind: "service" });
-	if (game.parts.sensor < MAX_SENSOR_RANK) choices.push({ id: "sensor", name: "Upgrade hive sensor", description: game.parts.sensor === 0 ? "Reveal hive difficulty." : "Reveal the second most prevalent terrain.", cost: upgradeCost(game.parts.sensor, 150), key: "5", kind: "service" });
+	if (game.parts.sensor < MAX_SENSOR_RANK) choices.push({ id: "sensor", name: "Upgrade hive sensor", description: game.parts.sensor === 0 ? "Reveal hive difficulty." : game.parts.sensor === 1 ? "Reveal the second most prevalent terrain." : "Reveal the hive’s enemy mix.", cost: upgradeCost(game.parts.sensor, 150), key: "5", kind: "service" });
 	return choices;
 }
 export type Input = { move: Vector; aim: Vector; fire: boolean };
@@ -151,7 +151,7 @@ function warnSpawn(game: Game) {
 		x: clamp(game.player.x + Math.cos(angle) * radius, SPAWN_MARGIN, FIELD.width - SPAWN_MARGIN),
 		y: clamp(game.player.y + Math.sin(angle) * radius, SPAWN_MARGIN, FIELD.height - SPAWN_MARGIN),
 	} : { x: SPAWN_MARGIN + random(game) * (FIELD.width - SPAWN_MARGIN * 2), y: SPAWN_MARGIN + random(game) * (FIELD.height - SPAWN_MARGIN * 2) };
-	const variant = game.debug ? game.debug.queue.shift()! : bugForSpawn(game.hivesCleared, game.wave, index);
+	const variant = game.debug ? game.debug.queue.shift()! : bugForSpawn(game.hivesCleared, game.wave, index, game.hive?.enemyMix.weights);
 	game.spawns.push({ ...position, id: game.nextId++, remaining: SPAWN_WARNING_TIME, variant });
 }
 function spawnEnemy(game: Game, warning: SpawnWarning) {

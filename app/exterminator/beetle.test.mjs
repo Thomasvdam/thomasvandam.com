@@ -69,7 +69,7 @@ test("a released ball survives its thrower's death until the wave clears, but a 
 	step(other, idle, 1 / 120); expect(other.lobs).toHaveLength(0);
 });
 
-test("beetles unlock on job three and remain in the specialist rotation thereafter", () => {
+test("beetles unlock on job three and remain eligible in the baseline mix thereafter", () => {
 	for (let cleared = 0; cleared < 7; cleared++) {
 		const variants = Array.from({ length: 60 }, (_, i) => bugForSpawn(cleared, 1, i));
 		expect(variants.includes("beetle")).toBe(cleared >= 2);

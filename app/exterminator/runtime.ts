@@ -1,3 +1,4 @@
+import { enemyMixHints } from "./hives";
 import { setDebug, spawnDebugWave, type WaveComposition } from "./debug";
 import { weaponSpec, type Weapon } from "./weapons";
 import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
@@ -35,6 +36,7 @@ export function viewFromGame(game: Game, controller = false, selection = 0) {
 				id: hive.id, name: hive.name, payment: hive.payment, activity: difficultyKnown ? hive.activity : null,
 				threat: difficultyKnown ? hive.threat : null,
 				terrain: TERRAIN_NAMES[terrain[0]], secondaryTerrain: game.parts.sensor >= 2 && terrain[1] ? TERRAIN_NAMES[terrain[1]] : null,
+				enemyMix: game.parts.sensor >= 3 ? enemyMixHints(hive.enemyMix) : null,
 				minBugs: difficultyKnown ? waveSize(1, hive.threat) : null, maxBugs: difficultyKnown ? waveSize(3, hive.threat) : null,
 			};
 		}),

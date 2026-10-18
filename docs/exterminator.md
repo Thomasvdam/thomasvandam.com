@@ -23,12 +23,23 @@ and controller menus remain usable when an option becomes unaffordable.
 Three hive choices show the most prevalent terrain and the offered payment.
 Payment is always known, even before sensor upgrades. Difficulty is unknown until
 the hive sensor is upgraded. Sensor rank 1 reveals activity, threat, and enemy
-counts per wave; rank 2 also reveals the second most prevalent terrain. Hints
+counts per wave; rank 2 also reveals the second most prevalent terrain; rank 3 reveals enemy mix. Hints
 remain textual, without maps or coverage percentages. Activity changes enemy numbers, health, speed,
 and spawn pressure; threat increases as more hives are eradicated. Terrain and
 activity are shuffled independently on each visit to base, from a fresh random seed for each run. This avoids fixed terrain/difficulty pairings while preserving three distinct terrain choices and activity levels. Hive layouts are generated once per visit to base;
 opening the workshop does not reroll them. Deployment uses the exact previewed
 layout, with a firm arrival zone at the arena center.
+
+Each hive also has a seeded enemy theme, independent of terrain and activity:
+more of one type, few of one type, none of one type, or mainly two/three types.
+Rank-3 sensor hints describe the same weights used by all three combat waves.
+“No” means zero spawns of that type for the entire job; “few” is a reduced chance,
+not a guaranteed sighting. Themes only use bugs unlocked at the current job.
+The basic mix gives two thirds of spawns to burrowers/flyers and divides the rest
+among unlocked specialists; themes skew that mix. A low-discrepancy weighted
+sequence spreads the population through short waves. Debug waves continue to
+use exactly the manually requested counts, overriding the hive theme.
+Themes, layouts, and payments stay fixed through workshop visits and upgrades.
 
 The workshop can be opened and reopened before deployment. Equipping a base
 stays in the workshop; return to hive selection when ready. Each undercarriage
@@ -54,7 +65,7 @@ Equip the intended weapon/undercarriage, then open **Upgrades & repairs**.
 Weapon damage, weapon modifications, and movement upgrades start at $100.
 Every purchased rank increases that part's next price by about 60%, rounded to
 $10: $100, $160, $260, $410, etc. Each part has its own price progression; swapping
-back restores its ranks and next price. Sensor ranks cost $150 then $240. Full
+back restores its ranks and next price. Sensor ranks cost $150, $240, then $380. Full
 repairs cost a flat $60, restore health to 100, and are unavailable at full health.
 
 Prices are visible even with no money. Unaffordable buttons are disabled, and
