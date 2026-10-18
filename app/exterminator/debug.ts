@@ -1,8 +1,13 @@
 import { BUG_TYPES, type BugVariant } from "./bug-types";
 import { clearCombat, WAVES_PER_HIVE, type Game } from "./game";
+import { normalizeSchematics, SCHEMATICS } from "./schematics";
 export { BUG_TYPES, BUG_NAMES } from "./bug-types";
 export type WaveComposition = Record<BugVariant, number>;
 export const defaultComposition = (): WaveComposition => Object.fromEntries(BUG_TYPES.map(type => [type, type === "burrower" ? 8 : 0])) as WaveComposition;
+export function enableDebugSchematics(game: Game) {
+	if (!game.debug) return;
+	game.schematics = normalizeSchematics([...game.schematics, ...SCHEMATICS]);
+}
 export function setDebug(game: Game, enabled: boolean) {
 	if (!!game.debug === enabled) return;
 	if (!enabled) game.wave = Math.min(WAVES_PER_HIVE, game.wave);

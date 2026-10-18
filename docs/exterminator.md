@@ -50,7 +50,11 @@ falls back to session ownership with a visible status in the workshop. Pending
 cargo is never serialized. Other browsers/devices have independent saves.
 `courier.ts` owns hiding behaviour and the hunt/extraction lifecycle. Debug
 couriers carry no reward; enabling/replacing debug waves discards pending cargo
-and cannot grant persistent unlocks. Existing recovered ownership remains intact.
+and cannot grant persistent unlocks through combat. The explicit **Enable all
+schematics** debug button unlocks all five parts immediately and saves them for
+this browser, including future runs and reloads after leaving debug mode. It is
+available before deployment and reports **All schematics enabled** once complete.
+Existing recovered ownership remains intact.
 
 Hive offers announce eligible courier hunts. The HUD distinguishes searching,
 carrying cargo that needs extraction, and a successfully recovered schematic.
