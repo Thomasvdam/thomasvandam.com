@@ -29,7 +29,7 @@ export function viewFromGame(game: Game, controller = false, selection = 0) {
 		pit: game.pitTerrain !== null, tethered: game.tethers.length, slimed: game.slimed, debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? game.pitTerrain ?? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
-		sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
+		lightRank: game.parts.lights, cornerLights: { ...game.parts.cornerLights }, sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
 		hives: game.hives.map(hive => {
 			const terrain = terrainByPrevalence(hive.terrain), difficultyKnown = game.parts.sensor >= 1;
 			return {
@@ -120,8 +120,8 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
 		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action((game.mode === "shop" || game.mode === "weapons") ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
-		if (menuChoices(game).length > 0 && /^[1-6]$/.test(event.key)) {
-			event.preventDefault(); const index = menuChoices(game).findIndex(choice => choice.key === event.key);
+		if (menuChoices(game).length > 0 && /^[0-9l]$/i.test(event.key)) {
+			event.preventDefault(); const index = menuChoices(game).findIndex(choice => choice.key.toLowerCase() === event.key.toLowerCase());
 			if (!event.repeat && index >= 0) confirmChoice(index); return;
 		}
 		if (interactive) return;

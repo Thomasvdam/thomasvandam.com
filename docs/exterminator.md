@@ -8,15 +8,47 @@ current run; death/restart creates a fresh mech, inventory, and zero balance.
 The weapon fires continuously. Move with WASD or arrow keys and aim with the
 mouse; touch uses two virtual joysticks; standard-mapped controllers use the left
 stick to move and the right stick to aim. Start pauses, and the bottom face button
-confirms menu choices. Use the D-pad/left stick for menus. Number keys match cards:
+confirms menu choices. Use the D-pad/left stick for menus. Keyboard shortcuts match cards:
 1–3 for upgrades, hives, or undercarriages. Key 4 opens the workshop at base,
 or **Upgrades & repairs** in the workshop. In the shop, keys 4/5 purchase
-healing/sensor ranks and 6 returns to the workshop. Key 6 opens weapon selection
-in the workshop. In weapon selection, keys 1–4 equip a weapon and key 5 returns.
+healing/sensor ranks, 7 upgrades mech lights, and 8/9/0/L buy the north-west,
+north-east, south-west, and south-east corner lights. Key 6 returns to the workshop.
+Key 6 opens weapon selection in the workshop. In weapon selection, keys 1–4 equip a weapon and key 5 returns.
 Key 5 returns from the workshop to hive selection. Escape returns from shop or
 weapon selection to the workshop, closes the workshop, or pauses active combat.
 Tab/Enter and click/tap also work. Purchases restore canvas focus so number keys
 and controller menus remain usable when an option becomes unaffordable.
+
+## Hive lighting
+
+The front floodlight follows weapon aim; two weaker rear lights and a small
+pool around the chassis keep nearby ground readable. Soft beam edges fade
+through shadow (bugs and terrain remain discernible) into total darkness
+(nothing is visible). Camera size does not change world-space light coverage.
+The base and workshop remain normally lit.
+
+All warning indicators are continuously gated by illumination at their source:
+spawn warnings, lunge paths, acid aim lines, bombardier cones, dragonfly
+intercepts, bolas aim lines, hatch/lay timers, and beetle landing markers.
+Turning a light toward or away from the source reveals/hides its warning
+immediately. Landing markers follow the throwing beetle's current illumination;
+if it dies, the launch position is used. The darkness mask also dims/clips
+warnings beyond the beams. Actual attacks, projectiles, cords, bug vision,
+target selection, and damage are unchanged by lighting.
+
+The workshop sells four independent corner floodlights for $30 each. Each lights
+its quarter of the map with a narrow shadow seam between quarters. Purchases
+persist across waves, hive changes, and refits for the current run, and reset on
+death/restart like other purchases. Lights cannot be destroyed yet. Mech light
+upgrades cost $200 / $320 / $510, capped at three ranks; each adds 8% of the base
+beam reach, a little width, and stronger rear illumination. HUD counts show the
+mech rank and installed corners. Controller selection scrolls the longer shop
+menu to keep the selected card visible.
+
+`lighting.ts` defines the shared falloff/visibility model; `lighting-renderer.ts`
+caches beam and quarter masks, then composites a half-resolution world-space
+mask. Moving, aiming, and changing viewport reuse these shapes; rank changes
+rebuild only mech beam shapes. No per-frame pixel readbacks are used.
 
 ## Base, workshop, and hives
 

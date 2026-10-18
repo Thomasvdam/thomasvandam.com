@@ -3,12 +3,13 @@ import { createRenderer } from "./renderer";
 import { newGame } from "./game";
 import { BUG_RIG, resolveRig } from "./animation";
 import { BUG_SKINS } from "./sprite-parts";
-function context(properties = {}) { return new Proxy({ globalAlpha: 1, ...properties }, { get: (target, key) => key in target ? target[key] : () => {} }); }
+function context(properties = {}) { return new Proxy({ globalAlpha: 1, createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) }), ...properties }, { get: (target, key) => key in target ? target[key] : () => {} }); }
 
 test("terrain cache follows job layout, lighting parity and pixel density, while cameras reuse it", () => {
 	let tilesDrawn = 0;
 	const background = { width: 0, height: 0, getContext: () => context({ fillRect: () => tilesDrawn++ }) };
-	const render = createRenderer(() => background), ctx = context(), sprites = new Proxy({}, { get: (_, key) => key });
+	let created = false;
+	const render = createRenderer(() => { if (!created) { created = true; return background; } return { width: 0, height: 0, getContext: () => context() }; }), ctx = context(), sprites = new Proxy({}, { get: (_, key) => key });
 	const game = newGame(47); game.mode = "playing";
 	render(ctx, game, sprites, 800, 500, 1); const first = tilesDrawn; expect(first).toBeGreaterThan(0);
 	game.player.x += 50; render(ctx, game, sprites, 390, 500, 1); expect(tilesDrawn).toBe(first);

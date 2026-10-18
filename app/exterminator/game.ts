@@ -1,3 +1,4 @@
+import { CORNER_LIGHTS, CORNER_LIGHT_COST, MAX_LIGHT_RANK, type CornerLight } from "./lighting";
 import { absorbBackpack, burnRemains, corpseAlive, inFlame, leaveCorpse, type BugRemains } from "./remains";
 import { blastTethers, firstTetherHit, flameTethers, preparePulls, provokeBombardier, stepBolas, type Bola, type Tether, type SpiderIndex } from "./predators";
 import { SLIME_LIFETIME, slimeSpeedFactor, spawnQueenGuards, type Slime } from "./ecology";
@@ -30,18 +31,20 @@ export function upgradeChoices(game: Game) {
 export function weaponChoices() { return WEAPONS.map((part, index) => ({ ...part, kind: "weapon" as const, key: String(index + 1) })); }
 export function undercarriageChoices() { return UNDERCARRIAGES.map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 1) })); }
 export const MAX_SENSOR_RANK = 3;
-export type WorkshopService = "heal" | "sensor";
+export type WorkshopService = "heal" | "sensor" | "lights" | CornerLight;
 export function workshopServices(game: Game) {
 	const choices: { id: WorkshopService; name: string; description: string; cost: number; key: string; kind: "service" }[] = [];
 	if (game.player.health < 100) choices.push({ id: "heal", name: "Full heal", description: "Restore health to 100.", cost: HEAL_COST, key: "4", kind: "service" });
 	if (game.parts.sensor < MAX_SENSOR_RANK) choices.push({ id: "sensor", name: "Upgrade hive sensor", description: game.parts.sensor === 0 ? "Reveal hive difficulty." : game.parts.sensor === 1 ? "Reveal the second most prevalent terrain." : "Reveal the hive’s enemy mix.", cost: upgradeCost(game.parts.sensor, 150), key: "5", kind: "service" });
+	if (game.parts.lights < MAX_LIGHT_RANK) choices.push({ id: "lights", name: "Upgrade mech lights", description: `Stronger rear lights and +8% beam reach per rank · rank ${game.parts.lights + 1} / ${MAX_LIGHT_RANK}`, cost: upgradeCost(game.parts.lights, 200), key: "7", kind: "service" });
+	for (const corner of CORNER_LIGHTS) if (!game.parts.cornerLights[corner.id]) choices.push({ id: corner.id, name: corner.name, description: "Illuminate this quarter of every hive. Stays installed for the run.", cost: CORNER_LIGHT_COST, key: corner.key, kind: "service" });
 	return choices;
 }
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number; weapon: Exclude<Weapon, "flamethrower">; blastRadius: number };
 export type Acid = Vector & { id: number; owner: number; vx: number; vy: number; life: number };
 export type AcidImpact = Vector & { id: number; bornAt: number };
-export type Lob = Vector & { id: number; target: Vector; age: number };
+export type Lob = Vector & { owner: number; id: number; target: Vector; age: number };
 export type Explosion = Vector & { id: number; radius: number; bornAt: number };
 export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: number };
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
@@ -55,7 +58,7 @@ export type Game = {
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	money: number; lastJob: { name: string; payment: number } | null; kills: number; time: number;
 	shotTimer: number;
-	parts: { weapons: Record<Weapon, WeaponRanks>; sensor: number; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
+	parts: { weapons: Record<Weapon, WeaponRanks>; sensor: number; lights: number; cornerLights: Record<CornerLight, boolean>; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
 };
 
 export const waveSize = (wave: number, threat = 1) => Math.min(100, 5 + wave * 3 + (threat - 1) * 3);
@@ -73,7 +76,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		playerVelocity: { x: 0, y: 0 }, pitTerrain: null, bolas: [], tethers: [], slimed: false, slime: [], enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
-		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
+		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, lights: 0, cornerLights: { northWest: false, northEast: false, southWest: false, southEast: false }, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
 }
 
@@ -105,6 +108,8 @@ export function purchaseService(game: Game, service: WorkshopService) {
 	game.money -= choice.cost;
 	if (service === "heal") game.player.health = 100;
 	if (service === "sensor") game.parts.sensor++;
+	if (service === "lights") game.parts.lights++;
+	for (const corner of CORNER_LIGHTS) if (service === corner.id) game.parts.cornerLights[corner.id] = true;
 }
 export function openShop(game: Game) { if (game.mode === "workshop") game.mode = "shop"; }
 export function closeShop(game: Game) { if (game.mode === "shop") game.mode = "workshop"; }

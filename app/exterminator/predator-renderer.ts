@@ -1,3 +1,4 @@
+import { warningLit } from "./lighting";
 import { DRAGONFLY_WINDUP, PIT_RADIUS, SPIDER_WINDUP, SPRAY_HALF_ANGLE, SPRAY_RANGE, SPRAY_WINDUP } from "./predators";
 import { clamp } from "./math";
 import { terrainAt, type Terrain } from "./terrain";
@@ -22,7 +23,7 @@ export function drawPit(ctx: CanvasRenderingContext2D, x: number, y: number, ter
 }
 export function drawPitFields(ctx: CanvasRenderingContext2D, game: Game, visible: (x: number, y: number, margin?: number) => boolean) {
 	for (const enemy of game.enemies) if (enemy.variant === "antlion" && enemy.health > 0 && visible(enemy.x, enemy.y, PIT_RADIUS + 20)) drawPit(ctx, enemy.x, enemy.y, enemy.state.terrain, game.time);
-	for (const warning of game.spawns) if (warning.variant === "antlion" && visible(warning.x, warning.y, PIT_RADIUS + 20)) drawPit(ctx, warning.x, warning.y, terrainAt(game.terrain, warning.x, warning.y), game.time, clamp(1 - warning.remaining / SPAWN_WARNING_TIME, 0, 1));
+	for (const warning of game.spawns) if (warning.variant === "antlion" && warningLit(game, warning) && visible(warning.x, warning.y, PIT_RADIUS + 20)) drawPit(ctx, warning.x, warning.y, terrainAt(game.terrain, warning.x, warning.y), game.time, clamp(1 - warning.remaining / SPAWN_WARNING_TIME, 0, 1));
 }
 export function drawPredatorTelegraph(ctx: CanvasRenderingContext2D, game: Game, enemy: Enemy) {
 	if (enemy.variant === "bombardier" && (enemy.state.phase === "windup" || enemy.state.phase === "spray")) {

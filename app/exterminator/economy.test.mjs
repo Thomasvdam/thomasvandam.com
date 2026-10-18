@@ -49,7 +49,7 @@ test("purchases are base-only and unavailable or capped choices never deduct mon
 	for (const mode of ["ready", "playing", "paused", "base", "workshop", "weapons", "dead"]) {
 		game.mode = mode; const frozen = JSON.stringify(game); chooseUpgrade(game, "damage"); purchaseService(game, "heal"); purchaseService(game, "sensor"); expect(JSON.stringify(game)).toBe(frozen);
 	}
-	game.mode = "shop"; game.parts.undercarriages.legs = 3; game.parts.weapons.cannon.mod = 10; game.parts.sensor = 3; game.player.health = 100;
+	game.mode = "shop"; game.parts.undercarriages.legs = 3; game.parts.weapons.cannon.mod = 10; game.parts.sensor = 3; game.parts.lights = 3; for (const corner in game.parts.cornerLights) game.parts.cornerLights[corner] = true; game.player.health = 100;
 	const capped = JSON.stringify(game); chooseUpgrade(game, "speed"); chooseUpgrade(game, "weaponMod"); chooseUpgrade(game, "invalid"); purchaseService(game, "heal"); purchaseService(game, "sensor"); expect(JSON.stringify(game)).toBe(capped);
 	expect(viewFromGame(game).choices.map(choice => choice.key)).toEqual(["1", "6"]); expect(workshopServices(game)).toEqual([]);
 });

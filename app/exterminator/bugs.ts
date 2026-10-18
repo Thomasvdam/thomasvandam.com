@@ -112,7 +112,7 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 			move(enemy, { x: toward.x * direction, y: toward.y * direction }, enemy.speed * dt, bounds);
 			if (state.remaining === 0) state.phase = "ready";
 			if (state.phase === "ready" && distance <= 380 && game.lobs.length < 64) {
-				game.lobs.push({ id: game.nextId++, x: enemy.x + toward.x * 22, y: enemy.y + toward.y * 22, target: { x: player.x, y: player.y }, age: 0 });
+				game.lobs.push({ owner: enemy.id, id: game.nextId++, x: enemy.x + toward.x * 22, y: enemy.y + toward.y * 22, target: { x: player.x, y: player.y }, age: 0 });
 				state.phase = "roll"; state.remaining = BEETLE_ROLL_TIME;
 			}
 		} else if (enemy.variant === "armoured") {
