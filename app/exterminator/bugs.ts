@@ -1,3 +1,4 @@
+import { stepBombardier, stepDragonfly, stepSpider } from "./predators";
 import { moveBug as move } from "./bug-motion";
 import { colonyIndex, hatchEgg, stepQueen, stepSlug, stepWorker } from "./ecology";
 import { BUG_TYPES, defaultBugWeights, type BugWeights, BUG_SPECS, BEETLE_ROLL_TIME, LUNGE_TRIGGER, LUNGE_DISTANCE, LUNGE_WINDUP, LUNGE_SPEED, LUNGE_WINDUP_TURN_RATE, ARMOUR_HALF_ANGLE, SEGMENT_SPACING, BUG_CLEARANCE, type BugVariant, type Enemy } from "./bug-types";
@@ -43,7 +44,15 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 		if (enemy.health <= 0) continue;
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
 		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
-		if (enemy.variant === "slug") {
+		if (enemy.variant === "antlion") {
+			enemy.angle = desired; continue;
+		} else if (enemy.variant === "bombardier") {
+			stepBombardier(game, enemy, dt, bounds, playerRadius);
+		} else if (enemy.variant === "dragonfly") {
+			stepDragonfly(game, enemy, dt, bounds, playerRadius);
+		} else if (enemy.variant === "bolasSpider") {
+			stepSpider(game, enemy, dt, bounds);
+		} else if (enemy.variant === "slug") {
 			stepSlug(game, enemy, dt, bounds);
 		} else if (enemy.variant === "queen") {
 			stepQueen(game, enemy, colonies.get(enemy.id)!, dt, bounds);
@@ -172,7 +181,7 @@ function translateBug(body: CollisionBody, dx: number, dy: number, bounds: Bound
 export function separateBugs(enemies: Enemy[], bounds: Bounds) {
 	// Broad-phase cells keep the solver local, including every centipede segment.
 	let largestRadius = 0;
-	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg").flatMap(enemy => {
+	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg" && enemy.variant !== "antlion" && enemy.variant !== "dragonfly").flatMap(enemy => {
 		const radius = BUG_SPECS[enemy.variant].radius, mass = enemy.variant === "centipede" ? 8 : enemy.variant === "armoured" ? 2 : 1;
 		largestRadius = Math.max(largestRadius, radius);
 		const points = enemy.variant === "centipede" ? [enemy, ...enemy.state.segments] : [enemy];

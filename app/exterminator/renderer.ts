@@ -1,3 +1,4 @@
+import { drawBolas, drawPitFields, drawPredatorTelegraph, drawTethers } from "./predator-renderer";
 import { createSlimeLayer } from "./slime-renderer";
 import { EGG_HATCH_TIME, QUEEN_LAY_INTERVAL, SLIME_LIFETIME, SLIME_RADIUS } from "./ecology";
 import { ACID_WINDUP } from "./acid";
@@ -7,7 +8,7 @@ import { TILE_SIZE, TERRAIN_COLUMNS, TERRAIN_ROWS, type Terrain } from "./terrai
 import { cameraFor, type Camera } from "./camera";
 import { clamp } from "./math";
 import { FIELD, FLAME_HALF_ANGLE, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
-import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
+import { DRAGONFLY_RIG, dragonflyPose, SPIDER_RIG, spiderPose, BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
 import { bugSkin, mechSkin, SPRITE_PARTS, type Skin, type SpritePart } from "./sprite-parts";
 
 const BASE_MODES = new Set<Game["mode"]>(["ready", "base", "workshop", "weapons", "shop"]);
@@ -101,6 +102,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.save(); ctx.globalAlpha *= opacity; ctx.fillStyle = "#040b09";
 		ctx.beginPath(); ctx.ellipse(x, y + 4, radius, radius * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	};
+	drawPitFields(ctx, game, visible);
 	if (slimeLayer) ctx.drawImage(slimeLayer, 0, 0, FIELD.width, FIELD.height);
 	else {
 		// Direct callers can draw without owning a cache; the runtime uses the mask layer.
@@ -122,13 +124,14 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 				drawRig(ctx, sprites, BUG_RIG, { ...skin, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8, flash);
 			}
 		}
-		let pose = bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge });
+		const poseState = { distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge };
+		let pose = variant === "bolasSpider" ? spiderPose(poseState) : variant === "dragonfly" ? dragonflyPose(poseState) : bugPose(poseState);
 		if (variant === "slug") {
 			const glide = Math.sin(distance / 8) * .06;
 			pose = { ...pose, body: { scaleX: 1 + glide, scaleY: 1 - glide }, shell: { scaleY: 1 + glide } };
 		}
 		if (variant === "egg") pose = { ...pose, body: { scaleX: 1 + Math.sin(game.time * 4) * .03 } };
-		drawRig(ctx, sprites, BUG_RIG, skin, pose, x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
+		drawRig(ctx, sprites, variant === "bolasSpider" ? SPIDER_RIG : variant === "dragonfly" ? DRAGONFLY_RIG : BUG_RIG, skin, pose, x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
 	};
 	for (const remains of game.remains) {
 		if (!visible(remains.x, remains.y) && !(remains.variant === "centipede" && remains.segments.some(segment => visible(segment.x, segment.y)))) continue;
@@ -142,7 +145,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 		ctx.strokeStyle = "#efaa76"; ctx.lineWidth = 2;
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
-		if (warning.variant !== "flyer") {
+		if (warning.variant !== "flyer" && warning.variant !== "dragonfly") {
 			ctx.fillStyle = "#101610"; ctx.beginPath(); ctx.ellipse(warning.x, warning.y, 20 * progress + 3, 14 * progress + 2, 0, 0, Math.PI * 2); ctx.fill();
 			for (let i = 0; i < 8; i++) {
 				const angle = i * Math.PI / 4 + warning.id, distance = 9 + progress * 22;
@@ -163,6 +166,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.save(); ctx.globalAlpha = 1 - age / .18; ctx.strokeStyle = "#e9df9c"; ctx.lineWidth = 2;
 		ctx.beginPath(); ctx.moveTo(x - effect.vx * .035, y - effect.vy * .035); ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
 	}
+	drawBolas(ctx, game);
 	for (const acid of game.acid) {
 		if (!visible(acid.x, acid.y, 25)) continue;
 		ctx.save(); ctx.translate(acid.x, acid.y); ctx.rotate(Math.atan2(acid.vy, acid.vx));
@@ -238,7 +242,8 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.restore();
 	}
 	for (const enemy of game.enemies) {
-		if (!visible(enemy.x, enemy.y) && !(enemy.variant === "centipede" && enemy.state.segments.some(segment => visible(segment.x, segment.y)))) continue;
+		drawPredatorTelegraph(ctx, game, enemy);
+		if (!visible(enemy.x, enemy.y) && !(enemy.variant === "centipede" && enemy.state.segments.some(segment => visible(segment.x, segment.y))) && !(enemy.variant === "dragonfly" && visible(enemy.state.target.x, enemy.state.target.y))) continue;
 		const arrival = clamp((game.time - enemy.bornAt) / .18, 0, 1);
 		if (arrival < 1) {
 			ctx.save(); ctx.globalAlpha *= (1 - arrival) * .3; ctx.strokeStyle = "#c8ac73"; ctx.lineWidth = 2;
@@ -312,6 +317,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	for (let x = 8; x < FIELD.width; x += 24) {
 		ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x + 8, 12); ctx.moveTo(x, FIELD.height - 12); ctx.lineTo(x + 8, FIELD.height - 4); ctx.stroke();
 	}
+	drawTethers(ctx, game);
 	ctx.restore(); ctx.restore();
 	return camera;
 }

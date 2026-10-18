@@ -29,6 +29,15 @@ export const BUG_RIG: Rig = [
 	{ id: "head", parent: "root", x: 10, y: 0, slot: "head", layer: 4 },
 ];
 
+export const SPIDER_RIG: Rig = [BUG_RIG[0],
+	...[-1, 1].flatMap(side => [-1.5, -.5, .5, 1.5].map((row, index): Bone => ({ id: `leg${side < 0 ? "L" : "R"}${index}`, parent: "root", x: row * 5, y: side * 6, angle: side * (Math.PI / 2 - row * .45), slot: "legs", layer: 0, flipY: side < 0 }))),
+	...BUG_RIG.filter(bone => bone.id !== "root" && !bone.id.startsWith("leg")),
+];
+export const DRAGONFLY_RIG: Rig = [...BUG_RIG,
+	{ id: "wingRearL", parent: "root", x: -9, y: -4, angle: -Math.PI / 3, slot: "wings", layer: 2, flipY: true },
+	{ id: "wingRearR", parent: "root", x: -9, y: 4, angle: Math.PI / 3, slot: "wings", layer: 2 },
+];
+
 // Rigs are immutable. Validate hierarchy and sort paint order once, rather than per part/frame.
 type CompiledRig = { parents: number[]; paintOrder: number[] };
 const compiledRigs = new WeakMap<Rig, CompiledRig>();
@@ -105,6 +114,21 @@ export function bugPose(state: { distance: number; angle: number; time: number; 
 }
 export function spawnAppearance(variant: BugVariant, progress: number) {
 	progress = clamp(progress, 0, 1);
-	if (variant === "flyer") return { elevation: (1 - progress) ** 2 * 90, scale: 1 + (1 - progress) * .3, opacity: .35 + progress * .65, reveal: 1 };
+	if (variant === "flyer" || variant === "dragonfly") return { elevation: (1 - progress) ** 2 * 90, scale: 1 + (1 - progress) * .3, opacity: .35 + progress * .65, reveal: 1 };
 	return { elevation: 0, scale: .5 + progress * .5, opacity: .35 + progress * .65, reveal: clamp((progress - .25) / .75, 0, 1) };
+}
+
+export function spiderPose(state: Parameters<typeof bugPose>[0]): Pose {
+	const pose: Record<string, Transform> = { ...bugPose(state) }, phase = state.distance / 32 * Math.PI * 2, death = state.deathProgress ?? 0;
+	for (let side = 0; side < 2; side++) for (let row = 0; row < 4; row++) {
+		const stride = Math.sin(phase + (side + row) % 2 * Math.PI);
+		pose[`leg${side === 0 ? "L" : "R"}${row}`] = { angle: stride * .17 + (side === 0 ? 1 : -1) * death * .9, x: stride * .7, scaleX: 1 - death * .25 };
+	}
+	return pose;
+}
+export function dragonflyPose(state: Parameters<typeof bugPose>[0]): Pose {
+	const pose: Record<string, Transform> = { ...bugPose(state) }, flutter = Math.sin(state.time * 45) * .25;
+	for (const [name, sign] of [["wingL", 1], ["wingR", -1], ["wingRearL", -1], ["wingRearR", 1]] as const) pose[name] = { angle: sign * flutter, scaleY: .8 + Math.sin(state.time * 45) * .15 };
+	for (let row = 0; row < 3; row++) { pose[`legL${row}`] = { scaleX: .6 }; pose[`legR${row}`] = { scaleX: .6 }; }
+	return pose;
 }

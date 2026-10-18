@@ -25,7 +25,7 @@ export function createHives(seed: number, cleared: number): Hive[] {
 		const types = eligible.slice(0, kind === "mainly" ? Math.min(3, eligible.length - 1) : 1);
 		const weights = { ...baseline };
 		for (const type of eligible) {
-			if (kind === "mainly") weights[type] = types.includes(type) ? 6 : .5;
+			if (kind === "mainly") weights[type] = types.includes(type) ? 6 : Math.min(.5, types.length / (eligible.length - types.length));
 			else if (types.includes(type)) weights[type] *= kind === "more" ? 6 : kind === "few" ? .15 : 0;
 		}
 		return {
