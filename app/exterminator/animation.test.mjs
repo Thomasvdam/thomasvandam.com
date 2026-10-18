@@ -94,7 +94,8 @@ test("simulation-driven walking, firing, and death effects freeze on overlays an
 	game.mode = "paused"; const frozen = JSON.stringify(game);
 	step(game, idle, 1 / 30); expect(JSON.stringify(game)).toBe(frozen);
 	game.mode = "playing"; for (let i = 0; i < 70; i++) step(game, idle, 1 / 120);
-	expect(game.remains).toHaveLength(0);
+	expect(game.remains).toHaveLength(1);
+	game.time += 60; step(game, idle, 1 / 120); expect(game.remains).toHaveLength(0);
 	const fresh = newGame(); expect(fresh.player.walkDistance).toBe(0); expect(fresh.remains).toHaveLength(0); expect(mechSkin(upgradeLevels(fresh))).toEqual(mechSkin(levels));
 });
 

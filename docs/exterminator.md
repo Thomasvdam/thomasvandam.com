@@ -135,7 +135,7 @@ and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 
 
 Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs and dung beetles in
-job 3, centipedes in job 4, acid spitters in job 5, slugs in job 6, queen ant colonies in job 7, antlions in job 8, bombardiers in job 9, dragonflies in job 10, and bolas spiders in job 11.
+job 3, centipedes in job 4, acid spitters in job 5, slugs in job 6, queen ant colonies in job 7, antlions in job 8, bombardiers in job 9, dragonflies in job 10, bolas spiders in job 11, and backpack assassins in job 12.
 The baseline weighted mix reserves two thirds for burrowers/flyers and shares the
 rest among unlocked specialists; each hive theme skews those weights. Ants and
 eggs are produced by colonies rather than selected as independent normal spawns.
@@ -223,6 +223,26 @@ Specialist health and movement scale with threat too. Provisional behavior:
   bola active. The first 40 units of a cord are protected from incidental muzzle
   contact; aiming along it still cuts it.
 
+- **Backpack assassin:** seeks unburnt corpses within 360 units and collects up to
+  five, then chases the mech for ordinary melee contact. Each collected carapace
+  absorbs two damage before breaking, with excess passing through to the next
+  piece and then health. Collection removes the corpse from the ground, so two
+  assassins cannot claim the same body. Collected pieces stop decaying and are
+  consumed when broken or when their carrier dies. Flame bypasses the backpack
+  and ignites its pieces, which burn away after 1.2 seconds. The mixed carapaces
+  are drawn on its back; its base health remains separate from their protection.
+
+Every killed bug, including eggs, leaves a flattened corpse/carapace with its
+original part appearance and centipede segment geometry. These are subdued
+background debris from the first job, without collision, shot blocking, damage,
+loot, or influence on wave completion. They gradually fade into the ground over
+60 seconds of simulation time and persist through waves/intermissions in the
+same hive. They become a resource only when an assassin is present. Flamethrower
+kills also leave a corpse, visibly burning away over 1.2 seconds. Flame can ignite
+existing remains; continued fire does not restart the burn timer. Base return,
+restart, and debug wave replacement clear corpses. Pause freezes decay and fire.
+There is no early count-based eviction of unexpired corpses.
+
 Live bugs also separate from one another, including centipede segments. Eggs and
 antlions are stationary ground targets; dragonflies fly over the crowd. These
 three types do not participate in crowd separation. A local
@@ -250,6 +270,7 @@ sticks must return to neutral before movement resumes.
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
 - `acid.ts`: spitter cover/peek behavior, bullet-ant ranged behavior, firing lanes, and acid tuning.
+- `remains.ts` / `remains-renderer.ts`: corpse lifetime/fire, assassin collection/armour, cached debris, and visible backpacks.
 - `predators.ts` / `predator-renderer.ts`: pit suction, retaliatory spray, predictive flight, spider cover/tethers, and attack telegraphs.
 - `ecology.ts`: slug trails, colony ownership, queen laying, worker guarding, and egg hatching.
 - `bug-motion.ts`: shared bounded movement and walking toward a target.
@@ -267,7 +288,7 @@ sticks must return to neutral before movement resumes.
 Parts live in `public/images/exterminator/parts/`. Regenerate them and homepage thumbnails
 with `python3 tools/generate-exterminator-sprites.py`. Walking follows distance traveled;
 torso aiming and recoil remain independent of the base. Wheel/tread stages share
-distance-driven tread marks. All 17 bug types plus eggs share registered hit/death and arrival animations.
+distance-driven tread marks. All 18 bug types plus eggs share registered hit/death and arrival animations.
 Ants use a six-leg rig, slugs glide without legs, and eggs pulse during incubation.
 Every new modular part also has three independently mixed visual versions. The centipede repeats the
 same registered body/leg parts along its simulated chain. Burrowing arrivals
@@ -281,7 +302,7 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, 17 bug types plus eggs, and no audio. There is no saved progression between runs.
+Tuning is provisional. This version has four weapons, 18 bug types plus eggs, and no audio. There is no saved progression between runs.
 
 Each bug part has three appearances: stock, brighter crested/banded, and darker
 ridged/spined. This includes body, shell, head, legs, and optional wings.
@@ -343,3 +364,12 @@ spiders. On the development host its simulation p95 was 0.20 ms per fixed step;
 a separate browser render check with 100 predators and attached tethers measured
 5.0 ms median / 7.6 ms p95 over 60 frames. These are diagnostic host measurements,
 not a frame-rate guarantee on other devices.
+
+Corpse rendering bakes modular skins once and groups static debris into
+three-second cohorts on half-resolution canvases. Collection/ignition invalidates
+only the affected cohort; opacity and burning update at ten Hz. This bounds
+background memory to about 21 half-resolution cohort canvases plus the output
+and small skin images. A browser stress sample with 20 assassins and about 900
+remaining corpses measured 2.6 ms median / 6.4 ms p95 render submission and 0.4 ms
+p95 simulation over 60 measured native frames after warmup. This is a local
+host diagnostic, not a physical-device frame-rate guarantee.

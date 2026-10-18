@@ -1,3 +1,4 @@
+import { createRemainsLayer, drawRemains, drawBackpack } from "./remains-renderer";
 import { drawBolas, drawPitFields, drawPredatorTelegraph, drawTethers } from "./predator-renderer";
 import { createSlimeLayer } from "./slime-renderer";
 import { EGG_HATCH_TIME, QUEEN_LAY_INTERVAL, SLIME_LIFETIME, SLIME_RADIUS } from "./ecology";
@@ -65,6 +66,7 @@ export function drawTerrain(ctx: CanvasRenderingContext2D, tiles: Terrain[], var
 export function createRenderer(makeCanvas = () => document.createElement("canvas")) {
 	let tiles: Terrain[] | undefined, variation = -1, ratio = 0;
 	let slimeLayer: ReturnType<typeof createSlimeLayer> | undefined;
+	let remainsLayer: ReturnType<typeof createRemainsLayer> | undefined;
 	const background = makeCanvas(), context = background.getContext("2d")!;
 	return (ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number) => {
 		if (BASE_MODES.has(game.mode)) return render(ctx, game, sprites, width, height, pixelRatio);
@@ -75,11 +77,12 @@ export function createRenderer(makeCanvas = () => document.createElement("canvas
 			drawTerrain(context, tiles, variation);
 		}
 		if (!slimeLayer && game.slime.length > 0) slimeLayer = createSlimeLayer(makeCanvas);
-		return render(ctx, game, sprites, width, height, pixelRatio, background, slimeLayer?.(game));
+		if (!remainsLayer && game.remains.length > 0) remainsLayer = createRemainsLayer(makeCanvas);
+		return render(ctx, game, sprites, width, height, pixelRatio, background, slimeLayer?.(game), remainsLayer?.(game, sprites));
 	};
 }
 
-export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource, slimeLayer?: CanvasImageSource): Camera {
+export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource, slimeLayer?: CanvasImageSource, remainsLayer?: CanvasImageSource): Camera {
 	if (BASE_MODES.has(game.mode)) {
 		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
@@ -103,6 +106,8 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.ellipse(x, y + 4, radius, radius * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	};
 	drawPitFields(ctx, game, visible);
+	if (remainsLayer) ctx.drawImage(remainsLayer, 0, 0, FIELD.width, FIELD.height);
+	else drawRemains(ctx, game, sprites);
 	if (slimeLayer) ctx.drawImage(slimeLayer, 0, 0, FIELD.width, FIELD.height);
 	else {
 		// Direct callers can draw without owning a cache; the runtime uses the mask layer.
@@ -133,10 +138,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		if (variant === "egg") pose = { ...pose, body: { scaleX: 1 + Math.sin(game.time * 4) * .03 } };
 		drawRig(ctx, sprites, variant === "bolasSpider" ? SPIDER_RIG : variant === "dragonfly" ? DRAGONFLY_RIG : BUG_RIG, skin, pose, x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
 	};
-	for (const remains of game.remains) {
-		if (!visible(remains.x, remains.y) && !(remains.variant === "centipede" && remains.segments.some(segment => visible(segment.x, segment.y)))) continue;
-		drawBug(remains.variant, remains.id, remains.x, remains.y, remains.angle, 0, 1, clamp((game.time - remains.diedAt) / .5, 0, 1), false, remains.segments);
-	}
+
 	for (const warning of game.spawns) {
 		if (!visible(warning.x, warning.y, 120)) continue;
 		const progress = 1 - warning.remaining / SPAWN_WARNING_TIME;
@@ -287,6 +289,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		}
 		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle", spitCharge);
 		ctx.restore();
+		if (enemy.variant === "assassin") drawBackpack(ctx, game, enemy, sprites);
 		if (enemy.variant === "beetle") {
 			const progress = 1 - enemy.state.remaining / BEETLE_ROLL_TIME, size = 5 + progress * 15;
 			ctx.save(); ctx.translate(enemy.x + Math.cos(enemy.angle) * 26, enemy.y + Math.sin(enemy.angle) * 26); ctx.rotate(game.time * 8);
