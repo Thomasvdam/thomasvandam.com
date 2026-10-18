@@ -26,7 +26,7 @@ function menuChoices(game: Game) {
 export type ExterminatorView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
-		slimed: game.slimed, debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
+		pit: game.pitTerrain !== null, tethered: game.tethers.length, slimed: game.slimed, debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? game.pitTerrain ?? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
 		sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),

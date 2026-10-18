@@ -135,7 +135,7 @@ and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 
 
 Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs and dung beetles in
-job 3, centipedes in job 4, acid spitters in job 5, slugs in job 6, and queen ant colonies in job 7.
+job 3, centipedes in job 4, acid spitters in job 5, slugs in job 6, queen ant colonies in job 7, antlions in job 8, bombardiers in job 9, dragonflies in job 10, and bolas spiders in job 11.
 The baseline weighted mix reserves two thirds for burrowers/flyers and shares the
 rest among unlocked specialists; each hive theme skews those weights. Ants and
 eggs are produced by colonies rather than selected as independent normal spawns.
@@ -199,8 +199,33 @@ Specialist health and movement scale with threat too. Provisional behavior:
   collision rules; it sidesteps blocked lanes but never seeks armoured cover.
   Eggs and hatched ants survive the queen's death and retain their roles.
 
-Live bugs also separate from one another, including centipede segments. Eggs are
-stationary ground targets and do not participate in crowd separation. A local
+- **Antlion:** stays at its burrow, with a 180-unit pit that uses the original
+  tile's terrain handling throughout its radius. Suction grows toward the centre;
+  opposing movement reduces or overcomes it. Wheels escape firm pits best, legs
+  rubble, and treads mud. Overlapping pits cannot amplify the strongest suction.
+  The exposed antlion can be shot, bites at the centre, and takes its pit with it
+  when killed. Rings and inward chevrons show the pit's area and terrain.
+- **Bombardier:** chases until damaged, then turns its rear toward the mech and
+  telegraphs a fixed 90-degree, 180-unit spray cone for 0.75 seconds. The spray
+  lasts 0.4 seconds and deals 20 damage, followed by 2.2 seconds of recovery.
+  Moving out of the locked cone or killing it interrupts the threat.
+- **Dragonfly:** tracks at a distance, locks a predicted intercept point based on
+  the mech's actual velocity, telegraphs for 0.6 seconds, then flies straight to
+  that point at 500 units/s. Turning after the prediction avoids the intercept.
+  Swept contact deals 20 damage; it recovers for 1.2 seconds and ignores crowds.
+- **Bolas spider:** seeks positions behind nearby ground bugs, winds up for 0.9
+  seconds, then throws a bola at a fixed aim from up to 680 units away. Bolas
+  pass through bugs and attach without damage. Multiple spiders can attach
+  simultaneously, each adding a 130-unit/s pull. Opposing movement remains
+  possible. Any weapon can sever a cord; rockets also sever cords in their blast.
+  Cords release independently on the spider's death, after six seconds, beyond
+  760 units, or when the mech reaches the spider. Each spider keeps one cord or
+  bola active. The first 40 units of a cord are protected from incidental muzzle
+  contact; aiming along it still cuts it.
+
+Live bugs also separate from one another, including centipede segments. Eggs and
+antlions are stationary ground targets; dragonflies fly over the crowd. These
+three types do not participate in crowd separation. A local
 collision solver keeps distinct footprints with a small clearance and handles
 new overlapping spawns and walls. Centipedes move as a whole during separation
 so their body does not break apart. Dead bugs immediately stop blocking. This
@@ -225,6 +250,7 @@ sticks must return to neutral before movement resumes.
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
 - `acid.ts`: spitter cover/peek behavior, bullet-ant ranged behavior, firing lanes, and acid tuning.
+- `predators.ts` / `predator-renderer.ts`: pit suction, retaliatory spray, predictive flight, spider cover/tethers, and attack telegraphs.
 - `ecology.ts`: slug trails, colony ownership, queen laying, worker guarding, and egg hatching.
 - `bug-motion.ts`: shared bounded movement and walking toward a target.
 - `bug-types.ts`: bug definitions, creation, specialist states, and tuning.
@@ -241,7 +267,7 @@ sticks must return to neutral before movement resumes.
 Parts live in `public/images/exterminator/parts/`. Regenerate them and homepage thumbnails
 with `python3 tools/generate-exterminator-sprites.py`. Walking follows distance traveled;
 torso aiming and recoil remain independent of the base. Wheel/tread stages share
-distance-driven tread marks. All 13 bug types plus eggs share registered hit/death and arrival animations.
+distance-driven tread marks. All 17 bug types plus eggs share registered hit/death and arrival animations.
 Ants use a six-leg rig, slugs glide without legs, and eggs pulse during incubation.
 Every new modular part also has three independently mixed visual versions. The centipede repeats the
 same registered body/leg parts along its simulated chain. Burrowing arrivals
@@ -255,7 +281,7 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, 13 bug types plus eggs, and no audio. There is no saved progression between runs.
+Tuning is provisional. This version has four weapons, 17 bug types plus eggs, and no audio. There is no saved progression between runs.
 
 Each bug part has three appearances: stock, brighter crested/banded, and darker
 ridged/spined. This includes body, shell, head, legs, and optional wings.
@@ -311,3 +337,9 @@ new sections and due fades, then upload only the changed rectangle. Camera and
 viewport changes reuse the mask, while combat replacement or a restarted clock
 clears it. This avoids repeatedly stroking thousands of overlapping paths. `tools/benchmark-exterminator.ts` includes
 slug/trail and populated-colony scenarios alongside the existing crowds.
+
+The predator benchmark adds 100 mixed antlions, bombardiers, dragonflies, and
+spiders. On the development host its simulation p95 was 0.20 ms per fixed step;
+a separate browser render check with 100 predators and attached tethers measured
+5.0 ms median / 7.6 ms p95 over 60 frames. These are diagnostic host measurements,
+not a frame-rate guarantee on other devices.

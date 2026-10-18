@@ -4,12 +4,12 @@ import { spawnQueenGuards } from "../app/exterminator/ecology";
 import { createBug } from "../app/exterminator/bugs";
 import type { BugVariant } from "../app/exterminator/bug-types";
 
-const specialists: BugVariant[] = ["burrower", "flyer", "evader", "lunger", "armoured", "spitter", "beetle", "centipede"];
-for (const scenario of ["chasers", "mixed", "centipedes", "slugs", "colonies"]) {
+const specialists: BugVariant[] = ["burrower", "flyer", "evader", "lunger", "armoured", "spitter", "beetle", "centipede", "antlion", "bombardier", "dragonfly", "bolasSpider"];
+for (const scenario of ["chasers", "mixed", "centipedes", "slugs", "colonies", "predators"]) {
 	const game = newGame(47);
 	game.mode = "playing"; game.toSpawn = 1; game.spawnTimer = 1000; game.player.invulnerable = 1000;
 	for (let i = 0; i < 100; i++) {
-		const variant = scenario === "slugs" ? "slug" : scenario === "colonies" ? (i % 10 === 0 ? "queen" : "soldier") : scenario === "chasers" ? "burrower" : scenario === "centipedes" ? (i % 5 === 0 ? "centipede" : "burrower") : specialists[i % specialists.length];
+		const variant = scenario === "predators" ? (["antlion", "bombardier", "dragonfly", "bolasSpider"] as const)[i % 4] : scenario === "slugs" ? "slug" : scenario === "colonies" ? (i % 10 === 0 ? "queen" : "soldier") : scenario === "chasers" ? "burrower" : scenario === "centipedes" ? (i % 5 === 0 ? "centipede" : "burrower") : specialists[i % specialists.length];
 		const enemy = createBug({ variant, id: game.nextId++, position: { x: 60 + i % 10 * 105, y: 45 + Math.floor(i / 10) * 65 }, player: game.player, threat: 3, wave: 3, time: 0, bounds: FIELD });
 		game.enemies.push(enemy);
 		if (enemy.variant === "queen") {

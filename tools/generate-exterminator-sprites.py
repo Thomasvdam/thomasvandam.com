@@ -292,6 +292,43 @@ part("bug-egg-body", [poly([(7, 12), (11, 5), (19, 4), (25, 10), (27, 19), (23, 
     poly([(9, 12), (12, 7), (18, 6), (23, 11), (25, 19), (21, 24), (15, 26), (10, 22)], "light"),
     rect(12, 10, 4, 7, "white"), rect(19, 17, 3, 5, "armor")])
 
+# Arena predators retain registered pivots but use distinct silhouettes.
+for prefix, dark, base, light in [("bombardier", "rustDark", "orange", "gold"),
+        ("dragonfly", "blueDark", "blue", "blueLight"), ("bolas", "violetDark", "violet", "violetLight")]:
+    part(f"bug-{prefix}-body", [poly([(3, 12), (9, 9), (22, 9), (27, 14), (27, 20), (20, 24), (8, 23), (3, 19)], "ink"),
+        rect(6, 12, 17, 8, dark), rect(10, 12, 11, 3, base), rect(16, 13, 5, 2, light)])
+    part(f"bug-{prefix}-head", [poly([(9, 12), (15, 8), (23, 11), (26, 16), (23, 22), (14, 24), (9, 20)], "ink"),
+        rect(11, 12, 11, 9, base), rect(13, 11, 5, 2, light), rect(20, 12, 3, 2, "gold"), rect(20, 19, 3, 2, "gold"),
+        poly([(23, 11), (30, 9), (27, 15)], dark), poly([(23, 21), (30, 24), (27, 18)], dark)])
+    part(f"bug-{prefix}-leg", [poly([(6, 14), (13, 13), (20, 17), (28, 24), (26, 27), (18, 20), (12, 17), (6, 18)], "ink"),
+        poly([(8, 15), (12, 15), (20, 19), (26, 25), (25, 25), (18, 20), (11, 17), (8, 17)], base), rect(8, 15, 3, 1, light)])
+part("bug-bombardier-shell", [poly([(0, 11), (6, 5), (19, 5), (26, 11), (26, 22), (19, 28), (6, 28), (0, 22)], "ink"),
+    rect(3, 11, 20, 11, "rustDark"), rect(7, 7, 12, 18, "orange"), rect(11, 7, 3, 18, "rustDark"),
+    rect(4, 9, 4, 6, "gold"), rect(4, 19, 4, 6, "gold"), rect(1, 12, 3, 3, "white"), rect(1, 20, 3, 3, "white")])
+part("bug-dragonfly-body", [poly([(1, 14), (21, 11), (27, 15), (27, 19), (20, 22), (1, 19)], "ink"),
+    rect(2, 15, 20, 3, "blue"), rect(19, 13, 6, 7, "blueDark"), rect(20, 13, 4, 2, "blueLight")])
+part("bug-dragonfly-shell", [poly([(0, 15), (24, 12), (27, 15), (26, 20), (0, 18)], "ink"),
+    rect(1, 15, 24, 3, "blue"), rect(1, 15, 20, 1, "blueLight")] + [rect(x, 15, 1, 3, "blueDark") for x in [5, 10, 15, 20]])
+part("bug-dragonfly-head", [poly([(9, 10), (17, 7), (24, 10), (27, 16), (24, 23), (17, 25), (9, 22)], "ink"),
+    rect(12, 11, 10, 11, "blueDark"), rect(13, 9, 7, 5, "blueLight"), rect(13, 19, 7, 5, "blueLight"), rect(20, 14, 5, 5, "blue")])
+part("bug-dragonfly-wing", [poly([(7, 15), (15, 9), (27, 4), (31, 8), (29, 13), (17, 20), (8, 18)], "blueDark"),
+    poly([(9, 15), (16, 11), (27, 6), (29, 8), (27, 12), (17, 18), (10, 17)], "light"),
+    poly([(11, 15), (26, 8), (27, 9), (14, 16)], "white"), rect(18, 12, 1, 3, "blue")])
+part("bug-bolas-shell", [poly([(0, 12), (5, 5), (15, 3), (24, 9), (27, 17), (22, 26), (12, 29), (3, 24)], "ink"),
+    poly([(3, 13), (7, 7), (15, 6), (22, 11), (24, 17), (20, 24), (12, 26), (5, 22)], "violetDark"),
+    poly([(6, 13), (12, 9), (20, 12), (21, 19), (15, 23), (8, 21)], "violet"), rect(8, 11, 10, 3, "violetLight"),
+    rect(12, 17, 4, 4, "white"), rect(4, 15, 3, 3, "light")])
+part("bug-bolas-head", [poly([(9, 12), (19, 9), (25, 13), (27, 19), (20, 24), (10, 21)], "ink"),
+    rect(11, 12, 11, 10, "violetDark"), rect(15, 12, 2, 2, "gold"), rect(19, 12, 2, 2, "gold"),
+    rect(15, 20, 2, 2, "gold"), rect(19, 20, 2, 2, "gold"), rect(22, 15, 4, 4, "white")])
+part("bug-antlion-body", [poly([(2, 12), (8, 7), (21, 7), (28, 13), (27, 22), (20, 26), (7, 24), (2, 20)], "ink"),
+    rect(5, 12, 20, 9, "ochreDark"), rect(9, 10, 12, 3, "ochre")])
+part("bug-antlion-shell", [poly([(2, 13), (8, 6), (20, 6), (26, 13), (25, 22), (19, 27), (7, 25)], "ochreDark"),
+    rect(5, 13, 17, 8, "ochre"), rect(8, 9, 12, 3, "ochreLight"), rect(9, 17, 2, 6, "rustDark"), rect(17, 15, 2, 8, "rustDark")])
+part("bug-antlion-head", [poly([(7, 12), (16, 9), (22, 12), (28, 4), (31, 5), (27, 16), (31, 27), (28, 28), (22, 21), (14, 24), (7, 20)], "ink"),
+    rect(9, 12, 12, 10, "ochre"), rect(12, 12, 6, 2, "ochreLight"), rect(20, 13, 3, 2, "gold"), rect(20, 19, 3, 2, "gold"),
+    poly([(23, 12), (28, 6), (27, 12), (25, 15)], "white"), poly([(23, 21), (28, 26), (27, 21), (25, 18)], "white")])
+
 part("bug-wing", [
     poly([(7, 15), (13, 7), (23, 4), (28, 8), (30, 14), (27, 21), (17, 24), (10, 20)], "oliveDark"),
     poly([(9, 15), (14, 9), (23, 6), (26, 9), (28, 14), (25, 19), (17, 22), (12, 19)], "wing"),
@@ -314,6 +351,8 @@ BUG_PALETTES = {
     "beetle": ("violetDark", "violet", "violetLight"), "spitter": ("acidDark", "acid", "acidLight"),
     "queen": ("ochreDark", "ochre", "ochreLight"), "worker": ("rustDark", "rust", "rustLight"),
     "soldier": ("redDark", "red", "redLight"), "bulletant": ("blueDark", "blue", "acidLight"),
+    "antlion": ("ochreDark", "ochre", "ochreLight"), "bombardier": ("rustDark", "orange", "gold"),
+    "dragonfly": ("blueDark", "blue", "blueLight"), "bolas": ("violetDark", "violet", "violetLight"),
     "slug": ("oliveDark", "wing", "wingLight"), "egg": ("darkArmor", "light", "white"),
 }
 

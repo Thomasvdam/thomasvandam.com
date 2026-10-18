@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance } from "./animation";
+import { BUG_RIG, bugPose, SPIDER_RIG, DRAGONFLY_RIG, spiderPose, dragonflyPose, MECH_RIG, mechPose, resolveRig, spawnAppearance } from "./animation";
 import { BUG_SKINS, mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
 import { newGame, start as prepare, chooseHive, upgradeLevels, step, SPAWN_WARNING_TIME } from "./game";
 
@@ -112,4 +112,15 @@ test("every undercarriage has distinct artwork at each speed rank on the same an
 		}
 		expect(new Set(art).size).toBe(4);
 	}
+});
+
+
+test("spiders animate eight legs and dragonflies animate four wings with distinct registered skins", () => {
+	const state = { distance: 8, angle: .5, time: 2 };
+	const spider = resolveRig(SPIDER_RIG, BUG_SKINS.bolasSpider, spiderPose(state));
+	const fly = resolveRig(DRAGONFLY_RIG, BUG_SKINS.dragonfly, dragonflyPose(state));
+	expect(spider.filter(part => part.bone.startsWith("leg"))).toHaveLength(8);
+	expect(fly.filter(part => part.bone.startsWith("wing"))).toHaveLength(4);
+	expect(spiderPose({ ...state, distance: 16 }).legL3.angle).not.toBe(spiderPose(state).legL3.angle);
+	expect(dragonflyPose({ ...state, time: 2.1 }).wingRearL.angle).not.toBe(dragonflyPose(state).wingRearL.angle);
 });
