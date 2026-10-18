@@ -1,3 +1,5 @@
+import { combatTarget, cornerPosition, damageLamp, LAMP_RADIUS } from "./light-threats";
+import type { CornerLight } from "./lighting";
 import { BUG_SPECS, type Enemy } from "./bug-types";
 import { moveBug, walkBugTo } from "./bug-motion";
 import type { Game } from "./game";
@@ -17,8 +19,8 @@ export const BOLA_SPEED = 420;
 export const TETHER_RANGE = 760;
 export const TETHER_LIFETIME = 6;
 export const TETHER_PULL = 130;
-export type Bola = Vector & { id: number; owner: number; vx: number; vy: number; life: number };
-export type Tether = { owner: number; remaining: number };
+export type Bola = Vector & { id: number; owner: number; lightTarget?: CornerLight | null; vx: number; vy: number; life: number };
+export type Tether = { owner: number; lightTarget?: CornerLight | null; remaining: number };
 export type Spider = Extract<Enemy, { variant: "bolasSpider" }>;
 export type SpiderIndex = Map<number, Spider>;
 
@@ -42,8 +44,11 @@ export function preparePulls(game: Game, dt: number) {
 		tether.remaining -= dt;
 		const spider = spiders.get(tether.owner);
 		if (!spider || tether.remaining <= 0) return false;
-		const dx = spider.x - game.player.x, dy = spider.y - game.player.y, distance = Math.hypot(dx, dy);
+		const anchor = tether.lightTarget ? cornerPosition(tether.lightTarget) : game.player;
+		if (tether.lightTarget && !game.parts.cornerLights[tether.lightTarget]) return false;
+		const dx = spider.x - anchor.x, dy = spider.y - anchor.y, distance = Math.hypot(dx, dy);
 		if (distance > TETHER_RANGE || distance < 60) return false;
+		if (tether.lightTarget) { damageLamp(game, tether.lightTarget, 15 * dt); return game.parts.cornerLights[tether.lightTarget]; }
 		force.x += dx / distance * TETHER_PULL; force.y += dy / distance * TETHER_PULL;
 		return true;
 	});
@@ -52,7 +57,8 @@ export function preparePulls(game: Game, dt: number) {
 export function provokeBombardier(game: Game, enemy: Enemy) {
 	if (enemy.variant !== "bombardier" || enemy.health <= 0 || enemy.state.phase !== "chase") return;
 	enemy.state.phase = "windup"; enemy.state.remaining = SPRAY_WINDUP;
-	enemy.state.direction = Math.atan2(game.player.y - enemy.y, game.player.x - enemy.x);
+	const target = combatTarget(game, enemy); enemy.attackLight = enemy.lightTarget;
+	enemy.state.direction = Math.atan2(target.y - enemy.y, target.x - enemy.x);
 	enemy.angle = enemy.state.direction + Math.PI;
 }
 export function inSpray(point: Vector, enemy: Vector, direction: number, radius: number) {
@@ -61,17 +67,18 @@ export function inSpray(point: Vector, enemy: Vector, direction: number, radius:
 }
 export function stepBombardier(game: Game, enemy: Extract<Enemy, { variant: "bombardier" }>, dt: number, bounds: Bounds, playerRadius: number) {
 	const state = enemy.state;
-	if (state.phase === "chase") { walkBugTo(enemy, game.player, dt, bounds); return; }
+	if (state.phase === "chase") { walkBugTo(enemy, combatTarget(game, enemy), dt, bounds); return; }
 	state.remaining = Math.max(0, state.remaining - dt);
 	if (state.phase === "windup") {
 		if (state.remaining === 0) { state.phase = "spray"; state.remaining = SPRAY_DURATION; }
 	} else if (state.phase === "spray") {
+		if (enemy.attackLight && game.parts.cornerLights[enemy.attackLight] && game.time >= (enemy.lampHitAt ?? -Infinity) + .9 && inSpray(cornerPosition(enemy.attackLight), enemy, state.direction, LAMP_RADIUS)) { damageLamp(game, enemy.attackLight, 20); enemy.lampHitAt = game.time; }
 		if (game.player.invulnerable === 0 && inSpray(game.player, enemy, state.direction, playerRadius)) { game.player.health = Math.max(0, game.player.health - 20); game.player.invulnerable = .9; }
 		if (state.remaining === 0) { state.phase = "recover"; state.remaining = 2.2; }
 	} else if (state.remaining === 0) state.phase = "chase";
 }
 export function stepDragonfly(game: Game, enemy: Extract<Enemy, { variant: "dragonfly" }>, dt: number, bounds: Bounds, playerRadius: number) {
-	const state = enemy.state; state.contact = false; state.remaining = Math.max(0, state.remaining - dt);
+	const state = enemy.state, target = combatTarget(game, enemy); state.contact = false; state.remaining = Math.max(0, state.remaining - dt);
 	if (state.phase === "windup") {
 		enemy.angle = Math.atan2(state.target.y - enemy.y, state.target.x - enemy.x);
 		if (state.remaining === 0) state.phase = "intercept";
@@ -86,22 +93,24 @@ export function stepDragonfly(game: Game, enemy: Extract<Enemy, { variant: "drag
 		return;
 	}
 	if (state.phase === "recover") { if (state.remaining === 0) { state.phase = "track"; state.remaining = 1; } return; }
-	const dx = game.player.x - enemy.x, dy = game.player.y - enemy.y, distance = Math.hypot(dx, dy), side = enemy.id % 2 ? 1 : -1;
+	const dx = target.x - enemy.x, dy = target.y - enemy.y, distance = Math.hypot(dx, dy), side = enemy.id % 2 ? 1 : -1;
 	if (distance > 0) {
 		const radial = clamp((distance - 280) / 100, -1, 1), vx = dx / distance * radial - dy / distance * side * .4, vy = dy / distance * radial + dx / distance * side * .4;
 		const length = Math.hypot(vx, vy); enemy.angle = Math.atan2(vy, vx);
 		moveBug(enemy, { x: vx / length, y: vy / length }, enemy.speed * dt, bounds);
 	}
 	if (state.remaining === 0 && distance <= 650) {
-		state.target = { x: clamp(game.player.x + game.playerVelocity.x * .65, playerRadius, bounds.width - playerRadius), y: clamp(game.player.y + game.playerVelocity.y * .65, playerRadius, bounds.height - playerRadius) };
+		state.target = { x: clamp(target.x + (enemy.lightTarget ? 0 : game.playerVelocity.x * .65), playerRadius, bounds.width - playerRadius), y: clamp(target.y + (enemy.lightTarget ? 0 : game.playerVelocity.y * .65), playerRadius, bounds.height - playerRadius) };
+		enemy.attackLight = enemy.lightTarget;
 		state.phase = "windup"; state.remaining = DRAGONFLY_WINDUP;
 	}
 }
 export function spiderCover(game: Game, spider: Spider, bounds: Bounds) {
+	const player = combatTarget(game, spider);
 	let best: { id: number; point: Vector } | null = null, score = Infinity;
 	for (const bug of game.enemies) {
-		if (bug.health <= 0 || bug.id === spider.id || bug.variant === "egg" || bug.variant === "dragonfly" || bug.variant === "bolasSpider") continue;
-		const dx = bug.x - game.player.x, dy = bug.y - game.player.y, distance = Math.hypot(dx, dy);
+		if (bug.health <= 0 || bug.id === spider.id || bug.variant === "egg" || (bug.variant === "dragonfly" || bug.variant === "moth") || bug.variant === "bolasSpider") continue;
+		const dx = bug.x - player.x, dy = bug.y - player.y, distance = Math.hypot(dx, dy);
 		if (distance < 1 || distance > 500) continue;
 		const behind = Math.max(150, 480 - distance), point = { x: bug.x + dx / distance * behind, y: bug.y + dy / distance * behind }, radius = BUG_SPECS.bolasSpider.radius;
 		if (point.x < radius || point.y < radius || point.x > bounds.width - radius || point.y > bounds.height - radius) continue;
@@ -111,17 +120,17 @@ export function spiderCover(game: Game, spider: Spider, bounds: Bounds) {
 	return best;
 }
 export function stepSpider(game: Game, spider: Spider, dt: number, bounds: Bounds) {
-	const state = spider.state; state.cooldown = Math.max(0, state.cooldown - dt); state.seekRemaining -= dt;
+	const state = spider.state, player = combatTarget(game, spider); state.cooldown = Math.max(0, state.cooldown - dt); state.seekRemaining -= dt;
 	if (state.phase === "windup") {
 		state.remaining = Math.max(0, state.remaining - dt);
 		spider.angle = Math.atan2(state.target.y - spider.y, state.target.x - spider.x);
 		if (state.remaining === 0) {
-			if (game.bolas.length < 64) game.bolas.push({ id: game.nextId++, owner: spider.id, x: spider.x, y: spider.y, vx: Math.cos(spider.angle) * BOLA_SPEED, vy: Math.sin(spider.angle) * BOLA_SPEED, life: TETHER_RANGE / BOLA_SPEED });
+			if (game.bolas.length < 64) game.bolas.push({ id: game.nextId++, lightTarget: spider.attackLight, owner: spider.id, x: spider.x, y: spider.y, vx: Math.cos(spider.angle) * BOLA_SPEED, vy: Math.sin(spider.angle) * BOLA_SPEED, life: TETHER_RANGE / BOLA_SPEED });
 			state.phase = "position"; state.cooldown = 3.2;
 		}
 		return;
 	}
-	const range = Math.hypot(game.player.x - spider.x, game.player.y - spider.y), angle = Math.atan2(game.player.y - spider.y, game.player.x - spider.x);
+	const range = Math.hypot(player.x - spider.x, player.y - spider.y), angle = Math.atan2(player.y - spider.y, player.x - spider.x);
 	if (state.seekRemaining <= 0) {
 		const cover = spiderCover(game, spider, bounds); state.coverId = cover?.id ?? null; state.seekRemaining = .5;
 		if (cover) state.destination = cover.point;
@@ -133,7 +142,7 @@ export function stepSpider(game: Game, spider: Spider, dt: number, bounds: Bound
 	}
 	spider.angle = angle;
 	if (state.cooldown === 0 && range <= 680 && range >= 200 && !game.tethers.some(tether => tether.owner === spider.id) && !game.bolas.some(bola => bola.owner === spider.id)) {
-		state.phase = "windup"; state.remaining = SPIDER_WINDUP; state.target = { x: game.player.x, y: game.player.y };
+		state.phase = "windup"; state.remaining = SPIDER_WINDUP; state.target = { x: player.x, y: player.y }; spider.attackLight = spider.lightTarget;
 	}
 }
 export function stepBolas(game: Game, dt: number, spiders: SpiderIndex, playerRadius: number) {
@@ -142,7 +151,13 @@ export function stepBolas(game: Game, dt: number, spiders: SpiderIndex, playerRa
 		if (!owner || owner.health <= 0) return false;
 		const previous = { x: bola.x, y: bola.y }, travel = Math.min(dt, bola.life);
 		bola.x += bola.vx * travel; bola.y += bola.vy * travel; bola.life -= dt;
-		if (circleHitTime(bola, game.player, playerRadius, previous, 7) < Infinity) {
+		const playerHit = circleHitTime(bola, game.player, playerRadius, previous, 7);
+		const lampHit = bola.lightTarget && game.parts.cornerLights[bola.lightTarget] ? circleHitTime(bola, cornerPosition(bola.lightTarget), LAMP_RADIUS, previous, 7) : Infinity;
+		if (lampHit < playerHit && bola.lightTarget) {
+			if (!game.tethers.some(tether => tether.owner === bola.owner)) game.tethers.push({ owner: bola.owner, lightTarget: bola.lightTarget, remaining: TETHER_LIFETIME });
+			return false;
+		}
+		if (playerHit < Infinity) {
 			if (!game.tethers.some(tether => tether.owner === bola.owner)) game.tethers.push({ owner: bola.owner, remaining: TETHER_LIFETIME });
 			return false;
 		}
@@ -154,11 +169,14 @@ export function cuttableStrand(player: Vector, spider: Vector) {
 	const dx = spider.x - player.x, dy = spider.y - player.y, distance = Math.hypot(dx, dy);
 	return { x: player.x + dx / Math.max(1, distance) * 40, y: player.y + dy / Math.max(1, distance) * 40 };
 }
+export function strandStart(game: Game, tether: Tether, spider: Vector) {
+	return tether.lightTarget ? cornerPosition(tether.lightTarget) : cuttableStrand(game.player, spider);
+}
 export function firstTetherHit(game: Game, spiders: SpiderIndex, previous: Vector, end: Vector) {
 	let owner: number | null = null, time = Infinity;
 	for (const tether of game.tethers) {
 		const spider = spiders.get(tether.owner); if (!spider || spider.health <= 0) continue;
-		const hit = segmentHitTime(end, previous, cuttableStrand(game.player, spider), spider, 6);
+		const hit = segmentHitTime(end, previous, strandStart(game, tether, spider), spider, 6);
 		if (hit < time) { time = hit; owner = spider.id; }
 	}
 	return { owner, time };
@@ -166,16 +184,17 @@ export function firstTetherHit(game: Game, spiders: SpiderIndex, previous: Vecto
 export function blastTethers(game: Game, spiders: SpiderIndex, center: Vector, radius: number) {
 	game.tethers = game.tethers.filter(tether => {
 		const spider = spiders.get(tether.owner);
-		return spider && spider.health > 0 && distanceToSegment(center, cuttableStrand(game.player, spider), spider) > radius;
+		return spider && spider.health > 0 && distanceToSegment(center, strandStart(game, tether, spider), spider) > radius;
 	});
 }
 export function flameTethers(game: Game, spiders: SpiderIndex, origin: Vector, angle: number, range: number, halfAngle: number) {
 	const cosine = Math.cos(angle), sine = Math.sin(angle), width = Math.tan(halfAngle);
 	game.tethers = game.tethers.filter(tether => {
 		const spider = spiders.get(tether.owner); if (!spider || spider.health <= 0) return false;
-		const dx = spider.x - game.player.x, dy = spider.y - game.player.y, length = Math.hypot(dx, dy);
-		for (let distance = 40; distance <= Math.min(length, range + 30); distance += 4) {
-			const px = game.player.x + dx / length * distance - origin.x, py = game.player.y + dy / length * distance - origin.y, forward = px * cosine + py * sine;
+		const anchor = tether.lightTarget ? cornerPosition(tether.lightTarget) : game.player;
+		const dx = spider.x - anchor.x, dy = spider.y - anchor.y, length = Math.hypot(dx, dy);
+		for (let distance = tether.lightTarget ? 0 : 40; distance <= (tether.lightTarget ? length : Math.min(length, range + 30)); distance += 4) {
+			const px = anchor.x + dx / Math.max(1, length) * distance - origin.x, py = anchor.y + dy / Math.max(1, length) * distance - origin.y, forward = px * cosine + py * sine;
 			if (forward >= -3 && Math.abs(px * sine - py * cosine) <= Math.max(0, forward) * width + 3 && px * px + py * py <= (range + 3) ** 2) return false;
 		}
 		return true;

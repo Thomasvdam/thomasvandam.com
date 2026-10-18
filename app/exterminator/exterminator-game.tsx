@@ -26,6 +26,7 @@ export function ExterminatorGame() {
 	const menu = useRef<HTMLDivElement>(null);
 	const runtime = useRef<ReturnType<typeof createExterminatorRuntime> | null>(null);
 	const [view, setView] = useState<ExterminatorView>(() => viewFromGame(newGame()));
+	const [lightSensitivePercent, setLightSensitivePercent] = useState(0);
 	const [composition, setComposition] = useState(defaultComposition);
 	const debugTotal = Object.values(composition).reduce((sum, count) => sum + count, 0);
 	const [loaded, setLoaded] = useState(false), [error, setError] = useState("");
@@ -62,10 +63,10 @@ export function ExterminatorGame() {
 			</div>
 			{view.debug && <details className={styles.debug} open>
 				<summary>Debug / manual waves</summary>
-				<div className={styles.debugCounts}>{BUG_TYPES.map(type => <label key={type}>{BUG_NAMES[type]}<input aria-label={`${BUG_NAMES[type]} count`} type="number" min="0" max="100" step="1" value={composition[type]} onChange={event => setComposition(current => ({ ...current, [type]: Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))) }))} /></label>)}</div>
-				<div className={styles.debugActions}><button disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode) || debugTotal === 0 || debugTotal > 100} onClick={() => runtime.current?.debugWave(composition)}>Spawn wave ({debugTotal})</button><span>{view.hive ? "Replaces the current wave. Up to 100 spawns; queens bring two guards and lay eggs. Automatic waves are off." : "Deploy to a hive, then spawn a wave. Automatic waves are off."}</span></div>
+				<div className={styles.debugCounts}>{BUG_TYPES.map(type => <label key={type}>{BUG_NAMES[type]}<input aria-label={`${BUG_NAMES[type]} count`} type="number" min="0" max="100" step="1" value={composition[type]} onChange={event => setComposition(current => ({ ...current, [type]: Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))) }))} /></label>)}<label>Light attackers %<input aria-label="Light attackers percent" type="number" min="0" max="100" step="1" value={lightSensitivePercent} onChange={event => setLightSensitivePercent(Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))))} /></label></div>
+				<div className={styles.debugActions}><button disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode) || debugTotal === 0 || debugTotal > 100} onClick={() => runtime.current?.debugWave(composition, lightSensitivePercent)}>Spawn wave ({debugTotal})</button><span>{view.hive ? "Replaces the current wave. Up to 100 spawns; each moth spawn brings six moths; queens bring guards and lay eggs. Automatic waves are off." : "Deploy to a hive, then spawn a wave. Automatic waves are off."}</span></div>
 			</details>}
-			<div className={styles.economy}><span>Funds <strong>${view.money}</strong></span><span>Lights <strong>{view.lightRank} / 3</strong> · corners <strong>{Object.values(view.cornerLights).filter(Boolean).length} / 4</strong></span>{view.payment !== null ? <span>Job payment <strong>${view.payment}</strong></span> : view.lastJob ? <span>{view.lastJob.name} cleared · <strong>+${view.lastJob.payment}</strong></span> : <span>Clear a hive. Collect your payment.</span>}</div>
+			<div className={styles.economy}><span>Funds <strong>${view.money}</strong></span><span>Lights <strong>{view.lightRank} / 3</strong> · corners <strong>{Object.values(view.cornerLights).filter(Boolean).length} / 4</strong>{view.blockedLights > 0 && <> · <strong>{view.blockedLights} blocked</strong></>}</span>{view.payment !== null ? <span>Job payment <strong>${view.payment}</strong></span> : view.lastJob ? <span>{view.lastJob.name} cleared · <strong>+${view.lastJob.payment}</strong></span> : <span>Clear a hive. Collect your payment.</span>}</div>
 			<div className={styles.stage} data-playing={!overlay}>
 				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Exterminator playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
 				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.debug && view.enemies === 0 ? "Waiting for a custom wave" : <>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</>}</span></>}</div>}
@@ -81,7 +82,7 @@ export function ExterminatorGame() {
 								<span className={styles.upgradeTop}><strong>{hive.name}</strong><kbd>{index + 1}</kbd></span>
 								<span className={styles.activity}>Difficulty: {hive.activity ?? "Unknown"}{hive.threat !== null && <small>Threat {hive.threat} · {hive.minBugs}–{hive.maxBugs} initial spawns / wave</small>}</span>
 								<span>Mostly {hive.terrain.toLowerCase()}{hive.secondaryTerrain && <small className={styles.secondaryTerrain}>Then {hive.secondaryTerrain.toLowerCase()}</small>}</span>
-								<span>Enemy mix: {hive.enemyMix ?? "Unknown"}</span>
+								<span>Enemy mix: {hive.enemyMix ?? "Unknown"}{hive.lightAttackers !== null && hive.lightAttackers > 0 && ` · Light attackers: ${hive.lightAttackers}% of eligible bugs`}</span>
 								<small>Payment <b>${hive.payment}</b> · Deploy ↗</small>
 							</button>)}</div>
 							<button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Open workshop</button>

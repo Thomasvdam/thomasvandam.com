@@ -50,12 +50,9 @@ test("deployed themes drive warnings throughout all three automatic waves and ex
 			expect(game.wave).toBe(wave);
 			const size = waveSize(wave, offer.threat);
 			for (let i = 0; i < size; i++) { game.spawnTimer = 0; step(game, idle, 1 / 120); }
-			expect(game.spawns).toHaveLength(size);
-			for (let i = 0; i < size; i++) {
-				const type = game.spawns[i].variant;
-				expect(offer.enemyMix.weights[type]).toBeGreaterThan(0);
-				expect(type).toBe(bugForSpawn(4, wave, i, offer.enemyMix.weights));
-			}
+			const expected = Array.from({ length: size }, (_, i) => bugForSpawn(4, wave, i, offer.enemyMix.weights)).flatMap(type => Array(type === "moth" ? 6 : 1).fill(type));
+			expect(game.spawns.map(warning => warning.variant)).toEqual(expected);
+			for (const warning of game.spawns) expect(offer.enemyMix.weights[warning.variant]).toBeGreaterThan(0);
 			game.spawns = []; game.enemies = []; game.intermission = .001;
 			step(game, idle, 1 / 120);
 		}

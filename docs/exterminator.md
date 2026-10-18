@@ -39,7 +39,8 @@ target selection, and damage are unchanged by lighting.
 The workshop sells four independent corner floodlights for $30 each. Each lights
 its quarter of the map with a narrow shadow seam between quarters. Purchases
 persist across waves, hive changes, and refits for the current run, and reset on
-death/restart like other purchases. Lights cannot be destroyed yet. Mech light
+death/restart like other purchases. Corner lights have 60 health; light attackers can destroy them. Destroyed
+lights immediately stop illuminating and become available to repurchase for $30. Mech light
 upgrades cost $200 / $320 / $510, capped at three ranks; each adds 8% of the base
 beam reach, a little width, and stronger rear illumination. HUD counts show the
 mech rank and installed corners. Controller selection scrolls the longer shop
@@ -49,6 +50,45 @@ menu to keep the selected card visible.
 caches beam and quarter masks, then composites a half-resolution world-space
 mask. Moving, aiming, and changing viewport reuse these shapes; rank changes
 rebuild only mech beam shapes. No per-frame pixel readbacks are used.
+
+### Moths and light attackers
+
+Moth swarms unlock in hive 3, participate in hive themes/scanner intel, and spawn
+as six individually damageable, 1-health flyers per encounter. Their broad wings
+and antennae use three mixed appearances per part. Moths seek the nearest
+unblocked light, including the mech's front/rear lamps and installed corners.
+They orbit and retain that target while obstructing it, preventing target-switch
+flicker when the light goes out. Each living moth within 50 units blocks 25% of
+that source; four fully block it. Other sources still contribute independently.
+Killing moths or outrunning the swarm restores the light. They inflict no contact
+or fixture damage, ignore ground crowds, leave corpses, and must be killed to
+clear a wave. Base return/debug replacement clears obstruction.
+
+Starting in hive 5, some eligible bugs receive a stable light-attacker trait,
+shown by a gold chevron on their body. The chance among eligible bugs is 10% at
+low activity in hive 5, +4 percentage points per extra difficulty tier and +2.5
+points per cleared hive thereafter, capped at 45%. It does not depend on whether
+lights are purchased or blocked. Queens, workers, eggs, slugs, antlions,
+centipedes, and moths are excluded. Eligible hatched soldiers/bullet ants can
+receive the trait too. Scanner rank 3 reveals the percentage in hive offers.
+
+Marked bugs target the nearest installed corner, retain it until destruction,
+then choose another or resume attacking the mech. Mech lamps cannot be destroyed.
+They keep their species' behaviour: contact attacks, locked lunges/intercepts,
+armour turning, projectile windups/cover, corpse collection, and retaliatory
+spray. Acid resolves the earliest mech/armour/lamp obstruction; beetle lobs damage
+the targeted lamp on landing. Bolas attach to lamps and strain them for 15 health
+per second without pulling the mech; every player weapon can cut these cords.
+Melee/spray deal 20 per hit, charges 30, with a per-bug 0.9-second contact/spray
+cooldown. Existing attacks remain dangerous to the mech if it crosses their path.
+Normal unmarked attacks do not damage fixtures. Lamp damage/ownership persist
+across waves and hive changes; a repurchase restores all 60 health.
+
+Debug counts treat each moth entry as one six-moth swarm. **Light attackers %**
+overrides the trait chance for eligible actors in the replacement wave (0–100),
+including subsequent eligible hatchlings. Both mechanics are testable immediately
+without reaching their normal unlocks. HUD status reports fully blocked sources;
+damaged fixtures show health bars when their lamp is visible.
 
 ## Base, workshop, and hives
 
@@ -167,7 +207,7 @@ and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 
 
 Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs and dung beetles in
-job 3, centipedes in job 4, acid spitters in job 5, slugs in job 6, queen ant colonies in job 7, antlions in job 8, bombardiers in job 9, dragonflies in job 10, bolas spiders in job 11, and backpack assassins in job 12.
+job 3 (alongside moth swarms), centipedes in job 4, acid spitters in job 5, slugs in job 6, queen ant colonies in job 7, antlions in job 8, bombardiers in job 9, dragonflies in job 10, bolas spiders in job 11, and backpack assassins in job 12.
 The baseline weighted mix reserves two thirds for burrowers/flyers and shares the
 rest among unlocked specialists; each hive theme skews those weights. Ants and
 eggs are produced by colonies rather than selected as independent normal spawns.
@@ -303,6 +343,7 @@ sticks must return to neutral before movement resumes.
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
 - `acid.ts`: spitter cover/peek behavior, bullet-ant ranged behavior, firing lanes, and acid tuning.
 - `remains.ts` / `remains-renderer.ts`: corpse lifetime/fire, assassin collection/armour, cached debris, and visible backpacks.
+- `light-threats.ts`: moth attraction/obstruction, trait eligibility/rates, shared lamp targets, health/destruction, and contact attacks.
 - `predators.ts` / `predator-renderer.ts`: pit suction, retaliatory spray, predictive flight, spider cover/tethers, and attack telegraphs.
 - `ecology.ts`: slug trails, colony ownership, queen laying, worker guarding, and egg hatching.
 - `bug-motion.ts`: shared bounded movement and walking toward a target.
@@ -405,3 +446,16 @@ and small skin images. A browser stress sample with 20 assassins and about 900
 remaining corpses measured 2.6 ms median / 6.4 ms p95 render submission and 0.4 ms
 p95 simulation over 60 measured native frames after warmup. This is a local
 host diagnostic, not a physical-device frame-rate guarantee.
+
+
+Moth/light-attacker validation adds coverage for swarm expansion, early unlocks,
+source-specific obstruction/restoration, harmless moth contacts, wave completion,
+stable trait proportions/exclusions (including hatched ants), retained/replaced
+lamp targets, all eligible species attacking fixtures, lamp persistence and
+repurchase guards, swept projectile obstruction, and actual weapon input cutting
+lamp tethers without mech pulls. Browser checks decoded all 265 assets, verified
+blackout/restoration against mask pixels, exercised debug swarm/percentage inputs
+and marked actors in the real runtime, and checked mobile overflow. The deterministic
+benchmark includes 600 moths and 100 light attackers; local samples measured
+1.05 ms and 1.65 ms p95 per simulation step respectively. Device tuning remains
+provisional.

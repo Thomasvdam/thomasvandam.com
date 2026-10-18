@@ -1,3 +1,4 @@
+import { lightTransmission, MECH_LIGHTS } from "./light-threats";
 import { FIELD, type Game } from "./game";
 import { clamp } from "./math";
 
@@ -44,12 +45,13 @@ export function cornerStrength(corner: typeof CORNER_LIGHTS[number], x: number, 
 export function lightAt(game: Game, x: number, y: number) {
 	const dx = x - game.player.x, dy = y - game.player.y;
 	// A small pool around the chassis keeps the mech and nearby hazards legible.
-	let darkness = 1 - .85 * clamp((100 - Math.hypot(dx, dy)) / 45, 0, 1);
-	for (const beam of mechBeams(game.parts.lights)) {
+	const transmission = MECH_LIGHTS.map(id => lightTransmission(game, id));
+	let darkness = 1 - Math.max(...transmission) * .85 * clamp((100 - Math.hypot(dx, dy)) / 45, 0, 1);
+	for (const [index, beam] of mechBeams(game.parts.lights).entries()) {
 		const angle = game.player.angle + beam.direction, cos = Math.cos(angle), sin = Math.sin(angle);
-		darkness *= 1 - beamStrength(beam, dx * cos + dy * sin, -dx * sin + dy * cos);
+		darkness *= 1 - transmission[index] * beamStrength(beam, dx * cos + dy * sin, -dx * sin + dy * cos);
 	}
-	for (const corner of CORNER_LIGHTS) if (game.parts.cornerLights[corner.id]) darkness *= 1 - cornerStrength(corner, x, y);
+	for (const corner of CORNER_LIGHTS) if (game.parts.cornerLights[corner.id]) darkness *= 1 - lightTransmission(game, corner.id) * cornerStrength(corner, x, y);
 	return 1 - darkness;
 }
 export const warningLit = (game: Game, source: { x: number; y: number }) => lightAt(game, source.x, source.y) >= LIT_THRESHOLD;

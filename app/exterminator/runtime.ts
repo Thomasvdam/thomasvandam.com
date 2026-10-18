@@ -1,3 +1,4 @@
+import { lightSensitiveChance, MOTHS_TO_BLOCK } from "./light-threats";
 import { enemyMixHints } from "./hives";
 import { setDebug, spawnDebugWave, type WaveComposition } from "./debug";
 import { weaponSpec, type Weapon } from "./weapons";
@@ -26,16 +27,17 @@ function menuChoices(game: Game) {
 export type ExterminatorView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0) {
 	return {
-		pit: game.pitTerrain !== null, tethered: game.tethers.length, slimed: game.slimed, debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? game.pitTerrain ?? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
+		pit: game.pitTerrain !== null, tethered: game.tethers.filter(tether => !tether.lightTarget).length, slimed: game.slimed, debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? game.pitTerrain ?? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
-		lightRank: game.parts.lights, cornerLights: { ...game.parts.cornerLights }, sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
+		blockedLights: Object.values(game.lightCover).filter(count => count >= MOTHS_TO_BLOCK).length, lightRank: game.parts.lights, cornerLights: { ...game.parts.cornerLights }, sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
 		hives: game.hives.map(hive => {
 			const terrain = terrainByPrevalence(hive.terrain), difficultyKnown = game.parts.sensor >= 1;
 			return {
 				id: hive.id, name: hive.name, payment: hive.payment, activity: difficultyKnown ? hive.activity : null,
 				threat: difficultyKnown ? hive.threat : null,
 				terrain: TERRAIN_NAMES[terrain[0]], secondaryTerrain: game.parts.sensor >= 2 && terrain[1] ? TERRAIN_NAMES[terrain[1]] : null,
+				lightAttackers: game.parts.sensor >= 3 ? Math.round(lightSensitiveChance(game.hivesCleared, hive.threat) * 100) : null,
 				enemyMix: game.parts.sensor >= 3 ? enemyMixHints(hive.enemyMix) : null,
 				minBugs: difficultyKnown ? waveSize(1, hive.threat) : null, maxBugs: difficultyKnown ? waveSize(3, hive.threat) : null,
 			};
@@ -114,7 +116,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (choice.kind === "back") action("hives");
 		if (choice.kind === "shop") action("shop");
 	};
-	const debugWave = (composition: WaveComposition) => { if (!loaded) return; spawnDebugWave(game, composition); changed(); focus(); };
+	const debugWave = (composition: WaveComposition, lightSensitivePercent = 0) => { if (!loaded) return; spawnDebugWave(game, composition, lightSensitivePercent); changed(); focus(); };
 	const hashchange = () => { setDebug(game, window.location.hash === "#debug"); changed(); };
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
