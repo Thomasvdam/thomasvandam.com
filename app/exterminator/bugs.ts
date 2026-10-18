@@ -1,3 +1,4 @@
+import { stepCourier } from "./courier";
 import { assignLightTrait, chooseLightTarget, combatTarget, contactLamp, stepMoth } from "./light-threats";
 import { stepAssassin } from "./remains";
 import { stepBombardier, stepDragonfly, stepSpider } from "./predators";
@@ -49,7 +50,9 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 		const charging = (enemy.variant === "lunger" && enemy.state.phase === "lunge") || (enemy.variant === "dragonfly" && enemy.state.phase === "intercept");
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
 		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
-		if (enemy.variant === "moth") {
+		if (enemy.variant === "courier") {
+			stepCourier(game, enemy, dt, bounds);
+		} else if (enemy.variant === "moth") {
 			stepMoth(game, enemy, dt, bounds);
 		} else if (enemy.variant === "assassin") {
 			stepAssassin(game, enemy, dt, bounds);
@@ -193,7 +196,7 @@ function translateBug(body: CollisionBody, dx: number, dy: number, bounds: Bound
 export function separateBugs(enemies: Enemy[], bounds: Bounds) {
 	// Broad-phase cells keep the solver local, including every centipede segment.
 	let largestRadius = 0;
-	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg" && enemy.variant !== "antlion" && enemy.variant !== "dragonfly" && enemy.variant !== "moth").flatMap(enemy => {
+	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg" && enemy.variant !== "antlion" && enemy.variant !== "dragonfly" && enemy.variant !== "moth" && enemy.variant !== "courier").flatMap(enemy => {
 		const radius = BUG_SPECS[enemy.variant].radius, mass = enemy.variant === "centipede" ? 8 : enemy.variant === "armoured" ? 2 : 1;
 		largestRadius = Math.max(largestRadius, radius);
 		const points = enemy.variant === "centipede" ? [enemy, ...enemy.state.segments] : [enemy];

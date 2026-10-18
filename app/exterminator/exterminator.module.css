@@ -95,3 +95,5 @@
 	.debugCounts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	.debugActions { align-items: start; flex-direction: column; }
 }
+
+.schematicHint { color: #e7bd64; font-size: 11px; line-height: 1.5; margin-bottom: 8px; }

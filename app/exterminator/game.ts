@@ -1,3 +1,5 @@
+import { beginSchematicHunt, extractSchematic } from "./courier";
+import { equipmentUnlocked, normalizeSchematics, type Schematic } from "./schematics";
 import { assignLightTrait, cornerPosition, damageLamp, emptyLightCover, LAMP_HEALTH, LAMP_RADIUS, MOTH_SWARM_SIZE, refreshLightCover, type LightId } from "./light-threats";
 import { CORNER_LIGHTS, CORNER_LIGHT_COST, MAX_LIGHT_RANK, type CornerLight } from "./lighting";
 import { absorbBackpack, burnRemains, corpseAlive, inFlame, leaveCorpse, type BugRemains } from "./remains";
@@ -29,8 +31,8 @@ export function upgradeChoices(game: Game) {
 		...(upgradeLevels(game).speed < MAX_SPEED_RANK ? [{ id: "speed" as const, name: "Move faster", description: "+8% base movement speed · max +24%", cost: upgradeCost(upgradeLevels(game).speed), key: "3", kind: "stat" as const }] : []),
 	];
 }
-export function weaponChoices() { return WEAPONS.map((part, index) => ({ ...part, kind: "weapon" as const, key: String(index + 1) })); }
-export function undercarriageChoices() { return UNDERCARRIAGES.map((part, index) => ({ ...part, kind: "undercarriage" as const, key: String(index + 1) })); }
+export function weaponChoices(game: Game) { return WEAPONS.map((part, index) => ({ ...part, locked: !equipmentUnlocked(game.schematics, part.id), kind: "weapon" as const, key: String(index + 1) })); }
+export function undercarriageChoices(game: Game) { return UNDERCARRIAGES.map((part, index) => ({ ...part, locked: !equipmentUnlocked(game.schematics, part.id), kind: "undercarriage" as const, key: String(index + 1) })); }
 export const MAX_SENSOR_RANK = 3;
 export type WorkshopService = "heal" | "sensor" | "lights" | CornerLight;
 export function workshopServices(game: Game) {
@@ -51,6 +53,7 @@ export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: 
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type { BugRemains } from "./remains";
 export type Game = {
+	schematics: Schematic[]; schematicReward: Schematic | null; carriedSchematic: Schematic | null; lastSchematic: Schematic | null;
 	debug: { queue: BugVariant[]; total: number; lightSensitivePercent: number } | null;
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
@@ -71,9 +74,11 @@ export function playerStats(game: Game) {
 	return { ...weaponStats(game.weapon, game.parts.weapons[game.weapon]), speed: BASE_SPEED * (1 + levels.speed * SPEED_RANK_BONUS) };
 }
 
-export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
+export function newGame(seed = 1, undercarriage: Undercarriage = "legs", schematics: readonly Schematic[] = []): Game {
+	const unlocked = normalizeSchematics(schematics);
 	return {
-		debug: null, hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage, weapon: "cannon",
+		schematics: unlocked, schematicReward: null, carriedSchematic: null, lastSchematic: null,
+		debug: null, hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage: equipmentUnlocked(unlocked, undercarriage) ? undercarriage : "legs", weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		lampHealth: { northWest: 0, northEast: 0, southWest: 0, southEast: 0 }, lightCover: emptyLightCover(), playerVelocity: { x: 0, y: 0 }, pitTerrain: null, bolas: [], tethers: [], slimed: false, slime: [], enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
@@ -83,6 +88,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 
 // All combat lifetimes end together when replacing a wave or returning to base.
 export function clearCombat(game: Game) {
+	game.schematicReward = null; game.carriedSchematic = null;
 	game.lightCover = emptyLightCover(); game.playerVelocity = { x: 0, y: 0 }; game.pitTerrain = null; game.bolas = []; game.tethers = []; game.slimed = false; game.slime = []; game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
 	game.remains = []; game.explosions = []; game.deflections = []; game.acidImpacts = [];
 }
@@ -118,12 +124,12 @@ export function openWorkshop(game: Game) { if (game.mode === "base") game.mode =
 export function openWeapons(game: Game) { if (game.mode === "workshop") game.mode = "weapons"; }
 export function closeWeapons(game: Game) { if (game.mode === "weapons") game.mode = "workshop"; }
 export function chooseWeapon(game: Game, weapon: Weapon) {
-	if (game.mode !== "weapons" || !WEAPONS.some(part => part.id === weapon)) return;
+	if (game.mode !== "weapons" || !equipmentUnlocked(game.schematics, weapon) || !WEAPONS.some(part => part.id === weapon)) return;
 	game.weapon = weapon;
 }
 export function closeWorkshop(game: Game) { if (game.mode === "workshop") game.mode = "base"; }
 export function chooseUndercarriage(game: Game, undercarriage: Undercarriage) {
-	if (game.mode !== "workshop" || !UNDERCARRIAGES.some(part => part.id === undercarriage)) return;
+	if (game.mode !== "workshop" || !equipmentUnlocked(game.schematics, undercarriage) || !UNDERCARRIAGES.some(part => part.id === undercarriage)) return;
 	game.undercarriage = undercarriage;
 }
 export function chooseHive(game: Game, id: string) {
@@ -135,9 +141,11 @@ export function chooseHive(game: Game, id: string) {
 	game.wave = 1; game.toSpawn = game.debug ? 0 : waveSize(1, hive.threat); game.spawnTimer = .5; game.intermission = 0; game.shotTimer = 0;
 	Object.assign(game.player, { x: FIELD.width / 2, y: FIELD.height / 2, walkBlend: 0, invulnerable: 0, shotAt: -10 });
 	game.mode = "playing";
+	beginSchematicHunt(game);
 }
 function returnToBase(game: Game) {
 	if (!game.hive) return;
+	extractSchematic(game);
 	game.money += game.hive.payment;
 	game.lastJob = { name: game.hive.name, payment: game.hive.payment };
 	game.hivesCleared++;
@@ -305,11 +313,12 @@ export function step(game: Game, input: Input, dt: number) {
 	});
 	game.enemies = game.enemies.filter(enemy => {
 		if (enemy.health > 0) return true;
+		if (enemy.variant === "courier" && !game.debug && enemy.state.schematic !== null && enemy.state.schematic === game.schematicReward) game.carriedSchematic = enemy.state.schematic;
 		if (enemy.variant !== "egg") game.kills++;
 		leaveCorpse(game, enemy);
 		return false;
 	});
-	const waveCleared = game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.length === 0;
+	const waveCleared = game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.every(enemy => enemy.variant === "courier");
 	if (waveCleared) { game.lobs = []; game.acid = []; game.bolas = []; game.tethers = []; }
 	stepBolas(game, dt, pulls.spiders, PLAYER_RADIUS);
 	game.acid = game.acid.filter(acid => {
@@ -339,13 +348,13 @@ export function step(game: Game, input: Input, dt: number) {
 		return lob.age < BEETLE_FLIGHT_TIME + .3;
 	});
 	refreshLightCover(game);
-	if (player.health === 0) { game.mode = "dead"; return; }
+	if (player.health === 0) { game.carriedSchematic = null; game.schematicReward = null; game.mode = "dead"; return; }
 	const lunged = game.enemies.some(enemy => lungeContacts.has(enemy.id));
-	const touching = game.enemies.some(enemy => enemy.variant === "dragonfly" ? enemy.state.contact : enemy.variant !== "centipede" && enemy.variant !== "egg" && enemy.variant !== "moth" && distanceToSegment(enemy, previousPlayer, player) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
+	const touching = game.enemies.some(enemy => enemy.variant === "dragonfly" ? enemy.state.contact : enemy.variant !== "centipede" && enemy.variant !== "egg" && enemy.variant !== "moth" && enemy.variant !== "courier" && distanceToSegment(enemy, previousPlayer, player) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
 	if (player.invulnerable === 0 && (lunged || touching)) {
 		player.health = Math.max(0, player.health - (lunged ? 30 : 20));
 		player.invulnerable = .9;
-		if (player.health === 0) { game.mode = "dead"; return; }
+		if (player.health === 0) { game.carriedSchematic = null; game.schematicReward = null; game.mode = "dead"; return; }
 	}
 	if (waveCleared && game.intermission === 0 && !game.debug) {
 		game.intermission = 3;

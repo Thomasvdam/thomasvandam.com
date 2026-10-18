@@ -365,6 +365,19 @@ part("bug-moth-wing", [poly([(7, 15), (12, 3), (25, 1), (31, 9), (28, 24), (18, 
     poly([(11, 15), (18, 7), (25, 6), (27, 11), (20, 15)], "wingLight"),
     rect(19, 17, 7, 5, "ochreDark"), rect(21, 18, 3, 3, "gold")])
 
+# Small golden schematic courier: a round engraved carapace and narrow pale wings.
+part("bug-courier-body", [poly([(5, 11), (11, 6), (21, 6), (27, 12), (27, 21), (21, 27), (10, 26), (5, 20)], "ink"),
+    poly([(7, 12), (12, 8), (20, 8), (25, 13), (25, 20), (20, 25), (11, 24), (7, 19)], "ochreDark"),
+    rect(10, 11, 12, 11, "gold"), rect(11, 11, 4, 5, "white"), rect(11, 20, 10, 2, "orange")])
+part("bug-courier-shell", [poly([(6, 12), (11, 7), (21, 8), (26, 13), (24, 22), (17, 26), (8, 22)], "ochreDark"),
+    poly([(8, 13), (13, 9), (20, 10), (23, 14), (22, 21), (16, 23), (10, 20)], "gold"),
+    rect(13, 11, 2, 11, "ochreDark"), rect(10, 15, 12, 2, "ochreDark"), rect(17, 11, 3, 2, "white")])
+part("bug-courier-head", [rect(12, 12, 10, 10, "ink"), rect(13, 13, 7, 8, "gold"),
+    rect(18, 13, 3, 2, "white"), rect(18, 19, 3, 2, "white")])
+part("bug-courier-wing", [poly([(7, 15), (17, 6), (29, 3), (32, 7), (27, 13), (15, 20), (7, 18)], "ochreDark"),
+    poly([(9, 15), (19, 8), (29, 5), (30, 7), (25, 12), (15, 18), (9, 17)], "white"),
+    poly([(11, 15), (27, 7), (23, 11), (14, 17)], "gold")])
+
 # Three compatible appearances per bug part: stock, banded/crested, ridged/spined.
 # Larger markings and silhouette changes read at gameplay size; pivots stay fixed.
 BUG_PALETTES = {
@@ -376,7 +389,7 @@ BUG_PALETTES = {
     "soldier": ("redDark", "red", "redLight"), "bulletant": ("blueDark", "blue", "acidLight"),
     "antlion": ("ochreDark", "ochre", "ochreLight"), "bombardier": ("rustDark", "orange", "gold"),
     "dragonfly": ("blueDark", "blue", "blueLight"), "bolas": ("violetDark", "violet", "violetLight"),
-    "assassin": ("rustDark", "rust", "rustLight"), "moth": ("ochreDark", "wing", "wingLight"),
+    "assassin": ("rustDark", "rust", "rustLight"), "moth": ("ochreDark", "wing", "wingLight"), "courier": ("ochreDark", "gold", "white"),
     "slug": ("oliveDark", "wing", "wingLight"), "egg": ("darkArmor", "light", "white"),
 }
 

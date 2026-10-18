@@ -109,7 +109,7 @@ export function spiderCover(game: Game, spider: Spider, bounds: Bounds) {
 	const player = combatTarget(game, spider);
 	let best: { id: number; point: Vector } | null = null, score = Infinity;
 	for (const bug of game.enemies) {
-		if (bug.health <= 0 || bug.id === spider.id || bug.variant === "egg" || (bug.variant === "dragonfly" || bug.variant === "moth") || bug.variant === "bolasSpider") continue;
+		if (bug.health <= 0 || bug.id === spider.id || bug.variant === "egg" || (bug.variant === "dragonfly" || bug.variant === "moth" || bug.variant === "courier") || bug.variant === "bolasSpider") continue;
 		const dx = bug.x - player.x, dy = bug.y - player.y, distance = Math.hypot(dx, dy);
 		if (distance < 1 || distance > 500) continue;
 		const behind = Math.max(150, 480 - distance), point = { x: bug.x + dx / distance * behind, y: bug.y + dy / distance * behind }, radius = BUG_SPECS.bolasSpider.radius;

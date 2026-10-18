@@ -1,9 +1,10 @@
+import { SCHEMATICS } from "./schematics";
 import { expect, test } from "bun:test";
 import { chooseHive, chooseUndercarriage, chooseUpgrade, chooseWeapon, closeShop, closeWeapons, closeWorkshop, newGame, openShop, openWeapons, openWorkshop, purchaseService, start, step, upgradeChoices, upgradeCost, workshopServices } from "./game";
 import { viewFromGame } from "./runtime";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false };
 function advance(game, duration) { for (let i = 0; i < Math.ceil(duration * 120); i++) step(game, idle, 1 / 120); }
-function job() { const game = newGame(47); start(game); return game; }
+function job() { const game = newGame(47, "legs", SCHEMATICS); start(game); return game; }
 function clearWave(game) { game.toSpawn = 0; game.spawns = []; game.enemies = []; step(game, idle, 1 / 120); advance(game, 3.1); }
 
 test("each offered job quotes a payment before sensor upgrades; greater threat pays more", () => {
