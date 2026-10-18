@@ -1,7 +1,7 @@
 import { createSchematicProgress, SCHEMATIC_NAMES, schematicForHive } from "./schematics";
 import { lightSensitiveChance, MOTHS_TO_BLOCK } from "./light-threats";
 import { enemyMixHints } from "./hives";
-import { enableDebugSchematics, setDebug, spawnDebugWave, type WaveComposition } from "./debug";
+import { enableDebugSchematics, grantDebugFunds, setDebug, spawnDebugWave, type WaveComposition } from "./debug";
 import { weaponSpec, type Weapon } from "./weapons";
 import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
@@ -129,6 +129,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	};
 	const debugWave = (composition: WaveComposition, lightSensitivePercent = 0) => { if (!loaded) return; spawnDebugWave(game, composition, lightSensitivePercent); changed(); focus(); };
 	const enableSchematics = () => { if (!loaded || !game.debug) return; enableDebugSchematics(game); changed(); focus(); };
+	const giveFunds = () => { if (!loaded || !game.debug) return; grantDebugFunds(game); changed(); focus(); };
 	const hashchange = () => { setDebug(game, window.location.hash === "#debug"); changed(); };
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
@@ -232,7 +233,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
 	return {
-		action, upgrade, purchase, equip, equipWeapon, deploy, debugWave, enableSchematics,
+		action, upgrade, purchase, equip, equipWeapon, deploy, debugWave, enableSchematics, giveFunds,
 		dispose: () => {
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
 			window.removeEventListener("hashchange", hashchange);
