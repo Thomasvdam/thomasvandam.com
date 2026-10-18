@@ -23,7 +23,7 @@ and controller menus remain usable when an option becomes unaffordable.
 Three hive choices show the most prevalent terrain and the offered payment.
 Payment is always known, even before sensor upgrades. Difficulty is unknown until
 the hive sensor is upgraded. Sensor rank 1 reveals activity, threat, and enemy
-counts per wave; rank 2 also reveals the second most prevalent terrain; rank 3 reveals enemy mix. Hints
+initial spawns per wave; rank 2 also reveals the second most prevalent terrain; rank 3 reveals enemy mix. Hints
 remain textual, without maps or coverage percentages. Activity changes enemy numbers, health, speed,
 and spawn pressure; threat increases as more hives are eradicated. Terrain and
 activity are shuffled independently on each visit to base, from a fresh random seed for each run. This avoids fixed terrain/difficulty pairings while preserving three distinct terrain choices and activity levels. Hive layouts are generated once per visit to base;
@@ -38,7 +38,8 @@ not a guaranteed sighting. Themes only use bugs unlocked at the current job.
 The basic mix gives two thirds of spawns to burrowers/flyers and divides the rest
 among unlocked specialists; themes skew that mix. A low-discrepancy weighted
 sequence spreads the population through short waves. Debug waves continue to
-use exactly the manually requested counts, overriding the hive theme.
+use the manually requested initial spawns, overriding the hive theme; queens
+still bring their two guards and produce eggs.
 Themes, layouts, and payments stay fixed through workshop visits and upgrades.
 
 The workshop can be opened and reopened before deployment. Equipping a base
@@ -134,8 +135,10 @@ and rear are vulnerable. Deflections are harmless cosmetic ricochets.
 
 
 Specialists arrive gradually: lungers in job 1, evaders in job 2, armoured bugs and dung beetles in
-job 3, centipedes in job 4, and acid spitters in job 5. One spawn in each group of three is drawn from the
-unlocked specialists, rotating by wave; the rest remain burrowers/winged chasers.
+job 3, centipedes in job 4, acid spitters in job 5, slugs in job 6, and queen ant colonies in job 7.
+The baseline weighted mix reserves two thirds for burrowers/flyers and shares the
+rest among unlocked specialists; each hive theme skews those weights. Ants and
+eggs are produced by colonies rather than selected as independent normal spawns.
 Specialist health and movement scale with threat too. Provisional behavior:
 
 - **Lunger:** approaches to 180 units, winds up for 1.15
@@ -174,7 +177,30 @@ Specialist health and movement scale with threat too. Provisional behavior:
   so it keeps pressure on the player without matching the faster chasers. Its roughly 140° front arc deflects bullets and
   strongly resists flame. Slow turns give players time to flank it.
 
-Live bugs also separate from one another, including centipede segments. A local
+- **Slug:** wanders independently of the mech, dropping a connected slime trail
+  every 0.25 seconds. Each section lasts 15 seconds of simulation time, including
+  after its slug dies and across wave intermissions. Contact with slime halves
+  every undercarriage's terrain-adjusted movement speed; overlapping trails do
+  not stack. Slime fades visibly with age and the HUD identifies the slowdown.
+- **Queen ant:** retreats from the mech inside 340 units and arrives with two
+  worker guards. Every six seconds it lays one egg, cycling worker → soldier →
+  bullet ant. A colony is limited to 12 living ants plus eggs, excluding its queen.
+  Laying waits at the cap and resumes when a slot opens. Eggs hatch after four
+  seconds, have one health, and can be destroyed by any weapon. Eggs stay where
+  laid, have no contact damage, and do not count as kills. Their progress ring
+  shows incubation; they keep the wave active until destroyed or hatched.
+- **Worker ant:** moves between its queen and the player, spreading guards across
+  the firing lane. It absorbs shots with its own health and has no armour or
+  invulnerability effect on the queen. After the queen dies, workers guard the
+  colony's remaining eggs; with no eggs left, they wander.
+- **Soldier ant:** chases and deals ordinary 20-damage melee contact, like a burrower.
+- **Bullet ant:** keeps 240–330 units from the mech, telegraphs for 0.55 seconds,
+  then fires a straight acid shot at the locked aim. Its shots use normal acid
+  collision rules; it sidesteps blocked lanes but never seeks armoured cover.
+  Eggs and hatched ants survive the queen's death and retain their roles.
+
+Live bugs also separate from one another, including centipede segments. Eggs are
+stationary ground targets and do not participate in crowd separation. A local
 collision solver keeps distinct footprints with a small clearance and handles
 new overlapping spawns and walls. Centipedes move as a whole during separation
 so their body does not break apart. Dead bugs immediately stop blocking. This
@@ -183,7 +209,11 @@ prevents kiting an entire swarm into one overlapping blast target.
 Enemy arrivals have 1.2-second stationary warnings. Two spawns in each group of
 three can appear anywhere; the third appears within 90 units of the player's
 position when warned. Moving away before a spawn avoids it. A wave finishes only
-when every scheduled enemy has appeared and died. Pending warnings count.
+when every scheduled enemy has appeared and all living bugs and eggs are gone.
+Pending warnings count. Scanner wave counts describe initial spawns; a queen
+colony is one scheduled spawn and brings additional guards and hatchlings.
+Rank-3 hints call it a queen ant colony; a hive with no colonies has no normal
+ants or eggs.
 
 Intermissions last three seconds and advance automatically. After the third
 wave, return to base and collect the job payment. Base, workshop, shop, weapon
@@ -194,9 +224,11 @@ sticks must return to neutral before movement resumes.
 ## Code and sprites
 
 - `game.ts`: browser-independent simulation, part inventory, run/base lifecycle.
-- `acid.ts`: spitter cover/peek behavior, firing lanes, and acid tuning.
-- `bug-types.ts`: bug definitions, specialist states, and tuning.
-- `bugs.ts`: spawning, behavior, hit geometry, crowd separation, and barriers.
+- `acid.ts`: spitter cover/peek behavior, bullet-ant ranged behavior, firing lanes, and acid tuning.
+- `ecology.ts`: slug trails, colony ownership, queen laying, worker guarding, and egg hatching.
+- `bug-motion.ts`: shared bounded movement and walking toward a target.
+- `bug-types.ts`: bug definitions, creation, specialist states, and tuning.
+- `bugs.ts`: weighted spawn selection, behavior dispatch, hit geometry, crowd separation, and barriers.
 - `math.ts`: shared vectors, bounds, and geometry helpers.
 - `weapons.ts`: weapon definitions, upgrade descriptions, and derived combat stats.
 - `hives.ts`: deterministic mission choices and activity/terrain previews.
@@ -209,7 +241,9 @@ sticks must return to neutral before movement resumes.
 Parts live in `public/images/exterminator/parts/`. Regenerate them and homepage thumbnails
 with `python3 tools/generate-exterminator-sprites.py`. Walking follows distance traveled;
 torso aiming and recoil remain independent of the base. Wheel/tread stages share
-distance-driven tread marks. All eight bug skins share walking/hit/death animations. The centipede repeats the
+distance-driven tread marks. All 13 bug types plus eggs share registered hit/death and arrival animations.
+Ants use a six-leg rig, slugs glide without legs, and eggs pulse during incubation.
+Every new modular part also has three independently mixed visual versions. The centipede repeats the
 same registered body/leg parts along its simulated chain. Burrowing arrivals
 share the reveal pose; the winged chaser lands and folds its optional wings.
 See [the animation guide](exterminator-animation.md) for replacing parts without new rigs.
@@ -221,7 +255,7 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, eight bug variants, and no audio. There is no saved progression between runs.
+Tuning is provisional. This version has four weapons, 13 bug types plus eggs, and no audio. There is no saved progression between runs.
 
 Each bug part has three appearances: stock, brighter crested/banded, and darker
 ridged/spined. This includes body, shell, head, legs, and optional wings.
@@ -234,13 +268,13 @@ choices do not alter health, movement, armour, collision shapes, or animation.
 ## Debug waves
 
 Open `/exterminator#debug` to reveal the manual-wave panel. Choose a hive normally;
-deployment waits without spawning enemies. Set a count for each of the eight bug
-types and click **Spawn wave**. Counts must total 1–100. All types are available,
-including specialists not yet unlocked in the run. Custom waves retain normal
+deployment waits without spawning enemies. Set counts for bug types and eggs and click **Spawn wave**. Counts must total 1–100. All types are available,
+including specialists not yet unlocked in the run. Queens add two worker guards
+and keep laying eggs; eggs hatch into their assigned ant role. Custom waves retain normal
 spawn warnings, movement, combat, terrain, and part stats.
 
 Spawning replaces the current wave, including pending arrivals, enemies,
-projectiles, and cosmetic effects. It keeps the mech and its upgrades/health and
+projectiles, slime, eggs, and cosmetic effects. It keeps the mech and its upgrades/health and
 works while paused without resuming. Clearing a debug wave waits for the next
 manual spawn; automatic progression and job completion are disabled. Restart
 keeps debug mode while the hash is present. Remove `#debug` to hide the panel and
@@ -266,3 +300,14 @@ Run `bun tools/benchmark-exterminator.ts` for deterministic 100-bug simulation
 samples (chasers, mixed specialists, and centipede-heavy crowds). It reports mean,
 median, and 95th-percentile step time after warmup; timings are diagnostic, not CI
 thresholds or a guarantee of mobile-device performance.
+
+Colony ownership and population are indexed once per simulation step, so each
+queen/worker looks up its own small colony rather than scanning the whole crowd.
+Slime expires after a fixed time window and uses one speed-overlap query per
+simulation step. Rendering retains a world-space slime mask at two-world-unit resolution. Each
+pixel uses its newest deposit, so overlaps do not accumulate opacity. A small
+priority queue schedules section fading and expiry; ordinary frames process
+new sections and due fades, then upload only the changed rectangle. Camera and
+viewport changes reuse the mask, while combat replacement or a restarted clock
+clears it. This avoids repeatedly stroking thousands of overlapping paths. `tools/benchmark-exterminator.ts` includes
+slug/trail and populated-colony scenarios alongside the existing crowds.

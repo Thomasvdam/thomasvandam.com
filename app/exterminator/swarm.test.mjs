@@ -51,7 +51,7 @@ test("individuals mix three distinct versions of every bug part without changing
 	const geometry = parts => parts.map(part => Object.fromEntries(Object.entries(part).filter(([key]) => key !== "sprite")));
 	for (const variant of Object.keys(BUG_SKINS)) {
 		const skins = Array.from({ length: 18 }, (_, id) => bugSkin(variant, id));
-		expect(new Set(skins.map(skin => JSON.stringify(skin))).size).toBeGreaterThan(5);
+		expect(new Set(skins.map(skin => JSON.stringify(skin))).size).toBeGreaterThan(Math.min(5, 3 ** Object.keys(BUG_SKINS[variant]).length - 1));
 		for (const slot of Object.keys(BUG_SKINS[variant])) expect(new Set(skins.map(skin => skin[slot])).size).toBe(3);
 		for (let id = 0; id < skins.length; id++) {
 			expect(skins[id]).toEqual(bugSkin(variant, id));

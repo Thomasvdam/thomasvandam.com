@@ -25,7 +25,7 @@ test("seeded offers have distinct enemy themes, only change on a new job, and re
 });
 
 test("actual spawn proportions match scanner claims for abundance, scarcity, absence, and dominant groups", () => {
-	for (let cleared = 0; cleared < 5; cleared++) for (let seed = 1; seed <= 10; seed++) for (const hive of createHives(seed, cleared)) {
+	for (let cleared = 0; cleared < 7; cleared++) for (let seed = 1; seed <= 10; seed++) for (const hive of createHives(seed, cleared)) {
 		const mix = hive.enemyMix, baseline = defaultBugWeights(cleared);
 		const counts = Object.fromEntries(BUG_TYPES.map(type => [type, 0]));
 		for (let wave = 1; wave <= 3; wave++) for (let i = 0; i < 300; i++) counts[bugForSpawn(cleared, wave, i, mix.weights)]++;

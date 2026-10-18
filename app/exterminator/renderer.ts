@@ -1,3 +1,5 @@
+import { createSlimeLayer } from "./slime-renderer";
+import { EGG_HATCH_TIME, QUEEN_LAY_INTERVAL, SLIME_LIFETIME, SLIME_RADIUS } from "./ecology";
 import { ACID_WINDUP } from "./acid";
 import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS, LUNGE_DISTANCE, LUNGE_WINDUP, ARMOUR_HALF_ANGLE, type BugVariant } from "./bug-types";
 import { weaponStats } from "./weapons";
@@ -61,6 +63,7 @@ export function drawTerrain(ctx: CanvasRenderingContext2D, tiles: Terrain[], var
 // A runtime owns one bounded background cache. Terrain arrays are immutable during a job.
 export function createRenderer(makeCanvas = () => document.createElement("canvas")) {
 	let tiles: Terrain[] | undefined, variation = -1, ratio = 0;
+	let slimeLayer: ReturnType<typeof createSlimeLayer> | undefined;
 	const background = makeCanvas(), context = background.getContext("2d")!;
 	return (ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number) => {
 		if (BASE_MODES.has(game.mode)) return render(ctx, game, sprites, width, height, pixelRatio);
@@ -70,11 +73,12 @@ export function createRenderer(makeCanvas = () => document.createElement("canvas
 			context.setTransform(ratio, 0, 0, ratio, 0, 0); context.imageSmoothingEnabled = false;
 			drawTerrain(context, tiles, variation);
 		}
-		return render(ctx, game, sprites, width, height, pixelRatio, background);
+		if (!slimeLayer && game.slime.length > 0) slimeLayer = createSlimeLayer(makeCanvas);
+		return render(ctx, game, sprites, width, height, pixelRatio, background, slimeLayer?.(game));
 	};
 }
 
-export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource): Camera {
+export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource, slimeLayer?: CanvasImageSource): Camera {
 	if (BASE_MODES.has(game.mode)) {
 		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
@@ -97,6 +101,18 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.save(); ctx.globalAlpha *= opacity; ctx.fillStyle = "#040b09";
 		ctx.beginPath(); ctx.ellipse(x, y + 4, radius, radius * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	};
+	if (slimeLayer) ctx.drawImage(slimeLayer, 0, 0, FIELD.width, FIELD.height);
+	else {
+		// Direct callers can draw without owning a cache; the runtime uses the mask layer.
+		ctx.save(); ctx.lineWidth = SLIME_RADIUS * 2; ctx.lineCap = "round"; ctx.strokeStyle = "#a2c47c";
+		for (const trail of game.slime) {
+			const life = 1 - (game.time - trail.bornAt) / SLIME_LIFETIME;
+			if (life <= 0 || (!visible(trail.x, trail.y) && !visible(trail.end.x, trail.end.y))) continue;
+			ctx.globalAlpha = life < 1 / 3 ? .15 : life < 2 / 3 ? .25 : .4;
+			ctx.beginPath(); ctx.moveTo(trail.x, trail.y); ctx.lineTo(trail.end.x, trail.end.y); ctx.stroke();
+		}
+		ctx.restore();
+	}
 	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = [], rolling = false, spitCharge = 0) => {
 		const skin = bugSkin(variant, appearance);
 		if (variant === "centipede") {
@@ -106,7 +122,13 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 				drawRig(ctx, sprites, BUG_RIG, { ...skin, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8, flash);
 			}
 		}
-		drawRig(ctx, sprites, BUG_RIG, skin, bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge }), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
+		let pose = bugPose({ distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge });
+		if (variant === "slug") {
+			const glide = Math.sin(distance / 8) * .06;
+			pose = { ...pose, body: { scaleX: 1 + glide, scaleY: 1 - glide }, shell: { scaleY: 1 + glide } };
+		}
+		if (variant === "egg") pose = { ...pose, body: { scaleX: 1 + Math.sin(game.time * 4) * .03 } };
+		drawRig(ctx, sprites, BUG_RIG, skin, pose, x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
 	};
 	for (const remains of game.remains) {
 		if (!visible(remains.x, remains.y) && !(remains.variant === "centipede" && remains.segments.some(segment => visible(segment.x, segment.y)))) continue;
@@ -236,11 +258,20 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			ctx.save(); ctx.strokeStyle = game.time - enemy.blockedAt < .12 ? "#f4e7a6" : "#a5b8ad88"; ctx.lineWidth = 3;
 			ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 24, enemy.angle - ARMOUR_HALF_ANGLE, enemy.angle + ARMOUR_HALF_ANGLE); ctx.stroke(); ctx.restore();
 		}
-		const spitCharge = enemy.variant === "spitter" && enemy.state.phase === "windup" ? 1 - enemy.state.remaining / ACID_WINDUP : 0;
-		if (enemy.variant === "spitter" && enemy.state.phase === "windup") {
+		const spitCharge = (enemy.variant === "spitter" || enemy.variant === "bulletAnt") && enemy.state.phase === "windup" ? 1 - enemy.state.remaining / ACID_WINDUP : 0;
+		if ((enemy.variant === "spitter" || enemy.variant === "bulletAnt") && enemy.state.phase === "windup") {
 			ctx.save(); ctx.strokeStyle = "#bce36388"; ctx.lineWidth = 1 + spitCharge; ctx.setLineDash([3, 7]);
 			ctx.beginPath(); ctx.moveTo(enemy.x, enemy.y); ctx.lineTo(enemy.state.target.x, enemy.state.target.y); ctx.stroke(); ctx.setLineDash([]);
 			ctx.fillStyle = "#d7ee84"; ctx.beginPath(); ctx.arc(enemy.x + Math.cos(enemy.angle) * 24, enemy.y + Math.sin(enemy.angle) * 24, 2 + spitCharge * 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+		}
+		if (enemy.variant === "egg") {
+			const progress = clamp((game.time - enemy.bornAt) / EGG_HATCH_TIME, 0, 1);
+			ctx.strokeStyle = enemy.state.hatchVariant === "bulletAnt" ? "#96ce98" : enemy.state.hatchVariant === "soldier" ? "#dc8970" : "#c6a075"; ctx.lineWidth = 2;
+			ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 14, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
+		}
+		if (enemy.variant === "queen") {
+			ctx.strokeStyle = "#d4b37188"; ctx.lineWidth = 2;
+			ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 29, enemy.angle + Math.PI / 2, enemy.angle + Math.PI / 2 + (1 - enemy.state.layRemaining / QUEEN_LAY_INTERVAL) * Math.PI); ctx.stroke();
 		}
 		const segments = enemy.variant === "centipede" ? enemy.state.segments : [];
 		for (const segment of segments) shadow(segment.x, segment.y, 14);

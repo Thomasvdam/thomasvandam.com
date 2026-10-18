@@ -61,7 +61,7 @@ export function ExterminatorGame() {
 			{view.debug && <details className={styles.debug} open>
 				<summary>Debug / manual waves</summary>
 				<div className={styles.debugCounts}>{BUG_TYPES.map(type => <label key={type}>{BUG_NAMES[type]}<input aria-label={`${BUG_NAMES[type]} count`} type="number" min="0" max="100" step="1" value={composition[type]} onChange={event => setComposition(current => ({ ...current, [type]: Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))) }))} /></label>)}</div>
-				<div className={styles.debugActions}><button disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode) || debugTotal === 0 || debugTotal > 100} onClick={() => runtime.current?.debugWave(composition)}>Spawn wave ({debugTotal})</button><span>{view.hive ? "Replaces the current wave. Up to 100 bugs. Automatic waves are off." : "Deploy to a hive, then spawn a wave. Automatic waves are off."}</span></div>
+				<div className={styles.debugActions}><button disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode) || debugTotal === 0 || debugTotal > 100} onClick={() => runtime.current?.debugWave(composition)}>Spawn wave ({debugTotal})</button><span>{view.hive ? "Replaces the current wave. Up to 100 spawns; queens bring two guards and lay eggs. Automatic waves are off." : "Deploy to a hive, then spawn a wave. Automatic waves are off."}</span></div>
 			</details>}
 			<div className={styles.economy}><span>Funds <strong>${view.money}</strong></span>{view.payment !== null ? <span>Job payment <strong>${view.payment}</strong></span> : view.lastJob ? <span>{view.lastJob.name} cleared · <strong>+${view.lastJob.payment}</strong></span> : <span>Clear a hive. Collect your payment.</span>}</div>
 			<div className={styles.stage} data-playing={!overlay}>
@@ -77,7 +77,7 @@ export function ExterminatorGame() {
 							<p className={styles.eyebrow}>Base / {view.hivesCleared} hives eradicated</p><h2>Choose your next hive.</h2>
 							<div className={`${styles.upgrades} ${styles.hiveChoices}`}>{view.hives.map((hive, index) => <button ref={index === 0 ? firstUpgrade : undefined} key={hive.id} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.deploy(hive.id)}>
 								<span className={styles.upgradeTop}><strong>{hive.name}</strong><kbd>{index + 1}</kbd></span>
-								<span className={styles.activity}>Difficulty: {hive.activity ?? "Unknown"}{hive.threat !== null && <small>Threat {hive.threat} · {hive.minBugs}–{hive.maxBugs} bugs / wave</small>}</span>
+								<span className={styles.activity}>Difficulty: {hive.activity ?? "Unknown"}{hive.threat !== null && <small>Threat {hive.threat} · {hive.minBugs}–{hive.maxBugs} initial spawns / wave</small>}</span>
 								<span>Mostly {hive.terrain.toLowerCase()}{hive.secondaryTerrain && <small className={styles.secondaryTerrain}>Then {hive.secondaryTerrain.toLowerCase()}</small>}</span>
 								<span>Enemy mix: {hive.enemyMix ?? "Unknown"}</span>
 								<small>Payment <b>${hive.payment}</b> · Deploy ↗</small>
@@ -114,7 +114,7 @@ export function ExterminatorGame() {
 					</div>
 				</div>}
 			</div>
-			<div className={styles.terrainInfo}><span>{view.weaponName} · {UNDERCARRIAGES.find(part => part.id === view.undercarriage)?.name} / <b>{view.terrain === "firm" ? "Firm ground" : view.terrain === "mud" ? "Mud" : "Rubble"}</b></span><span className={styles.terrainLegend}><i />Firm <i />Mud <i />Rubble</span></div>
+			<div className={styles.terrainInfo}><span>{view.weaponName} · {UNDERCARRIAGES.find(part => part.id === view.undercarriage)?.name} / <b>{view.terrain === "firm" ? "Firm ground" : view.terrain === "mud" ? "Mud" : "Rubble"}</b>{view.slimed && <b> · Slime: half speed</b>}</span><span className={styles.terrainLegend}><i />Firm <i />Mud <i />Rubble</span></div>
 			<footer className={styles.footer}><span className={styles.desktopHint}>WASD / arrows <b>move</b> · mouse <b>aim</b> · Esc <b>pause</b></span><span className={styles.touchHint}>Left stick <b>move</b> · right stick <b>aim</b></span><span className={styles.controller}><Gamepad2 size={15} />{view.controller ? "Controller connected" : "Controller ready"}</span></footer>
 		</section>
 		<p className={styles.status} role="status">{view.mode === "paused" ? "Game paused." : view.mode === "base" ? `At base. ${view.hivesCleared} hives eradicated. Choose a hive or open the workshop.` : view.mode === "weapons" ? "Workshop. Equip a weapon or return to refit." : view.mode === "workshop" ? "Workshop. Equip parts or return to hive selection." : view.mode === "shop" ? `Workshop. $${view.money} available for upgrades and repairs.` : view.mode === "dead" ? `Run ended. ${view.hivesCleared} hives eradicated.` : ""}</p>
