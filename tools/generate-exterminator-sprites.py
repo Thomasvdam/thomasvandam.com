@@ -294,7 +294,7 @@ part("bug-egg-body", [poly([(7, 12), (11, 5), (19, 4), (25, 10), (27, 19), (23, 
 
 # Arena predators retain registered pivots but use distinct silhouettes.
 for prefix, dark, base, light in [("bombardier", "rustDark", "orange", "gold"),
-        ("dragonfly", "blueDark", "blue", "blueLight"), ("bolas", "violetDark", "violet", "violetLight")]:
+        ("dragonfly", "blueDark", "blue", "blueLight"), ("bolas", "violetDark", "violet", "violetLight"), ("assassin", "rustDark", "rust", "rustLight")]:
     part(f"bug-{prefix}-body", [poly([(3, 12), (9, 9), (22, 9), (27, 14), (27, 20), (20, 24), (8, 23), (3, 19)], "ink"),
         rect(6, 12, 17, 8, dark), rect(10, 12, 11, 3, base), rect(16, 13, 5, 2, light)])
     part(f"bug-{prefix}-head", [poly([(9, 12), (15, 8), (23, 11), (26, 16), (23, 22), (14, 24), (9, 20)], "ink"),
@@ -302,6 +302,15 @@ for prefix, dark, base, light in [("bombardier", "rustDark", "orange", "gold"),
         poly([(23, 11), (30, 9), (27, 15)], dark), poly([(23, 21), (30, 24), (27, 18)], dark)])
     part(f"bug-{prefix}-leg", [poly([(6, 14), (13, 13), (20, 17), (28, 24), (26, 27), (18, 20), (12, 17), (6, 18)], "ink"),
         poly([(8, 15), (12, 15), (20, 19), (26, 25), (25, 25), (18, 20), (11, 17), (8, 17)], base), rect(8, 15, 3, 1, light)])
+# An exposed narrow thorax and hooked forelegs distinguish the corpse collector.
+part("bug-assassin-shell", [poly([(3, 14), (8, 9), (18, 10), (25, 14), (24, 20), (17, 23), (7, 22), (3, 18)], "ink"),
+    poly([(5, 14), (9, 11), (18, 12), (23, 15), (21, 19), (16, 21), (8, 20)], "rustDark"),
+    rect(10, 12, 3, 8, "rustLight"), rect(18, 14, 3, 4, "rust")])
+part("bug-assassin-head", [poly([(7, 14), (17, 10), (24, 13), (29, 16), (24, 20), (17, 23), (7, 19)], "ink"),
+    poly([(10, 14), (18, 12), (23, 15), (26, 16), (22, 18), (17, 21), (10, 18)], "rust"),
+    rect(18, 13, 3, 2, "gold"), rect(18, 18, 3, 2, "gold"), poly([(24, 16), (31, 15), (29, 18), (23, 18)], "rustLight")])
+part("bug-assassin-leg", [poly([(6, 14), (14, 12), (21, 15), (28, 24), (27, 29), (23, 28), (24, 24), (18, 18), (12, 17), (6, 18)], "ink"),
+    poly([(8, 15), (13, 14), (20, 17), (26, 25), (26, 27), (24, 25), (18, 19), (12, 16), (8, 17)], "rust"), rect(9, 14, 3, 2, "rustLight")])
 part("bug-bombardier-shell", [poly([(0, 11), (6, 5), (19, 5), (26, 11), (26, 22), (19, 28), (6, 28), (0, 22)], "ink"),
     rect(3, 11, 20, 11, "rustDark"), rect(7, 7, 12, 18, "orange"), rect(11, 7, 3, 18, "rustDark"),
     rect(4, 9, 4, 6, "gold"), rect(4, 19, 4, 6, "gold"), rect(1, 12, 3, 3, "white"), rect(1, 20, 3, 3, "white")])
@@ -353,6 +362,7 @@ BUG_PALETTES = {
     "soldier": ("redDark", "red", "redLight"), "bulletant": ("blueDark", "blue", "acidLight"),
     "antlion": ("ochreDark", "ochre", "ochreLight"), "bombardier": ("rustDark", "orange", "gold"),
     "dragonfly": ("blueDark", "blue", "blueLight"), "bolas": ("violetDark", "violet", "violetLight"),
+    "assassin": ("rustDark", "rust", "rustLight"),
     "slug": ("oliveDark", "wing", "wingLight"), "egg": ("darkArmor", "light", "white"),
 }
 

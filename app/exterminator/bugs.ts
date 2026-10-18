@@ -1,3 +1,4 @@
+import { stepAssassin } from "./remains";
 import { stepBombardier, stepDragonfly, stepSpider } from "./predators";
 import { moveBug as move } from "./bug-motion";
 import { colonyIndex, hatchEgg, stepQueen, stepSlug, stepWorker } from "./ecology";
@@ -44,7 +45,9 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 		if (enemy.health <= 0) continue;
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
 		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
-		if (enemy.variant === "antlion") {
+		if (enemy.variant === "assassin") {
+			stepAssassin(game, enemy, dt, bounds);
+		} else if (enemy.variant === "antlion") {
 			enemy.angle = desired; continue;
 		} else if (enemy.variant === "bombardier") {
 			stepBombardier(game, enemy, dt, bounds, playerRadius);

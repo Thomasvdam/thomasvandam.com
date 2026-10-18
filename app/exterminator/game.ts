@@ -1,3 +1,4 @@
+import { absorbBackpack, burnRemains, corpseAlive, inFlame, leaveCorpse, type BugRemains } from "./remains";
 import { blastTethers, firstTetherHit, flameTethers, preparePulls, provokeBombardier, stepBolas, type Bola, type Tether, type SpiderIndex } from "./predators";
 import { SLIME_LIFETIME, slimeSpeedFactor, spawnQueenGuards, type Slime } from "./ecology";
 import { circleHitTime, distanceToSegment, clamp, limitVector, type Vector } from "./math";
@@ -44,7 +45,7 @@ export type Lob = Vector & { id: number; target: Vector; age: number };
 export type Explosion = Vector & { id: number; radius: number; bornAt: number };
 export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: number };
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
-export type BugRemains = Vector & { id: number; variant: BugVariant; angle: number; diedAt: number; segments: Vector[] };
+export type { BugRemains } from "./remains";
 export type Game = {
 	debug: { queue: BugVariant[]; total: number } | null;
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
@@ -175,8 +176,10 @@ function deflect(game: Game, bullet: Bullet, enemy: Enemy) {
 	if (game.deflections.length > 64) game.deflections.shift();
 	enemy.blockedAt = game.time;
 }
-function damageEnemy(game: Game, enemy: Enemy, damage: number) {
-	enemy.health -= damage; enemy.hitAt = game.time; provokeBombardier(game, enemy);
+function damageEnemy(game: Game, enemy: Enemy, damage: number, flame = false) {
+	enemy.health -= absorbBackpack(enemy, damage, game.time, flame);
+	if (flame && enemy.health <= 0) enemy.burnt = true;
+	enemy.hitAt = game.time; provokeBombardier(game, enemy);
 }
 function explode(game: Game, bullet: Bullet, spiders: SpiderIndex) {
 	for (const enemy of game.enemies) {
@@ -194,13 +197,10 @@ function fireWeapon(game: Game, dt: number, spiders: SpiderIndex) {
 		// Continuous damage integrates with simulation time, rather than a firing cooldown.
 		const origin = { x: player.x + x * 20 + y * 6.25, y: player.y + y * 20 - x * 6.25 };
 		flameTethers(game, spiders, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
+		burnRemains(game, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
 		for (const enemy of game.enemies) {
-			const inFlame = enemyCircles(enemy).some(circle => {
-				const dx = circle.x - origin.x, dy = circle.y - origin.y, distance = Math.hypot(dx, dy);
-				const angle = Math.atan2(dy, dx) - player.angle, offset = Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle)));
-				return distance <= stats.range + circle.radius && (distance <= circle.radius || offset <= FLAME_HALF_ANGLE + Math.asin(Math.min(1, circle.radius / distance)));
-			});
-			if (enemy.health > 0 && inFlame) damageEnemy(game, enemy, stats.damage * dt * (frontArmour(enemy, origin) ? FRONT_FLAME_MULTIPLIER : 1));
+			const hit = enemyCircles(enemy).some(circle => inFlame(circle, circle.radius, origin, player.angle, stats.range, FLAME_HALF_ANGLE));
+			if (enemy.health > 0 && hit) damageEnemy(game, enemy, stats.damage * dt * (frontArmour(enemy, origin) ? FRONT_FLAME_MULTIPLIER : 1), true);
 		}
 		player.shotAt = game.time;
 		return;
@@ -222,7 +222,7 @@ export function step(game: Game, input: Input, dt: number) {
 	game.acidImpacts = game.acidImpacts.filter(impact => game.time - impact.bornAt < .25);
 	game.deflections = game.deflections.filter(effect => game.time - effect.bornAt < .18);
 	game.explosions = game.explosions.filter(explosion => game.time - explosion.bornAt < .35);
-	game.remains = game.remains.filter(remains => game.time - remains.diedAt < .5);
+	game.remains = game.remains.filter(remains => corpseAlive(remains, game.time));
 	const move = limitVector(input.move), player = game.player;
 	const previousPlayer = { x: player.x, y: player.y };
 	const stats = playerStats(game), pulls = preparePulls(game, dt); game.pitTerrain = pulls.terrain;
@@ -297,8 +297,7 @@ export function step(game: Game, input: Input, dt: number) {
 	game.enemies = game.enemies.filter(enemy => {
 		if (enemy.health > 0) return true;
 		if (enemy.variant !== "egg") game.kills++;
-		game.remains.push({ id: enemy.id, x: enemy.x, y: enemy.y, variant: enemy.variant, angle: enemy.angle, diedAt: game.time, segments: enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment })) : [] });
-		if (game.remains.length > 64) game.remains.shift();
+		leaveCorpse(game, enemy);
 		return false;
 	});
 	const waveCleared = game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.length === 0;
