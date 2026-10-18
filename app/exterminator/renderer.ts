@@ -1,3 +1,5 @@
+import { warningLit } from "./lighting";
+import { createLightingLayer, drawLightFixtures } from "./lighting-renderer";
 import { createRemainsLayer, drawRemains, drawBackpack } from "./remains-renderer";
 import { drawBolas, drawPitFields, drawPredatorTelegraph, drawTethers } from "./predator-renderer";
 import { createSlimeLayer } from "./slime-renderer";
@@ -68,6 +70,7 @@ export function createRenderer(makeCanvas = () => document.createElement("canvas
 	let slimeLayer: ReturnType<typeof createSlimeLayer> | undefined;
 	let remainsLayer: ReturnType<typeof createRemainsLayer> | undefined;
 	const background = makeCanvas(), context = background.getContext("2d")!;
+	let lightingLayer: ReturnType<typeof createLightingLayer> | undefined;
 	return (ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number) => {
 		if (BASE_MODES.has(game.mode)) return render(ctx, game, sprites, width, height, pixelRatio);
 		if (tiles !== game.terrain || variation !== game.hivesCleared % 2 || ratio !== pixelRatio) {
@@ -78,11 +81,12 @@ export function createRenderer(makeCanvas = () => document.createElement("canvas
 		}
 		if (!slimeLayer && game.slime.length > 0) slimeLayer = createSlimeLayer(makeCanvas);
 		if (!remainsLayer && game.remains.length > 0) remainsLayer = createRemainsLayer(makeCanvas);
-		return render(ctx, game, sprites, width, height, pixelRatio, background, slimeLayer?.(game), remainsLayer?.(game, sprites));
+		lightingLayer ??= createLightingLayer(makeCanvas);
+		return render(ctx, game, sprites, width, height, pixelRatio, background, slimeLayer?.(game), remainsLayer?.(game, sprites), lightingLayer(game));
 	};
 }
 
-export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource, slimeLayer?: CanvasImageSource, remainsLayer?: CanvasImageSource): Camera {
+export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource, slimeLayer?: CanvasImageSource, remainsLayer?: CanvasImageSource, lightingLayer?: CanvasImageSource): Camera {
 	if (BASE_MODES.has(game.mode)) {
 		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
@@ -140,7 +144,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	};
 
 	for (const warning of game.spawns) {
-		if (!visible(warning.x, warning.y, 120)) continue;
+		if (!visible(warning.x, warning.y, 120) || !warningLit(game, warning)) continue;
 		const progress = 1 - warning.remaining / SPAWN_WARNING_TIME;
 		const appearance = spawnAppearance(warning.variant, progress), radius = (warning.variant === "centipede" ? 45 : 27) + Math.sin(progress * Math.PI * 6) * 1.5;
 		ctx.fillStyle = "#e795641c"; ctx.strokeStyle = "#b37b5366"; ctx.lineWidth = 1;
@@ -200,10 +204,13 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		const elevation = Math.sin(progress * Math.PI) * 80;
 		ctx.save();
 		if (progress < 1) {
-			ctx.fillStyle = "#dcaa6533"; ctx.strokeStyle = "#f2c480"; ctx.lineWidth = 2;
-			ctx.beginPath(); ctx.arc(target.x, target.y, BEETLE_BLAST_RADIUS, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-			ctx.beginPath(); ctx.moveTo(target.x - 7, target.y); ctx.lineTo(target.x + 7, target.y); ctx.moveTo(target.x, target.y - 7); ctx.lineTo(target.x, target.y + 7); ctx.stroke();
-			ctx.beginPath(); ctx.arc(target.x, target.y, BEETLE_BLAST_RADIUS * (1 - progress), 0, Math.PI * 2); ctx.stroke();
+			const source = game.enemies.find(enemy => enemy.id === lob.owner && enemy.health > 0) ?? lob;
+			if (warningLit(game, source)) {
+				ctx.fillStyle = "#dcaa6533"; ctx.strokeStyle = "#f2c480"; ctx.lineWidth = 2;
+				ctx.beginPath(); ctx.arc(target.x, target.y, BEETLE_BLAST_RADIUS, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+				ctx.beginPath(); ctx.moveTo(target.x - 7, target.y); ctx.lineTo(target.x + 7, target.y); ctx.moveTo(target.x, target.y - 7); ctx.lineTo(target.x, target.y + 7); ctx.stroke();
+				ctx.beginPath(); ctx.arc(target.x, target.y, BEETLE_BLAST_RADIUS * (1 - progress), 0, Math.PI * 2); ctx.stroke();
+			}
 			shadow(x, y, 8, .35); ctx.translate(x, y - elevation); ctx.rotate(lob.age * 9);
 			ctx.drawImage(sprites.dungBall, -10, -10, 20, 20);
 		} else {
@@ -244,14 +251,15 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.restore();
 	}
 	for (const enemy of game.enemies) {
-		drawPredatorTelegraph(ctx, game, enemy);
+		const lit = warningLit(game, enemy);
+		if (lit) drawPredatorTelegraph(ctx, game, enemy);
 		if (!visible(enemy.x, enemy.y) && !(enemy.variant === "centipede" && enemy.state.segments.some(segment => visible(segment.x, segment.y))) && !(enemy.variant === "dragonfly" && visible(enemy.state.target.x, enemy.state.target.y))) continue;
 		const arrival = clamp((game.time - enemy.bornAt) / .18, 0, 1);
-		if (arrival < 1) {
+		if (lit && arrival < 1) {
 			ctx.save(); ctx.globalAlpha *= (1 - arrival) * .3; ctx.strokeStyle = "#c8ac73"; ctx.lineWidth = 2;
 			ctx.beginPath(); ctx.ellipse(enemy.x, enemy.y, 20 + arrival * 12, 12 + arrival * 8, 0, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
 		}
-		if (enemy.variant === "lunger" && (enemy.state.phase === "windup" || enemy.state.phase === "lunge")) {
+		if (lit && enemy.variant === "lunger" && (enemy.state.phase === "windup" || enemy.state.phase === "lunge")) {
 			const length = enemy.state.phase === "windup" ? LUNGE_DISTANCE : enemy.state.distance;
 			const progress = enemy.state.phase === "windup" ? 1 - enemy.state.remaining / LUNGE_WINDUP : 1;
 			ctx.save(); ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.state.direction);
@@ -266,17 +274,17 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 24, enemy.angle - ARMOUR_HALF_ANGLE, enemy.angle + ARMOUR_HALF_ANGLE); ctx.stroke(); ctx.restore();
 		}
 		const spitCharge = (enemy.variant === "spitter" || enemy.variant === "bulletAnt") && enemy.state.phase === "windup" ? 1 - enemy.state.remaining / ACID_WINDUP : 0;
-		if ((enemy.variant === "spitter" || enemy.variant === "bulletAnt") && enemy.state.phase === "windup") {
+		if (lit && (enemy.variant === "spitter" || enemy.variant === "bulletAnt") && enemy.state.phase === "windup") {
 			ctx.save(); ctx.strokeStyle = "#bce36388"; ctx.lineWidth = 1 + spitCharge; ctx.setLineDash([3, 7]);
 			ctx.beginPath(); ctx.moveTo(enemy.x, enemy.y); ctx.lineTo(enemy.state.target.x, enemy.state.target.y); ctx.stroke(); ctx.setLineDash([]);
 			ctx.fillStyle = "#d7ee84"; ctx.beginPath(); ctx.arc(enemy.x + Math.cos(enemy.angle) * 24, enemy.y + Math.sin(enemy.angle) * 24, 2 + spitCharge * 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 		}
-		if (enemy.variant === "egg") {
+		if (enemy.variant === "egg" && lit) {
 			const progress = clamp((game.time - enemy.bornAt) / EGG_HATCH_TIME, 0, 1);
 			ctx.strokeStyle = enemy.state.hatchVariant === "bulletAnt" ? "#96ce98" : enemy.state.hatchVariant === "soldier" ? "#dc8970" : "#c6a075"; ctx.lineWidth = 2;
 			ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 14, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
 		}
-		if (enemy.variant === "queen") {
+		if (enemy.variant === "queen" && lit) {
 			ctx.strokeStyle = "#d4b37188"; ctx.lineWidth = 2;
 			ctx.beginPath(); ctx.arc(enemy.x, enemy.y, 29, enemy.angle + Math.PI / 2, enemy.angle + Math.PI / 2 + (1 - enemy.state.layRemaining / QUEEN_LAY_INTERVAL) * Math.PI); ctx.stroke();
 		}
@@ -321,6 +329,11 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x + 8, 12); ctx.moveTo(x, FIELD.height - 12); ctx.lineTo(x + 8, FIELD.height - 4); ctx.stroke();
 	}
 	drawTethers(ctx, game);
-	ctx.restore(); ctx.restore();
+	ctx.restore();
+	if (lightingLayer) {
+		ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(lightingLayer, 0, 0, FIELD.width, FIELD.height); ctx.restore();
+	}
+	drawLightFixtures(ctx, game);
+	ctx.restore();
 	return camera;
 }

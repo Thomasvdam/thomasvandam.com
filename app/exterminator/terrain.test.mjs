@@ -92,7 +92,7 @@ test("part speed ranks are independent, restored on re-equip, and reset for a ne
 	expect(upgradeLevels(game).speed).toBe(3); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * 1.24); expect(mechSkin(upgradeLevels(game), "legs").footL).toBe("mechBoostFoot");
 	chooseUndercarriage(game, "wheels"); expect(upgradeLevels(game).speed).toBe(1); expect(mechSkin(upgradeLevels(game), "wheels").footL).toBe("mechServoWheel");
 	game.mode = "dead"; const frozen = JSON.stringify(game); chooseUndercarriage(game, "treads"); chooseUpgrade(game, "speed"); expect(JSON.stringify(game)).toBe(frozen);
-	const fresh = newGame(); expect(fresh.parts).toEqual({ weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, undercarriages: { legs: 0, wheels: 0, treads: 0 } }); expect(fresh.hivesCleared).toBe(0);
+	const fresh = newGame(); expect(fresh.parts).toEqual({ weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, lights: 0, cornerLights: { northWest: false, northEast: false, southWest: false, southEast: false }, undercarriages: { legs: 0, wheels: 0, treads: 0 } }); expect(fresh.hivesCleared).toBe(0);
 });
 
 test("handling budgets and capped speed retain terrain advantages", () => {

@@ -3,7 +3,7 @@
 import { BUG_NAMES, BUG_TYPES, defaultComposition } from "./debug";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, HeartPulse, Radio, Pause, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, HeartPulse, LampDesk, Radio, Pause, Play, RotateCcw } from "lucide-react";
 import { MOVEMENT, TERRAIN_NAMES, UNDERCARRIAGES } from "./terrain";
 import { MAX_SENSOR_RANK, newGame, WAVES_PER_HIVE } from "./game";
 import { mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
@@ -23,6 +23,7 @@ function partArt(view: ExterminatorView, choice: PartChoice) {
 export function ExterminatorGame() {
 	const canvas = useRef<HTMLCanvasElement>(null), movePad = useRef<HTMLDivElement>(null), aimPad = useRef<HTMLDivElement>(null);
 	const moveThumb = useRef<HTMLSpanElement>(null), aimThumb = useRef<HTMLSpanElement>(null), firstUpgrade = useRef<HTMLButtonElement>(null);
+	const menu = useRef<HTMLDivElement>(null);
 	const runtime = useRef<ReturnType<typeof createExterminatorRuntime> | null>(null);
 	const [view, setView] = useState<ExterminatorView>(() => viewFromGame(newGame()));
 	const [composition, setComposition] = useState(defaultComposition);
@@ -38,6 +39,7 @@ export function ExterminatorGame() {
 		return () => { instance.dispose(); if (runtime.current === instance) runtime.current = null; };
 	}, []);
 	useEffect(() => { if (["shop", "base", "workshop", "weapons"].includes(view.mode)) firstUpgrade.current?.focus({ preventScroll: true }); }, [view.mode, view.money]);
+	useEffect(() => { if (view.controller) menu.current?.querySelector(`.${styles.selected}`)?.scrollIntoView({ block: "nearest" }); }, [view.controller, view.selection, view.mode]);
 	const clock = `${Math.floor(view.time / 60)}:${String(view.time % 60).padStart(2, "0")}`;
 	const selectedKind = view.controller ? view.choices[view.selection]?.kind : undefined;
 	const overlay = view.mode !== "playing" || !loaded || !!error;
@@ -63,7 +65,7 @@ export function ExterminatorGame() {
 				<div className={styles.debugCounts}>{BUG_TYPES.map(type => <label key={type}>{BUG_NAMES[type]}<input aria-label={`${BUG_NAMES[type]} count`} type="number" min="0" max="100" step="1" value={composition[type]} onChange={event => setComposition(current => ({ ...current, [type]: Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))) }))} /></label>)}</div>
 				<div className={styles.debugActions}><button disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode) || debugTotal === 0 || debugTotal > 100} onClick={() => runtime.current?.debugWave(composition)}>Spawn wave ({debugTotal})</button><span>{view.hive ? "Replaces the current wave. Up to 100 spawns; queens bring two guards and lay eggs. Automatic waves are off." : "Deploy to a hive, then spawn a wave. Automatic waves are off."}</span></div>
 			</details>}
-			<div className={styles.economy}><span>Funds <strong>${view.money}</strong></span>{view.payment !== null ? <span>Job payment <strong>${view.payment}</strong></span> : view.lastJob ? <span>{view.lastJob.name} cleared · <strong>+${view.lastJob.payment}</strong></span> : <span>Clear a hive. Collect your payment.</span>}</div>
+			<div className={styles.economy}><span>Funds <strong>${view.money}</strong></span><span>Lights <strong>{view.lightRank} / 3</strong> · corners <strong>{Object.values(view.cornerLights).filter(Boolean).length} / 4</strong></span>{view.payment !== null ? <span>Job payment <strong>${view.payment}</strong></span> : view.lastJob ? <span>{view.lastJob.name} cleared · <strong>+${view.lastJob.payment}</strong></span> : <span>Clear a hive. Collect your payment.</span>}</div>
 			<div className={styles.stage} data-playing={!overlay}>
 				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Exterminator playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
 				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.debug && view.enemies === 0 ? "Waiting for a custom wave" : <>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</>}</span></>}</div>}
@@ -84,14 +86,14 @@ export function ExterminatorGame() {
 							</button>)}</div>
 							<button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Open workshop</button>
 						</> : view.mode === "shop" || view.mode === "workshop" || view.mode === "weapons" ? <>
-							{view.mode === "workshop" ? <><p className={styles.eyebrow}>Base / workshop</p><h2>Refit your mech.</h2><p>{view.weaponName} equipped. Refit your undercarriage or change weapon.</p></> : view.mode === "weapons" ? <><p className={styles.eyebrow}>Workshop / weapons</p><h2>Choose your firepower.</h2><p>Each weapon keeps its own upgrades.</p></> : <><p className={styles.eyebrow}>Workshop / ${view.money} available</p><h2>Put it to work.</h2><p>Upgrade a part, repair your mech, or improve its sensor.</p></>}
-							<div className={`${styles.upgrades} ${view.mode === "weapons" ? styles.weaponChoices : ""}`}>{view.choices.map((upgrade, index) => upgrade.kind === "stat" || upgrade.kind === "undercarriage" || upgrade.kind === "weapon" ? <button ref={index === 0 ? firstUpgrade : undefined} key={upgrade.id} disabled={upgrade.kind === "stat" && upgrade.cost > view.money} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => upgrade.kind === "weapon" ? runtime.current?.equipWeapon(upgrade.id) : upgrade.kind === "undercarriage" ? runtime.current?.equip(upgrade.id) : runtime.current?.upgrade(upgrade.id)}>
+							{view.mode === "workshop" ? <><p className={styles.eyebrow}>Base / workshop</p><h2>Refit your mech.</h2><p>{view.weaponName} equipped. Refit your undercarriage or change weapon.</p></> : view.mode === "weapons" ? <><p className={styles.eyebrow}>Workshop / weapons</p><h2>Choose your firepower.</h2><p>Each weapon keeps its own upgrades.</p></> : <><p className={styles.eyebrow}>Workshop / ${view.money} available</p><h2>Put it to work.</h2><p>Upgrade your mech, repair it, or light the hive.</p></>}
+							<div ref={menu} className={`${styles.upgrades} ${view.mode === "weapons" ? styles.weaponChoices : ""}`}>{view.choices.map((upgrade, index) => upgrade.kind === "stat" || upgrade.kind === "undercarriage" || upgrade.kind === "weapon" ? <button ref={index === 0 ? firstUpgrade : undefined} key={upgrade.id} disabled={upgrade.kind === "stat" && upgrade.cost > view.money} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => upgrade.kind === "weapon" ? runtime.current?.equipWeapon(upgrade.id) : upgrade.kind === "undercarriage" ? runtime.current?.equip(upgrade.id) : runtime.current?.upgrade(upgrade.id)}>
 								<span className={styles.upgradeTop}><span className={styles.upgradeArt} aria-hidden="true" style={{ backgroundImage: `url(${SPRITE_PARTS[partArt(view, upgrade)].path})` }} /><kbd>{upgrade.key}</kbd></span>
 								<strong>{upgrade.name}{((upgrade.kind === "undercarriage" && upgrade.id === view.undercarriage) || (upgrade.kind === "weapon" && upgrade.id === view.weapon)) ? " / equipped" : ""}</strong><span>{upgrade.description}</span>
 								{upgrade.kind === "undercarriage" && <span className={styles.handling}>{(["firm", "rubble", "mud"] as const).map(terrain => <span key={terrain}>{TERRAIN_NAMES[terrain]} <b>{Math.round(MOVEMENT[upgrade.id][terrain] * 1000) / 10}%</b></span>)}</span>}
 								<small>{upgrade.kind === "weapon" ? `Damage rank ${view.weaponRanks[upgrade.id].damage} · ${upgrade.modLabel.toLowerCase()} rank ${view.weaponRanks[upgrade.id].mod}` : upgrade.kind === "undercarriage" ? `Speed rank ${view.parts[upgrade.id]} / 3` : <>{upgrade.id === "speed" ? view.undercarriage === "legs" ? "Leg servos" : "Drive motor" : view.weaponName} · rank {view.upgrades[upgrade.id] + 1} · ${upgrade.cost}</>}</small>
 							</button> : upgrade.kind === "service" ? <button key={upgrade.id} disabled={upgrade.cost > view.money} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.purchase(upgrade.id)}>
-								<span className={styles.upgradeTop}>{upgrade.id === "heal" ? <HeartPulse size={30} aria-hidden="true" /> : <Radio size={30} aria-hidden="true" />}<kbd>{upgrade.key}</kbd></span>
+								<span className={styles.upgradeTop}>{upgrade.id === "heal" ? <HeartPulse size={30} aria-hidden="true" /> : upgrade.id === "sensor" ? <Radio size={30} aria-hidden="true" /> : <LampDesk size={30} aria-hidden="true" />}<kbd>{upgrade.key}</kbd></span>
 								<strong>{upgrade.name}</strong><span>{upgrade.description}</span><small>${upgrade.cost}{upgrade.id === "sensor" ? ` · rank ${view.sensorRank + 1} / ${MAX_SENSOR_RANK}` : ""}</small>
 							</button> : null)}</div>
 							{view.mode === "workshop" && <div className={styles.workshopActions}>
@@ -101,7 +103,7 @@ export function ExterminatorGame() {
 							</div>}
 							{view.mode === "weapons" && <button className={`${styles.secondary} ${selectedKind === "workshop" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>5</kbd> Back to workshop</button>}
 							{view.mode === "shop" && <button className={`${styles.secondary} ${selectedKind === "workshop" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>6</kbd> Back to workshop</button>}
-							<p className={styles.hint}>{view.controller ? "D-pad or left stick to choose · A / bottom button to confirm" : "Tap a card, use its number, or press Tab and Enter"}</p>
+							<p className={styles.hint}>{view.controller ? "D-pad or left stick to choose · A / bottom button to confirm" : "Tap a card, use its shortcut, or press Tab and Enter"}</p>
 						</> : view.mode === "paused" ? <>
 							<p className={styles.eyebrow}>Game paused</p><h2>Take a breather.</h2><p>Your run is right where you left it.</p><button className={styles.primary} onClick={() => runtime.current?.action("pause")}>Resume game <Play size={16} /></button>
 						</> : view.mode === "dead" ? <>
@@ -109,7 +111,7 @@ export function ExterminatorGame() {
 						</> : <>
 							<p className={styles.eyebrow}>Move / aim / survive</p><h2>Hold your ground.</h2><p>One mech. Plenty of bugs.<br />Eradicate a hive. Return to base. Refit and redeploy.<br />Choose your terrain. Keep moving.</p>
 							<div className={styles.instructions}><span><b>Keyboard + mouse</b>WASD / arrows to move · mouse to aim</span><span><b>Touch</b>Left joystick to move · right joystick to aim</span><span><b>Controller</b>Left stick to move · right stick to aim</span></div>
-							<p className={styles.hint}>Your weapon fires continuously in the aimed direction.</p><button className={styles.primary} onClick={() => runtime.current?.action("start")}>Go to base <ArrowUpRight size={18} /></button>
+							<p className={styles.hint}>Your weapon and floodlight follow your aim. Shadows hide attack warnings.</p><button className={styles.primary} onClick={() => runtime.current?.action("start")}>Go to base <ArrowUpRight size={18} /></button>
 						</>}
 					</div>
 				</div>}
