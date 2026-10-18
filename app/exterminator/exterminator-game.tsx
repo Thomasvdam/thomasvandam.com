@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, HeartPulse, Radio, Pause, Play, RotateCcw } from "lucide-react";
 import { MOVEMENT, TERRAIN_NAMES, UNDERCARRIAGES } from "./terrain";
-import { newGame, WAVES_PER_HIVE } from "./game";
+import { MAX_SENSOR_RANK, newGame, WAVES_PER_HIVE } from "./game";
 import { mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
 import { createExterminatorRuntime, viewFromGame, type ExterminatorView } from "./runtime";
 import styles from "./exterminator.module.css";
@@ -79,6 +79,7 @@ export function ExterminatorGame() {
 								<span className={styles.upgradeTop}><strong>{hive.name}</strong><kbd>{index + 1}</kbd></span>
 								<span className={styles.activity}>Difficulty: {hive.activity ?? "Unknown"}{hive.threat !== null && <small>Threat {hive.threat} · {hive.minBugs}–{hive.maxBugs} bugs / wave</small>}</span>
 								<span>Mostly {hive.terrain.toLowerCase()}{hive.secondaryTerrain && <small className={styles.secondaryTerrain}>Then {hive.secondaryTerrain.toLowerCase()}</small>}</span>
+								<span>Enemy mix: {hive.enemyMix ?? "Unknown"}</span>
 								<small>Payment <b>${hive.payment}</b> · Deploy ↗</small>
 							</button>)}</div>
 							<button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Open workshop</button>
@@ -91,7 +92,7 @@ export function ExterminatorGame() {
 								<small>{upgrade.kind === "weapon" ? `Damage rank ${view.weaponRanks[upgrade.id].damage} · ${upgrade.modLabel.toLowerCase()} rank ${view.weaponRanks[upgrade.id].mod}` : upgrade.kind === "undercarriage" ? `Speed rank ${view.parts[upgrade.id]} / 3` : <>{upgrade.id === "speed" ? view.undercarriage === "legs" ? "Leg servos" : "Drive motor" : view.weaponName} · rank {view.upgrades[upgrade.id] + 1} · ${upgrade.cost}</>}</small>
 							</button> : upgrade.kind === "service" ? <button key={upgrade.id} disabled={upgrade.cost > view.money} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.purchase(upgrade.id)}>
 								<span className={styles.upgradeTop}>{upgrade.id === "heal" ? <HeartPulse size={30} aria-hidden="true" /> : <Radio size={30} aria-hidden="true" />}<kbd>{upgrade.key}</kbd></span>
-								<strong>{upgrade.name}</strong><span>{upgrade.description}</span><small>${upgrade.cost}{upgrade.id === "sensor" ? ` · rank ${view.sensorRank + 1} / 2` : ""}</small>
+								<strong>{upgrade.name}</strong><span>{upgrade.description}</span><small>${upgrade.cost}{upgrade.id === "sensor" ? ` · rank ${view.sensorRank + 1} / ${MAX_SENSOR_RANK}` : ""}</small>
 							</button> : null)}</div>
 							{view.mode === "workshop" && <div className={styles.workshopActions}>
 								<button className={`${styles.secondary} ${selectedKind === "shop" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("shop")}><kbd>4</kbd> Upgrades &amp; repairs</button>

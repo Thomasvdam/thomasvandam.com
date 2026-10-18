@@ -1,17 +1,18 @@
-import { BUG_SPECS, BEETLE_ROLL_TIME, LUNGE_TRIGGER, LUNGE_DISTANCE, LUNGE_WINDUP, LUNGE_SPEED, LUNGE_WINDUP_TURN_RATE, ARMOUR_HALF_ANGLE, SEGMENT_SPACING, SEGMENT_COUNT, BUG_CLEARANCE, type BugVariant, type Enemy } from "./bug-types";
+import { BUG_TYPES, defaultBugWeights, type BugWeights, BUG_SPECS, BEETLE_ROLL_TIME, LUNGE_TRIGGER, LUNGE_DISTANCE, LUNGE_WINDUP, LUNGE_SPEED, LUNGE_WINDUP_TURN_RATE, ARMOUR_HALF_ANGLE, SEGMENT_SPACING, SEGMENT_COUNT, BUG_CLEARANCE, type BugVariant, type Enemy } from "./bug-types";
 import { stepAcidSpitter } from "./acid";
 import type { Bullet, Game } from "./game";
 import { clamp, angleDifference, distanceToSegment, type Vector, type Bounds } from "./math";
 
-export function bugForSpawn(cleared: number, wave: number, index: number): BugVariant {
-	if (index % 3 !== 2) return index % 2 === 0 ? "burrower" : "flyer";
-	const specialists: BugVariant[] = ["lunger"];
-	if (cleared >= 1) specialists.push("evader");
-	if (cleared >= 2) specialists.push("armoured", "beetle");
-	if (cleared >= 3) specialists.push("centipede");
-	if (cleared >= 4) specialists.push("spitter");
-	return specialists[(Math.floor(index / 3) + wave - 1) % specialists.length];
+export function bugForSpawn(cleared: number, wave: number, index: number, weights: BugWeights = defaultBugWeights(cleared)): BugVariant {
+	// A low-discrepancy sequence spreads the weighted mix through even short waves.
+	let ticket = ((index * .6180339887498949 + (wave - 1) * .4142135623730951) % 1) * BUG_TYPES.reduce((sum, type) => sum + weights[type], 0);
+	for (const type of BUG_TYPES) {
+		ticket -= weights[type];
+		if (ticket < 0) return type;
+	}
+	return "burrower";
 }
+
 export function createBug(options: { variant: BugVariant; id: number; position: Vector; player: Vector; threat: number; wave: number; time: number; bounds: Bounds }): Enemy {
 	const { variant, id, position, player, threat, wave, time, bounds } = options, spec = BUG_SPECS[variant];
 	const angle = Math.atan2(player.y - position.y, player.x - position.x);

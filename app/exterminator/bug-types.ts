@@ -7,6 +7,17 @@ export const BUG_SPECS = {
 	beetle: { health: 3, speed: 88, radius: 16 }, spitter: { health: 3, speed: 100, radius: 15 },
 } as const;
 export type BugVariant = keyof typeof BUG_SPECS;
+export const BUG_TYPES = Object.keys(BUG_SPECS) as BugVariant[];
+export const BUG_NAMES: Record<BugVariant, string> = { burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter" };
+export type BugWeights = Record<BugVariant, number>;
+export function defaultBugWeights(cleared: number): BugWeights {
+	const specialists: BugVariant[] = ["lunger"];
+	if (cleared >= 1) specialists.push("evader");
+	if (cleared >= 2) specialists.push("armoured", "beetle");
+	if (cleared >= 3) specialists.push("centipede");
+	if (cleared >= 4) specialists.push("spitter");
+	return Object.fromEntries(BUG_TYPES.map(type => [type, type === "burrower" || type === "flyer" ? specialists.length : specialists.includes(type) ? 1 : 0])) as BugWeights;
+}
 export const BEETLE_ROLL_TIME = .95;
 export const BEETLE_FLIGHT_TIME = .9;
 export const BEETLE_BLAST_RADIUS = 38;
