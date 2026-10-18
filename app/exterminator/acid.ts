@@ -1,3 +1,4 @@
+import { walkBugTo } from "./bug-motion";
 import { BUG_SPECS, type Enemy } from "./bug-types";
 import type { Game } from "./game";
 import { distanceToSegment, type Vector, type Bounds } from "./math";
@@ -76,5 +77,30 @@ export function stepAcidSpitter(game: Game, enemy: Spitter, dt: number, bounds: 
 	} else if (!acidLineClear(enemy, player, game.enemies, enemy.id)) {
 		// Without armour, sidestep armour that obstructs the firing lane.
 		walkTo(enemy, { x: enemy.x - Math.sin(angle) * state.side * 100, y: enemy.y + Math.cos(angle) * state.side * 100 }, dt, bounds);
+	}
+}
+
+export function stepBulletAnt(game: Game, enemy: Extract<Enemy, { variant: "bulletAnt" }>, dt: number, bounds: Bounds) {
+	const state = enemy.state;
+	state.remaining = Math.max(0, state.remaining - dt);
+	if (state.phase === "windup") {
+		enemy.angle = Math.atan2(state.target.y - enemy.y, state.target.x - enemy.x);
+		if (state.remaining === 0) {
+			if (acidLineClear(enemy, state.target, game.enemies, enemy.id) && game.acid.length < 64) {
+				game.acid.push({ id: game.nextId++, owner: enemy.id, x: enemy.x, y: enemy.y, vx: Math.cos(enemy.angle) * ACID_SPEED, vy: Math.sin(enemy.angle) * ACID_SPEED, life: ACID_LIFETIME });
+			}
+			state.phase = "chase"; state.remaining = 1.6;
+		}
+		return;
+	}
+	const range = Math.hypot(game.player.x - enemy.x, game.player.y - enemy.y), angle = Math.atan2(game.player.y - enemy.y, game.player.x - enemy.x);
+	const direction = range < 240 ? -1 : range > 330 ? 1 : 0;
+	walkBugTo(enemy, { x: enemy.x + Math.cos(angle) * direction * 100, y: enemy.y + Math.sin(angle) * direction * 100 }, dt, bounds);
+	enemy.angle = angle;
+	if (state.remaining === 0 && range <= 440 && acidLineClear(enemy, game.player, game.enemies, enemy.id)) {
+		state.phase = "windup"; state.remaining = ACID_WINDUP; state.target = { x: game.player.x, y: game.player.y };
+	} else if (!acidLineClear(enemy, game.player, game.enemies, enemy.id)) {
+		const side = enemy.id % 2 ? 1 : -1;
+		walkBugTo(enemy, { x: enemy.x - Math.sin(angle) * side * 100, y: enemy.y + Math.cos(angle) * side * 100 }, dt, bounds);
 	}
 }

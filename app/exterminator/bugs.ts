@@ -1,5 +1,7 @@
-import { BUG_TYPES, defaultBugWeights, type BugWeights, BUG_SPECS, BEETLE_ROLL_TIME, LUNGE_TRIGGER, LUNGE_DISTANCE, LUNGE_WINDUP, LUNGE_SPEED, LUNGE_WINDUP_TURN_RATE, ARMOUR_HALF_ANGLE, SEGMENT_SPACING, SEGMENT_COUNT, BUG_CLEARANCE, type BugVariant, type Enemy } from "./bug-types";
-import { stepAcidSpitter } from "./acid";
+import { moveBug as move } from "./bug-motion";
+import { colonyIndex, hatchEgg, stepQueen, stepSlug, stepWorker } from "./ecology";
+import { BUG_TYPES, defaultBugWeights, type BugWeights, BUG_SPECS, BEETLE_ROLL_TIME, LUNGE_TRIGGER, LUNGE_DISTANCE, LUNGE_WINDUP, LUNGE_SPEED, LUNGE_WINDUP_TURN_RATE, ARMOUR_HALF_ANGLE, SEGMENT_SPACING, BUG_CLEARANCE, type BugVariant, type Enemy } from "./bug-types";
+import { stepAcidSpitter, stepBulletAnt } from "./acid";
 import type { Bullet, Game } from "./game";
 import { clamp, angleDifference, distanceToSegment, type Vector, type Bounds } from "./math";
 
@@ -13,22 +15,7 @@ export function bugForSpawn(cleared: number, wave: number, index: number, weight
 	return "burrower";
 }
 
-export function createBug(options: { variant: BugVariant; id: number; position: Vector; player: Vector; threat: number; wave: number; time: number; bounds: Bounds }): Enemy {
-	const { variant, id, position, player, threat, wave, time, bounds } = options, spec = BUG_SPECS[variant];
-	const angle = Math.atan2(player.y - position.y, player.x - position.x);
-	const health = spec.health * (1 + Math.floor((threat - 1) / 2));
-	const base = { x: clamp(position.x, spec.radius, bounds.width - spec.radius), y: clamp(position.y, spec.radius, bounds.height - spec.radius), id, health, maxHealth: health, speed: Math.min(variant === "armoured" ? 85 : 160, spec.speed + threat * (variant === "armoured" ? 2 : 5) + wave * 3), angle, walkDistance: 12, bornAt: time, hitAt: -10, blockedAt: -10 };
-	if (variant === "spitter") return { ...base, variant, state: { phase: "cover", remaining: .6, coverId: null, side: id % 2 ? 1 : -1, target: { ...player } } };
-	if (variant === "beetle") return { ...base, variant, state: { phase: "roll", remaining: BEETLE_ROLL_TIME } };
-	if (variant === "lunger") return { ...base, variant, state: { phase: "approach", remaining: 0, direction: angle, distance: 0 } };
-	if (variant === "evader") return { ...base, variant, state: { phase: "chase", remaining: 0, cooldown: 0, direction: { x: 0, y: 0 } } };
-	if (variant === "centipede") return { ...base, variant, state: { segments: Array.from({ length: SEGMENT_COUNT - 1 }, (_, i) => ({
-		x: clamp(position.x + Math.cos(angle + Math.PI + i * .8) * (10 + i * 2.5), spec.radius, bounds.width - spec.radius),
-		y: clamp(position.y + Math.sin(angle + Math.PI + i * .8) * (10 + i * 2.5), spec.radius, bounds.height - spec.radius),
-	})) } };
-	if (variant === "armoured") return { ...base, variant, state: { phase: "chase" } };
-	return { ...base, variant, state: { phase: "chase" } };
-}
+export { createBug } from "./bug-types";
 export function enemyCircles(enemy: Enemy): (Vector & { radius: number })[] {
 	const radius = BUG_SPECS[enemy.variant].radius;
 	return [{ x: enemy.x, y: enemy.y, radius }, ...(enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment, radius })) : [])];
@@ -36,13 +23,6 @@ export function enemyCircles(enemy: Enemy): (Vector & { radius: number })[] {
 
 export function frontArmour(enemy: Enemy, source: Vector) {
 	return enemy.variant === "armoured" && Math.abs(angleDifference(Math.atan2(source.y - enemy.y, source.x - enemy.x), enemy.angle)) <= ARMOUR_HALF_ANGLE;
-}
-function move(enemy: Enemy, direction: Vector, distance: number, bounds: Bounds) {
-	const before = { x: enemy.x, y: enemy.y }, radius = BUG_SPECS[enemy.variant].radius;
-	enemy.x = clamp(enemy.x + direction.x * distance, radius, bounds.width - radius);
-	enemy.y = clamp(enemy.y + direction.y * distance, radius, bounds.height - radius);
-	const travel = Math.hypot(enemy.x - before.x, enemy.y - before.y); enemy.walkDistance += travel;
-	return travel;
 }
 function incomingProjectile(enemy: Enemy, bullets: Bullet[]) {
 	let closest: Bullet | null = null, earliest = Infinity;
@@ -57,12 +37,23 @@ function incomingProjectile(enemy: Enemy, bullets: Bullet[]) {
 	return closest;
 }
 export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: number): Set<number> {
-	const lungeContacts = new Set<number>(), player = game.player;
-	for (const enemy of game.enemies) {
+	const lungeContacts = new Set<number>(), player = game.player, colonies = colonyIndex(game.enemies);
+	for (let index = 0; index < game.enemies.length; index++) {
+		const enemy = game.enemies[index];
 		if (enemy.health <= 0) continue;
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
 		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
-		if (enemy.variant === "spitter") {
+		if (enemy.variant === "slug") {
+			stepSlug(game, enemy, dt, bounds);
+		} else if (enemy.variant === "queen") {
+			stepQueen(game, enemy, colonies.get(enemy.id)!, dt, bounds);
+		} else if (enemy.variant === "worker") {
+			stepWorker(game, enemy, enemy.state.queenId === null ? undefined : colonies.get(enemy.state.queenId), dt, bounds);
+		} else if (enemy.variant === "egg") {
+			game.enemies[index] = hatchEgg(game, enemy, bounds);
+		} else if (enemy.variant === "bulletAnt") {
+			stepBulletAnt(game, enemy, dt, bounds);
+		} else if (enemy.variant === "spitter") {
 			stepAcidSpitter(game, enemy, dt, bounds);
 		} else if (enemy.variant === "lunger") {
 			const state = enemy.state;
@@ -180,14 +171,16 @@ function translateBug(body: CollisionBody, dx: number, dy: number, bounds: Bound
 }
 export function separateBugs(enemies: Enemy[], bounds: Bounds) {
 	// Broad-phase cells keep the solver local, including every centipede segment.
-	const nodes = enemies.filter(enemy => enemy.health > 0).flatMap(enemy => {
+	let largestRadius = 0;
+	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg").flatMap(enemy => {
 		const radius = BUG_SPECS[enemy.variant].radius, mass = enemy.variant === "centipede" ? 8 : enemy.variant === "armoured" ? 2 : 1;
+		largestRadius = Math.max(largestRadius, radius);
 		const points = enemy.variant === "centipede" ? [enemy, ...enemy.state.segments] : [enemy];
 		const body: CollisionBody = { enemy, points, radius, mass, minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
 		for (const point of points) { body.minX = Math.min(body.minX, point.x); body.maxX = Math.max(body.maxX, point.x); body.minY = Math.min(body.minY, point.y); body.maxY = Math.max(body.maxY, point.y); }
 		return points.map(point => ({ enemy, point, radius, mass, body }));
 	});
-	const cellSize = 48, stride = Math.ceil(bounds.width / cellSize) + 2, pairs: number[] = [];
+	const cellSize = Math.max(48, largestRadius * 2 + BUG_CLEARANCE), stride = Math.ceil(bounds.width / cellSize) + 2, pairs: number[] = [];
 	const heads = new Int32Array(stride * (Math.ceil(bounds.height / cellSize) + 2));
 	const next = new Int32Array(nodes.length), cells = new Int32Array(nodes.length);
 	const offsets = [-stride - 1, -1, stride - 1, -stride, 0, stride, -stride + 1, 1, stride + 1];

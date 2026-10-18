@@ -251,6 +251,47 @@ save("acid", board([poly([(3, 16), (12, 9), (23, 8), (30, 14), (30, 19), (23, 24
     poly([(7, 16), (15, 11), (23, 10), (28, 15), (27, 19), (22, 22), (14, 21)], "acid"),
     rect(17, 12, 7, 6, "acidLight"), rect(22, 13, 3, 2, "white")]))
 
+# Ants share the six-leg rig but have a pinched waist, separate abdomen, and antennae.
+for prefix, dark, base, light in [("queen", "ochreDark", "ochre", "ochreLight"),
+        ("worker", "rustDark", "rust", "rustLight"), ("soldier", "redDark", "red", "redLight"),
+        ("bulletant", "blueDark", "blue", "acidLight")]:
+    part(f"bug-{prefix}-body", [poly([(3, 14), (8, 11), (12, 14), (17, 11), (25, 13), (27, 16), (24, 20), (17, 21), (12, 18), (7, 21), (3, 18)], "ink"),
+        rect(6, 14, 14, 4, dark), rect(17, 13, 7, 6, base), rect(18, 13, 4, 2, light)])
+    abdomen = [(0, 13), (4, 8), (11, 7), (17, 11), (19, 16), (17, 21), (11, 25), (4, 24), (0, 20)]
+    if prefix == "queen":
+        abdomen = [(0, 10), (5, 4), (16, 4), (24, 10), (26, 16), (24, 23), (16, 28), (5, 28), (0, 23)]
+    part(f"bug-{prefix}-shell", [poly(abdomen, "ink"),
+        poly([(2, 13), (6, 9), (11, 9), (16, 12), (17, 17), (15, 21), (10, 23), (5, 22), (2, 19)], base),
+        rect(5, 10, 6, 2, light), rect(8, 13, 2, 9, dark), rect(13, 13, 2, 7, dark)] +
+        ([rect(18, 9, 3, 14, base), rect(22, 12, 2, 8, light), rect(4, 6, 12, 2, light), rect(5, 25, 11, 1, light)] if prefix == "queen" else []))
+    head = [poly([(9, 12), (17, 9), (23, 12), (25, 16), (23, 21), (17, 23), (9, 20)], "ink"),
+        rect(11, 12, 10, 9, base), rect(13, 12, 5, 2, light), rect(20, 12, 2, 2, "gold"), rect(20, 19, 2, 2, "gold"),
+        poly([(13, 11), (17, 5), (25, 3), (25, 5), (19, 7), (16, 12)], dark),
+        poly([(13, 21), (17, 27), (25, 29), (25, 27), (19, 25), (16, 20)], dark)]
+    if prefix == "soldier":
+        head += [poly([(21, 11), (29, 9), (31, 13), (26, 15), (24, 13)], light), poly([(21, 21), (29, 24), (31, 20), (26, 18), (24, 20)], light)]
+    elif prefix == "worker":
+        head += [rect(11, 10, 6, 3, light), rect(11, 20, 6, 3, light), rect(23, 14, 4, 5, dark)]
+    elif prefix == "bulletant":
+        head += [rect(21, 14, 9, 5, "ink"), rect(23, 15, 7, 3, "acid"), rect(27, 15, 3, 2, "acidLight")]
+    else:
+        head += [rect(14, 12, 2, 9, light), rect(23, 14, 3, 5, dark)]
+    part(f"bug-{prefix}-head", head)
+    part(f"bug-{prefix}-leg", [poly([(6, 15), (13, 14), (19, 18), (26, 20), (26, 23), (18, 21), (12, 17), (6, 18)], "ink"),
+        poly([(8, 15), (12, 15), (19, 19), (24, 21), (24, 22), (18, 20), (12, 17), (8, 17)], base), rect(9, 15, 3, 1, light)])
+
+# Slugs glide without legs; the long body and mantle pulse on the shared rig.
+part("bug-slug-body", [poly([(0, 17), (5, 11), (16, 7), (26, 10), (31, 15), (28, 23), (16, 25), (5, 22)], "ink"),
+    poly([(2, 17), (7, 12), (16, 9), (25, 12), (28, 16), (25, 21), (16, 23), (6, 20)], "olive"), rect(7, 19, 18, 2, "wingLight"), rect(11, 11, 10, 2, "wing")])
+part("bug-slug-shell", [poly([(5, 14), (11, 8), (20, 8), (25, 13), (25, 20), (18, 23), (9, 22), (5, 19)], "oliveDark"),
+    poly([(8, 14), (12, 10), (19, 10), (23, 14), (22, 19), (17, 21), (10, 20)], "wing"), rect(12, 11, 7, 2, "wingLight"), rect(15, 15, 2, 4, "olive")])
+part("bug-slug-head", [poly([(8, 13), (16, 11), (24, 13), (26, 18), (23, 22), (13, 22), (8, 19)], "ink"),
+    rect(10, 14, 13, 6, "olive"), rect(12, 14, 9, 2, "wing"), rect(18, 6, 2, 8, "oliveDark"), rect(18, 20, 2, 8, "oliveDark"),
+    rect(18, 5, 3, 3, "wingLight"), rect(18, 26, 3, 3, "wingLight")])
+part("bug-egg-body", [poly([(7, 12), (11, 5), (19, 4), (25, 10), (27, 19), (23, 26), (14, 28), (8, 23)], "ink"),
+    poly([(9, 12), (12, 7), (18, 6), (23, 11), (25, 19), (21, 24), (15, 26), (10, 22)], "light"),
+    rect(12, 10, 4, 7, "white"), rect(19, 17, 3, 5, "armor")])
+
 part("bug-wing", [
     poly([(7, 15), (13, 7), (23, 4), (28, 8), (30, 14), (27, 21), (17, 24), (10, 20)], "oliveDark"),
     poly([(9, 15), (14, 9), (23, 6), (26, 9), (28, 14), (25, 19), (17, 22), (12, 19)], "wing"),
@@ -271,6 +312,9 @@ BUG_PALETTES = {
     "lunger": ("redDark", "red", "redLight"), "evader": ("blueDark", "blue", "blueLight"),
     "centipede": ("ochreDark", "ochre", "ochreLight"), "armoured": ("slateDark", "slate", "slateLight"),
     "beetle": ("violetDark", "violet", "violetLight"), "spitter": ("acidDark", "acid", "acidLight"),
+    "queen": ("ochreDark", "ochre", "ochreLight"), "worker": ("rustDark", "rust", "rustLight"),
+    "soldier": ("redDark", "red", "redLight"), "bulletant": ("blueDark", "blue", "acidLight"),
+    "slug": ("oliveDark", "wing", "wingLight"), "egg": ("darkArmor", "light", "white"),
 }
 
 
@@ -296,7 +340,9 @@ for name, pixels in list(PARTS.items()):
                 return tuple(min(255, round(channel * .7 + highlight * .3)) for channel, highlight in zip(color, light))
             return tuple(min(255, round(channel * factor)) for channel, factor in zip(color, (.72, .86, 1.08)))
         variant = [[tint(color) for color in row] for row in pixels]
-        if kind == "shell":
+        if prefix == "egg":
+            paint(variant, [rect(12, 10, 3, 12, base), rect(18, 12 if suffix == "b" else 18, 3, 3, dark)], True)
+        elif kind == "shell":
             if suffix == "b":
                 paint(variant, [poly([(4, 12), (7, 4), (14, 3), (17, 9), (12, 13)], "ink"),
                                 poly([(6, 11), (9, 6), (13, 5), (15, 9), (11, 11)], base)])

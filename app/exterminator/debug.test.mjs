@@ -11,11 +11,12 @@ test("debug deployment and empty/cleared waves wait indefinitely without automat
 	game.enemies[0].health = 0; advance(game, 10); expect(game.mode).toBe("playing"); expect(game.wave).toBe(1); expect(game.money).toBe(0); expect(game.intermission).toBe(0);
 });
 
-test("custom composition uses exact counts and normal harmless spawn warnings, including locked specialists", () => {
+test("custom composition uses requested counts plus queen guards and normal warnings, including locked specialists", () => {
 	const game = setup(), composition = Object.fromEntries(BUG_TYPES.map(type => [type, 1]));
 	spawnDebugWave(game, composition); step(game, idle, 1 / 120); expect(game.spawns).toHaveLength(1); expect(game.enemies).toHaveLength(0);
-	advance(game, 8); expect(game.toSpawn).toBe(0); expect(game.spawns).toHaveLength(0);
-	for (const type of BUG_TYPES) expect(game.enemies.filter(enemy => enemy.variant === type)).toHaveLength(1);
+	for (let i = 1; i < BUG_TYPES.length; i++) { game.spawnTimer = 0; step(game, idle, 1 / 120); }
+	advance(game, 1.3); expect(game.toSpawn).toBe(0); expect(game.spawns).toHaveLength(0);
+	for (const type of BUG_TYPES) expect(game.enemies.filter(enemy => enemy.variant === type)).toHaveLength(type === "worker" ? 3 : 1);
 });
 
 test("spawning a new debug wave replaces old actors, projectiles and effects, preserves the mech, and works while paused", () => {
