@@ -1,3 +1,4 @@
+import { combatTarget } from "./light-threats";
 import { BUG_SPECS, type BugVariant, type Enemy } from "./bug-types";
 import { walkBugTo } from "./bug-motion";
 import type { Game } from "./game";
@@ -47,7 +48,7 @@ export function stepAssassin(game: Game, enemy: Extract<Enemy, { variant: "assas
 		}
 		state.targetId = target?.id ?? null; state.seekRemaining = .4;
 	}
-	const destination = target ?? game.player;
+	const destination = target ?? combatTarget(game, enemy);
 	enemy.angle = Math.atan2(destination.y - enemy.y, destination.x - enemy.x);
 	walkBugTo(enemy, destination, dt, bounds);
 	if (target && Math.hypot(enemy.x - target.x, enemy.y - target.y) <= BUG_SPECS.assassin.radius + 12) {

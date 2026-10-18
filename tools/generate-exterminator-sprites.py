@@ -351,6 +351,20 @@ save("bullet", board([rect(7, 13, 20, 6, "orange"), rect(11, 14, 15, 4, "gold"),
 
 
 
+# Broad, dusty wings and feathery antennae distinguish the small light-blocking moths.
+part("bug-moth-body", [poly([(2, 14), (9, 10), (21, 11), (26, 15), (24, 21), (10, 22), (2, 18)], "ink"),
+    rect(6, 13, 17, 6, "ochreDark"), rect(9, 13, 11, 3, "wingLight")])
+part("bug-moth-shell", [poly([(5, 12), (13, 8), (22, 12), (24, 18), (17, 23), (7, 21)], "ink"),
+    rect(8, 12, 12, 8, "ochre"), rect(10, 12, 7, 2, "wingLight"), rect(12, 16, 8, 2, "ochreDark")])
+part("bug-moth-head", [rect(9, 11, 14, 11, "ink"), rect(11, 12, 11, 8, "wing"),
+    rect(19, 12, 3, 2, "gold"), rect(19, 19, 3, 2, "gold"),
+    poly([(21, 12), (27, 3), (30, 4), (24, 14)], "wingLight"),
+    poly([(21, 20), (28, 28), (30, 26), (24, 18)], "wingLight")])
+part("bug-moth-wing", [poly([(7, 15), (12, 3), (25, 1), (31, 9), (28, 24), (18, 29), (7, 18)], "ink"),
+    poly([(9, 15), (14, 5), (24, 3), (29, 10), (26, 23), (18, 26), (9, 18)], "wing"),
+    poly([(11, 15), (18, 7), (25, 6), (27, 11), (20, 15)], "wingLight"),
+    rect(19, 17, 7, 5, "ochreDark"), rect(21, 18, 3, 3, "gold")])
+
 # Three compatible appearances per bug part: stock, banded/crested, ridged/spined.
 # Larger markings and silhouette changes read at gameplay size; pivots stay fixed.
 BUG_PALETTES = {
@@ -362,7 +376,7 @@ BUG_PALETTES = {
     "soldier": ("redDark", "red", "redLight"), "bulletant": ("blueDark", "blue", "acidLight"),
     "antlion": ("ochreDark", "ochre", "ochreLight"), "bombardier": ("rustDark", "orange", "gold"),
     "dragonfly": ("blueDark", "blue", "blueLight"), "bolas": ("violetDark", "violet", "violetLight"),
-    "assassin": ("rustDark", "rust", "rustLight"),
+    "assassin": ("rustDark", "rust", "rustLight"), "moth": ("ochreDark", "wing", "wingLight"),
     "slug": ("oliveDark", "wing", "wingLight"), "egg": ("darkArmor", "light", "white"),
 }
 

@@ -1,3 +1,4 @@
+import { LAMP_HEALTH, lightTransmission, MECH_LIGHTS } from "./light-threats";
 import { FIELD, type Game } from "./game";
 import { beamStrength, CORNER_LIGHTS, cornerStrength, mechBeams } from "./lighting";
 import { clamp } from "./math";
@@ -25,26 +26,30 @@ export function createLightingLayer(makeCanvas = () => document.createElement("c
 			});
 		}
 		ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = "source-over";
-		ctx.fillStyle = "#000"; ctx.fillRect(0, 0, mask.width, mask.height);
+		ctx.globalAlpha = 1; ctx.fillStyle = "#000"; ctx.fillRect(0, 0, mask.width, mask.height);
 		ctx.globalCompositeOperation = "destination-out";
-		for (let i = 0; i < corners.length; i++) if (game.parts.cornerLights[CORNER_LIGHTS[i].id]) ctx.drawImage(corners[i], 0, 0);
+		for (let i = 0; i < corners.length; i++) if (game.parts.cornerLights[CORNER_LIGHTS[i].id]) { ctx.globalAlpha = lightTransmission(game, CORNER_LIGHTS[i].id); ctx.drawImage(corners[i], 0, 0); }
 		ctx.save(); ctx.translate(game.player.x / SCALE, game.player.y / SCALE);
-		ctx.drawImage(pool, -50, -50);
-		for (const beam of beams) {
+		ctx.globalAlpha = Math.max(...MECH_LIGHTS.map(id => lightTransmission(game, id))); ctx.drawImage(pool, -50, -50);
+		for (const [index, beam] of beams.entries()) {
+			ctx.globalAlpha = lightTransmission(game, MECH_LIGHTS[index]);
 			ctx.save(); ctx.rotate(game.player.angle + beam.direction); ctx.drawImage(beam.canvas, -beam.size / SCALE, -beam.size / SCALE); ctx.restore();
 		}
-		ctx.restore(); ctx.globalCompositeOperation = "source-over";
+		ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
 		return mask;
 	};
 }
 
 export function drawLightFixtures(ctx: CanvasRenderingContext2D, game: Game) {
 	for (const corner of CORNER_LIGHTS) if (game.parts.cornerLights[corner.id]) {
+		ctx.save(); ctx.globalAlpha = lightTransmission(game, corner.id);
 		const x = corner.right ? FIELD.width - 16 : 16, y = corner.bottom ? FIELD.height - 16 : 16;
 		ctx.fillStyle = "#25332d"; ctx.fillRect(x - 8, y - 8, 16, 16);
 		ctx.fillStyle = "#f1e4b1"; ctx.fillRect(x - 5, y - 5, 10, 10);
+		if (game.lampHealth[corner.id] < LAMP_HEALTH) { ctx.fillStyle = "#372c24"; ctx.fillRect(x - 10, y + 11, 20, 3); ctx.fillStyle = "#e3a567"; ctx.fillRect(x - 10, y + 11, 20 * game.lampHealth[corner.id] / LAMP_HEALTH, 3); }
+		ctx.restore();
 	}
 	ctx.save(); ctx.translate(game.player.x, game.player.y); ctx.rotate(game.player.angle);
-	ctx.fillStyle = "#fff0bd"; ctx.fillRect(17, -5, 5, 10);
-	ctx.fillStyle = "#c3cda1"; ctx.fillRect(-16, -12, 4, 5); ctx.fillRect(-16, 7, 4, 5); ctx.restore();
+	ctx.globalAlpha = lightTransmission(game, "front"); ctx.fillStyle = "#fff0bd"; ctx.fillRect(17, -5, 5, 10);
+	ctx.fillStyle = "#c3cda1"; ctx.globalAlpha = lightTransmission(game, "rearLeft"); ctx.fillRect(-16, -12, 4, 5); ctx.globalAlpha = lightTransmission(game, "rearRight"); ctx.fillRect(-16, 7, 4, 5); ctx.restore();
 }

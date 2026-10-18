@@ -1,3 +1,4 @@
+import { assignLightTrait, cornerPosition, damageLamp, emptyLightCover, LAMP_HEALTH, LAMP_RADIUS, MOTH_SWARM_SIZE, refreshLightCover, type LightId } from "./light-threats";
 import { CORNER_LIGHTS, CORNER_LIGHT_COST, MAX_LIGHT_RANK, type CornerLight } from "./lighting";
 import { absorbBackpack, burnRemains, corpseAlive, inFlame, leaveCorpse, type BugRemains } from "./remains";
 import { blastTethers, firstTetherHit, flameTethers, preparePulls, provokeBombardier, stepBolas, type Bola, type Tether, type SpiderIndex } from "./predators";
@@ -42,18 +43,18 @@ export function workshopServices(game: Game) {
 }
 export type Input = { move: Vector; aim: Vector; fire: boolean };
 export type Bullet = Vector & { id: number; vx: number; vy: number; life: number; damage: number; weapon: Exclude<Weapon, "flamethrower">; blastRadius: number };
-export type Acid = Vector & { id: number; owner: number; vx: number; vy: number; life: number };
+export type Acid = Vector & { lightTarget?: CornerLight | null; id: number; owner: number; vx: number; vy: number; life: number };
 export type AcidImpact = Vector & { id: number; bornAt: number };
-export type Lob = Vector & { owner: number; id: number; target: Vector; age: number };
+export type Lob = Vector & { lightTarget?: CornerLight | null; owner: number; id: number; target: Vector; age: number };
 export type Explosion = Vector & { id: number; radius: number; bornAt: number };
 export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: number };
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type { BugRemains } from "./remains";
 export type Game = {
-	debug: { queue: BugVariant[]; total: number } | null;
+	debug: { queue: BugVariant[]; total: number; lightSensitivePercent: number } | null;
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
-	playerVelocity: Vector; pitTerrain: Terrain | null; bolas: Bola[]; tethers: Tether[]; slimed: boolean; slime: Slime[]; enemies: Enemy[]; acid: Acid[]; acidImpacts: AcidImpact[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
+	lampHealth: Record<CornerLight, number>; lightCover: Record<LightId, number>; playerVelocity: Vector; pitTerrain: Terrain | null; bolas: Bola[]; tethers: Tether[]; slimed: boolean; slime: Slime[]; enemies: Enemy[]; acid: Acid[]; acidImpacts: AcidImpact[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
 	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage; weapon: Weapon;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	money: number; lastJob: { name: string; payment: number } | null; kills: number; time: number;
@@ -74,7 +75,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 	return {
 		debug: null, hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage, weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
-		playerVelocity: { x: 0, y: 0 }, pitTerrain: null, bolas: [], tethers: [], slimed: false, slime: [], enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
+		lampHealth: { northWest: 0, northEast: 0, southWest: 0, southEast: 0 }, lightCover: emptyLightCover(), playerVelocity: { x: 0, y: 0 }, pitTerrain: null, bolas: [], tethers: [], slimed: false, slime: [], enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
 		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, lights: 0, cornerLights: { northWest: false, northEast: false, southWest: false, southEast: false }, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
@@ -82,7 +83,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs"): Game {
 
 // All combat lifetimes end together when replacing a wave or returning to base.
 export function clearCombat(game: Game) {
-	game.playerVelocity = { x: 0, y: 0 }; game.pitTerrain = null; game.bolas = []; game.tethers = []; game.slimed = false; game.slime = []; game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
+	game.lightCover = emptyLightCover(); game.playerVelocity = { x: 0, y: 0 }; game.pitTerrain = null; game.bolas = []; game.tethers = []; game.slimed = false; game.slime = []; game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
 	game.remains = []; game.explosions = []; game.deflections = []; game.acidImpacts = [];
 }
 export function start(game: Game) {
@@ -109,7 +110,7 @@ export function purchaseService(game: Game, service: WorkshopService) {
 	if (service === "heal") game.player.health = 100;
 	if (service === "sensor") game.parts.sensor++;
 	if (service === "lights") game.parts.lights++;
-	for (const corner of CORNER_LIGHTS) if (service === corner.id) game.parts.cornerLights[corner.id] = true;
+	for (const corner of CORNER_LIGHTS) if (service === corner.id) { game.parts.cornerLights[corner.id] = true; game.lampHealth[corner.id] = LAMP_HEALTH; }
 }
 export function openShop(game: Game) { if (game.mode === "workshop") game.mode = "shop"; }
 export function closeShop(game: Game) { if (game.mode === "shop") game.mode = "workshop"; }
@@ -160,11 +161,14 @@ function warnSpawn(game: Game) {
 		y: clamp(game.player.y + Math.sin(angle) * radius, SPAWN_MARGIN, FIELD.height - SPAWN_MARGIN),
 	} : { x: SPAWN_MARGIN + random(game) * (FIELD.width - SPAWN_MARGIN * 2), y: SPAWN_MARGIN + random(game) * (FIELD.height - SPAWN_MARGIN * 2) };
 	const variant = game.debug ? game.debug.queue.shift()! : bugForSpawn(game.hivesCleared, game.wave, index, game.hive?.enemyMix.weights);
-	game.spawns.push({ ...position, id: game.nextId++, remaining: SPAWN_WARNING_TIME, variant });
+	for (let i = 0; i < (variant === "moth" ? MOTH_SWARM_SIZE : 1); i++) {
+		const offset = i * Math.PI * 2 / MOTH_SWARM_SIZE;
+		game.spawns.push({ x: clamp(position.x + (i ? Math.cos(offset) * 28 : 0), SPAWN_MARGIN, FIELD.width - SPAWN_MARGIN), y: clamp(position.y + (i ? Math.sin(offset) * 28 : 0), SPAWN_MARGIN, FIELD.height - SPAWN_MARGIN), id: game.nextId++, remaining: SPAWN_WARNING_TIME, variant });
+	}
 }
 function spawnEnemy(game: Game, warning: SpawnWarning) {
 	const enemy = createBug({ variant: warning.variant, id: warning.id, position: warning, player: game.player, threat: game.hive?.threat ?? 1, wave: game.wave, time: game.time, bounds: FIELD, terrain: terrainAt(game.terrain, warning.x, warning.y) });
-	game.enemies.push(enemy);
+	assignLightTrait(game, enemy); game.enemies.push(enemy);
 	if (enemy.variant === "queen") spawnQueenGuards(game, enemy, FIELD);
 }
 function bulletHitTime(bullet: Vector, enemy: Enemy, previous: Vector, projectileRadius = 4) {
@@ -314,9 +318,12 @@ export function step(game: Game, input: Input, dt: number) {
 		const playerHit = circleHitTime(acid, player, PLAYER_RADIUS, previous, ACID_RADIUS);
 		let bugHit = Infinity;
 		for (const enemy of game.enemies) if (enemy.variant === "armoured" && enemy.id !== acid.owner && enemy.health > 0) bugHit = Math.min(bugHit, bulletHitTime(acid, enemy, previous, ACID_RADIUS));
-		const hit = Math.min(playerHit, bugHit);
+		const lamp = acid.lightTarget && game.parts.cornerLights[acid.lightTarget] ? cornerPosition(acid.lightTarget) : null;
+		const lampHit = lamp ? circleHitTime(acid, lamp, LAMP_RADIUS, previous, ACID_RADIUS) : Infinity;
+		const hit = Math.min(playerHit, bugHit, lampHit);
 		if (hit < Infinity) {
-			if (playerHit < bugHit && player.invulnerable === 0) { player.health = Math.max(0, player.health - 20); player.invulnerable = .9; }
+			if (lampHit < playerHit && lampHit < bugHit && acid.lightTarget) damageLamp(game, acid.lightTarget, 20);
+			if (playerHit < bugHit && playerHit <= lampHit && player.invulnerable === 0) { player.health = Math.max(0, player.health - 20); player.invulnerable = .9; }
 			game.acidImpacts.push({ id: acid.id, x: previous.x + (acid.x - previous.x) * hit, y: previous.y + (acid.y - previous.y) * hit, bornAt: game.time });
 			if (game.acidImpacts.length > 64) game.acidImpacts.shift();
 			return false;
@@ -325,14 +332,16 @@ export function step(game: Game, input: Input, dt: number) {
 	});
 	game.lobs = game.lobs.filter(lob => {
 		const previousAge = lob.age; lob.age += dt;
+		if (previousAge < BEETLE_FLIGHT_TIME && lob.age >= BEETLE_FLIGHT_TIME && lob.lightTarget && Math.hypot(cornerPosition(lob.lightTarget).x - lob.target.x, cornerPosition(lob.lightTarget).y - lob.target.y) <= BEETLE_BLAST_RADIUS + LAMP_RADIUS) damageLamp(game, lob.lightTarget, 20);
 		if (previousAge < BEETLE_FLIGHT_TIME && lob.age >= BEETLE_FLIGHT_TIME && player.invulnerable === 0 && Math.hypot(player.x - lob.target.x, player.y - lob.target.y) <= BEETLE_BLAST_RADIUS + PLAYER_RADIUS) {
 			player.health = Math.max(0, player.health - 20); player.invulnerable = .9;
 		}
 		return lob.age < BEETLE_FLIGHT_TIME + .3;
 	});
+	refreshLightCover(game);
 	if (player.health === 0) { game.mode = "dead"; return; }
 	const lunged = game.enemies.some(enemy => lungeContacts.has(enemy.id));
-	const touching = game.enemies.some(enemy => enemy.variant === "dragonfly" ? enemy.state.contact : enemy.variant !== "centipede" && enemy.variant !== "egg" && distanceToSegment(enemy, previousPlayer, player) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
+	const touching = game.enemies.some(enemy => enemy.variant === "dragonfly" ? enemy.state.contact : enemy.variant !== "centipede" && enemy.variant !== "egg" && enemy.variant !== "moth" && distanceToSegment(enemy, previousPlayer, player) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
 	if (player.invulnerable === 0 && (lunged || touching)) {
 		player.health = Math.max(0, player.health - (lunged ? 30 : 20));
 		player.invulnerable = .9;

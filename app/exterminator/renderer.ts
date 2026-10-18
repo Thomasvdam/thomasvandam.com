@@ -151,7 +151,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 		ctx.strokeStyle = "#efaa76"; ctx.lineWidth = 2;
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
-		if (warning.variant !== "flyer" && warning.variant !== "dragonfly") {
+		if (warning.variant !== "flyer" && warning.variant !== "dragonfly" && warning.variant !== "moth") {
 			ctx.fillStyle = "#101610"; ctx.beginPath(); ctx.ellipse(warning.x, warning.y, 20 * progress + 3, 14 * progress + 2, 0, 0, Math.PI * 2); ctx.fill();
 			for (let i = 0; i < 8; i++) {
 				const angle = i * Math.PI / 4 + warning.id, distance = 9 + progress * 22;
@@ -297,6 +297,11 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		}
 		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle", spitCharge);
 		ctx.restore();
+		if (enemy.lightSensitive) {
+			ctx.save(); ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.angle);
+			ctx.strokeStyle = "#f4c36b"; ctx.lineWidth = 3;
+			ctx.beginPath(); ctx.moveTo(-8, -6); ctx.lineTo(-2, 0); ctx.lineTo(-8, 6); ctx.stroke(); ctx.restore();
+		}
 		if (enemy.variant === "assassin") drawBackpack(ctx, game, enemy, sprites);
 		if (enemy.variant === "beetle") {
 			const progress = 1 - enemy.state.remaining / BEETLE_ROLL_TIME, size = 5 + progress * 15;

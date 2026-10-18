@@ -1,3 +1,5 @@
+import type { LightId } from "./light-threats";
+import type { CornerLight } from "./lighting";
 import type { Carapace } from "./remains";
 import type { Terrain } from "./terrain";
 import { clamp, type Vector, type Bounds } from "./math";
@@ -12,16 +14,16 @@ export const BUG_SPECS = {
 	bulletAnt: { health: 3, speed: 100, radius: 14 }, egg: { health: 1, speed: 0, radius: 9 },
 	antlion: { health: 5, speed: 0, radius: 19 }, bombardier: { health: 5, speed: 65, radius: 17 },
 	dragonfly: { health: 3, speed: 120, radius: 13 }, bolasSpider: { health: 4, speed: 80, radius: 18 },
-	assassin: { health: 4, speed: 88, radius: 17 },
+	assassin: { health: 4, speed: 88, radius: 17 }, moth: { health: 1, speed: 120, radius: 8 },
 } as const;
 export type BugVariant = keyof typeof BUG_SPECS;
 export const BUG_TYPES = Object.keys(BUG_SPECS) as BugVariant[];
-export const BUG_NAMES: Record<BugVariant, string> = { assassin: "Backpack assassin", burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter", slug: "Slug", queen: "Queen ant colony", worker: "Worker ant", soldier: "Soldier ant", bulletAnt: "Bullet ant", egg: "Ant egg", antlion: "Antlion", bombardier: "Bombardier beetle", dragonfly: "Dragonfly", bolasSpider: "Bolas spider" };
+export const BUG_NAMES: Record<BugVariant, string> = { moth: "Moth swarm", assassin: "Backpack assassin", burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter", slug: "Slug", queen: "Queen ant colony", worker: "Worker ant", soldier: "Soldier ant", bulletAnt: "Bullet ant", egg: "Ant egg", antlion: "Antlion", bombardier: "Bombardier beetle", dragonfly: "Dragonfly", bolasSpider: "Bolas spider" };
 export type BugWeights = Record<BugVariant, number>;
 export function defaultBugWeights(cleared: number): BugWeights {
 	const specialists: BugVariant[] = ["lunger"];
 	if (cleared >= 1) specialists.push("evader");
-	if (cleared >= 2) specialists.push("armoured", "beetle");
+	if (cleared >= 2) specialists.push("armoured", "beetle", "moth");
 	if (cleared >= 3) specialists.push("centipede");
 	if (cleared >= 4) specialists.push("spitter");
 	if (cleared >= 5) specialists.push("slug");
@@ -49,8 +51,9 @@ export const SEGMENT_COUNT = 8;
 export const BUG_CLEARANCE = 6;
 export type AntVariant = "worker" | "soldier" | "bulletAnt";
 export type WanderState = { direction: number; remaining: number; seed: number };
-type EnemyBase = Vector & { id: number; health: number; maxHealth: number; speed: number; angle: number; walkDistance: number; bornAt: number; hitAt: number; blockedAt: number; burnt?: boolean };
+type EnemyBase = Vector & { id: number; health: number; maxHealth: number; speed: number; angle: number; walkDistance: number; bornAt: number; hitAt: number; blockedAt: number; burnt?: boolean; lightSensitive?: boolean; lightTarget?: CornerLight | null; attackLight?: CornerLight | null; lampHitAt?: number };
 export type Enemy = EnemyBase & (
+	{ variant: "moth"; state: { light: LightId | null; seekRemaining: number } } |
 	{ variant: "burrower" | "flyer"; state: { phase: "chase" } } |
 	{ variant: "lunger"; state: { phase: "approach" | "windup" | "lunge" | "recover"; remaining: number; direction: number; distance: number } } |
 	{ variant: "evader"; state: { phase: "chase" | "dodge"; remaining: number; cooldown: number; direction: Vector } } |
@@ -74,9 +77,10 @@ export type Enemy = EnemyBase & (
 export function createBug(options: { variant: BugVariant; id: number; position: Vector; player: Vector; threat: number; wave: number; time: number; bounds: Bounds; terrain?: Terrain }): Enemy {
 	const { variant, id, position, player, threat, wave, time, bounds } = options, spec = BUG_SPECS[variant];
 	const angle = Math.atan2(player.y - position.y, player.x - position.x);
-	const health = variant === "egg" ? 1 : spec.health * (1 + Math.floor((threat - 1) / 2));
+	const health = (variant === "egg" || variant === "moth") ? 1 : spec.health * (1 + Math.floor((threat - 1) / 2));
 	const base = { x: clamp(position.x, spec.radius, bounds.width - spec.radius), y: clamp(position.y, spec.radius, bounds.height - spec.radius), id, health, maxHealth: health, speed: Math.min(variant === "armoured" ? 85 : 160, spec.speed + threat * (variant === "armoured" ? 2 : 5) + wave * 3), angle, walkDistance: 12, bornAt: time, hitAt: -10, blockedAt: -10 };
 	const wander = { direction: angle + Math.PI, remaining: 0, seed: Math.imul(id + 1, 2654435761) >>> 0 };
+	if (variant === "moth") return { ...base, variant, state: { light: null, seekRemaining: 0 } };
 	if (variant === "assassin") return { ...base, variant, state: { backpack: [], targetId: null, seekRemaining: 0 } };
 	if (variant === "antlion") return { ...base, variant, speed: 0, state: { terrain: options.terrain ?? "firm" } };
 	if (variant === "bombardier") return { ...base, variant, state: { phase: "chase", remaining: 0, direction: angle } };

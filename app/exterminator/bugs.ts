@@ -1,3 +1,4 @@
+import { assignLightTrait, chooseLightTarget, combatTarget, contactLamp, stepMoth } from "./light-threats";
 import { stepAssassin } from "./remains";
 import { stepBombardier, stepDragonfly, stepSpider } from "./predators";
 import { moveBug as move } from "./bug-motion";
@@ -39,13 +40,18 @@ function incomingProjectile(enemy: Enemy, bullets: Bullet[]) {
 	return closest;
 }
 export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: number): Set<number> {
-	const lungeContacts = new Set<number>(), player = game.player, colonies = colonyIndex(game.enemies);
+	const lungeContacts = new Set<number>(), colonies = colonyIndex(game.enemies);
 	for (let index = 0; index < game.enemies.length; index++) {
 		const enemy = game.enemies[index];
 		if (enemy.health <= 0) continue;
+		chooseLightTarget(game, enemy);
+		const player = combatTarget(game, enemy), previous = { x: enemy.x, y: enemy.y };
+		const charging = (enemy.variant === "lunger" && enemy.state.phase === "lunge") || (enemy.variant === "dragonfly" && enemy.state.phase === "intercept");
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
 		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
-		if (enemy.variant === "assassin") {
+		if (enemy.variant === "moth") {
+			stepMoth(game, enemy, dt, bounds);
+		} else if (enemy.variant === "assassin") {
 			stepAssassin(game, enemy, dt, bounds);
 		} else if (enemy.variant === "antlion") {
 			enemy.angle = desired; continue;
@@ -62,7 +68,9 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 		} else if (enemy.variant === "worker") {
 			stepWorker(game, enemy, enemy.state.queenId === null ? undefined : colonies.get(enemy.state.queenId), dt, bounds);
 		} else if (enemy.variant === "egg") {
-			game.enemies[index] = hatchEgg(game, enemy, bounds);
+			const hatched = hatchEgg(game, enemy, bounds);
+			if (hatched !== enemy) assignLightTrait(game, hatched);
+			game.enemies[index] = hatched;
 		} else if (enemy.variant === "bulletAnt") {
 			stepBulletAnt(game, enemy, dt, bounds);
 		} else if (enemy.variant === "spitter") {
@@ -71,7 +79,7 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 			const state = enemy.state;
 			if (state.phase === "approach") {
 				enemy.angle = desired;
-				if (distance <= LUNGE_TRIGGER) { state.phase = "windup"; state.remaining = LUNGE_WINDUP; state.direction = desired; }
+				if (distance <= LUNGE_TRIGGER) { state.phase = "windup"; state.remaining = LUNGE_WINDUP; state.direction = desired; enemy.attackLight = enemy.lightTarget; }
 				else move(enemy, toward, Math.min(distance - LUNGE_TRIGGER, enemy.speed * dt), bounds);
 			} else if (state.phase === "windup") {
 				state.direction += clamp(angleDifference(desired, state.direction), -LUNGE_WINDUP_TURN_RATE * dt, LUNGE_WINDUP_TURN_RATE * dt); enemy.angle = state.direction;
@@ -81,7 +89,7 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 				const before = { x: enemy.x, y: enemy.y }, travel = Math.min(state.distance, LUNGE_SPEED * dt);
 				const moved = move(enemy, { x: Math.cos(state.direction), y: Math.sin(state.direction) }, travel, bounds);
 				state.distance = Math.max(0, state.distance - travel);
-				if (distanceToSegment(player, before, enemy) <= playerRadius + BUG_SPECS.lunger.radius) lungeContacts.add(enemy.id);
+				if (distanceToSegment(game.player, before, enemy) <= playerRadius + BUG_SPECS.lunger.radius) lungeContacts.add(enemy.id);
 				if (state.distance === 0 || moved < travel * .5) { state.phase = "recover"; state.remaining = .65; }
 			} else {
 				state.remaining = Math.max(0, state.remaining - dt);
@@ -112,7 +120,7 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 			move(enemy, { x: toward.x * direction, y: toward.y * direction }, enemy.speed * dt, bounds);
 			if (state.remaining === 0) state.phase = "ready";
 			if (state.phase === "ready" && distance <= 380 && game.lobs.length < 64) {
-				game.lobs.push({ owner: enemy.id, id: game.nextId++, x: enemy.x + toward.x * 22, y: enemy.y + toward.y * 22, target: { x: player.x, y: player.y }, age: 0 });
+				game.lobs.push({ lightTarget: enemy.lightTarget, owner: enemy.id, id: game.nextId++, x: enemy.x + toward.x * 22, y: enemy.y + toward.y * 22, target: { x: player.x, y: player.y }, age: 0 });
 				state.phase = "roll"; state.remaining = BEETLE_ROLL_TIME;
 			}
 		} else if (enemy.variant === "armoured") {
@@ -134,6 +142,7 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 				leader = segment;
 			}
 		} else { move(enemy, toward, Math.min(distance, enemy.speed * dt), bounds); enemy.angle = desired; }
+		contactLamp(game, enemy, previous, charging);
 	}
 	return lungeContacts;
 }
@@ -184,7 +193,7 @@ function translateBug(body: CollisionBody, dx: number, dy: number, bounds: Bound
 export function separateBugs(enemies: Enemy[], bounds: Bounds) {
 	// Broad-phase cells keep the solver local, including every centipede segment.
 	let largestRadius = 0;
-	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg" && enemy.variant !== "antlion" && enemy.variant !== "dragonfly").flatMap(enemy => {
+	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg" && enemy.variant !== "antlion" && enemy.variant !== "dragonfly" && enemy.variant !== "moth").flatMap(enemy => {
 		const radius = BUG_SPECS[enemy.variant].radius, mass = enemy.variant === "centipede" ? 8 : enemy.variant === "armoured" ? 2 : 1;
 		largestRadius = Math.max(largestRadius, radius);
 		const points = enemy.variant === "centipede" ? [enemy, ...enemy.state.segments] : [enemy];

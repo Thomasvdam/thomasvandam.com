@@ -115,7 +115,7 @@ test("deflections and specialist bodies freeze on pause and clear for a fresh ru
 });
 
 test("specialists are introduced over five jobs and preserve their identity through spawn warnings", () => {
-	const unlocked = [["lunger"], ["lunger", "evader"], ["lunger", "evader", "armoured", "beetle"], ["lunger", "evader", "armoured", "beetle", "centipede"], ["lunger", "evader", "armoured", "beetle", "centipede", "spitter"]];
+	const unlocked = [["lunger"], ["lunger", "evader"], ["lunger", "evader", "moth", "armoured", "beetle"], ["lunger", "evader", "moth", "armoured", "beetle", "centipede"], ["lunger", "evader", "moth", "armoured", "beetle", "centipede", "spitter"]];
 	for (let cleared = 0; cleared < unlocked.length; cleared++) {
 		const variants = new Set(Array.from({ length: 36 }, (_, index) => bugForSpawn(cleared, 1, index)));
 		expect(variants).toEqual(new Set(["burrower", "flyer", ...unlocked[cleared]]));

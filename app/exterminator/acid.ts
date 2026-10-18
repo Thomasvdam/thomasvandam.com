@@ -1,3 +1,4 @@
+import { combatTarget } from "./light-threats";
 import { walkBugTo } from "./bug-motion";
 import { BUG_SPECS, type Enemy } from "./bug-types";
 import type { Game } from "./game";
@@ -28,13 +29,13 @@ function walkTo(enemy: Spitter, target: Vector, dt: number, bounds: Bounds) {
 	enemy.walkDistance += Math.hypot(x - enemy.x, y - enemy.y); enemy.x = x; enemy.y = y;
 }
 export function stepAcidSpitter(game: Game, enemy: Spitter, dt: number, bounds: Bounds) {
-	const state = enemy.state, player = game.player;
+	const state = enemy.state, player = combatTarget(game, enemy);
 	state.remaining = Math.max(0, state.remaining - dt);
 	if (state.phase === "windup") {
 		enemy.angle = Math.atan2(state.target.y - enemy.y, state.target.x - enemy.x);
 		if (state.remaining === 0) {
 			if (acidLineClear(enemy, state.target, game.enemies, enemy.id) && game.acid.length < 64) {
-				game.acid.push({ id: game.nextId++, owner: enemy.id, x: enemy.x, y: enemy.y, vx: Math.cos(enemy.angle) * ACID_SPEED, vy: Math.sin(enemy.angle) * ACID_SPEED, life: ACID_LIFETIME });
+				game.acid.push({ id: game.nextId++, lightTarget: enemy.attackLight, owner: enemy.id, x: enemy.x, y: enemy.y, vx: Math.cos(enemy.angle) * ACID_SPEED, vy: Math.sin(enemy.angle) * ACID_SPEED, life: ACID_LIFETIME });
 				state.phase = "cover"; state.remaining = 1.6;
 			} else { state.phase = "peek"; state.remaining = .2; }
 		}
@@ -65,7 +66,7 @@ export function stepAcidSpitter(game: Game, enemy: Spitter, dt: number, bounds: 
 		walkTo(enemy, { x: enemy.x + Math.cos(angle) * direction * 100, y: enemy.y + Math.sin(angle) * direction * 100 }, dt, bounds);
 	}
 	if (state.remaining === 0 && range <= 440 && acidLineClear(enemy, player, game.enemies, enemy.id)) {
-		state.phase = "windup"; state.remaining = ACID_WINDUP; state.target = { x: player.x, y: player.y };
+		state.phase = "windup"; state.remaining = ACID_WINDUP; state.target = { x: player.x, y: player.y }; enemy.attackLight = enemy.lightTarget;
 		return;
 	}
 	if (cover) {
@@ -81,25 +82,25 @@ export function stepAcidSpitter(game: Game, enemy: Spitter, dt: number, bounds: 
 }
 
 export function stepBulletAnt(game: Game, enemy: Extract<Enemy, { variant: "bulletAnt" }>, dt: number, bounds: Bounds) {
-	const state = enemy.state;
+	const state = enemy.state, player = combatTarget(game, enemy);
 	state.remaining = Math.max(0, state.remaining - dt);
 	if (state.phase === "windup") {
 		enemy.angle = Math.atan2(state.target.y - enemy.y, state.target.x - enemy.x);
 		if (state.remaining === 0) {
 			if (acidLineClear(enemy, state.target, game.enemies, enemy.id) && game.acid.length < 64) {
-				game.acid.push({ id: game.nextId++, owner: enemy.id, x: enemy.x, y: enemy.y, vx: Math.cos(enemy.angle) * ACID_SPEED, vy: Math.sin(enemy.angle) * ACID_SPEED, life: ACID_LIFETIME });
+				game.acid.push({ id: game.nextId++, lightTarget: enemy.attackLight, owner: enemy.id, x: enemy.x, y: enemy.y, vx: Math.cos(enemy.angle) * ACID_SPEED, vy: Math.sin(enemy.angle) * ACID_SPEED, life: ACID_LIFETIME });
 			}
 			state.phase = "chase"; state.remaining = 1.6;
 		}
 		return;
 	}
-	const range = Math.hypot(game.player.x - enemy.x, game.player.y - enemy.y), angle = Math.atan2(game.player.y - enemy.y, game.player.x - enemy.x);
+	const range = Math.hypot(player.x - enemy.x, player.y - enemy.y), angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
 	const direction = range < 240 ? -1 : range > 330 ? 1 : 0;
 	walkBugTo(enemy, { x: enemy.x + Math.cos(angle) * direction * 100, y: enemy.y + Math.sin(angle) * direction * 100 }, dt, bounds);
 	enemy.angle = angle;
-	if (state.remaining === 0 && range <= 440 && acidLineClear(enemy, game.player, game.enemies, enemy.id)) {
-		state.phase = "windup"; state.remaining = ACID_WINDUP; state.target = { x: game.player.x, y: game.player.y };
-	} else if (!acidLineClear(enemy, game.player, game.enemies, enemy.id)) {
+	if (state.remaining === 0 && range <= 440 && acidLineClear(enemy, player, game.enemies, enemy.id)) {
+		state.phase = "windup"; state.remaining = ACID_WINDUP; state.target = { x: player.x, y: player.y }; enemy.attackLight = enemy.lightTarget;
+	} else if (!acidLineClear(enemy, player, game.enemies, enemy.id)) {
 		const side = enemy.id % 2 ? 1 : -1;
 		walkBugTo(enemy, { x: enemy.x - Math.sin(angle) * side * 100, y: enemy.y + Math.cos(angle) * side * 100 }, dt, bounds);
 	}

@@ -1,3 +1,4 @@
+import { cornerPosition } from "./light-threats";
 import { warningLit } from "./lighting";
 import { DRAGONFLY_WINDUP, PIT_RADIUS, SPIDER_WINDUP, SPRAY_HALF_ANGLE, SPRAY_RANGE, SPRAY_WINDUP } from "./predators";
 import { clamp } from "./math";
@@ -67,7 +68,8 @@ export function drawTethers(ctx: CanvasRenderingContext2D, game: Game) {
 	for (const tether of game.tethers) {
 		const spider = game.enemies.find(enemy => enemy.id === tether.owner && enemy.health > 0);
 		if (!spider) continue;
-		ctx.strokeStyle = "#0b110e"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(game.player.x, game.player.y); ctx.lineTo(spider.x, spider.y); ctx.stroke();
+		const anchor = tether.lightTarget ? cornerPosition(tether.lightTarget) : game.player;
+		ctx.strokeStyle = "#0b110e"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(anchor.x, anchor.y); ctx.lineTo(spider.x, spider.y); ctx.stroke();
 		ctx.strokeStyle = tether.remaining < 1 ? "#e0d8b277" : "#e0d8b2"; ctx.lineWidth = 2; ctx.stroke();
 	}
 	ctx.restore();
