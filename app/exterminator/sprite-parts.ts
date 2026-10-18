@@ -6,6 +6,18 @@ import type { Undercarriage } from "./terrain";
 const centered = { width: 32, height: 32, pivotX: 16, pivotY: 16 };
 const hinged = { ...centered, pivotX: 8 };
 export const SPRITE_PARTS = {
+	bugCourierBody: { ...centered, path: "/images/exterminator/parts/bug-courier-body.png" },
+	bugCourierBodyB: { ...centered, path: "/images/exterminator/parts/bug-courier-body-b.png" },
+	bugCourierBodyC: { ...centered, path: "/images/exterminator/parts/bug-courier-body-c.png" },
+	bugCourierShell: { ...centered, path: "/images/exterminator/parts/bug-courier-shell.png" },
+	bugCourierShellB: { ...centered, path: "/images/exterminator/parts/bug-courier-shell-b.png" },
+	bugCourierShellC: { ...centered, path: "/images/exterminator/parts/bug-courier-shell-c.png" },
+	bugCourierHead: { ...centered, path: "/images/exterminator/parts/bug-courier-head.png" },
+	bugCourierHeadB: { ...centered, path: "/images/exterminator/parts/bug-courier-head-b.png" },
+	bugCourierHeadC: { ...centered, path: "/images/exterminator/parts/bug-courier-head-c.png" },
+	bugCourierWing: { ...hinged, path: "/images/exterminator/parts/bug-courier-wing.png" },
+	bugCourierWingB: { ...hinged, path: "/images/exterminator/parts/bug-courier-wing-b.png" },
+	bugCourierWingC: { ...hinged, path: "/images/exterminator/parts/bug-courier-wing-c.png" },
 	bugMothBody: { ...centered, path: "/images/exterminator/parts/bug-moth-body.png" },
 	bugMothBodyB: { ...centered, path: "/images/exterminator/parts/bug-moth-body-b.png" },
 	bugMothBodyC: { ...centered, path: "/images/exterminator/parts/bug-moth-body-c.png" },
@@ -299,6 +311,7 @@ export function mechSkin(upgrades: UpgradeLevels, undercarriage: Undercarriage =
 	};
 }
 export const BUG_SKINS: Record<BugVariant, Skin> = {
+	courier: { body: "bugCourierBody", shell: "bugCourierShell", head: "bugCourierHead", wings: "bugCourierWing" },
 	moth: { body: "bugMothBody", shell: "bugMothShell", head: "bugMothHead", legs: "bugOliveLeg", wings: "bugMothWing" },
 	antlion: { body: "bugAntlionBody", shell: "bugAntlionShell", head: "bugAntlionHead" },
 	bombardier: { body: "bugBombardierBody", shell: "bugBombardierShell", head: "bugBombardierHead", legs: "bugBombardierLeg" },
@@ -323,6 +336,10 @@ export const BUG_SKINS: Record<BugVariant, Skin> = {
 	armoured: { body: "bugArmouredBody", shell: "bugArmouredShell", head: "bugArmouredHead", legs: "bugArmouredLeg" },
 };
 export const BUG_PART_VARIANTS: Partial<Record<SpritePart, readonly SpritePart[]>> = {
+	bugCourierBody: ["bugCourierBody", "bugCourierBodyB", "bugCourierBodyC"],
+	bugCourierShell: ["bugCourierShell", "bugCourierShellB", "bugCourierShellC"],
+	bugCourierHead: ["bugCourierHead", "bugCourierHeadB", "bugCourierHeadC"],
+	bugCourierWing: ["bugCourierWing", "bugCourierWingB", "bugCourierWingC"],
 	bugMothBody: ["bugMothBody", "bugMothBodyB", "bugMothBodyC"],
 	bugMothShell: ["bugMothShell", "bugMothShellB", "bugMothShellC"],
 	bugMothHead: ["bugMothHead", "bugMothHeadB", "bugMothHeadC"],

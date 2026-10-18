@@ -151,7 +151,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 		ctx.strokeStyle = "#efaa76"; ctx.lineWidth = 2;
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
-		if (warning.variant !== "flyer" && warning.variant !== "dragonfly" && warning.variant !== "moth") {
+		if (warning.variant !== "flyer" && warning.variant !== "dragonfly" && warning.variant !== "moth" && warning.variant !== "courier") {
 			ctx.fillStyle = "#101610"; ctx.beginPath(); ctx.ellipse(warning.x, warning.y, 20 * progress + 3, 14 * progress + 2, 0, 0, Math.PI * 2); ctx.fill();
 			for (let i = 0; i < 8; i++) {
 				const angle = i * Math.PI / 4 + warning.id, distance = 9 + progress * 22;

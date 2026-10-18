@@ -6,6 +6,7 @@ export const defaultComposition = (): WaveComposition => Object.fromEntries(BUG_
 export function setDebug(game: Game, enabled: boolean) {
 	if (!!game.debug === enabled) return;
 	if (!enabled) game.wave = Math.min(WAVES_PER_HIVE, game.wave);
+	game.schematicReward = null; game.carriedSchematic = null; game.enemies = game.enemies.filter(enemy => enemy.variant !== "courier");
 	game.debug = enabled ? { queue: [], total: 0, lightSensitivePercent: 0 } : null;
 	game.intermission = 0; game.toSpawn = 0;
 }

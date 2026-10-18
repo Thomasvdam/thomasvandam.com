@@ -19,6 +19,43 @@ weapon selection to the workshop, closes the workshop, or pauses active combat.
 Tab/Enter and click/tap also work. Purchases restore canvas focus so number keys
 and controller menus remain usable when an option becomes unaffordable.
 
+## Schematic recovery and permanent equipment unlocks
+
+Fresh profiles have only legs and the cannon. Shotgun, RPG, flamethrower, wheels,
+and treads each require a schematic. Locked cards remain visible; click/tap,
+keyboard shortcuts, and direct equip functions cannot equip them. Controller
+navigation skips locked cards. Unlocked equipment still equips freely at base.
+
+Hives 3, 6, 9, etc. in each run spawn one small, harmless golden winged courier
+on wave 1, independently of the enemy mix. It flees the mech and prefers unlit
+areas, obeys normal visibility, and has 3 health. It retains its identity,
+position, and remaining health between waves, never counts toward required
+enemies, and disappears on leaving wave 3 if missed. The normal three-second
+return countdown is a final chance to catch it. A missed attempt has no effect
+on ordinary progression; the next eligible hive offers another chance.
+
+The courier carries one random schematic from the five still locked. Killing it
+with any weapon collects the schematic as cargo, without a separate pickup.
+Cargo persists through waves but is lost on death/restart. Completing the hive
+and returning to base unlocks it permanently; a mid-hive kill never saves an
+unlock. Rewards have no duplicates, and couriers stop appearing once all five
+schematics have been recovered. A new run resets the eligible-hive counter to
+zero and starts with legs/cannon; recovered parts stay available in the workshop.
+Paid upgrade ranks, currency, and other run purchases still reset.
+
+`schematics.ts` validates and stores only extracted ownership under the versioned
+browser key `exterminator.schematics.v1`. Death and reload preserve it in this
+browser. Invalid ids/duplicate data are ignored; inaccessible browser storage
+falls back to session ownership with a visible status in the workshop. Pending
+cargo is never serialized. Other browsers/devices have independent saves.
+`courier.ts` owns hiding behaviour and the hunt/extraction lifecycle. Debug
+couriers carry no reward; enabling/replacing debug waves discards pending cargo
+and cannot grant persistent unlocks. Existing recovered ownership remains intact.
+
+Hive offers announce eligible courier hunts. The HUD distinguishes searching,
+carrying cargo that needs extraction, and a successfully recovered schematic.
+Workshop cards/counts report ownership across future runs.
+
 ## Hive lighting
 
 The front floodlight follows weapon aim; two weaker rear lights and a small
@@ -119,7 +156,8 @@ stays in the workshop; return to hive selection when ready. Each undercarriage
 stores its own speed rank. Switching from rank-3 legs to stock wheels gives stock
 wheel speed and visuals; switching back restores rank-3 legs. Each weapon stores its own damage and modification ranks. Stats and equipped visuals
 are derived from the current parts rather than copied across swaps. There are
-four interchangeable weapons and three undercarriages, all available from the start.
+four weapons and three undercarriages. Only the cannon and legs are initially
+available; recover schematics to unlock the other five parts.
 
 ## Job payments and workshop economy
 
@@ -375,7 +413,9 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, 18 bug types plus eggs, and no audio. There is no saved progression between runs.
+Tuning is provisional. This version has four weapons, 19 ordinary bug types plus eggs and an optional
+schematic courier, and no audio. Only recovered schematic ownership persists
+between runs; run currency and paid part ranks reset.
 
 Each bug part has three appearances: stock, brighter crested/banded, and darker
 ridged/spined. This includes body, shell, head, legs, and optional wings.
@@ -459,3 +499,14 @@ and marked actors in the real runtime, and checked mobile overflow. The determin
 benchmark includes 600 moths and 100 light attackers; local samples measured
 1.05 ms and 1.65 ms p95 per simulation step respectively. Device tuning remains
 provisional.
+
+
+Schematic validation covers fresh equipment gates, stable shortcut/controller
+navigation, three-hive cadence, unique/random reward order, carryover of courier
+identity and health, optional progression and final-countdown captures, cargo
+versus extraction, death (including simultaneous kill/fatal hit), reset/save/load,
+corrupt or blocked storage, debug isolation, and all weapons capturing the courier.
+Browser checks decode 277 sprites, inspect the golden courier, verify initial
+locks and controller skipping, exercise controlled capture/extraction, then load
+the resulting save in the actual game and verify equipment after page reload and
+restart. Mobile weapon selection fits without horizontal overflow.

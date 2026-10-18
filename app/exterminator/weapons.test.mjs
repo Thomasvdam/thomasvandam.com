@@ -1,3 +1,4 @@
+import { SCHEMATICS } from "./schematics";
 import { expect, test } from "bun:test";
 import { chooseHive, chooseWeapon, chooseUpgrade, closeWeapons, closeWorkshop, newGame, openShop, openWeapons, openWorkshop, playerStats, start, step, upgradeChoices } from "./game";
 import { WEAPONS, weaponModLimit } from "./weapons";
@@ -5,13 +6,13 @@ import { viewFromGame } from "./runtime";
 import { mechSkin, SPRITE_PARTS } from "./sprite-parts";
 import { MECH_RIG, mechPose, resolveRig } from "./animation";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
-function setup(weapon) { const game = newGame(); start(game); openWorkshop(game); openWeapons(game); chooseWeapon(game, weapon); closeWeapons(game); closeWorkshop(game); chooseHive(game, game.hives[0].id); game.toSpawn = 1; game.spawnTimer = 1000; return game; }
+function setup(weapon) { const game = newGame(1, "legs", SCHEMATICS); start(game); openWorkshop(game); openWeapons(game); chooseWeapon(game, weapon); closeWeapons(game); closeWorkshop(game); chooseHive(game, game.hives[0].id); game.toSpawn = 1; game.spawnTimer = 1000; return game; }
 function advance(game, duration, fire = false, dt = 1 / 120) { for (let i = 0; i < Math.round(duration / dt); i++) step(game, { ...idle, fire }, dt); }
 function bug(game, dx, dy = -6.25, health = 100) { const enemy = { id: game.nextId++, x: game.player.x + dx, y: game.player.y + dy, health, maxHealth: health, speed: 0, variant: "burrower", angle: 0, walkDistance: 0, bornAt: -10, hitAt: -10 }; game.enemies.push(enemy); return enemy; }
 function upgrade(game, id) { game.mode = "shop"; game.money = 100000; chooseUpgrade(game, id); game.mode = "playing"; }
 
-test("all weapons are available at base, swaps are guarded, and each weapon retains its own upgrade set", () => {
-	const game = newGame(); start(game); openWorkshop(game); openWeapons(game);
+test("all recovered weapons are available at base, swaps are guarded, and each weapon retains its own upgrade set", () => {
+	const game = newGame(1, "legs", SCHEMATICS); start(game); openWorkshop(game); openWeapons(game);
 	expect(viewFromGame(game).choices.filter(choice => choice.kind === "weapon").map(choice => choice.id)).toEqual(WEAPONS.map(weapon => weapon.id));
 	const hives = JSON.stringify(game.hives); game.money = 1200;
 	for (const [index, weapon] of WEAPONS.entries()) {

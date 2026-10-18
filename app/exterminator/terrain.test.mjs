@@ -1,3 +1,4 @@
+import { SCHEMATICS } from "./schematics";
 import { expect, test } from "bun:test";
 import { chooseHive, chooseUndercarriage, chooseUpgrade, closeWorkshop, openWorkshop, BASE_SPEED, MAX_SPEED_RANK, SPEED_RANK_BONUS, newGame, playerStats, start, step, upgradeChoices, upgradeLevels, WAVES_PER_HIVE, waveSize } from "./game.ts";
 import { createHives } from "./hives.ts";
@@ -14,7 +15,7 @@ function buy(game, id) { const mode = game.mode; game.mode = "shop"; game.money 
 
 test("each undercarriage applies its terrain handling to actual movement and speed upgrades", () => {
 	for (const undercarriage of ["legs", "wheels", "treads"]) for (const terrain of ["firm", "mud", "rubble"]) {
-		const game = newGame(1, undercarriage); deploy(game); game.terrain.fill(terrain); game.spawnTimer = 100;
+		const game = newGame(1, undercarriage, SCHEMATICS); deploy(game); game.terrain.fill(terrain); game.spawnTimer = 100;
 		const before = game.player.x; advance(game, .25, { ...idle, move: { x: 1, y: 0 } });
 		expect(game.player.x - before).toBeCloseTo(BASE_SPEED * MOVEMENT[undercarriage][terrain] * .25);
 		buy(game, "speed"); const upgraded = game.player.x;
@@ -49,7 +50,7 @@ test("ready opens base; hive completion returns to base without repairs or autom
 });
 
 test("workshop is optional and reopenable, preserves hive choices, and never deploys or repairs", () => {
-	const game = newGame(); start(game); game.player.health = 60;
+	const game = newGame(1, "legs", SCHEMATICS); start(game); game.player.health = 60;
 	const choices = JSON.stringify(game.hives);
 	for (const base of ["wheels", "treads", "legs"]) {
 		openWorkshop(game); expect(game.mode).toBe("workshop"); chooseUndercarriage(game, base);
@@ -81,7 +82,7 @@ test("hive previews match deployed layouts and activity changes actual enemy pre
 });
 
 test("part speed ranks are independent, restored on re-equip, and reset for a new run", () => {
-	const game = newGame(); deploy(game);
+	const game = newGame(1, "legs", SCHEMATICS); deploy(game);
 	for (let rank = 0; rank < 3; rank++) { buy(game, "speed"); }
 	expect(upgradeChoices(game).map(choice => choice.id)).toEqual(["damage", "weaponMod"]);
 	finishHive(game); openWorkshop(game); chooseUndercarriage(game, "wheels");
@@ -98,7 +99,7 @@ test("part speed ranks are independent, restored on re-equip, and reset for a ne
 test("handling budgets and capped speed retain terrain advantages", () => {
 	expect(MOVEMENT.legs).toEqual({ firm: 1, mud: .25, rubble: 1 }); expect(MOVEMENT.wheels).toEqual({ firm: 1.5, mud: .375, rubble: .375 }); expect(MOVEMENT.treads).toEqual({ firm: .7, mud: .85, rubble: .7 });
 	for (const speeds of Object.values(MOVEMENT)) expect(Object.values(speeds).reduce((a, b) => a + b)).toBe(2.25);
-	const game = newGame(); deploy(game);
+	const game = newGame(1, "legs", SCHEMATICS); deploy(game);
 	for (let rank = 1; rank <= MAX_SPEED_RANK; rank++) { buy(game, "speed"); expect(playerStats(game).speed).toBeCloseTo(BASE_SPEED * (1 + rank * SPEED_RANK_BONUS)); }
 	game.mode = "shop"; const frozen = JSON.stringify(game); chooseUpgrade(game, "speed"); expect(JSON.stringify(game)).toBe(frozen);
 	for (const terrain of ["firm", "mud", "rubble"]) for (const slower of ["legs", "wheels", "treads"]) for (const faster of ["legs", "wheels", "treads"]) {

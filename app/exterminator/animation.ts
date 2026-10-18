@@ -114,7 +114,7 @@ export function bugPose(state: { distance: number; angle: number; time: number; 
 }
 export function spawnAppearance(variant: BugVariant, progress: number) {
 	progress = clamp(progress, 0, 1);
-	if (variant === "flyer" || variant === "dragonfly" || variant === "moth") return { elevation: (1 - progress) ** 2 * 90, scale: 1 + (1 - progress) * .3, opacity: .35 + progress * .65, reveal: 1 };
+	if (variant === "flyer" || variant === "dragonfly" || variant === "moth" || variant === "courier") return { elevation: (1 - progress) ** 2 * 90, scale: 1 + (1 - progress) * .3, opacity: .35 + progress * .65, reveal: 1 };
 	return { elevation: 0, scale: .5 + progress * .5, opacity: .35 + progress * .65, reveal: clamp((progress - .25) / .75, 0, 1) };
 }
 

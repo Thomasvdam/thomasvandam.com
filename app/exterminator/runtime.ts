@@ -1,3 +1,4 @@
+import { createSchematicProgress, SCHEMATIC_NAMES, schematicForHive } from "./schematics";
 import { lightSensitiveChance, MOTHS_TO_BLOCK } from "./light-threats";
 import { enemyMixHints } from "./hives";
 import { setDebug, spawnDebugWave, type WaveComposition } from "./debug";
@@ -10,10 +11,10 @@ import type { Vector } from "./math";
 import { loadSprites, createRenderer } from "./renderer";
 
 function menuChoices(game: Game) {
-	if (game.mode === "weapons") return [...weaponChoices(), { id: "workshop", name: "Back to workshop", key: "5", kind: "workshop" as const }];
+	if (game.mode === "weapons") return [...weaponChoices(game), { id: "workshop", name: "Back to workshop", key: "5", kind: "workshop" as const }];
 	if (game.mode === "shop") return [...upgradeChoices(game), ...workshopServices(game), { id: "workshop", name: "Back to workshop", key: "6", kind: "workshop" as const }];
 	if (game.mode === "workshop") return [
-		...undercarriageChoices(),
+		...undercarriageChoices(game),
 		{ id: "shop", name: "Upgrades & repairs", key: "4", kind: "shop" as const },
 		{ id: "back", name: "Choose a hive", key: "5", kind: "back" as const },
 		{ id: "weapons", name: "Change weapon", key: "6", kind: "weapons" as const },
@@ -24,17 +25,22 @@ function menuChoices(game: Game) {
 	];
 	return [];
 }
+export function nextMenuSelection(choices: readonly { kind?: string; locked?: boolean }[], current: number, direction: number) {
+	for (let i = 0; i < choices.length; i++) { current = (current + direction + choices.length) % choices.length; if (!choices[current].locked) return current; }
+	return current;
+}
 export type ExterminatorView = ReturnType<typeof viewFromGame>;
-export function viewFromGame(game: Game, controller = false, selection = 0) {
+export function viewFromGame(game: Game, controller = false, selection = 0, progressSaved = true) {
 	return {
+		carriedSchematic: game.carriedSchematic ? SCHEMATIC_NAMES[game.carriedSchematic] : null, lastSchematic: game.lastSchematic ? SCHEMATIC_NAMES[game.lastSchematic] : null, schematicHunt: game.schematicReward !== null && game.carriedSchematic === null, unlockedSchematics: game.schematics.length, progressSaved,
 		pit: game.pitTerrain !== null, tethered: game.tethers.filter(tether => !tether.lightTarget).length, slimed: game.slimed, debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? game.pitTerrain ?? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
-		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.length + game.toSpawn + game.spawns.length,
+		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.filter(enemy => enemy.variant !== "courier").length + game.toSpawn + game.spawns.length,
 		blockedLights: Object.values(game.lightCover).filter(count => count >= MOTHS_TO_BLOCK).length, lightRank: game.parts.lights, cornerLights: { ...game.parts.cornerLights }, sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
 		hives: game.hives.map(hive => {
 			const terrain = terrainByPrevalence(hive.terrain), difficultyKnown = game.parts.sensor >= 1;
 			return {
-				id: hive.id, name: hive.name, payment: hive.payment, activity: difficultyKnown ? hive.activity : null,
+				schematicChance: !game.debug && schematicForHive(game.runSeed, game.hivesCleared, game.schematics) !== null, id: hive.id, name: hive.name, payment: hive.payment, activity: difficultyKnown ? hive.activity : null,
 				threat: difficultyKnown ? hive.threat : null,
 				terrain: TERRAIN_NAMES[terrain[0]], secondaryTerrain: game.parts.sensor >= 2 && terrain[1] ? TERRAIN_NAMES[terrain[1]] : null,
 				lightAttackers: game.parts.sensor >= 3 ? Math.round(lightSensitiveChance(game.hivesCleared, hive.threat) * 100) : null,
@@ -52,8 +58,11 @@ type RuntimeOptions = {
 
 export function createExterminatorRuntime(options: RuntimeOptions) {
 	const { canvas, onViewChange, onLoaded, onError } = options;
-	const freshGame = () => { const next = newGame(crypto.getRandomValues(new Uint32Array(1))[0]); setDebug(next, window.location.hash === "#debug"); return next; };
-	let game = freshGame();
+	let storage: Storage | null = null;
+	try { storage = window.localStorage; } catch { /* Keep extracted ownership in this session when browser storage is blocked. */ }
+	const progress = createSchematicProgress(storage);
+	const freshGame = () => { const next = newGame(crypto.getRandomValues(new Uint32Array(1))[0], "legs", progress.read()); setDebug(next, window.location.hash === "#debug"); return next; };
+	let game = freshGame(), savedSchematics = JSON.stringify(game.schematics);
 	let disposed = false, loaded = false, frame = 0, width = 1, height = 1, pixelRatio = 1, accumulator = 0, lastTime = 0;
 	let mouse: Vector | null = null, aimSource: "mouse" | "touch" | "controller" = "mouse";
 	let needsDraw = true;
@@ -63,7 +72,9 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	const moveStick = bindJoystick(options.movePad, options.moveThumb, playing);
 	const aimStick = bindJoystick(options.aimPad, options.aimThumb, playing);
 	const publish = () => {
-		const view = viewFromGame(game, controller, selection), key = JSON.stringify(view);
+		const recovered = JSON.stringify(game.schematics);
+		if (savedSchematics !== recovered) { progress.remember(game.schematics); savedSchematics = recovered; }
+		const view = viewFromGame(game, controller, selection, progress.persistent), key = JSON.stringify(view);
 		if (key !== viewKey) { viewKey = key; needsDraw = true; onViewChange(view); }
 	};
 	const clearInput = () => {
@@ -105,7 +116,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	};
 	const confirmChoice = (index: number) => {
 		const choice = menuChoices(game)[index];
-		if (!choice) return;
+		if (!choice || ("locked" in choice && choice.locked)) return;
 		if (choice.kind === "undercarriage") equip(choice.id);
 		if (choice.kind === "weapon") equipWeapon(choice.id);
 		if (choice.kind === "weapons") action("weapons");
@@ -171,8 +182,8 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (document.hasFocus() && !document.hidden) {
 			if (pad.pause && !previousPad.pause) action("pause");
 			if (menuChoices(game).length > 0) {
-				if (pad.previous && !previousPad.previous) selection = (selection + menuChoices(game).length - 1) % menuChoices(game).length;
-				if (pad.next && !previousPad.next) selection = (selection + 1) % menuChoices(game).length;
+				if (pad.previous && !previousPad.previous) selection = nextMenuSelection(menuChoices(game), selection, -1);
+				if (pad.next && !previousPad.next) selection = nextMenuSelection(menuChoices(game), selection, 1);
 			}
 			if (pad.confirm && !previousPad.confirm) {
 				if (menuChoices(game).length > 0) confirmChoice(selection);
