@@ -21,20 +21,27 @@ export type BugVariant = keyof typeof BUG_SPECS;
 export const BUG_TYPES = Object.keys(BUG_SPECS) as BugVariant[];
 export const BUG_NAMES: Record<BugVariant, string> = { courier: "Schematic courier", moth: "Moth swarm", assassin: "Backpack assassin", burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter", slug: "Slug", queen: "Queen ant colony", worker: "Worker ant", soldier: "Soldier ant", bulletAnt: "Bullet ant", egg: "Ant egg", antlion: "Antlion", bombardier: "Bombardier beetle", dragonfly: "Dragonfly", bolasSpider: "Bolas spider" };
 export type BugWeights = Record<BugVariant, number>;
-export function defaultBugWeights(cleared: number): BugWeights {
-	const specialists: BugVariant[] = ["lunger"];
-	if (cleared >= 1) specialists.push("evader");
-	if (cleared >= 2) specialists.push("armoured", "beetle", "moth");
-	if (cleared >= 3) specialists.push("centipede");
-	if (cleared >= 4) specialists.push("spitter");
-	if (cleared >= 5) specialists.push("slug");
-	if (cleared >= 6) specialists.push("queen");
-	if (cleared >= 7) specialists.push("antlion");
-	if (cleared >= 8) specialists.push("bombardier");
-	if (cleared >= 9) specialists.push("dragonfly");
-	if (cleared >= 10) specialists.push("bolasSpider");
-	if (cleared >= 11) specialists.push("assassin");
-	return Object.fromEntries(BUG_TYPES.map(type => [type, type === "burrower" || type === "flyer" ? specialists.length : specialists.includes(type) ? 1 : 0])) as BugWeights;
+function shuffledUnlocks(seed: number, firstHive: number, types: BugVariant[]): BugVariant[] {
+	// Each group has its own stream, independent of hive offers and wave spawning.
+	let state = (seed ^ Math.imul(firstHive, 2654435761)) >>> 0;
+	for (let i = types.length - 1; i > 0; i--) {
+		state += 0x6D2B79F5;
+		let n = Math.imul(state ^ state >>> 15, state | 1); n ^= n + Math.imul(n ^ n >>> 7, n | 61);
+		const j = Math.floor(((n ^ n >>> 14) >>> 0) / 4294967296 * (i + 1));
+		[types[i], types[j]] = [types[j], types[i]];
+	}
+	return types;
+}
+export function defaultBugWeights(cleared: number, seed = 0): BugWeights {
+	const specialists: BugVariant[] = [];
+	if (cleared >= 1) specialists.push("moth", "evader");
+	if (cleared >= 2) specialists.push("lunger");
+	specialists.push(...shuffledUnlocks(seed, 4, ["centipede", "beetle", "armoured"]).slice(0, Math.max(0, cleared - 2)));
+	if (cleared >= 6) specialists.push("spitter");
+	specialists.push(...shuffledUnlocks(seed, 8, ["slug", "antlion", "bombardier"]).slice(0, Math.max(0, cleared - 6)));
+	if (cleared >= 10) specialists.push("queen");
+	specialists.push(...shuffledUnlocks(seed, 12, ["dragonfly", "bolasSpider", "assassin"]).slice(0, Math.max(0, cleared - 10)));
+	return Object.fromEntries(BUG_TYPES.map(type => [type, type === "burrower" || type === "flyer" ? Math.max(1, specialists.length) : specialists.includes(type) ? 1 : 0])) as BugWeights;
 }
 export const QUEEN_LAY_INTERVAL = 6;
 export const BEETLE_ROLL_TIME = .95;

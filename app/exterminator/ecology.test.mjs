@@ -131,16 +131,19 @@ test("slime, eggs, laying, and ranged windups freeze on pause; wave replacement 
 	expect(game.mode).toBe("base"); expect(game.slime).toEqual([]); expect(newGame().slime).toEqual([]);
 });
 
-test("slugs and queens unlock on jobs six and seven, ants only arrive via colonies, and hive intel names that relationship", () => {
-	for (let cleared = 0; cleared < 10; cleared++) {
+test("slugs unlock in hives eight through ten and queens in hive eleven, ants only arrive via colonies, and hive intel names that relationship", () => {
+	let slugHive = null;
+	for (let cleared = 0; cleared < 15; cleared++) {
 		const weights = defaultBugWeights(cleared), variants = new Set(Array.from({ length: 200 }, (_, index) => bugForSpawn(cleared, 1, index)));
-		expect(variants.has("slug")).toBe(cleared >= 5); expect(variants.has("queen")).toBe(cleared >= 6);
+		if (variants.has("slug") && slugHive === null) slugHive = cleared + 1;
+		expect(variants.has("slug")).toBe(slugHive !== null); expect(variants.has("queen")).toBe(cleared >= 10);
 		for (const type of ["worker", "soldier", "bulletAnt", "egg"]) expect(weights[type]).toBe(0);
 	}
+	expect(slugHive).toBeGreaterThanOrEqual(8); expect(slugHive).toBeLessThanOrEqual(10);
 	let exclusion;
-	for (let seed = 0; seed < 100 && !exclusion; seed++) exclusion = createHives(seed, 6).find(hive => hive.enemyMix.kind === "none" && hive.enemyMix.types.includes("queen"));
+	for (let seed = 0; seed < 100 && !exclusion; seed++) exclusion = createHives(seed, 10).find(hive => hive.enemyMix.kind === "none" && hive.enemyMix.types.includes("queen"));
 	expect(exclusion).toBeDefined();
-	for (let wave = 1; wave <= 3; wave++) for (let i = 0; i < 100; i++) expect(bugForSpawn(6, wave, i, exclusion.enemyMix.weights)).not.toBe("queen");
+	for (let wave = 1; wave <= 3; wave++) for (let i = 0; i < 100; i++) expect(bugForSpawn(10, wave, i, exclusion.enemyMix.weights)).not.toBe("queen");
 	const game = setup(); game.hives = [exclusion]; game.parts.sensor = 3; expect(viewFromGame(game).hives[0].enemyMix).toBe("No Queen ant colony");
 });
 

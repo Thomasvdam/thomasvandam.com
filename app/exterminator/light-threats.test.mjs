@@ -22,8 +22,8 @@ function mothsAt(game, id, count = 4) {
 	return Array.from({ length: count }, () => { const moth = bug(game, "moth", source.x, source.y); moth.state.light = id; return moth; });
 }
 
-test("moth swarms unlock in hive three and debug encounters expand into six individually killable moths", () => {
-	expect(defaultBugWeights(1).moth).toBe(0); expect(defaultBugWeights(2).moth).toBeGreaterThan(0);
+test("moth swarms unlock in hive two and debug encounters expand into six individually killable moths", () => {
+	expect(defaultBugWeights(0).moth).toBe(0); expect(defaultBugWeights(1).moth).toBeGreaterThan(0);
 	const game = setup(); setDebug(game, true); spawnDebugWave(game, { ...defaultComposition(), burrower: 0, moth: 2 }, 100);
 	step(game, idle, 1 / 120); expect(game.spawns).toHaveLength(MOTH_SWARM_SIZE);
 	game.spawnTimer = 0; step(game, idle, 1 / 120); expect(game.spawns).toHaveLength(MOTH_SWARM_SIZE * 2);

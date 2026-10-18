@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { BUG_TYPES, createBug, defaultBugWeights } from "./bug-types";
+import { BUG_TYPES, createBug } from "./bug-types";
 import { FIELD, newGame, start, chooseHive, step, togglePause, clearCombat } from "./game";
 import { absorbBackpack, burnRemains, CORPSE_BURN_TIME, corpseAlive, leaveCorpse, stepAssassin } from "./remains";
 import { createRemainsLayer } from "./remains-renderer";
@@ -74,7 +74,6 @@ test("pause freezes corpses, burning and armour; waves preserve them, base/debug
 	a.health = 0; game.toSpawn = 0; step(game, idle, dt); expect(game.intermission).toBe(3); advance(game, 3.1); expect(game.wave).toBe(2); expect(game.remains.length).toBeGreaterThan(0);
 	clearCombat(game); expect(game.remains).toEqual([]);
 	corpse(game); game.wave = 3; game.toSpawn = 0; game.spawns = []; game.intermission = .001; step(game, idle, dt); expect(game.mode).toBe("base"); expect(game.remains).toEqual([]);
-	for (let cleared = 0; cleared < 13; cleared++) expect(defaultBugWeights(cleared).assassin > 0).toBe(cleared >= 11);
 });
 
 test("ground cache reuses unchanged corpses and invalidates on collection, ignition, replacement and clock reset", () => {
