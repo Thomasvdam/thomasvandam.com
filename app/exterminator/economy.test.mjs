@@ -29,7 +29,7 @@ test("kills do not award currency or interrupt combat, and a failed job does not
 	const game = job(); chooseHive(game, game.hives[0].id); game.toSpawn = 1; game.spawnTimer = 100;
 	game.enemies.push({ id: 99, x: 50, y: 50, health: 0, maxHealth: 1, speed: 0, variant: "burrower", angle: 0, walkDistance: 0, bornAt: -10, hitAt: -10 });
 	step(game, idle, 1 / 120); expect(game.kills).toBe(1); expect(game.money).toBe(0); expect(game.mode).toBe("playing");
-	game.player.health = 20; game.enemies.push({ id: 100, ...game.player, health: 1, maxHealth: 1, speed: 0, variant: "burrower", bornAt: -10, hitAt: -10 }); step(game, idle, 1 / 120);
+	game.player.health = 10; game.enemies.push({ id: 100, ...game.player, health: 1, maxHealth: 1, speed: 0, variant: "burrower", bornAt: -10, hitAt: -10 }); step(game, idle, 1 / 120);
 	expect(game.mode).toBe("dead"); expect(game.money).toBe(0); expect(game.lastJob).toBeNull();
 });
 
@@ -50,7 +50,7 @@ test("purchases are base-only and unavailable or capped choices never deduct mon
 	for (const mode of ["ready", "playing", "paused", "base", "workshop", "weapons", "dead"]) {
 		game.mode = mode; const frozen = JSON.stringify(game); chooseUpgrade(game, "damage"); purchaseService(game, "heal"); purchaseService(game, "sensor"); expect(JSON.stringify(game)).toBe(frozen);
 	}
-	game.mode = "shop"; game.parts.undercarriages.legs = 3; game.parts.weapons.cannon.mod = 10; game.parts.sensor = 3; game.parts.lights = 3; for (const corner in game.parts.cornerLights) game.parts.cornerLights[corner] = true; game.player.health = 100;
+	game.mode = "shop"; game.parts.undercarriages.legs = 3; game.parts.weapons.cannon.mod = 10; game.parts.sensor = 3; game.parts.lights = 3; game.parts.armour = 5; for (const corner in game.parts.cornerLights) game.parts.cornerLights[corner] = true; game.player.health = 100;
 	const capped = JSON.stringify(game); chooseUpgrade(game, "speed"); chooseUpgrade(game, "weaponMod"); chooseUpgrade(game, "invalid"); purchaseService(game, "heal"); purchaseService(game, "sensor"); expect(JSON.stringify(game)).toBe(capped);
 	expect(viewFromGame(game).choices.map(choice => choice.key)).toEqual(["1", "6"]); expect(workshopServices(game)).toEqual([]);
 });

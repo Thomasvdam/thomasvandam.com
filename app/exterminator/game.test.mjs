@@ -46,9 +46,9 @@ test("waves finish only after all spawns and enemies; the next starts automatica
 
 test("contact damage has invulnerability, death freezes play, and a fresh run resets progression", () => {
 	const game = newGame(); start(game); enemy(game, { x: game.player.x, y: game.player.y });
-	step(game, idle, 1 / 120); expect(game.player.health).toBe(80);
-	advance(game, .5); expect(game.player.health).toBe(80);
-	advance(game, 4); expect(game.mode).toBe("dead"); expect(game.player.health).toBe(0);
+	step(game, idle, 1 / 120); expect(game.player.health).toBe(90);
+	advance(game, .5); expect(game.player.health).toBe(90);
+	advance(game, 9); expect(game.mode).toBe("dead"); expect(game.player.health).toBe(0);
 	const ended = JSON.stringify(game); advance(game, 2); expect(JSON.stringify(game)).toBe(ended);
 	const reset = newGame(); expect(reset.mode).toBe("ready"); expect(reset.kills).toBe(0); expect(reset.money).toBe(0); expect(upgradeLevels(reset)).toEqual({ damage: 0, weaponMod: 0, speed: 0 });
 });
@@ -61,7 +61,7 @@ test("spawn warnings are stationary, harmless, and last the full delay before an
 	advance(game, SPAWN_WARNING_TIME - 1 / 120);
 	expect(game.player.health).toBe(100); expect(game.enemies).toHaveLength(0); expect(game.intermission).toBe(0);
 	expect(game.spawns[0].x).toBe(warning.x); expect(game.spawns[0].y).toBe(warning.y);
-	advance(game, 2 / 120); expect(game.spawns).toHaveLength(0); expect(game.enemies[0].id).toBe(warning.id); expect(game.player.health).toBe(80);
+	advance(game, 2 / 120); expect(game.spawns).toHaveLength(0); expect(game.enemies[0].id).toBe(warning.id); expect(game.player.health).toBe(90);
 });
 
 test("spawn warnings freeze during pauses", () => {

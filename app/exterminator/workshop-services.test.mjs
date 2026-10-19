@@ -1,16 +1,16 @@
 import { expect, test } from "bun:test";
-import { chooseHive, closeShop, closeWorkshop, HEAL_COST, newGame, openShop, openWorkshop, playerStats, purchaseService, start, step, workshopServices } from "./game";
+import { chooseHive, closeShop, closeWorkshop, HEAL_COST, repairCost, newGame, openShop, openWorkshop, playerStats, purchaseService, start, step, workshopServices } from "./game";
 import { viewFromGame } from "./runtime";
 import { enemyMixHints } from "./hives";
 import { TERRAIN_NAMES, terrainByPrevalence } from "./terrain";
 function shop(money = 1000, health = 40) { const game = newGame(47); start(game); game.money = money; game.player.health = health; openWorkshop(game); openShop(game); return game; }
 
 test("full repairs deduct their listed price, require enough money, and disappear at full health", () => {
-	const game = shop(HEAL_COST); const parts = JSON.stringify(game.parts);
-	expect(workshopServices(game).find(choice => choice.id === "heal")).toMatchObject({ key: "4", cost: HEAL_COST });
+	const cost = repairCost(40), game = shop(cost); const parts = JSON.stringify(game.parts);
+	expect(workshopServices(game).find(choice => choice.id === "heal")).toMatchObject({ key: "4", cost });
 	purchaseService(game, "heal"); expect(game.player.health).toBe(100); expect(game.money).toBe(0); expect(game.mode).toBe("shop"); expect(JSON.stringify(game.parts)).toBe(parts);
 	const healed = JSON.stringify(game); purchaseService(game, "heal"); expect(JSON.stringify(game)).toBe(healed);
-	const short = shop(HEAL_COST - 1); purchaseService(short, "heal"); expect(short.player.health).toBe(40); expect(short.money).toBe(HEAL_COST - 1);
+	const short = shop(cost - 1); purchaseService(short, "heal"); expect(short.player.health).toBe(40); expect(short.money).toBe(cost - 1);
 });
 
 test("sensor ranks have increasing prices and reveal difficulty, terrain, then enemy intel without rerolling jobs", () => {
@@ -41,4 +41,15 @@ test("sensor purchases persist across jobs and stay resettable with the run", ()
 	expect(game.mode).toBe("base"); expect(game.parts.sensor).toBe(3);
 	for (const hive of viewFromGame(game).hives) { expect(hive.enemyMix).not.toBeNull(); expect(hive.activity).not.toBeNull(); expect(hive.secondaryTerrain).not.toBeNull(); }
 	expect(newGame().parts.sensor).toBe(0);
+});
+
+
+test("repair quotes scale with missing health, round up, and never exceed $60", () => {
+	for (const [health, cost] of [[100, 0], [99, 1], [90, 6], [50, 30], [40, 36], [1, 60], [0, HEAL_COST]]) {
+		expect(repairCost(health)).toBe(cost);
+		const game = shop(cost, health), quote = workshopServices(game).find(choice => choice.id === "heal");
+		if (health === 100) expect(quote).toBeUndefined();
+		else { expect(quote.cost).toBe(cost); purchaseService(game, "heal"); expect(game.player.health).toBe(100); expect(game.money).toBe(0); }
+	}
+	expect(repairCost(99.5)).toBe(1);
 });

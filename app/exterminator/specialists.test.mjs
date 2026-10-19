@@ -22,7 +22,7 @@ test("click beetles lock a landing point, cross crowds in flight, and impact exa
 	stepClickBeetle(game, click, CLICK_WINDUP, FIELD, PLAYER_RADIUS); expect(click.state.phase).toBe("flight");
 	stepClickBeetle(game, click, CLICK_FLIGHT / 2, FIELD, PLAYER_RADIUS); const mid = { x: click.x, y: click.y };
 	bug(game, "armoured", mid.x, mid.y); separateBugs(game.enemies, FIELD); expect({ x: click.x, y: click.y }).toEqual(mid);
-	stepClickBeetle(game, click, CLICK_FLIGHT / 2, FIELD, PLAYER_RADIUS); expect(click.x).toBe(300); expect(game.player.health).toBe(75); expect(game.explosions).toHaveLength(1); expect(click.state.phase).toBe("recover");
+	stepClickBeetle(game, click, CLICK_FLIGHT / 2, FIELD, PLAYER_RADIUS); expect(click.x).toBe(300); expect(game.player.health).toBe(87); expect(game.explosions).toHaveLength(1); expect(click.state.phase).toBe("recover");
 	stepClickBeetle(game, click, .2, FIELD, PLAYER_RADIUS); expect(game.explosions).toHaveLength(1);
 	const escaped = setup(), other = bug(escaped, "clickBeetle", 500); stepClickBeetle(escaped, other, dt, FIELD, PLAYER_RADIUS); escaped.player.y = 100;
 	stepClickBeetle(escaped, other, CLICK_WINDUP, FIELD, PLAYER_RADIUS); stepClickBeetle(escaped, other, CLICK_FLIGHT, FIELD, PLAYER_RADIUS); expect(escaped.player.health).toBe(100);
@@ -53,7 +53,7 @@ test("exploding ants stand still for a short charge, and deaths detonate at any 
 		const game = setup(), ant = bug(game, "explodingAnt", 330); ant.state.phase = phase; ant.state.remaining = ANT_CHARGE;
 		if (phase === "chase") { stepExplodingAnt(game, ant, dt, FIELD); expect(ant.state.phase).toBe("charge"); }
 		const point = { x: ant.x, y: ant.y }; stepExplodingAnt(game, ant, ANT_CHARGE / 2, FIELD); expect({ x: ant.x, y: ant.y }).toEqual(point); expect(ant.health).toBeGreaterThan(0);
-		damageEnemy(game, ant, 100); step(game, idle, dt); expect(game.player.health).toBe(70); expect(game.enemies).not.toContain(ant); expect(game.explosions).toHaveLength(1);
+		damageEnemy(game, ant, 100); step(game, idle, dt); expect(game.player.health).toBe(85); expect(game.enemies).not.toContain(ant); expect(game.explosions).toHaveLength(1);
 	}
 	const game = setup(), ant = bug(game, "explodingAnt", 330); stepExplodingAnt(game, ant, dt, FIELD); stepExplodingAnt(game, ant, ANT_CHARGE, FIELD); resolveAntExplosions(game, PLAYER_RADIUS); expect(ant.state.detonated).toBe(true);
 });
@@ -73,7 +73,7 @@ test("every weapon killing an ant still causes its explosion, including flame ki
 		const game = setup(), ant = bug(game, "explodingAnt", 350); ant.speed = 0; ant.health = .001;
 		if (weapon === "flamethrower") { game.weapon = weapon; step(game, { ...idle, fire: true }, dt); }
 		else { shot(game, ant, weapon, 100); step(game, idle, dt); }
-		expect(game.enemies).not.toContain(ant); expect(ant.state.detonated).toBe(true); expect(game.player.health).toBe(70);
+		expect(game.enemies).not.toContain(ant); expect(ant.state.detonated).toBe(true); expect(game.player.health).toBe(85);
 	}
 });
 
@@ -173,7 +173,7 @@ test("actual aimed weapon input can destroy sacs on either side of a living host
 
 test("larvae chase and deal contact damage, count toward wave completion, and cannot breed", () => {
 	const game = setup(), larva = bug(game, "larva", 400); const before = larva.x; advance(game, .2); expect(larva.x).toBeLessThan(before); expect(canImplant(larva, game.time)).toBe(false);
-	larva.x = game.player.x; larva.y = game.player.y; step(game, idle, dt); expect(game.player.health).toBe(80);
+	larva.x = game.player.x; larva.y = game.player.y; step(game, idle, dt); expect(game.player.health).toBe(90);
 	game.toSpawn = 0; step(game, idle, dt); expect(game.intermission).toBe(0);
 	larva.health = 0; step(game, idle, dt); expect(game.intermission).toBe(3);
 });

@@ -26,7 +26,7 @@ test("a fast mech can outrun the charge before it lunges; slow terrain leaves it
 	for (const terrain of ["firm", "mud"]) {
 		const game = setup(); Object.assign(game.player, { x: 480, y: 360 }); game.terrain.fill(terrain); bug(game, "lunger", 300);
 		step(game, idle, 1 / 120); advance(game, 1.8, { ...idle, move: { x: 1, y: 0 } });
-		expect(game.player.health).toBe(terrain === "firm" ? 100 : 70);
+		expect(game.player.health).toBe(terrain === "firm" ? 100 : 85);
 	}
 });
 

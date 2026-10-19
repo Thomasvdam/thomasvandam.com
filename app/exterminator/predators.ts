@@ -1,3 +1,4 @@
+import { hurtPlayer } from "./player-damage";
 import { combatTarget, cornerPosition, damageLamp, LAMP_RADIUS } from "./light-threats";
 import type { CornerLight } from "./lighting";
 import { BUG_SPECS, type Enemy } from "./bug-types";
@@ -73,7 +74,7 @@ export function stepBombardier(game: Game, enemy: Extract<Enemy, { variant: "bom
 		if (state.remaining === 0) { state.phase = "spray"; state.remaining = SPRAY_DURATION; }
 	} else if (state.phase === "spray") {
 		if (enemy.attackLight && game.parts.cornerLights[enemy.attackLight] && game.time >= (enemy.lampHitAt ?? -Infinity) + .9 && inSpray(cornerPosition(enemy.attackLight), enemy, state.direction, LAMP_RADIUS)) { damageLamp(game, enemy.attackLight, 20); enemy.lampHitAt = game.time; }
-		if (game.player.invulnerable === 0 && inSpray(game.player, enemy, state.direction, playerRadius)) { game.player.health = Math.max(0, game.player.health - 20); game.player.invulnerable = .9; }
+		if (game.player.invulnerable === 0 && inSpray(game.player, enemy, state.direction, playerRadius)) { hurtPlayer(game, 20); }
 		if (state.remaining === 0) { state.phase = "recover"; state.remaining = 2.2; }
 	} else if (state.remaining === 0) state.phase = "chase";
 }

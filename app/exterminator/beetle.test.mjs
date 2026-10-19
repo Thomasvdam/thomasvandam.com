@@ -41,20 +41,20 @@ test("lobs deal area damage once on landing, including the edge of the mech foot
 	for (const offset of [0, BEETLE_BLAST_RADIUS + PLAYER_RADIUS - 1, BEETLE_BLAST_RADIUS + PLAYER_RADIUS + 1]) {
 		const game = setup(); const enemy = bug(game); enemy.state.remaining = 100; lob(game, { x: game.player.x + offset, y: game.player.y });
 		advance(game, BEETLE_FLIGHT_TIME - .05); expect(game.player.health).toBe(100);
-		advance(game, .1); expect(game.player.health).toBe(offset > BEETLE_BLAST_RADIUS + PLAYER_RADIUS ? 100 : 80);
+		advance(game, .1); expect(game.player.health).toBe(offset > BEETLE_BLAST_RADIUS + PLAYER_RADIUS ? 100 : 90);
 		const health = game.player.health; advance(game, .3); expect(game.player.health).toBe(health); expect(game.lobs).toHaveLength(0);
 	}
 });
 
 test("players can leave the marked landing area during flight; simultaneous impacts respect invulnerability", () => {
 	const dodged = setup(); bug(dodged); lob(dodged); advance(dodged, 1, { ...idle, move: { x: 0, y: 1 } }); expect(dodged.player.health).toBe(100);
-	const hit = setup(); bug(hit); lob(hit); lob(hit); advance(hit, 1); expect(hit.player.health).toBe(80);
+	const hit = setup(); bug(hit); lob(hit); lob(hit); advance(hit, 1); expect(hit.player.health).toBe(90);
 });
 
 test("lobs freeze with the game, can kill, and disappear on wave clear or restart", () => {
 	const game = setup(), enemy = bug(game); lob(game); game.mode = "paused";
 	const frozen = JSON.stringify(game); advance(game, 2); expect(JSON.stringify(game)).toBe(frozen);
-	game.mode = "playing"; game.player.health = 20; advance(game, 1); expect(game.mode).toBe("dead");
+	game.mode = "playing"; game.player.health = 10; advance(game, 1); expect(game.mode).toBe("dead");
 	const dead = JSON.stringify(game); advance(game, 2); expect(JSON.stringify(game)).toBe(dead); expect(newGame().lobs).toEqual([]);
 	game.mode = "playing"; game.player.health = 100; game.player.invulnerable = 0; enemy.health = 0; game.toSpawn = 0;
 	lob(game, game.player, BEETLE_FLIGHT_TIME - .001); step(game, idle, 1 / 30);
@@ -64,7 +64,7 @@ test("lobs freeze with the game, can kill, and disappear on wave clear or restar
 test("a released ball survives its thrower's death until the wave clears, but a dead beetle cannot throw", () => {
 	const game = setup(), enemy = bug(game);
 	enemy.state.phase = "roll"; enemy.state.remaining = .001; step(game, idle, 1 / 120); expect(game.lobs).toHaveLength(1);
-	enemy.health = 0; advance(game, 1); expect(game.player.health).toBe(80);
+	enemy.health = 0; advance(game, 1); expect(game.player.health).toBe(90);
 	const other = setup(), dead = bug(other); dead.state.phase = "roll"; dead.state.remaining = .001; dead.health = 0;
 	step(other, idle, 1 / 120); expect(other.lobs).toHaveLength(0);
 });

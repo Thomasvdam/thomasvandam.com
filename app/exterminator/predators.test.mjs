@@ -33,7 +33,7 @@ test("opposing movement uses each pit's terrain handling and the suitable underc
 		for (const gear of Object.keys(results)) if (gear !== best) expect(results[best]).toBeGreaterThan(results[gear]);
 	}
 	const game = setup(); bug(game, "antlion", 460); const one = preparePulls(game, dt).force.x; bug(game, "antlion", 460); expect(preparePulls(game, dt).force.x).toBeCloseTo(one);
-	game.player.invulnerable = 0; game.player.x = 460; step(game, idle, dt); expect(game.player.health).toBe(80);
+	game.player.invulnerable = 0; game.player.x = 460; step(game, idle, dt); expect(game.player.health).toBe(90);
 });
 
 test("bombardiers retaliate only after surviving damage, telegraph a locked cone, and recover before reacting again", () => {
@@ -42,7 +42,7 @@ test("bombardiers retaliate only after surviving damage, telegraph a locked cone
 	game.player.y = 650; provokeBombardier(game, enemy); expect(enemy.state.direction).toBe(direction);
 	stepBombardier(game, enemy, .75, FIELD, 14); expect(game.player.health).toBe(100); expect(enemy.state.phase).toBe("spray");
 	stepBombardier(game, enemy, .1, FIELD, 14); expect(game.player.health).toBe(100); game.player.y = 360;
-	stepBombardier(game, enemy, .1, FIELD, 14); expect(game.player.health).toBe(80); stepBombardier(game, enemy, .3, FIELD, 14); expect(enemy.state.phase).toBe("recover");
+	stepBombardier(game, enemy, .1, FIELD, 14); expect(game.player.health).toBe(90); stepBombardier(game, enemy, .3, FIELD, 14); expect(enemy.state.phase).toBe("recover");
 	provokeBombardier(game, enemy); expect(enemy.state.phase).toBe("recover"); stepBombardier(game, enemy, 2.3, FIELD, 14); expect(enemy.state.phase).toBe("chase");
 	enemy.health = 0; provokeBombardier(game, enemy); expect(enemy.state.phase).toBe("chase");
 	const actual = setup(), beetle = bug(actual, "bombardier", 500); actual.bullets.push({ id: actual.nextId++, x: 460, y: 360, vx: 12000, vy: 0, damage: 1, life: 1, weapon: "cannon", blastRadius: 0 }); step(actual, idle, dt); expect(beetle.state.phase).toBe("windup");

@@ -1,3 +1,4 @@
+import { hurtPlayer, MAX_ARMOUR_RANK, armourReduction } from "./player-damage";
 import { broodPosition, broodRadius, damageBrood, enemyPosition, resolveAntExplosions, stepBroods, updateGlue } from "./specialists";
 import { beginSchematicHunt, extractSchematic } from "./courier";
 import { equipmentUnlocked, normalizeSchematics, type Schematic } from "./schematics";
@@ -23,6 +24,7 @@ export const SPEED_RANK_BONUS = .08;
 export const MAX_SPEED_RANK = 3;
 export const upgradeCost = (rank: number, base = 100) => Math.round(base * 1.6 ** rank / 10) * 10;
 export const HEAL_COST = 60;
+export const repairCost = (health: number) => Math.min(HEAL_COST, Math.ceil(Math.max(0, 100 - health) * HEAL_COST / 100));
 export type Upgrade = "damage" | "weaponMod" | "speed";
 export function upgradeChoices(game: Game) {
 	const spec = weaponSpec(game.weapon);
@@ -35,10 +37,11 @@ export function upgradeChoices(game: Game) {
 export function weaponChoices(game: Game) { return WEAPONS.map((part, index) => ({ ...part, locked: !equipmentUnlocked(game.schematics, part.id), kind: "weapon" as const, key: String(index + 1) })); }
 export function undercarriageChoices(game: Game) { return UNDERCARRIAGES.map((part, index) => ({ ...part, locked: !equipmentUnlocked(game.schematics, part.id), kind: "undercarriage" as const, key: String(index + 1) })); }
 export const MAX_SENSOR_RANK = 3;
-export type WorkshopService = "heal" | "sensor" | "lights" | CornerLight;
+export type WorkshopService = "heal" | "sensor" | "lights" | "armour" | CornerLight;
 export function workshopServices(game: Game) {
 	const choices: { id: WorkshopService; name: string; description: string; cost: number; key: string; kind: "service" }[] = [];
-	if (game.player.health < 100) choices.push({ id: "heal", name: "Full heal", description: "Restore health to 100.", cost: HEAL_COST, key: "4", kind: "service" });
+	if (game.player.health < 100) choices.push({ id: "heal", name: "Full heal", description: `Restore ${100 - game.player.health} health to reach 100.`, cost: repairCost(game.player.health), key: "4", kind: "service" });
+	if (game.parts.armour < MAX_ARMOUR_RANK) choices.push({ id: "armour", name: "Upgrade armour", description: `Reduce all incoming damage by ${Math.round(armourReduction(game.parts.armour + 1) * 100)}% · rank ${game.parts.armour + 1} / ${MAX_ARMOUR_RANK}`, cost: upgradeCost(game.parts.armour), key: "A", kind: "service" });
 	if (game.parts.sensor < MAX_SENSOR_RANK) choices.push({ id: "sensor", name: "Upgrade hive sensor", description: game.parts.sensor === 0 ? "Reveal hive difficulty." : game.parts.sensor === 1 ? "Reveal the second most prevalent terrain." : "Reveal the hive’s enemy mix.", cost: upgradeCost(game.parts.sensor, 150), key: "5", kind: "service" });
 	if (game.parts.lights < MAX_LIGHT_RANK) choices.push({ id: "lights", name: "Upgrade mech lights", description: `Stronger rear lights and +8% beam reach per rank · rank ${game.parts.lights + 1} / ${MAX_LIGHT_RANK}`, cost: upgradeCost(game.parts.lights, 200), key: "7", kind: "service" });
 	for (const corner of CORNER_LIGHTS) if (!game.parts.cornerLights[corner.id]) choices.push({ id: corner.id, name: corner.name, description: "Illuminate this quarter of every hive. Stays installed for the run.", cost: CORNER_LIGHT_COST, key: corner.key, kind: "service" });
@@ -64,7 +67,7 @@ export type Game = {
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	money: number; lastJob: { name: string; payment: number } | null; kills: number; time: number;
 	shotTimer: number;
-	parts: { weapons: Record<Weapon, WeaponRanks>; sensor: number; lights: number; cornerLights: Record<CornerLight, boolean>; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
+	parts: { armour: number; weapons: Record<Weapon, WeaponRanks>; sensor: number; lights: number; cornerLights: Record<CornerLight, boolean>; undercarriages: Record<Undercarriage, number> }; nextId: number; seed: number;
 };
 
 export const waveSize = (wave: number, threat = 1) => Math.min(100, 5 + wave * 3 + (threat - 1) * 3);
@@ -85,7 +88,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs", schemat
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
 		lampHealth: { northWest: 0, northEast: 0, southWest: 0, southEast: 0 }, lightCover: emptyLightCover(), playerVelocity: { x: 0, y: 0 }, pitTerrain: null, bolas: [], tethers: [], glue: 0, slimed: false, slime: [], enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
-		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, lights: 0, cornerLights: { northWest: false, northEast: false, southWest: false, southEast: false }, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
+		parts: { armour: 0, weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, lights: 0, cornerLights: { northWest: false, northEast: false, southWest: false, southEast: false }, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
 }
 
@@ -124,6 +127,7 @@ export function purchaseService(game: Game, service: WorkshopService) {
 	if (!choice || game.money < choice.cost) return;
 	game.money -= choice.cost;
 	if (service === "heal") game.player.health = 100;
+	if (service === "armour") game.parts.armour++;
 	if (service === "sensor") game.parts.sensor++;
 	if (service === "lights") game.parts.lights++;
 	for (const corner of CORNER_LIGHTS) if (service === corner.id) { game.parts.cornerLights[corner.id] = true; game.lampHealth[corner.id] = LAMP_HEALTH; }
@@ -360,7 +364,7 @@ export function step(game: Game, input: Input, dt: number) {
 		const hit = Math.min(playerHit, bugHit, lampHit);
 		if (hit < Infinity) {
 			if (lampHit < playerHit && lampHit < bugHit && acid.lightTarget) damageLamp(game, acid.lightTarget, 20);
-			if (playerHit < bugHit && playerHit <= lampHit && player.invulnerable === 0) { player.health = Math.max(0, player.health - 20); player.invulnerable = .9; }
+			if (playerHit < bugHit && playerHit <= lampHit && player.invulnerable === 0) { hurtPlayer(game, 20); }
 			game.acidImpacts.push({ id: acid.id, x: previous.x + (acid.x - previous.x) * hit, y: previous.y + (acid.y - previous.y) * hit, bornAt: game.time });
 			if (game.acidImpacts.length > 64) game.acidImpacts.shift();
 			return false;
@@ -371,7 +375,7 @@ export function step(game: Game, input: Input, dt: number) {
 		const previousAge = lob.age; lob.age += dt;
 		if (previousAge < BEETLE_FLIGHT_TIME && lob.age >= BEETLE_FLIGHT_TIME && lob.lightTarget && Math.hypot(cornerPosition(lob.lightTarget).x - lob.target.x, cornerPosition(lob.lightTarget).y - lob.target.y) <= BEETLE_BLAST_RADIUS + LAMP_RADIUS) damageLamp(game, lob.lightTarget, 20);
 		if (previousAge < BEETLE_FLIGHT_TIME && lob.age >= BEETLE_FLIGHT_TIME && player.invulnerable === 0 && Math.hypot(player.x - lob.target.x, player.y - lob.target.y) <= BEETLE_BLAST_RADIUS + PLAYER_RADIUS) {
-			player.health = Math.max(0, player.health - 20); player.invulnerable = .9;
+			hurtPlayer(game, 20);
 		}
 		return lob.age < BEETLE_FLIGHT_TIME + .3;
 	});
@@ -380,8 +384,7 @@ export function step(game: Game, input: Input, dt: number) {
 	const lunged = game.enemies.some(enemy => lungeContacts.has(enemy.id));
 	const touching = game.enemies.some(enemy => enemy.variant === "dragonfly" ? enemy.state.contact : enemy.variant !== "clickBeetle" && enemy.variant !== "explodingAnt" && enemy.variant !== "parasitoidWasp" && enemy.variant !== "centipede" && enemy.variant !== "egg" && enemy.variant !== "moth" && enemy.variant !== "courier" && distanceToSegment(enemy, previousPlayer, player) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
 	if (player.invulnerable === 0 && (lunged || touching)) {
-		player.health = Math.max(0, player.health - (lunged ? 30 : 20));
-		player.invulnerable = .9;
+		hurtPlayer(game, lunged ? 30 : 20);
 		if (player.health === 0) { game.carriedSchematic = null; game.schematicReward = null; game.mode = "dead"; return; }
 	}
 	if (waveCleared && game.intermission === 0 && !game.debug) {
