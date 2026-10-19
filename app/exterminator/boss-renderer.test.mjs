@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { drawRig } from "./rig-renderer";
 import { drawBossFight } from "./boss-renderer";
 import { createBoss } from "./bosses";
 import { newGame } from "./game";
@@ -26,4 +27,16 @@ test("all boss rigs draw during life and death without creating per-frame sprite
 		const game = newGame(); game.boss = createBoss(variant, 4, game.player); game.boss.health = 0; game.boss.diedAt = 1; game.time = 1.15;
 		const recorder = ctx(); drawBossFight(recorder.context, game, sprites); expect(recorder.calls.images).toBeGreaterThan(8); expect(recorder.calls.arcs).toBe(0);
 	}
+});
+
+
+test("reused rig draws skip hidden parts and restore them without retaining a previous skin", () => {
+	const rig = [{ id: "root", x: 0, y: 0, slot: "body", layer: 0 }];
+	const recorder = ctx();
+	drawRig(recorder.context, sprites, rig, { body: "bossRhinoBody" }, { root: { opacity: 0 } }, 0, 0);
+	drawRig(recorder.context, sprites, rig, { body: "bossScorpionBody" }, { root: { scaleY: 0 } }, 0, 0);
+	drawRig(recorder.context, sprites, rig, {}, {}, 0, 0);
+	expect(recorder.calls.images).toBe(0);
+	drawRig(recorder.context, sprites, rig, { body: "bossMillipedeBody" }, {}, 0, 0);
+	expect(recorder.calls.images).toBe(1);
 });

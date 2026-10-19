@@ -512,7 +512,9 @@ and pixel density. Camera movement and viewport resizing reuse that layer; a new
 hive or density change rebuilds it. Terrain arrays are immutable during a job.
 Pause and base/workshop screens redraw only when their view or size changes.
 Shared immutable rigs cache parent indices and paint order, while each draw still
-uses the current pose and equipped parts.
+uses the current pose and equipped parts. Synchronous draws reuse per-rig transform
+and part buffers; callers that retain a death snapshot still receive independent
+resolved parts. Invisible or zero-scale parts do not submit canvas draws.
 
 Crowd separation uses a bounded linked-cell grid and stable candidate ordering.
 Each solve measures centipede bounds once, then updates those bounds as the whole
@@ -524,6 +526,17 @@ Run `bun tools/benchmark-exterminator.ts` for deterministic 100-bug simulation
 samples (chasers, mixed specialists, and centipede-heavy crowds). It reports mean,
 median, and 95th-percentile step time after warmup; timings are diagnostic, not CI
 thresholds or a guarantee of mobile-device performance.
+
+The benchmark also covers each solo boss and millipede pose resolution. The long
+millipede samples its live head without copying its breadcrumb array and visits
+connected body capsules directly, rejecting distant capsules before expensive
+sweep/push calculations. Its trail contains only coordinates, with no retained
+boss-state snapshots. Collision order and shared-health combat are unchanged.
+A local before/after run measured millipede median simulation at 0.169/0.058 ms
+and pose resolution at 0.159/0.105 ms. A shared-browser check matched 93 rendered
+configurations pixel for pixel; millipede rig draw submission measured 0.9/0.9 ms
+median and 2.3/1.3 ms p95. These host samples exclude GPU completion and are not
+mobile frame-rate guarantees.
 
 Colony ownership and population are indexed once per simulation step, so each
 queen/worker looks up its own small colony rather than scanning the whole crowd.

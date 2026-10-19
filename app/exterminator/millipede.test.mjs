@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { createBoss, stepBoss, bossCircles } from "./bosses";
 import { newGame, FIELD, start, chooseHive, step } from "./game";
 import { MILLIPEDE_SEGMENT_COUNT, MILLIPEDE_SPACING } from "./boss-types";
-import { resolveMillipedeBarrier } from "./millipede";
+import { resolveMillipedeBarrier, followMillipedeTrail } from "./millipede";
 function game() { const game = newGame(); game.mode = "playing"; game.player.invulnerable = 100000; game.boss = createBoss("millipede", 4, game.player); return game; }
 
 test("millipede has an articulated body longer than the arena and emerges before becoming solid", () => {
@@ -41,4 +41,15 @@ test("normal movement input cannot cross the moving body, and contact uses playe
 	for (let i = 0; i < 60; i++) step(g, { move: { x: 0, y: 1 }, aim: { x: 0, y: 1 }, fire: false }, 1 / 120);
 	expect(g.player.y).toBeLessThan(270); expect(g.player.health).toBeLessThan(health);
 	expect(health - g.player.health).toBeLessThanOrEqual(10);
+});
+
+test("virtual head sampling preserves breadcrumb ownership and matches an explicit prefix", () => {
+	const original = game().boss, explicit = globalThis.structuredClone(original);
+	original.x -= 3; explicit.x -= 3;
+	const trail = original.trail, saved = globalThis.structuredClone(trail);
+	for (const point of trail) expect(Object.keys(point).sort()).toEqual(["x", "y"]);
+	explicit.trail.unshift({ x: explicit.x, y: explicit.y });
+	followMillipedeTrail(original, true); followMillipedeTrail(explicit);
+	expect(original.segments).toEqual(explicit.segments);
+	expect(original.trail).toBe(trail); expect(trail).toEqual(saved);
 });
