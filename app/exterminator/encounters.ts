@@ -1,13 +1,16 @@
-import { BUG_SPECS, BUG_TYPES, type BugVariant } from "./bug-types";
+import { BOSS_TYPES, type EncounterVariant } from "./boss-types";
+import { bossCircles } from "./bosses";
+import { BUG_SPECS, BUG_TYPES } from "./bug-types";
 import { cameraFor } from "./camera";
 import { type Game } from "./game";
 import { lightAt } from "./lighting";
 import { enemyPosition } from "./specialists";
 
 export const BUGPEDIA_STORAGE_KEY = "exterminator.bugpedia.v1";
-export const normalizeEncounters = (value: unknown): BugVariant[] => Array.isArray(value) ? BUG_TYPES.filter(id => value.includes(id)) : [];
+const ENCOUNTER_TYPES: EncounterVariant[] = [...BUG_TYPES, ...BOSS_TYPES];
+export const normalizeEncounters = (value: unknown): EncounterVariant[] => Array.isArray(value) ? ENCOUNTER_TYPES.filter(id => value.includes(id)) : [];
 export function createEncounterProgress(storage: Pick<Storage, "getItem" | "setItem"> | null) {
-	let known: BugVariant[] = [], persistent = storage !== null;
+	let known: EncounterVariant[] = [], persistent = storage !== null;
 	const read = () => {
 		try {
 			const raw = storage?.getItem(BUGPEDIA_STORAGE_KEY), data = raw ? JSON.parse(raw) : null;
@@ -17,7 +20,7 @@ export function createEncounterProgress(storage: Pick<Storage, "getItem" | "setI
 	};
 	return {
 		read,
-		remember: (encounters: readonly BugVariant[]) => {
+		remember: (encounters: readonly EncounterVariant[]) => {
 			known = normalizeEncounters([...read(), ...encounters]);
 			try { if (storage) { storage.setItem(BUGPEDIA_STORAGE_KEY, JSON.stringify({ version: 1, encounters: known })); persistent = true; } }
 			catch { persistent = false; }
@@ -34,6 +37,8 @@ export function recordVisibleEncounters(game: Game, width: number, height: numbe
 	if (game.mode !== "playing") return;
 	const camera = cameraFor(game.player, width, height);
 	const visible = (x: number, y: number) => x >= camera.x - camera.offsetX && x < camera.x - camera.offsetX + width && y >= camera.y - camera.offsetY && y < camera.y - camera.offsetY + height && lightAt(game, x, y) >= 1 / 255;
+	const boss = game.boss;
+	if (boss && boss.health > 0 && !game.encounters.includes(boss.variant) && bossCircles(boss).some(c => visible(c.x, c.y) || BODY_SAMPLES.some(o => visible(c.x + o.x * c.radius, c.y + o.y * c.radius)))) game.encounters.push(boss.variant);
 	for (const enemy of game.enemies) {
 		if (enemy.health <= 0 || game.encounters.includes(enemy.variant)) continue;
 		const points = [enemyPosition(enemy), ...(enemy.variant === "centipede" ? enemy.state.segments : [])], radius = BUG_SPECS[enemy.variant].radius;

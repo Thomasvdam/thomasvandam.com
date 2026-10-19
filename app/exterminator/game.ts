@@ -1,3 +1,5 @@
+import { createBoss, stepBoss, firstBossHit, damageBoss, blastBoss, flameBoss } from "./bosses";
+import { bossForHive, type Boss, type EncounterVariant } from "./boss-types";
 import { hurtPlayer, MAX_ARMOUR_RANK, armourReduction } from "./player-damage";
 import { broodPosition, broodRadius, damageBrood, enemyPosition, resolveAntExplosions, stepBroods, updateGlue } from "./specialists";
 import { beginSchematicHunt, extractSchematic } from "./courier";
@@ -57,7 +59,8 @@ export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: 
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type { BugRemains } from "./remains";
 export type Game = {
-	encounters: BugVariant[]; bugpediaFrom: "base" | "paused";
+	boss: Boss | null;
+	encounters: EncounterVariant[]; bugpediaFrom: "base" | "paused";
 	schematics: Schematic[]; schematicReward: Schematic | null; carriedSchematic: Schematic | null; lastSchematic: Schematic | null;
 	debug: { queue: BugVariant[]; total: number; lightSensitivePercent: number } | null;
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "bugpedia" | "dead";
@@ -82,7 +85,7 @@ export function playerStats(game: Game) {
 export function newGame(seed = 1, undercarriage: Undercarriage = "legs", schematics: readonly Schematic[] = []): Game {
 	const unlocked = normalizeSchematics(schematics);
 	return {
-		encounters: [], bugpediaFrom: "base",
+		boss: null, encounters: [], bugpediaFrom: "base",
 		schematics: unlocked, schematicReward: null, carriedSchematic: null, lastSchematic: null,
 		debug: null, hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage: equipmentUnlocked(unlocked, undercarriage) ? undercarriage : "legs", weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
@@ -94,7 +97,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs", schemat
 
 // All combat lifetimes end together when replacing a wave or returning to base.
 export function clearCombat(game: Game) {
-	game.schematicReward = null; game.carriedSchematic = null;
+	game.schematicReward = null; game.carriedSchematic = null; game.boss = null;
 	game.lightCover = emptyLightCover(); game.playerVelocity = { x: 0, y: 0 }; game.pitTerrain = null; game.bolas = []; game.tethers = []; game.glue = 0; game.slimed = false; game.slime = []; game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
 	game.remains = []; game.explosions = []; game.deflections = []; game.acidImpacts = [];
 }
@@ -217,6 +220,7 @@ function explode(game: Game, bullet: Bullet, spiders: SpiderIndex) {
 		if (enemy.health > 0 && enemy.brood && Math.hypot(broodPosition(enemy).x - bullet.x, broodPosition(enemy).y - bullet.y) <= bullet.blastRadius + broodRadius(enemy)) damageBrood(game, enemy, bullet.damage);
 		if (enemy.health > 0 && enemyCircles(enemy).some(circle => Math.hypot(circle.x - bullet.x, circle.y - bullet.y) <= bullet.blastRadius + circle.radius)) damageEnemy(game, enemy, bullet.damage);
 	}
+	blastBoss(game, bullet, bullet.blastRadius, bullet.damage);
 	blastTethers(game, spiders, bullet, bullet.blastRadius);
 	game.explosions.push({ id: game.nextId++, x: bullet.x, y: bullet.y, radius: bullet.blastRadius, bornAt: game.time });
 	if (game.explosions.length > 32) game.explosions.shift();
@@ -230,6 +234,7 @@ function fireWeapon(game: Game, dt: number, spiders: SpiderIndex) {
 		const origin = { x: player.x + x * 20 + y * 6.25, y: player.y + y * 20 - x * 6.25 };
 		flameTethers(game, spiders, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
 		burnRemains(game, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
+		flameBoss(game, origin, player.angle, stats.range, FLAME_HALF_ANGLE, stats.damage * dt);
 		for (const enemy of game.enemies) {
 			if (enemy.health > 0 && enemy.brood && inFlame(broodPosition(enemy), broodRadius(enemy), origin, player.angle, stats.range, FLAME_HALF_ANGLE)) damageBrood(game, enemy, stats.damage * dt);
 			const hit = enemyCircles(enemy).some(circle => inFlame(circle, circle.radius, origin, player.angle, stats.range, FLAME_HALF_ANGLE));
@@ -264,8 +269,10 @@ export function step(game: Game, input: Input, dt: number) {
 	const stats = playerStats(game), pulls = preparePulls(game, dt); game.pitTerrain = pulls.terrain;
 	const slimeFactor = slimeSpeedFactor(game, PLAYER_RADIUS); game.slimed = slimeFactor < 1;
 	const speed = stats.speed * MOVEMENT[game.undercarriage][game.pitTerrain ?? terrainAt(game.terrain, player.x, player.y)] * slimeFactor * updateGlue(game, dt, PLAYER_RADIUS);
-	player.x = clamp(player.x + (move.x * speed + pulls.force.x) * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
-	player.y = clamp(player.y + (move.y * speed + pulls.force.y) * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
+	const knock = game.boss && game.boss.knockTime > 0 ? game.boss.knockback : { x: 0, y: 0 };
+	if (game.boss) game.boss.knockTime = Math.max(0, game.boss.knockTime - dt);
+	player.x = clamp(player.x + (move.x * speed + pulls.force.x + knock.x) * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
+	player.y = clamp(player.y + (move.y * speed + pulls.force.y + knock.y) * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
 	resolveBarriers(player, game.enemies, PLAYER_RADIUS, FIELD);
 	game.playerVelocity = { x: (player.x - previousPlayer.x) / dt, y: (player.y - previousPlayer.y) / dt };
 	const traveled = Math.hypot(player.x - previousPlayer.x, player.y - previousPlayer.y);
@@ -289,13 +296,16 @@ export function step(game: Game, input: Input, dt: number) {
 		game.intermission = Math.max(0, game.intermission - dt);
 		if (game.intermission === 0) {
 			if (game.wave % WAVES_PER_HIVE === 0) {
-				returnToBase(game); return;
+				const variant = bossForHive(game.runSeed, game.hivesCleared);
+				if (variant && !game.boss) { game.boss = createBoss(variant, game.hivesCleared, player); game.bullets = []; game.lobs = []; game.acid = []; game.bolas = []; game.tethers = []; game.slime = []; game.glue = 0; game.enemies = []; game.schematicReward = null; }
+				else { returnToBase(game); return; }
 			} else { game.wave++; game.toSpawn = waveSize(game.wave, game.hive?.threat); game.spawnTimer = .4; }
 		}
 	} else if (game.toSpawn > 0) {
 		game.spawnTimer -= dt;
 		if (game.spawnTimer <= 0) { warnSpawn(game); game.toSpawn--; game.spawnTimer += Math.max(.18, .7 - game.wave * .025 - ((game.hive?.threat ?? 1) - 1) * .06); }
 	}
+	stepBoss(game, dt, previousPlayer);
 	const lungeContacts = stepBugs(game, dt, FIELD, PLAYER_RADIUS);
 	separateBugs(game.enemies, FIELD);
 	resolveBarriers(player, game.enemies, PLAYER_RADIUS, FIELD);
@@ -313,11 +323,18 @@ export function step(game: Game, input: Input, dt: number) {
 			const t = bulletHitTime(bullet, enemy, previous);
 			if (t < hitTime) { hit = enemy; hitTime = t; }
 		}
+		const bossHit = firstBossHit(game.boss, previous, bullet);
 		const cord = firstTetherHit(game, pulls.spiders, previous, bullet);
-		if (cord.owner !== null && cord.time < Math.min(hitTime, sacTime)) {
+		if (cord.owner !== null && cord.time < Math.min(hitTime, sacTime, bossHit.time)) {
 			bullet.x = previous.x + (bullet.x - previous.x) * cord.time; bullet.y = previous.y + (bullet.y - previous.y) * cord.time;
 			game.tethers = game.tethers.filter(tether => tether.owner !== cord.owner);
 			if (bullet.weapon === "rpg") explode(game, bullet, pulls.spiders);
+			return false;
+		}
+		if (bossHit.circle && bossHit.time <= Math.min(hitTime, sacTime)) {
+			bullet.x = previous.x + (bullet.x - previous.x) * bossHit.time; bullet.y = previous.y + (bullet.y - previous.y) * bossHit.time;
+			if (bullet.weapon === "rpg") explode(game, bullet, pulls.spiders);
+			else if (game.boss) damageBoss(game.boss, bullet.damage, game.time, bossHit.circle.part);
 			return false;
 		}
 		if (sac && sacTime < hitTime) {
@@ -350,7 +367,8 @@ export function step(game: Game, input: Input, dt: number) {
 		leaveCorpse(game, enemy);
 		return false;
 	});
-	const waveCleared = game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.every(enemy => enemy.variant === "courier");
+	if (game.boss && game.boss.health <= 0 && game.boss.diedAt === undefined) { game.boss.diedAt = game.time; game.boss.pulses = []; game.kills++; }
+	const waveCleared = (!game.boss || game.boss.health <= 0) && game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.every(enemy => enemy.variant === "courier");
 	if (waveCleared) { game.lobs = []; game.acid = []; game.bolas = []; game.tethers = []; }
 	stepBolas(game, dt, pulls.spiders, PLAYER_RADIUS);
 	game.acid = game.acid.filter(acid => {

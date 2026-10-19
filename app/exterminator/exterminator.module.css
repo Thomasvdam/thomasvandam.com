@@ -113,3 +113,8 @@
 .bugNotes dl > div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #42503d; padding-bottom: 6px; }
 .bugNotes dt { color: var(--muted); flex-shrink: 0; }.bugNotes dd { color: var(--ink); text-align: right; }
 @media (max-width: 600px) { .bugpedia { grid-template-columns: minmax(0, 1fr); gap: 16px; }.bugList { flex-direction: row; max-height: 140px; flex-wrap: wrap; }.bugList button { flex: 1 0 115px; }.bugNotes canvas { height: 96px; width: 160px; } }
+
+.bossHud { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); width: min(66%, 430px); display: grid; gap: 5px; text-align: center; pointer-events: none; color: #f2c385; font-size: 11px; text-shadow: 0 1px 3px #000; }
+.bossHud meter { width: 100%; height: 8px; appearance: none; background: #412c29; border: 1px solid #99674b; border-radius: 3px; }
+.bossHud meter::-webkit-meter-bar { background: #412c29; border: none; }.bossHud meter::-webkit-meter-optimum-value { background: #e3a265; }.bossHud meter::-moz-meter-bar { background: #e3a265; }
+.bossHud span { font-size: 9px; }

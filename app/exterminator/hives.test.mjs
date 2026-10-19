@@ -56,6 +56,7 @@ test("deployed themes drive warnings throughout all three automatic waves and ex
 			game.spawns = []; game.enemies = []; game.intermission = .001;
 			step(game, idle, 1 / 120);
 		}
+		if (game.boss) { expect(game.mode).toBe("playing"); expect(game.money).toBe(0); game.boss.health = 0; step(game, idle, 1 / 120); game.intermission = .001; step(game, idle, 1 / 120); }
 		expect(game.mode).toBe("base"); expect(game.money).toBe(offer.payment); expect(game.hivesCleared).toBe(cleared + 1);
 	}
 });

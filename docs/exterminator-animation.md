@@ -136,3 +136,10 @@ blends into the exact half-resolution cached representation using one reusable
 overlay, avoiding a pixel-detail snap at completion. Simulation cleanup then
 releases pose snapshots. Combat removal, wave completion, corpse collection and
 burn timers remain independent of this visual transition; pausing freezes it.
+
+
+## Boss rigs
+
+`boss-art.ts` defines three separate skeletons with one fixed sprite set each: a six-legged rhinoceros beetle with articulated horn, an eight-legged scorpion with separately removable claws and a connected four-jointed striking tail, and a millipede with eight world-positioned segments and sixteen staggered legs. Bone translations compensate artwork scale so scorpion claw and millipede segment centres match the combat hitboxes. Tests resolve actual world-space centres, including root rotation and scaling. Scorpion sting poses extend the entire connected tail toward the locked target. Segment animation follows the same live centres used for millipede coiling/crawling collisions.
+
+`tools/generate-exterminator-boss-sprites.py` generates sixteen native PNG parts without appearance variants. The renderer uses existing part registration, image loading and pose resolution. Boss corpses freeze pose time and flatten over 0.35 seconds; the hive return interval clears them afterward.

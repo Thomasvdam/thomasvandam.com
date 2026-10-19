@@ -1,3 +1,4 @@
+import { drawBossFight } from "./boss-renderer";
 import { drawRig } from "./rig-renderer";
 export { drawRig } from "./rig-renderer";
 import { drawBrood, drawNewTelegraph } from "./specialist-renderer";
@@ -305,6 +306,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			ctx.fillStyle = "#d39b65"; ctx.fillRect(point.x - 13, point.y - 32, 26 * enemy.health / enemy.maxHealth, 3);
 		}
 	}
+	drawBossFight(ctx, game, sprites);
 	const player = game.player;
 	if (game.glue > .01) {
 		ctx.save(); ctx.strokeStyle = `rgba(224,190,224,${game.glue * .8})`; ctx.lineWidth = 2 + game.glue * 4;

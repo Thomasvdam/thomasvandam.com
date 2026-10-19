@@ -1,7 +1,7 @@
 # Exterminator foundation
 
 Visit `/exterminator`. Start a run, choose a hive at base, and eradicate its three waves.
-Return to base, optionally refit in the workshop, and choose another hive.
+Hives 5, 10 and 15 add a boss duel after wave 3. Return to base after the hive is fully cleared, optionally refit in the workshop, and choose another hive.
 Health does not refill automatically at base; full repairs can be purchased with money. Money and part upgrades last for the
 current run; death/restart creates a fresh mech, inventory, and zero balance.
 
@@ -624,3 +624,16 @@ Discovered species persist across deaths, restarts and reloads in the browser un
 Ordinary hits deal 10 damage in hive 1 and gain one damage per subsequent hive, regardless of the selected job’s threat. Every attack against the mech uses the same multiplier (`0.5 + 0.05 × hivesCleared`) against its original reference damage: 20 ordinary, 25 click-beetle impact, 30 lunge/exploding-ant blast. The older per-species values above are reference values at hive 11, before armour. The bugpedia displays the current hive’s actual unarmoured values. Damage rounds to the nearest whole health point after armour, with a minimum of one. The existing 0.9-second invulnerability window still prevents stacked hits. Lamp damage and explosions against other bugs retain their existing values.
 
 **Upgrade armour** in Upgrades & repairs (`A`) gives 10 percentage points of damage reduction per rank, up to five ranks / 50%. Prices follow the normal $100, $160, $260, $410, $660 progression. Armour applies to contact, projectiles, sprays, impacts, and explosions, stays with the mech when equipment changes and hives finish, and resets on a new run. Current reduction appears in the HUD. There is no mandatory armour purchase or schematic requirement.
+
+
+### Milestone boss duels
+
+Hives 5, 10 and 15 finish with a boss after all three ordinary waves. A separate stream of the run seed shuffles rhinoceros beetle, scorpion and giant millipede into a permutation: each appears exactly once per run, independent of hive offers and enemy unlocks. The three-second wave-clear interval announces the boss arrival. The duel has no recurring ordinary bugs; remaining courier and wave hazards are removed on arrival. Carried schematic cargo remains aboard. Hive payment, schematic extraction and the cleared-hive counter wait until the boss dies and the final return countdown completes. Death during the duel loses cargo and pays nothing.
+
+- **Rhinoceros beetle:** six heavy legs and separate head/horn rig. Alternates horn sweeps, a locked straight charge and a close lifting attack that throws the mech. Charges stop at the arena boundary and leave the horn stuck for 1.8 seconds; damage then increases by 75%. Below half health, a wall recovery can lead into a second telegraphed charge. Reference damage: contact 20, sweep 25, charge 35, lift 30.
+- **Scorpion:** eight legs, independent claws and a four-jointed tail with a stinger that reaches its locked target. Alternates left/right claw sweeps with a delayed 48-unit sting. Each claw has 30 health; destroying it removes its hitbox and corresponding sweep for the rest of the fight. A missed sting leaves the tail embedded for 1.65 seconds, increasing body damage taken by 75%. Reference damage: contact 20, claw 25, sting 35.
+- **Giant millipede:** eight shared-health segments and 16 legs follow live body centres. Crawls with exposed joints (50% extra damage), folds into a spiral (80% damage reduction), then sends expanding chemical rings across the floor. Uncoiling takes 75% extra damage. Area attacks damage its shared health once, rather than once per segment. Reference damage: contact 20, pulse 25.
+
+Boss reference damage follows the same hive scaling, mech armour and invulnerability rules as ordinary attacks. Base health is 160/150/180 respectively, multiplied by 1, 1.6 and 2.2 at the first, second and third boss milestones. These values are provisional playtest tuning. Every weapon works against every boss. Warnings update continuously and require the source to be lit; the world lighting mask still hides attacks and bodies outside illuminated regions. The HUD shows boss health, hive cards flag a coming boss, and visible encounters enter the persistent bugpedia, including boss portraits and counterplay. Debug provides separate **Fight** buttons without consuming or changing the normal run order.
+
+Bosses use one fixed set of 16 pixel parts, bringing the asset registry to 350 images. Generate these with `python3 tools/generate-exterminator-boss-sprites.py`. Their bespoke rigs/poses live in `boss-art.ts`; simulation and collision live in `bosses.ts`. Boss death flattens the frozen rig over 0.35 seconds during the return interval. Pause, restart and debug replacement retain the normal freeze/cleanup rules.

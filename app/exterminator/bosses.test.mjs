@@ -1,0 +1,117 @@
+import { expect, test } from "bun:test";
+import { createBug } from "./bug-types";
+import { BOSS_TYPES, bossForHive } from "./boss-types";
+import { createBoss, stepBoss, firstBossHit, bossCircles, damageBoss, clawPosition, blastBoss, flameBoss } from "./bosses";
+import { chooseHive, clearCombat, newGame, start, step, FIELD } from "./game";
+import { createHives } from "./hives";
+import { recordVisibleEncounters, createEncounterProgress } from "./encounters";
+import { setDebug, spawnDebugBoss, spawnDebugWave, defaultComposition } from "./debug";
+import { viewFromGame } from "./runtime";
+const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
+function setup(cleared = 4, seed = 47) { const game = newGame(seed); game.hivesCleared = cleared; game.hives = createHives(seed, cleared); start(game); chooseHive(game, game.hives[0].id); game.toSpawn = 0; game.spawns = []; game.enemies = []; game.player.invulnerable = 1000; return game; }
+function advance(game, seconds, input = idle) { for (let i = 0; i < Math.round(seconds * 120); i++) step(game, input, 1 / 120); }
+function fight(variant) { const game = setup(); game.toSpawn = 1; game.spawnTimer = 1000; game.boss = createBoss(variant, game.hivesCleared, game.player); game.boss.x = 400; game.boss.y = 360; game.boss.angle = 0; return game; }
+
+test("hives 5, 10, 15 draw a complete unique permutation; order is seeded independently of offers", () => {
+	const orders = new Set();
+	for (let seed = 0; seed < 300; seed++) {
+		const order = [4, 9, 14].map(cleared => bossForHive(seed, cleared)); expect(new Set(order)).toEqual(new Set(BOSS_TYPES)); orders.add(order.join(","));
+		for (let cleared = 0; cleared < 24; cleared++) { createHives(seed, cleared); expect(bossForHive(seed, cleared) !== null).toBe([4, 9, 14].includes(cleared)); }
+		expect([4, 9, 14].map(c => bossForHive(seed, c))).toEqual(order);
+	}
+	expect(orders.size).toBe(6);
+});
+
+test("boss appears only after wave 3, fights alone, gates payment and counts one kill before base return", () => {
+	for (const cleared of [3, 4, 9, 14, 15]) {
+		const game = setup(cleared), payment = game.hive.payment;
+		for (let wave = 1; wave <= 3; wave++) {
+			expect(game.wave).toBe(wave); step(game, idle, 1 / 120); expect(game.intermission).toBe(3); expect(game.boss).toBeNull();
+			game.intermission = .001; step(game, idle, 1 / 120);
+			if (wave < 3) { game.toSpawn = 0; game.spawns = []; game.enemies = []; }
+		}
+		if ([4, 9, 14].includes(cleared)) {
+			expect(game.mode).toBe("playing"); expect(game.money).toBe(0); expect(game.boss.variant).toBe(bossForHive(game.runSeed, cleared)); expect(game.enemies).toHaveLength(0); expect(game.toSpawn).toBe(0);
+			advance(game, 3); expect(game.wave).toBe(3); expect(game.intermission).toBe(0); expect(game.money).toBe(0);
+			game.boss.health = 0; step(game, idle, 1 / 120); expect(game.kills).toBe(1); expect(game.intermission).toBe(3);
+			game.intermission = .001; step(game, idle, 1 / 120);
+		}
+		expect(game.mode).toBe("base"); expect(game.money).toBe(payment); expect(game.hivesCleared).toBe(cleared + 1); expect(game.boss).toBeNull();
+	}
+});
+
+test("rhino charge locks aim, crosses space with swept damage, sticks at wall and exposes recovery", () => {
+	const game = fight("rhinoceros"), boss = game.boss; boss.phase = "chargeWindup"; boss.remaining = .1; boss.target = { x: 560, y: 360 };
+	game.player.y = 500; advance(game, .12); expect(boss.phase).toBe("charge"); expect(boss.angle).toBeCloseTo(0);
+	game.player.x = 560; game.player.y = 360; game.player.invulnerable = 0; advance(game, .5); expect(game.player.health).toBeLessThan(100);
+	advance(game, 1.3); expect(boss.phase).toBe("stuck"); const before = boss.health; damageBoss(boss, 4, game.time); expect(before - boss.health).toBe(7);
+	boss.health = boss.maxHealth / 3; boss.remaining = 0; stepBoss(game, 1 / 120, game.player); expect(boss.phase).toBe("chargeWindup");
+});
+
+test("rhino windups give escape windows and a landed lift throws while respecting armour", () => {
+	const game = fight("rhinoceros"), boss = game.boss; game.player.x = 480; game.player.y = 360; game.player.invulnerable = 0; game.parts.armour = 5;
+	boss.phase = "liftWindup"; boss.remaining = .01; stepBoss(game, .02, game.player); expect(boss.phase).toBe("lift"); expect(game.player.health).toBe(89); expect(boss.knockTime).toBe(.25);
+	const x = game.player.x; advance(game, .1); expect(game.player.x).toBeGreaterThan(x + 40);
+	const escaped = fight("rhinoceros"); escaped.player.invulnerable = 0; escaped.player.y = 600; escaped.boss.phase = "sweepWindup"; escaped.boss.remaining = .01; advance(escaped, .5); expect(escaped.player.health).toBe(100);
+});
+
+test("scorpion claws have independent hitboxes and health, removed claws cannot sweep, sting can be dodged", () => {
+	const game = fight("scorpion"), boss = game.boss, left = clawPosition(boss, 0), right = clawPosition(boss, 1);
+	const hit = firstBossHit(boss, { x: left.x + 90, y: left.y }, left); expect(hit.circle.part).toBe("leftClaw");
+	damageBoss(boss, 30, game.time, "leftClaw"); expect(boss.claws).toEqual([0, 30]); expect(bossCircles(boss).some(c => c.part === "leftClaw")).toBe(false); expect(bossCircles(boss).find(c => c.part === "rightClaw").x).toBe(right.x);
+	boss.phase = "approach"; boss.remaining = 0; boss.attackIndex = 0; stepBoss(game, .01, game.player); expect(boss.phase).toBe("stingWindup");
+	const target = { ...boss.target }; game.player.y += 150; advance(game, 1.2); expect(boss.target).toEqual(target); expect(game.player.health).toBe(100); advance(game, .3); expect(boss.phase).toBe("embedded");
+	const before = boss.health; damageBoss(boss, 4, game.time); expect(before - boss.health).toBe(7);
+});
+
+test("millipede changes shape, shares health across joints, armours its coil and emits avoidable expanding pulses", () => {
+	const game = fight("millipede"), boss = game.boss; boss.segments = Array.from({ length: 8 }, (_, i) => ({ x: boss.x - (i + 1) * 22, y: boss.y }));
+	const initial = boss.segments.map(segment => ({ ...segment })), health = boss.health; damageBoss(boss, 4, 0, "joint"); expect(health - boss.health).toBe(6);
+	boss.phase = "coilWindup"; boss.remaining = .01; advance(game, .5); expect(boss.phase).toBe("coil"); expect(boss.segments).not.toEqual(initial); expect(boss.pulses.length).toBeGreaterThan(0);
+	const before = boss.health; damageBoss(boss, 5, game.time, "joint"); expect(before - boss.health).toBe(1);
+	game.player.x = boss.x + 150; game.player.y = boss.y; game.player.invulnerable = 0; advance(game, 1); expect(game.player.health).toBeLessThan(100);
+	boss.phase = "uncoil"; boss.remaining = 1; const vulnerable = boss.health; damageBoss(boss, 4, game.time); expect(vulnerable - boss.health).toBe(7);
+});
+
+test("every weapon can damage every boss and RPG/flame do not multiply damage across millipede segments", () => {
+	for (const variant of BOSS_TYPES) for (const weapon of ["cannon", "shotgun", "rpg", "flamethrower"]) {
+		const game = fight(variant), boss = game.boss; boss.phase = variant === "millipede" ? "crawl" : "recover"; boss.remaining = 100;
+		boss.x = game.player.x + 90; boss.y = game.player.y; if (variant === "millipede") boss.segments = Array.from({ length: 8 }, (_, i) => ({ x: boss.x + (i + 1) * 22, y: boss.y }));
+		game.weapon = weapon; const before = boss.health; advance(game, .3, { ...idle, fire: true }); expect(boss.health, `${variant}/${weapon}`).toBeLessThan(before);
+	}
+});
+
+test("pause, death and debug replacement freeze or clear boss state; manual bosses do not alter seeded order", () => {
+	const game = fight("scorpion"); game.mode = "paused"; const before = JSON.stringify(game); advance(game, 3); expect(JSON.stringify(game)).toBe(before);
+	game.mode = "playing"; setDebug(game, true); const order = [4, 9, 14].map(c => bossForHive(game.runSeed, c)); spawnDebugBoss(game, "millipede"); expect(game.boss.variant).toBe("millipede"); expect(game.enemies).toHaveLength(0);
+	spawnDebugWave(game, defaultComposition()); expect(game.boss).toBeNull(); expect([4, 9, 14].map(c => bossForHive(game.runSeed, c))).toEqual(order);
+	spawnDebugBoss(game, "rhinoceros"); game.mode = "dead"; const dead = JSON.stringify(game); advance(game, 1); expect(JSON.stringify(game)).toBe(dead); clearCombat(game); expect(game.boss).toBeNull(); expect(newGame().boss).toBeNull();
+});
+
+test("bosses enter bugpedia only when their illuminated body is on screen and persist in browser saves", () => {
+	const game = fight("scorpion"); game.player.angle = 0; game.boss.x = game.player.x + 120; game.boss.y = game.player.y;
+	recordVisibleEncounters(game, 390, 500); expect(game.encounters).toContain("scorpion");
+	game.encounters = []; game.boss.x = game.player.x + 500; recordVisibleEncounters(game, 390, 500); expect(game.encounters).toEqual([]);
+	const progress = createEncounterProgress(null); progress.remember(["scorpion", "burrower"]); expect(progress.read()).toContain("scorpion");
+	expect(viewFromGame(game).boss.name).toBe("Scorpion"); expect(viewFromGame(game).enemies).toBe(2); // one scheduled spawn plus boss
+});
+
+
+test("area attacks hit shared millipede health once and the nearest boss blocks shots to bugs behind it", () => {
+	const game = fight("millipede"), boss = game.boss; boss.phase = "crawl"; boss.segments = Array.from({ length: 8 }, () => ({ x: boss.x - 30, y: boss.y }));
+	const before = boss.health; blastBoss(game, boss, 200, 4); expect(before - boss.health).toBe(6);
+	const after = boss.health; flameBoss(game, { x: boss.x - 90, y: boss.y }, 0, 250, Math.PI / 4, 2); expect(after - boss.health).toBe(3);
+	const blocked = fight("rhinoceros"); blocked.boss.x = blocked.player.x + 80; blocked.boss.phase = "recover"; blocked.boss.remaining = 100;
+	const bug = createBug({ variant: "burrower", id: 99, position: { x: blocked.player.x + 180, y: blocked.player.y }, player: blocked.player, time: 0, threat: 1, wave: 1, bounds: FIELD }); bug.speed = 0; blocked.enemies.push(bug);
+	blocked.bullets.push({ id: 100, x: blocked.player.x + 25, y: blocked.player.y, vx: 12000, vy: 0, life: 1, weapon: "cannon", damage: 1, blastRadius: 0 });
+	const bossHealth = blocked.boss.health; step(blocked, idle, 1 / 120); expect(blocked.boss.health).toBe(bossHealth - 1); expect(bug.health).toBe(1);
+});
+
+
+test("schematic cargo unlocks only after the milestone boss, and dying during the duel loses cargo and payment", () => {
+	const game = setup(14); game.carriedSchematic = "shotgun"; game.wave = 3; game.intermission = .001;
+	step(game, idle, 1 / 120); expect(game.boss).not.toBeNull(); expect(game.carriedSchematic).toBe("shotgun"); expect(game.schematics).not.toContain("shotgun");
+	game.boss.health = 0; step(game, idle, 1 / 120); game.intermission = .001; step(game, idle, 1 / 120); expect(game.mode).toBe("base"); expect(game.schematics).toContain("shotgun");
+	const dead = fight("rhinoceros"); dead.carriedSchematic = "shotgun"; dead.player.health = 5; dead.player.invulnerable = 0; dead.boss.x = dead.player.x; dead.boss.y = dead.player.y;
+	step(dead, idle, 1 / 120); expect(dead.mode).toBe("dead"); expect(dead.money).toBe(0); expect(dead.carriedSchematic).toBeNull(); expect(dead.schematics).not.toContain("shotgun");
+});
