@@ -10,8 +10,8 @@ function ctx() {
 }
 const sprites = new Proxy({}, { get: (_, id) => id });
 
-test("boss warnings continuously require a lit source, including locked sting targets and pulses", () => {
-	for (const [variant, phase] of [["rhinoceros", "chargeWindup"], ["scorpion", "stingWindup"], ["millipede", "coilWindup"]]) {
+test("boss warnings continuously require a lit source, including locked sting targets and emerging body sections", () => {
+	for (const [variant, phase] of [["rhinoceros", "chargeWindup"], ["scorpion", "stingWindup"], ["millipede", "emerge"]]) {
 		const game = newGame(); game.player.angle = 0; game.boss = createBoss(variant, 4, game.player); game.boss.phase = phase;
 		game.boss.x = game.player.x + 130; game.boss.y = game.player.y; game.boss.target = { x: game.player.x, y: game.player.y };
 		const lit = ctx(); drawBossFight(lit.context, game, sprites); expect(lit.calls.arcs + lit.calls.strokes).toBeGreaterThan(0); expect(lit.calls.images).toBeGreaterThan(0);
