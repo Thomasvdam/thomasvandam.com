@@ -32,8 +32,9 @@ function drawDeath(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, 
 				opacity: part.opacity * (limb || wing ? 1 - settle : 1),
 			};
 		});
-		ctx.save(); ctx.translate(x, y - frame.elevation * (1 - settle)); ctx.rotate(angle);
-		ctx.scale(scale * (frame.stretchX + (1 - frame.stretchX) * settle) * (1 - burn * .4), scale * (frame.stretchY + (.65 - frame.stretchY) * settle) * (1 - burn * .4));
+		ctx.save(); ctx.translate(x, y - frame.elevation * (1 - settle));
+		ctx.scale(frame.stretchX + (1 - frame.stretchX) * settle, frame.stretchY + (1 - frame.stretchY) * settle);
+		ctx.rotate(angle); ctx.scale(scale * (1 - burn * .4), scale * (1 - settle * .35) * (1 - burn * .4));
 		ctx.globalAlpha *= (1 - settle * .5) * (1 - decay) * (1 - burn) * (blendToCache ? 1 - cachedBlend(remains, game.time) : 1);
 		drawResolvedParts(ctx, sprites, posed); ctx.restore();
 	};
