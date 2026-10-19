@@ -353,7 +353,7 @@ Specialist health and movement scale with threat too. Provisional behavior:
 - **Queen ant:** retreats from the mech inside 340 units and arrives with two
   worker guards. Every six seconds it lays one egg, cycling worker → soldier →
   bullet ant. A colony is limited to 12 living ants plus eggs, excluding its queen.
-  Laying waits at the cap and resumes when a slot opens. Eggs hatch after four
+  Laying waits at the cap and resumes when a slot opens. Eggs hatch after three
   seconds, have one health, and can be destroyed by any weapon. Eggs stay where
   laid, have no contact damage, and do not count as kills. Their progress ring
   shows incubation; they keep the wave active until destroyed or hatched.

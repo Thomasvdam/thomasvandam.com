@@ -8,7 +8,7 @@ export const SLIME_INTERVAL = .25;
 export const SLIME_RADIUS = 17;
 export const SLIME_SPEED_FACTOR = .5;
 export { QUEEN_LAY_INTERVAL } from "./bug-types";
-export const EGG_HATCH_TIME = 4;
+export const EGG_HATCH_TIME = 3;
 export const COLONY_LIMIT = 12;
 export const ANT_BROOD: readonly AntVariant[] = ["worker", "soldier", "bulletAnt"];
 export type Slime = Vector & { end: Vector; bornAt: number };
