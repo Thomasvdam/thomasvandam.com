@@ -3,7 +3,7 @@ import { beginSchematicHunt, extractSchematic } from "./courier";
 import { equipmentUnlocked, normalizeSchematics, type Schematic } from "./schematics";
 import { assignLightTrait, cornerPosition, damageLamp, emptyLightCover, LAMP_HEALTH, LAMP_RADIUS, MOTH_SWARM_SIZE, refreshLightCover, type LightId } from "./light-threats";
 import { CORNER_LIGHTS, CORNER_LIGHT_COST, MAX_LIGHT_RANK, type CornerLight } from "./lighting";
-import { absorbBackpack, burnRemains, corpseAlive, inFlame, leaveCorpse, type BugRemains } from "./remains";
+import { absorbBackpack, burnRemains, corpseAlive, dying, inFlame, leaveCorpse, type BugRemains } from "./remains";
 import { blastTethers, firstTetherHit, flameTethers, preparePulls, provokeBombardier, stepBolas, type Bola, type Tether, type SpiderIndex } from "./predators";
 import { SLIME_LIFETIME, slimeSpeedFactor, spawnQueenGuards, type Slime } from "./ecology";
 import { circleHitTime, distanceToSegment, clamp, limitVector, type Vector } from "./math";
@@ -242,7 +242,10 @@ export function step(game: Game, input: Input, dt: number) {
 	game.acidImpacts = game.acidImpacts.filter(impact => game.time - impact.bornAt < .25);
 	game.deflections = game.deflections.filter(effect => game.time - effect.bornAt < .18);
 	game.explosions = game.explosions.filter(explosion => game.time - explosion.bornAt < .35);
-	game.remains = game.remains.filter(remains => corpseAlive(remains, game.time));
+	game.remains = game.remains.filter(remains => {
+		if (!dying(remains, game.time)) delete remains.death;
+		return corpseAlive(remains, game.time);
+	});
 	const move = limitVector(input.move), player = game.player;
 	const previousPlayer = { x: player.x, y: player.y };
 	const stats = playerStats(game), pulls = preparePulls(game, dt); game.pitTerrain = pulls.terrain;

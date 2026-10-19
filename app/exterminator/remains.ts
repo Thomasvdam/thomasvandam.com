@@ -1,20 +1,37 @@
+import { bugRig, bugPose, resolveRig, speciesPose, type ResolvedPart } from "./animation";
+import { bugSkin } from "./sprite-parts";
+import { clickElevation } from "./specialists";
+import { ACID_WINDUP } from "./acid";
 import { combatTarget } from "./light-threats";
 import { BUG_SPECS, type BugVariant, type Enemy } from "./bug-types";
 import { walkBugTo } from "./bug-motion";
 import type { Game } from "./game";
 import { angleDifference, type Bounds, type Vector } from "./math";
 
+export const DEATH_ANIMATION_TIME = .35;
 export const CORPSE_LIFETIME = 60;
 export const CORPSE_BURN_TIME = 1.2;
 export const BACKPACK_LIMIT = 5;
 export const CARAPACE_HEALTH = 2;
 export type Carapace = { id: number; variant: BugVariant; health: number; burnAt?: number };
-export type BugRemains = Vector & { id: number; variant: BugVariant; angle: number; diedAt: number; segments: Vector[]; burnAt?: number };
+export type DeathFrame = { parts: ResolvedPart[]; tails: ResolvedPart[][]; elevation: number; stretchX: number; stretchY: number };
+export type BugRemains = Vector & { death?: DeathFrame; id: number; variant: BugVariant; angle: number; diedAt: number; segments: Vector[]; burnAt?: number };
 export function corpseAlive(remains: BugRemains, time: number) {
 	return time - remains.diedAt < CORPSE_LIFETIME && (remains.burnAt === undefined || time - remains.burnAt < CORPSE_BURN_TIME);
 }
+export const dying = (remains: BugRemains, time: number) => !!remains.death && time - remains.diedAt < DEATH_ANIMATION_TIME;
 export function leaveCorpse(game: Game, enemy: Enemy) {
-	game.remains.push({ id: enemy.id, x: enemy.x, y: enemy.y, variant: enemy.variant, angle: enemy.angle, diedAt: game.time, segments: enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment })) : [], ...(enemy.burnt ? { burnAt: game.time } : {}) });
+	const skin = bugSkin(enemy.variant, enemy.id), state = { distance: enemy.walkDistance, angle: 0, time: game.time, rolling: enemy.variant === "beetle", spitCharge: (enemy.variant === "spitter" || enemy.variant === "bulletAnt") && enemy.state.phase === "windup" ? 1 - enemy.state.remaining / ACID_WINDUP : 0 };
+	let stretchX = 1, stretchY = 1;
+	if (enemy.variant === "lunger" && enemy.state.phase === "windup") { stretchX = .85; stretchY = 1.12; }
+	if (enemy.variant === "clickBeetle" && enemy.state.phase === "windup") { stretchX = .85; stretchY = 1.16; }
+	if (enemy.variant === "explodingAnt" && enemy.state.phase === "charge") stretchX = stretchY = 1 + Math.sin(game.time * 32) * .09;
+	const death: DeathFrame = {
+		parts: resolveRig(bugRig(enemy.variant), skin, speciesPose(enemy.variant, state)),
+		tails: enemy.variant === "centipede" ? enemy.state.segments.map((_, index) => resolveRig(bugRig(enemy.variant), { ...skin, head: undefined }, bugPose({ ...state, distance: enemy.walkDistance - index * 9 }))) : [],
+		elevation: clickElevation(enemy), stretchX, stretchY,
+	};
+	game.remains.push({ death, id: enemy.id, x: enemy.x, y: enemy.y, variant: enemy.variant, angle: enemy.angle, diedAt: game.time, segments: enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment })) : [], ...(enemy.burnt ? { burnAt: game.time } : {}) });
 }
 export function inFlame(point: Vector, radius: number, origin: Vector, angle: number, range: number, halfAngle: number) {
 	const dx = point.x - origin.x, dy = point.y - origin.y, distance = Math.hypot(dx, dy);

@@ -120,3 +120,19 @@ broad markings, and different plate/crest/limb/wing outlines so the versions rea
 at normal play size. Pivots, rig bones, animation geometry, and collision shapes
 stay the same; cosmetic outlines can differ within the 32px registration canvas. The warning, living actor, and remains all use the same
 ID; centipede segments repeat that individual’s body/leg selection.
+
+
+## Death transitions
+
+`speciesPose` and `bugRig` are shared by live rendering and corpse snapshots.
+`leaveCorpse` freezes resolved parts at the kill, including mixed skins, limb
+stride, wing pose, centipede segments, and click-beetle elevation. The 0.35-second
+transition curls/fades limbs, settles airborne bodies, and gradually flattens the
+body to its carapace. Both ends retain the same body scale and head pivot.
+`rig-renderer.ts` paints the same resolved parts for living and dying bugs.
+
+Fresh deaths render every frame outside the static corpse cohorts. The last 35%
+blends into the exact half-resolution cached representation using one reusable
+overlay, avoiding a pixel-detail snap at completion. Simulation cleanup then
+releases pose snapshots. Combat removal, wave completion, corpse collection and
+burn timers remain independent of this visual transition; pausing freezes it.

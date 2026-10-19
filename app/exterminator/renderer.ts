@@ -1,8 +1,10 @@
+import { drawRig } from "./rig-renderer";
+export { drawRig } from "./rig-renderer";
 import { drawBrood, drawNewTelegraph } from "./specialist-renderer";
 import { clickElevation, enemyPosition } from "./specialists";
 import { warningLit } from "./lighting";
 import { createLightingLayer, drawLightFixtures } from "./lighting-renderer";
-import { createRemainsLayer, drawRemains, drawBackpack } from "./remains-renderer";
+import { createRemainsLayer, drawRemains, drawDyingRemains, drawBackpack } from "./remains-renderer";
 import { drawBolas, drawPitFields, drawPredatorTelegraph, drawTethers } from "./predator-renderer";
 import { createSlimeLayer } from "./slime-renderer";
 import { EGG_HATCH_TIME, QUEEN_LAY_INTERVAL, SLIME_LIFETIME, SLIME_RADIUS } from "./ecology";
@@ -13,8 +15,8 @@ import { TILE_SIZE, TERRAIN_COLUMNS, TERRAIN_ROWS, type Terrain } from "./terrai
 import { cameraFor, type Camera } from "./camera";
 import { clamp } from "./math";
 import { FIELD, FLAME_HALF_ANGLE, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
-import { DRAGONFLY_RIG, dragonflyPose, SPIDER_RIG, spiderPose, BUG_RIG, bugPose, MECH_RIG, mechPose, resolveRig, spawnAppearance, type Pose, type Rig } from "./animation";
-import { bugSkin, mechSkin, SPRITE_PARTS, type Skin, type SpritePart } from "./sprite-parts";
+import { bugRig, speciesPose, BUG_RIG, bugPose, MECH_RIG, mechPose, spawnAppearance } from "./animation";
+import { bugSkin, mechSkin, SPRITE_PARTS, type SpritePart } from "./sprite-parts";
 
 const BASE_MODES = new Set<Game["mode"]>(["ready", "base", "workshop", "weapons", "shop"]);
 export type Sprites = Record<SpritePart, HTMLImageElement>;
@@ -25,23 +27,6 @@ export async function loadSprites(): Promise<Sprites> {
 	return Object.fromEntries(entries) as Sprites;
 }
 
-export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Rig, skin: Skin, pose: Pose, x: number, y: number, scale = 1, flash = false, travel = 0) {
-	ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
-	if (flash) ctx.filter = "brightness(1.8)";
-	for (const part of resolveRig(rig, skin, pose)) {
-		const spec = SPRITE_PARTS[part.sprite];
-		ctx.save(); ctx.translate(part.x, part.y); ctx.rotate(part.angle); ctx.scale(part.scaleX, part.scaleY);
-		ctx.globalAlpha *= part.opacity;
-		ctx.drawImage(sprites[part.sprite], -spec.pivotX, -spec.pivotY, spec.width, spec.height);
-		if (part.sprite.endsWith("Wheel") || part.sprite.endsWith("Tread")) {
-			ctx.fillStyle = "#9aa78c";
-			const left = part.sprite.endsWith("Tread") ? -12 : -7, right = part.sprite.endsWith("Tread") ? 11 : 7;
-			for (let x = left + (travel / 2 % 4); x < right; x += 4) { ctx.fillRect(x, -5, 1, 2); ctx.fillRect(x, 5, 1, 2); }
-		}
-		ctx.restore();
-	}
-	ctx.restore();
-}
 
 export function drawTerrain(ctx: CanvasRenderingContext2D, tiles: Terrain[], variation: number) {
 	// Every surface uses a distinct texture as well as color.
@@ -112,7 +97,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.ellipse(x, y + 4, radius, radius * .6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	};
 	drawPitFields(ctx, game, visible);
-	if (remainsLayer) ctx.drawImage(remainsLayer, 0, 0, FIELD.width, FIELD.height);
+	if (remainsLayer) { ctx.drawImage(remainsLayer, 0, 0, FIELD.width, FIELD.height); drawDyingRemains(ctx, game, sprites); }
 	else drawRemains(ctx, game, sprites);
 	if (slimeLayer) ctx.drawImage(slimeLayer, 0, 0, FIELD.width, FIELD.height);
 	else {
@@ -136,13 +121,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			}
 		}
 		const poseState = { distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge };
-		let pose = variant === "bolasSpider" ? spiderPose(poseState) : variant === "dragonfly" ? dragonflyPose(poseState) : bugPose(poseState);
-		if (variant === "slug" || variant === "velvetWorm" || variant === "larva") {
-			const glide = Math.sin(distance / 8) * .06;
-			pose = { ...pose, body: { scaleX: 1 + glide, scaleY: 1 - glide }, shell: { scaleY: 1 + glide } };
-		}
-		if (variant === "egg") pose = { ...pose, body: { scaleX: 1 + Math.sin(game.time * 4) * .03 } };
-		drawRig(ctx, sprites, variant === "bolasSpider" ? SPIDER_RIG : variant === "dragonfly" ? DRAGONFLY_RIG : BUG_RIG, skin, pose, x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
+		drawRig(ctx, sprites, bugRig(variant), skin, speciesPose(variant, poseState), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
 	};
 
 	for (const warning of game.spawns) {
