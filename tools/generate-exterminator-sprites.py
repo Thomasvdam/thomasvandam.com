@@ -378,9 +378,35 @@ part("bug-courier-wing", [poly([(7, 15), (17, 6), (29, 3), (32, 7), (27, 13), (1
     poly([(9, 15), (19, 8), (29, 5), (30, 7), (25, 12), (15, 18), (9, 17)], "white"),
     poly([(11, 15), (27, 7), (23, 11), (14, 17)], "gold")])
 
+# New specialists keep the existing registration and independent part variants.
+# Click beetle: pointed brass shield with large ivory eyespots.
+part("bug-click-body", [poly([(1, 13), (7, 7), (22, 7), (29, 14), (29, 20), (20, 26), (6, 24), (1, 19)], "ink"), rect(5, 11, 20, 11, "ochreDark")])
+part("bug-click-shell", [poly([(2, 16), (9, 5), (23, 6), (29, 13), (26, 23), (8, 26)], "ink"), poly([(5, 16), (11, 8), (22, 9), (26, 14), (23, 21), (10, 23)], "ochre"), rect(9, 9, 4, 5, "white"), rect(9, 19, 4, 4, "white"), rect(10, 10, 2, 3, "ink"), rect(10, 19, 2, 3, "ink"), rect(16, 11, 2, 11, "ochreDark")])
+part("bug-click-head", [poly([(9, 11), (19, 9), (27, 13), (30, 16), (25, 22), (10, 21)], "ink"), rect(12, 12, 12, 8, "ochre"), rect(23, 12, 3, 3, "gold"), rect(23, 19, 3, 2, "gold")])
+# Exploding ant: swollen red abdomen with bright yellow chemical sacs.
+part("bug-exploding-body", [poly([(1, 11), (8, 4), (21, 5), (28, 12), (28, 22), (19, 29), (7, 27), (1, 21)], "ink"), poly([(4, 12), (10, 7), (20, 8), (25, 14), (24, 22), (18, 26), (8, 24)], "red"), rect(8, 10, 5, 12, "gold"), rect(17, 11, 4, 12, "orange")])
+part("bug-exploding-shell", [rect(12, 12, 12, 10, "ink"), rect(14, 14, 8, 6, "redDark"), rect(18, 14, 3, 6, "gold")])
+part("bug-exploding-head", [rect(9, 10, 16, 14, "ink"), rect(11, 12, 12, 10, "red"), rect(21, 12, 3, 3, "gold"), rect(21, 20, 3, 2, "gold"), rect(26, 10, 3, 5, "red"), rect(26, 20, 3, 5, "red")])
+# Velvet worm: a soft ribbed body, many tiny feet, and paired glue nozzles.
+part("bug-velvet-body", [poly([(0, 13), (5, 8), (23, 8), (31, 13), (31, 21), (24, 25), (5, 25), (0, 20)], "ink"), rect(3, 11, 25, 12, "violet"), *[rect(x, 8, 2, 18, "violetLight") for x in range(5, 27, 4)], *[rect(x, y, 2, 5, "violetDark") for x in range(3, 29, 3) for y in [5, 23]]])
+part("bug-velvet-shell", [rect(7, 13, 17, 7, "violet"), rect(8, 14, 15, 2, "violetLight")])
+part("bug-velvet-head", [rect(9, 11, 15, 12, "ink"), rect(11, 13, 11, 8, "violetLight"), rect(22, 7, 8, 5, "ink"), rect(22, 21, 8, 5, "ink"), rect(24, 8, 6, 3, "acidLight"), rect(24, 22, 6, 3, "acidLight"), rect(19, 13, 2, 2, "ink"), rect(19, 19, 2, 2, "ink")])
+# Parasitoid wasp: narrow waist, striped abdomen, and long translucent wings.
+part("bug-wasp-body", [poly([(0, 14), (7, 9), (15, 11), (21, 14), (29, 13), (29, 20), (20, 20), (13, 24), (6, 23), (0, 19)], "ink"), rect(3, 13, 12, 7, "gold"), rect(7, 12, 3, 10, "ink"), rect(18, 15, 9, 3, "ochre")])
+part("bug-wasp-shell", [rect(15, 11, 12, 12, "ink"), rect(17, 13, 8, 8, "ochre"), rect(19, 13, 3, 8, "gold")])
+part("bug-wasp-head", [rect(11, 11, 13, 12, "ink"), rect(13, 13, 9, 8, "gold"), rect(21, 12, 3, 3, "redDark"), rect(21, 20, 3, 2, "redDark"), rect(22, 7, 6, 2, "ink"), rect(22, 25, 6, 2, "ink")])
+part("bug-wasp-wing", [poly([(7, 15), (12, 5), (27, 0), (31, 4), (26, 12), (14, 20), (7, 19)], "ink"), poly([(10, 15), (14, 7), (26, 3), (28, 5), (24, 10), (14, 17)], "wingLight"), rect(15, 10, 5, 2, "wing")])
+# Larva: pale segmented grub, no wings or adult insect legs.
+part("bug-larva-body", [poly([(1, 14), (7, 8), (24, 8), (30, 13), (30, 21), (24, 26), (7, 25), (1, 20)], "ink"), rect(4, 11, 22, 12, "light"), *[rect(x, 11, 2, 12, "olive") for x in [8, 14, 20]]])
+part("bug-larva-shell", [rect(8, 13, 16, 7, "light"), rect(9, 14, 13, 2, "white")])
+part("bug-larva-head", [rect(12, 11, 12, 12, "ink"), rect(14, 13, 8, 8, "ochre"), rect(21, 14, 3, 2, "redDark"), rect(21, 19, 3, 2, "redDark")])
+for prefix, dark, base, light in [("click", "ochreDark", "ochre", "gold"), ("exploding", "redDark", "red", "gold"), ("wasp", "ochreDark", "ochre", "gold")]:
+    part(f"bug-{prefix}-leg", [poly([(6, 14), (14, 12), (20, 17), (29, 25), (28, 29), (24, 27), (18, 20), (12, 17), (6, 18)], "ink"), poly([(8, 15), (13, 14), (19, 18), (26, 25), (24, 25), (17, 19), (12, 16), (8, 17)], base)])
+
 # Three compatible appearances per bug part: stock, banded/crested, ridged/spined.
 # Larger markings and silhouette changes read at gameplay size; pivots stay fixed.
 BUG_PALETTES = {
+    "click": ("ochreDark", "ochre", "gold"), "exploding": ("redDark", "red", "gold"), "velvet": ("violetDark", "violet", "violetLight"), "wasp": ("ochreDark", "ochre", "gold"), "larva": ("oliveDark", "light", "white"),
     "rust": ("rustDark", "rust", "rustLight"), "olive": ("oliveDark", "olive", "oliveLight"),
     "lunger": ("redDark", "red", "redLight"), "evader": ("blueDark", "blue", "blueLight"),
     "centipede": ("ochreDark", "ochre", "ochreLight"), "armoured": ("slateDark", "slate", "slateLight"),

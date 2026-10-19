@@ -1,3 +1,4 @@
+import { airborne, enemyPosition, stepClickBeetle, stepExplodingAnt, stepVelvetWorm, stepWasp } from "./specialists";
 import { stepCourier } from "./courier";
 import { assignLightTrait, chooseLightTarget, combatTarget, contactLamp, stepMoth } from "./light-threats";
 import { stepAssassin } from "./remains";
@@ -22,7 +23,7 @@ export function bugForSpawn(cleared: number, wave: number, index: number, weight
 export { createBug } from "./bug-types";
 export function enemyCircles(enemy: Enemy): (Vector & { radius: number })[] {
 	const radius = BUG_SPECS[enemy.variant].radius;
-	return [{ x: enemy.x, y: enemy.y, radius }, ...(enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment, radius })) : [])];
+	return [{ ...enemyPosition(enemy), radius }, ...(enemy.variant === "centipede" ? enemy.state.segments.map(segment => ({ ...segment, radius })) : [])];
 }
 
 export function frontArmour(enemy: Enemy, source: Vector) {
@@ -50,7 +51,15 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 		const charging = (enemy.variant === "lunger" && enemy.state.phase === "lunge") || (enemy.variant === "dragonfly" && enemy.state.phase === "intercept");
 		const dx = player.x - enemy.x, dy = player.y - enemy.y, distance = Math.hypot(dx, dy), desired = Math.atan2(dy, dx);
 		const toward = { x: distance ? dx / distance : 0, y: distance ? dy / distance : 0 };
-		if (enemy.variant === "courier") {
+		if (enemy.variant === "clickBeetle") {
+			stepClickBeetle(game, enemy, dt, bounds, playerRadius);
+		} else if (enemy.variant === "explodingAnt") {
+			stepExplodingAnt(game, enemy, dt, bounds);
+		} else if (enemy.variant === "velvetWorm") {
+			stepVelvetWorm(game, enemy, dt, bounds);
+		} else if (enemy.variant === "parasitoidWasp") {
+			stepWasp(game, enemy, dt, bounds);
+		} else if (enemy.variant === "courier") {
 			stepCourier(game, enemy, dt, bounds);
 		} else if (enemy.variant === "moth") {
 			stepMoth(game, enemy, dt, bounds);
@@ -145,7 +154,7 @@ export function stepBugs(game: Game, dt: number, bounds: Bounds, playerRadius: n
 				leader = segment;
 			}
 		} else { move(enemy, toward, Math.min(distance, enemy.speed * dt), bounds); enemy.angle = desired; }
-		contactLamp(game, enemy, previous, charging);
+		if (enemy.variant !== "clickBeetle" && enemy.variant !== "explodingAnt") contactLamp(game, enemy, previous, charging);
 	}
 	return lungeContacts;
 }
@@ -196,7 +205,7 @@ function translateBug(body: CollisionBody, dx: number, dy: number, bounds: Bound
 export function separateBugs(enemies: Enemy[], bounds: Bounds) {
 	// Broad-phase cells keep the solver local, including every centipede segment.
 	let largestRadius = 0;
-	const nodes = enemies.filter(enemy => enemy.health > 0 && enemy.variant !== "egg" && enemy.variant !== "antlion" && enemy.variant !== "dragonfly" && enemy.variant !== "moth" && enemy.variant !== "courier").flatMap(enemy => {
+	const nodes = enemies.filter(enemy => enemy.health > 0 && !airborne(enemy) && !(enemy.variant === "explodingAnt" && enemy.state.phase === "charge") && enemy.variant !== "parasitoidWasp" && enemy.variant !== "egg" && enemy.variant !== "antlion" && enemy.variant !== "dragonfly" && enemy.variant !== "moth" && enemy.variant !== "courier").flatMap(enemy => {
 		const radius = BUG_SPECS[enemy.variant].radius, mass = enemy.variant === "centipede" ? 8 : enemy.variant === "armoured" ? 2 : 1;
 		largestRadius = Math.max(largestRadius, radius);
 		const points = enemy.variant === "centipede" ? [enemy, ...enemy.state.segments] : [enemy];

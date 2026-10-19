@@ -16,10 +16,12 @@ export const BUG_SPECS = {
 	antlion: { health: 5, speed: 0, radius: 19 }, bombardier: { health: 5, speed: 65, radius: 17 },
 	dragonfly: { health: 3, speed: 120, radius: 13 }, bolasSpider: { health: 4, speed: 80, radius: 18 },
 	assassin: { health: 4, speed: 88, radius: 17 }, moth: { health: 1, speed: 120, radius: 8 }, courier: { health: 3, speed: 190, radius: 9 },
+	clickBeetle: { health: 4, speed: 65, radius: 17 }, explodingAnt: { health: 2, speed: 130, radius: 12 },
+	velvetWorm: { health: 5, speed: 45, radius: 18 }, parasitoidWasp: { health: 3, speed: 130, radius: 13 }, larva: { health: 1, speed: 95, radius: 7 },
 } as const;
 export type BugVariant = keyof typeof BUG_SPECS;
 export const BUG_TYPES = Object.keys(BUG_SPECS) as BugVariant[];
-export const BUG_NAMES: Record<BugVariant, string> = { courier: "Schematic courier", moth: "Moth swarm", assassin: "Backpack assassin", burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter", slug: "Slug", queen: "Queen ant colony", worker: "Worker ant", soldier: "Soldier ant", bulletAnt: "Bullet ant", egg: "Ant egg", antlion: "Antlion", bombardier: "Bombardier beetle", dragonfly: "Dragonfly", bolasSpider: "Bolas spider" };
+export const BUG_NAMES: Record<BugVariant, string> = { clickBeetle: "Click beetle", explodingAnt: "Exploding ant", velvetWorm: "Velvet worm", parasitoidWasp: "Parasitoid wasp", larva: "Wasp larva", courier: "Schematic courier", moth: "Moth swarm", assassin: "Backpack assassin", burrower: "Burrower", flyer: "Flyer", lunger: "Lunger", evader: "Evader", centipede: "Centipede", armoured: "Armoured bug", beetle: "Dung beetle", spitter: "Acid spitter", slug: "Slug", queen: "Queen ant colony", worker: "Worker ant", soldier: "Soldier ant", bulletAnt: "Bullet ant", egg: "Ant egg", antlion: "Antlion", bombardier: "Bombardier beetle", dragonfly: "Dragonfly", bolasSpider: "Bolas spider" };
 export type BugWeights = Record<BugVariant, number>;
 function shuffledUnlocks(seed: number, firstHive: number, types: BugVariant[]): BugVariant[] {
 	// Each group has its own stream, independent of hive offers and wave spawning.
@@ -41,6 +43,7 @@ export function defaultBugWeights(cleared: number, seed = 0): BugWeights {
 	specialists.push(...shuffledUnlocks(seed, 8, ["slug", "antlion", "bombardier"]).slice(0, Math.max(0, cleared - 6)));
 	if (cleared >= 10) specialists.push("queen");
 	specialists.push(...shuffledUnlocks(seed, 12, ["dragonfly", "bolasSpider", "assassin"]).slice(0, Math.max(0, cleared - 10)));
+	specialists.push(...shuffledUnlocks(seed, 15, ["clickBeetle", "explodingAnt", "velvetWorm", "parasitoidWasp"]).slice(0, Math.max(0, cleared - 13)));
 	return Object.fromEntries(BUG_TYPES.map(type => [type, type === "burrower" || type === "flyer" ? Math.max(1, specialists.length) : specialists.includes(type) ? 1 : 0])) as BugWeights;
 }
 export const QUEEN_LAY_INTERVAL = 6;
@@ -59,8 +62,14 @@ export const SEGMENT_COUNT = 8;
 export const BUG_CLEARANCE = 6;
 export type AntVariant = "worker" | "soldier" | "bulletAnt";
 export type WanderState = { direction: number; remaining: number; seed: number };
-type EnemyBase = Vector & { id: number; health: number; maxHealth: number; speed: number; angle: number; walkDistance: number; bornAt: number; hitAt: number; blockedAt: number; burnt?: boolean; lightSensitive?: boolean; lightTarget?: CornerLight | null; attackLight?: CornerLight | null; lampHitAt?: number };
+export type Brood = { age: number; health: number; owner: number };
+type EnemyBase = Vector & { brood?: Brood; broodBlockedUntil?: number; id: number; health: number; maxHealth: number; speed: number; angle: number; walkDistance: number; bornAt: number; hitAt: number; blockedAt: number; burnt?: boolean; lightSensitive?: boolean; lightTarget?: CornerLight | null; attackLight?: CornerLight | null; lampHitAt?: number };
 export type Enemy = EnemyBase & (
+	{ variant: "clickBeetle"; state: { phase: "approach" | "windup" | "flight" | "recover"; remaining: number; origin: Vector; target: Vector } } |
+	{ variant: "explodingAnt"; state: { phase: "chase" | "charge"; remaining: number; detonated: boolean } } |
+	{ variant: "velvetWorm"; state: { phase: "approach" | "windup" | "spray" | "recover"; remaining: number; direction: number; sweep: number } } |
+	{ variant: "parasitoidWasp"; state: { targetId: number | null; remaining: number; seekRemaining: number } } |
+	{ variant: "larva"; state: { phase: "chase" } } |
 	{ variant: "courier"; state: { schematic: Schematic | null; seekRemaining: number; destination: Vector } } |
 	{ variant: "moth"; state: { light: LightId | null; seekRemaining: number } } |
 	{ variant: "burrower" | "flyer"; state: { phase: "chase" } } |
@@ -89,6 +98,11 @@ export function createBug(options: { variant: BugVariant; id: number; position: 
 	const health = (variant === "egg" || variant === "moth") ? 1 : variant === "courier" ? 3 : spec.health * (1 + Math.floor((threat - 1) / 2));
 	const base = { x: clamp(position.x, spec.radius, bounds.width - spec.radius), y: clamp(position.y, spec.radius, bounds.height - spec.radius), id, health, maxHealth: health, speed: Math.min(variant === "armoured" ? 85 : 160, spec.speed + threat * (variant === "armoured" ? 2 : 5) + wave * 3), angle, walkDistance: 12, bornAt: time, hitAt: -10, blockedAt: -10 };
 	const wander = { direction: angle + Math.PI, remaining: 0, seed: Math.imul(id + 1, 2654435761) >>> 0 };
+	if (variant === "clickBeetle") return { ...base, variant, state: { phase: "approach", remaining: 0, origin: { ...position }, target: { ...player } } };
+	if (variant === "explodingAnt") return { ...base, variant, state: { phase: "chase", remaining: 0, detonated: false } };
+	if (variant === "velvetWorm") return { ...base, variant, state: { phase: "approach", remaining: 0, direction: angle, sweep: 1 } };
+	if (variant === "parasitoidWasp") return { ...base, variant, state: { targetId: null, remaining: .8, seekRemaining: 0 } };
+	if (variant === "larva") return { ...base, variant, state: { phase: "chase" } };
 	if (variant === "courier") return { ...base, speed: 190, variant, state: { schematic: null, seekRemaining: 0, destination: { x: base.x, y: base.y } } };
 	if (variant === "moth") return { ...base, variant, state: { light: null, seekRemaining: 0 } };
 	if (variant === "assassin") return { ...base, variant, state: { backpack: [], targetId: null, seekRemaining: 0 } };

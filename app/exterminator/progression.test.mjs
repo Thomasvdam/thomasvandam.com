@@ -6,6 +6,7 @@ const groups = [
 	{ firstHive: 4, types: ["centipede", "beetle", "armoured"] },
 	{ firstHive: 8, types: ["slug", "antlion", "bombardier"] },
 	{ firstHive: 12, types: ["dragonfly", "bolasSpider", "assassin"] },
+	{ firstHive: 15, types: ["clickBeetle", "explodingAnt", "velvetWorm", "parasitoidWasp"] },
 ];
 const roster = (hive, seed) => {
 	const weights = defaultBugWeights(hive - 1, seed);
@@ -17,26 +18,26 @@ test("every run starts with the fixed early roster and retains fixed spitter, co
 		expect(new Set(roster(1, seed))).toEqual(new Set(["burrower", "flyer"]));
 		expect(new Set(roster(2, seed))).toEqual(new Set(["burrower", "flyer", "moth", "evader"]));
 		expect(new Set(roster(3, seed))).toEqual(new Set(["burrower", "flyer", "moth", "evader", "lunger"]));
-		for (let hive = 1; hive <= 16; hive++) {
+		for (let hive = 1; hive <= 20; hive++) {
 			const weights = defaultBugWeights(hive - 1, seed);
 			expect(weights.spitter > 0).toBe(hive >= 7); expect(weights.queen > 0).toBe(hive >= 11);
-			for (const type of ["worker", "soldier", "bulletAnt", "egg", "courier"]) expect(weights[type]).toBe(0);
+			for (const type of ["worker", "soldier", "bulletAnt", "egg", "courier", "larva"]) expect(weights[type]).toBe(0);
 			for (const type of roster(hive, seed)) expect(roster(hive + 1, seed)).toContain(type);
 			if (hive >= 2) expect(weights.burrower + weights.flyer).toBe(Object.values(weights).reduce((a, b) => a + b, 0) * 2 / 3);
 		}
 	}
-	for (let hive = 1; hive <= 16; hive++) expect(lightSensitiveChance(hive - 1, hive) > 0).toBe(hive >= 5);
+	for (let hive = 1; hive <= 20; hive++) expect(lightSensitiveChance(hive - 1, hive) > 0).toBe(hive >= 5);
 });
 
-test("each random group introduces exactly one new type per hive, without duplicates, and covers all six orders across runs", () => {
+test("each random group introduces exactly one new type per hive, without duplicates, and covers every permutation across runs", () => {
 	for (const { firstHive, types } of groups) {
 		const orders = new Set();
-		for (let seed = 0; seed < 100; seed++) {
+		for (let seed = 0; seed < 300; seed++) {
 			const order = [];
-			for (let offset = -1; offset <= 3; offset++) {
+			for (let offset = -1; offset <= types.length; offset++) {
 				const hive = firstHive + offset, current = roster(hive, seed).filter(type => types.includes(type));
-				expect(current).toHaveLength(Math.min(3, Math.max(0, offset + 1)));
-				if (offset >= 0 && offset < 3) {
+				expect(current).toHaveLength(Math.min(types.length, Math.max(0, offset + 1)));
+				if (offset >= 0 && offset < types.length) {
 					const previous = roster(hive - 1, seed), introduced = current.filter(type => !previous.includes(type));
 					expect(introduced).toHaveLength(1); order.push(introduced[0]);
 				}
@@ -45,6 +46,6 @@ test("each random group introduces exactly one new type per hive, without duplic
 			// Querying later progress never rerolls an earlier unlock.
 			roster(20, seed); expect(roster(firstHive, seed)).toContain(order[0]);
 		}
-		expect(orders.size).toBe(6);
+		expect(orders.size).toBe(types.length === 3 ? 6 : 24);
 	}
 });
