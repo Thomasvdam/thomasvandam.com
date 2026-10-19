@@ -609,3 +609,11 @@ segments) measured 15.0 ms median / 32.1 ms p95 render submission over 60 native
 frames while sampling the collapse. This is a brief, deliberately dense burst;
 settled bodies return to the existing static cohorts. These host diagnostics do
 not guarantee frame rates on physical mobile devices.
+
+### Bugpedia
+
+Base and pause menus both open the bugpedia (`B`; arrow keys or controller D-pad/left stick to browse; Page Up/Down or controller right stick to scroll). Returning from the guide goes back to the originating menu; combat stays paused until explicitly resumed. Only previously encountered species appear, with an existing sprite portrait, normal hive introduction, behaviour, counterplay, base health/speed, and attack/effect stats. Base health and movement are labelled separately from the threat/wave bonuses applied in combat.
+
+Encounters are recorded when a living bug’s body is on screen with some illumination, including shadow; spawn warnings, off-camera light, and total darkness do not count. Detection samples body centres and edges, includes centipede segments, and uses a jumping click beetle’s elevated position. Observations happen during play, not while a menu obscures the field. All 26 species, including eggs, couriers and larvae, have entries.
+
+Discovered species persist across deaths, restarts and reloads in the browser under `exterminator.bugpedia.v1`, independently of schematic ownership and run upgrades. Saves validate species IDs and merge existing discoveries. Blocked storage falls back to session memory and displays a saving-unavailable note. Debug encounters follow the same visibility rule and can be recorded.

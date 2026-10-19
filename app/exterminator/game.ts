@@ -54,9 +54,10 @@ export type Deflection = Vector & { id: number; vx: number; vy: number; bornAt: 
 export type SpawnWarning = Vector & { id: number; remaining: number; variant: BugVariant };
 export type { BugRemains } from "./remains";
 export type Game = {
+	encounters: BugVariant[]; bugpediaFrom: "base" | "paused";
 	schematics: Schematic[]; schematicReward: Schematic | null; carriedSchematic: Schematic | null; lastSchematic: Schematic | null;
 	debug: { queue: BugVariant[]; total: number; lightSensitivePercent: number } | null;
-	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
+	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "bugpedia" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
 	lampHealth: Record<CornerLight, number>; lightCover: Record<LightId, number>; playerVelocity: Vector; pitTerrain: Terrain | null; bolas: Bola[]; tethers: Tether[]; glue: number; slimed: boolean; slime: Slime[]; enemies: Enemy[]; acid: Acid[]; acidImpacts: AcidImpact[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
 	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage; weapon: Weapon;
@@ -78,6 +79,7 @@ export function playerStats(game: Game) {
 export function newGame(seed = 1, undercarriage: Undercarriage = "legs", schematics: readonly Schematic[] = []): Game {
 	const unlocked = normalizeSchematics(schematics);
 	return {
+		encounters: [], bugpediaFrom: "base",
 		schematics: unlocked, schematicReward: null, carriedSchematic: null, lastSchematic: null,
 		debug: null, hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage: equipmentUnlocked(unlocked, undercarriage) ? undercarriage : "legs", weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
@@ -99,6 +101,13 @@ export function start(game: Game) {
 export function togglePause(game: Game) {
 	if (game.mode === "playing") game.mode = "paused";
 	else if (game.mode === "paused") game.mode = "playing";
+}
+export function openBugpedia(game: Game) {
+	if (game.mode !== "base" && game.mode !== "paused") return;
+	game.bugpediaFrom = game.mode; game.mode = "bugpedia";
+}
+export function closeBugpedia(game: Game) {
+	if (game.mode === "bugpedia") game.mode = game.bugpediaFrom;
 }
 export function chooseUpgrade(game: Game, upgrade: Upgrade) {
 	if (game.mode !== "shop") return;
