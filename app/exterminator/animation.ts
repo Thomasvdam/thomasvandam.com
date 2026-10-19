@@ -132,3 +132,15 @@ export function dragonflyPose(state: Parameters<typeof bugPose>[0]): Pose {
 	for (let row = 0; row < 3; row++) { pose[`legL${row}`] = { scaleX: .6 }; pose[`legR${row}`] = { scaleX: .6 }; }
 	return pose;
 }
+
+// Live bugs and their death snapshots share exactly the same species-specific pose.
+export const bugRig = (variant: BugVariant): Rig => variant === "bolasSpider" ? SPIDER_RIG : variant === "dragonfly" ? DRAGONFLY_RIG : BUG_RIG;
+export function speciesPose(variant: BugVariant, state: Parameters<typeof bugPose>[0]): Pose {
+	let pose = variant === "bolasSpider" ? spiderPose(state) : variant === "dragonfly" ? dragonflyPose(state) : bugPose(state);
+	if (variant === "slug" || variant === "velvetWorm" || variant === "larva") {
+		const glide = Math.sin(state.distance / 8) * .06;
+		pose = { ...pose, body: { scaleX: 1 + glide, scaleY: 1 - glide }, shell: { scaleY: 1 + glide } };
+	}
+	if (variant === "egg") pose = { ...pose, body: { scaleX: 1 + Math.sin(state.time * 4) * .03 } };
+	return pose;
+}

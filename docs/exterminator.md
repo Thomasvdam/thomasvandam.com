@@ -400,8 +400,13 @@ Specialist health and movement scale with threat too. Provisional behavior:
   and ignites its pieces, which burn away after 1.2 seconds. The mixed carapaces
   are drawn on its back; its base health remains separate from their protection.
 
-Every killed bug, including eggs, leaves a flattened corpse/carapace with its
-original part appearance and centipede segment geometry. These are subdued
+Every killed bug, including eggs, collapses for 0.35 seconds before settling into
+its corpse/carapace. The first death frame retains the live size, mixed part
+appearance, frozen walking/wing pose, and centipede segment geometry. Legs curl
+and fade, wings fade, and the body gradually flattens; airborne click beetles
+settle from their current height. The final carapace retains the live body scale
+and head registration. The end of the transition blends into the half-resolution
+cached artwork rather than abruptly changing pixel detail. These are subdued
 background debris from the first job, without collision, shot blocking, damage,
 loot, or influence on wave completion. They gradually fade into the ground over
 60 seconds of simulation time and persist through waves/intermissions in the
@@ -539,7 +544,11 @@ not a frame-rate guarantee on other devices.
 
 Corpse rendering bakes modular skins once and groups static debris into
 three-second cohorts on half-resolution canvases. Collection/ignition invalidates
-only the affected cohort; opacity and burning update at ten Hz. This bounds
+only the affected cohort; settled opacity and burning update at ten Hz.
+Fresh deaths animate every frame outside those static cohorts. During the last
+35% of the collapse, one reusable half-resolution overlay blends in the settled
+art; the cache takes over exactly at completion. Frozen pose snapshots are freed
+once the transition finishes. This bounds
 background memory to about 21 half-resolution cohort canvases plus the output
 and small skin images. A browser stress sample with 20 assassins and about 900
 remaining corpses measured 2.6 ms median / 6.4 ms p95 render submission and 0.4 ms
@@ -584,3 +593,19 @@ inspected the new bodies/flight/spray/sacs, exercised the actual debug controls,
 and verified mobile scrolling without horizontal overflow. The deterministic
 benchmark includes mixed specialists, wasps with hosts, larvae, and a 100-ant chain.
 Physical-device tuning remains outstanding.
+
+
+Death-animation checks cover all 26 variants matching their live sprite transforms
+at the first frame and matching settled carapace transforms at the last frame,
+progressive leg folding/fading, centipede tails, airborne settling, cache blending
+and exact handoff, pause, immediate death removal, fire expiry, and snapshot
+release. Shared-browser verification inspected a live/death timeline and the real
+cached renderer across all 26 variants, with all 334 assets decoded and no browser
+errors. The existing collision, collection, fire and progression checks remain in
+place.
+
+A shared-browser stress sample of 100 simultaneous deaths (including centipede
+segments) measured 15.0 ms median / 32.1 ms p95 render submission over 60 native
+frames while sampling the collapse. This is a brief, deliberately dense burst;
+settled bodies return to the existing static cohorts. These host diagnostics do
+not guarantee frame rates on physical mobile devices.
