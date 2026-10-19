@@ -1,9 +1,10 @@
-import { resolveRig, type Pose, type ResolvedPart, type Rig } from "./animation";
+import { createRigResolver, type Pose, type ResolvedPart, type Rig } from "./animation";
 import { SPRITE_PARTS, type Skin } from "./sprite-parts";
 import type { Sprites } from "./renderer";
 
 export function drawResolvedParts(ctx: CanvasRenderingContext2D, sprites: Sprites, parts: readonly ResolvedPart[], travel = 0) {
 	for (const part of parts) {
+		if (part.opacity <= 0 || part.scaleX === 0 || part.scaleY === 0) continue;
 		const spec = SPRITE_PARTS[part.sprite];
 		ctx.save(); ctx.translate(part.x, part.y); ctx.rotate(part.angle); ctx.scale(part.scaleX, part.scaleY);
 		ctx.globalAlpha *= part.opacity;
@@ -16,9 +17,14 @@ export function drawResolvedParts(ctx: CanvasRenderingContext2D, sprites: Sprite
 		ctx.restore();
 	}
 }
+// Drawing consumes each borrowed result synchronously. The weak keys keep
+// workspaces bounded to the immutable rigs that are still in use.
+const rigResolvers = new WeakMap<Rig, ReturnType<typeof createRigResolver>>();
 export function drawRig(ctx: CanvasRenderingContext2D, sprites: Sprites, rig: Rig, skin: Skin, pose: Pose, x: number, y: number, scale = 1, flash = false, travel = 0) {
 	ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
 	if (flash) ctx.filter = "brightness(1.8)";
-	drawResolvedParts(ctx, sprites, resolveRig(rig, skin, pose), travel);
+	let resolve = rigResolvers.get(rig);
+	if (!resolve) { resolve = createRigResolver(rig); rigResolvers.set(rig, resolve); }
+	drawResolvedParts(ctx, sprites, resolve(skin, pose), travel);
 	ctx.restore();
 }

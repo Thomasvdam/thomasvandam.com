@@ -41,6 +41,7 @@ export const DRAGONFLY_RIG: Rig = [...BUG_RIG,
 // Rigs are immutable. Validate hierarchy and sort paint order once, rather than per part/frame.
 type CompiledRig = { parents: number[]; paintOrder: number[] };
 const compiledRigs = new WeakMap<Rig, CompiledRig>();
+const IDENTITY_TRANSFORM: Transform = {};
 function compileRig(rig: Rig): CompiledRig {
 	const cached = compiledRigs.get(rig);
 	if (cached) return cached;
@@ -53,27 +54,43 @@ function compileRig(rig: Rig): CompiledRig {
 	const compiled = { parents, paintOrder: rig.map((_, i) => i).sort((a, b) => rig[a].layer - rig[b].layer) };
 	compiledRigs.set(rig, compiled); return compiled;
 }
-export function resolveRig(rig: Rig, skin: Skin, pose: Pose): ResolvedPart[] {
+// The returned array is borrowed until this resolver's next call. Scratch storage
+// is bounded to the rig; callers retaining snapshots use resolveRig instead.
+export function createRigResolver(rig: Rig) {
 	const { parents, paintOrder } = compileRig(rig);
-	const resolved: { x: number; y: number; angle: number; scaleX: number; scaleY: number; opacity: number }[] = [];
-	for (let i = 0; i < rig.length; i++) {
-		const bone = rig[i], local = pose[bone.id] ?? {}, parent = resolved[parents[i]];
-		const px = (bone.x + (local.x ?? 0)) * (parent?.scaleX ?? 1), py = (bone.y + (local.y ?? 0)) * (parent?.scaleY ?? 1);
-		const angle = parent?.angle ?? 0, cos = Math.cos(angle), sin = Math.sin(angle);
-		resolved.push({
-			x: (parent?.x ?? 0) + px * cos - py * sin, y: (parent?.y ?? 0) + px * sin + py * cos,
-			angle: angle + (bone.angle ?? 0) + (local.angle ?? 0),
-			scaleX: (parent?.scaleX ?? 1) * (local.scaleX ?? 1),
-			scaleY: (parent?.scaleY ?? 1) * (local.scaleY ?? 1) * (bone.flipY ? -1 : 1),
-			opacity: (parent?.opacity ?? 1) * (local.opacity ?? 1),
-		});
-	}
-	const parts: ResolvedPart[] = [];
-	for (const i of paintOrder) {
-		const bone = rig[i], sprite = bone.slot ? skin[bone.slot] : undefined;
-		if (sprite) parts.push({ ...resolved[i], bone: bone.id, sprite, layer: bone.layer });
-	}
-	return parts;
+	const resolved = rig.map(() => ({ x: 0, y: 0, angle: 0, scaleX: 1, scaleY: 1, opacity: 1 }));
+	const parts: ResolvedPart[] = [], pool: ResolvedPart[] = [];
+	return (skin: Skin, pose: Pose): ResolvedPart[] => {
+		for (let i = 0; i < rig.length; i++) {
+			const bone = rig[i], local = pose[bone.id] ?? IDENTITY_TRANSFORM, parent = resolved[parents[i]];
+			const px = (bone.x + (local.x ?? 0)) * (parent?.scaleX ?? 1), py = (bone.y + (local.y ?? 0)) * (parent?.scaleY ?? 1);
+			const angle = parent?.angle ?? 0, cos = Math.cos(angle), sin = Math.sin(angle);
+			const world = resolved[i];
+			world.x = (parent?.x ?? 0) + px * cos - py * sin; world.y = (parent?.y ?? 0) + px * sin + py * cos;
+			world.angle = angle + (bone.angle ?? 0) + (local.angle ?? 0);
+			world.scaleX = (parent?.scaleX ?? 1) * (local.scaleX ?? 1);
+			world.scaleY = (parent?.scaleY ?? 1) * (local.scaleY ?? 1) * (bone.flipY ? -1 : 1);
+			world.opacity = (parent?.opacity ?? 1) * (local.opacity ?? 1);
+		}
+		let count = 0;
+		for (const i of paintOrder) {
+			const bone = rig[i], sprite = bone.slot ? skin[bone.slot] : undefined;
+			if (sprite) {
+				const part = pool[count] ??= { ...resolved[i], bone: bone.id, sprite, layer: bone.layer };
+				const world = resolved[i];
+				part.x = world.x; part.y = world.y; part.angle = world.angle;
+				part.scaleX = world.scaleX; part.scaleY = world.scaleY; part.opacity = world.opacity;
+				part.bone = bone.id; part.sprite = sprite; part.layer = bone.layer;
+				parts[count++] = part;
+			}
+		}
+		parts.length = count;
+		return parts;
+	};
+}
+
+export function resolveRig(rig: Rig, skin: Skin, pose: Pose): ResolvedPart[] {
+	return createRigResolver(rig)(skin, pose);
 }
 
 export function mechPose(state: { distance: number; walkBlend: number; moveAngle: number; aimAngle: number; shotAge: number; time: number; undercarriage?: Undercarriage }): Pose {

@@ -13,22 +13,26 @@ export const MILLIPEDE_ROUTE: readonly Vector[] = [
 export function millipedeTrail(head: Vector): Vector[] {
 	// Seed a continuous U-shaped history instead of piling a long body against a wall.
 	const anchors = [head, { x: 1030, y: 90 }, { x: 90, y: 90 }, { x: 90, y: 630 }, { x: 1030, y: 630 }];
-	const points: Vector[] = [{ ...head }];
+	const points: Vector[] = [{ x: head.x, y: head.y }];
 	for (let i = 1; i < anchors.length && points.length * SAMPLE_SPACING <= (MILLIPEDE_SEGMENT_COUNT + 2) * MILLIPEDE_SPACING; i++) {
 		const from = anchors[i - 1], to = anchors[i], distance = Math.hypot(to.x - from.x, to.y - from.y), steps = Math.ceil(distance / SAMPLE_SPACING);
 		for (let j = 1; j <= steps; j++) points.push({ x: from.x + (to.x - from.x) * j / steps, y: from.y + (to.y - from.y) * j / steps });
 	}
 	return points;
 }
-export function followMillipedeTrail(boss: Boss) {
+export function followMillipedeTrail(boss: Boss, includeHead = false) {
 	const points = boss.trail; if (!points || points.length < 2) return;
-	let cursor = 1, distanceBefore = 0;
+	// Treat the live head as a virtual first breadcrumb: no per-step history copy.
+	let cursor = includeHead ? 0 : 1, distanceBefore = 0;
+	let from: Vector = includeHead ? boss : points[0], to = points[cursor];
+	let length = Math.hypot(to.x - from.x, to.y - from.y);
 	for (let index = 0; index < boss.segments.length; index++) {
 		const targetDistance = (index + 1) * MILLIPEDE_SPACING;
-		while (cursor < points.length - 1 && distanceBefore + Math.hypot(points[cursor].x - points[cursor - 1].x, points[cursor].y - points[cursor - 1].y) < targetDistance) {
-			distanceBefore += Math.hypot(points[cursor].x - points[cursor - 1].x, points[cursor].y - points[cursor - 1].y); cursor++;
+		while (cursor < points.length - 1 && distanceBefore + length < targetDistance) {
+			distanceBefore += length; from = to; to = points[++cursor];
+			length = Math.hypot(to.x - from.x, to.y - from.y);
 		}
-		const from = points[cursor - 1], to = points[cursor], length = Math.hypot(to.x - from.x, to.y - from.y), t = clamp((targetDistance - distanceBefore) / (length || 1), 0, 1);
+		const t = clamp((targetDistance - distanceBefore) / (length || 1), 0, 1);
 		boss.segments[index].x = from.x + (to.x - from.x) * t; boss.segments[index].y = from.y + (to.y - from.y) * t;
 	}
 }
@@ -46,32 +50,38 @@ export function stepMillipede(boss: Boss, dt: number) {
 	const first = boss.trail[0];
 	if (Math.hypot(boss.x - first.x, boss.y - first.y) >= SAMPLE_SPACING) boss.trail.unshift({ x: boss.x, y: boss.y });
 	// The current head is transient; fixed-distance breadcrumbs retain a bounded history.
-	const history = boss.trail; boss.trail = [{ x: boss.x, y: boss.y }, ...history]; followMillipedeTrail(boss); boss.trail = history;
+	followMillipedeTrail(boss, true);
 	boss.trail.length = Math.min(boss.trail.length, Math.ceil((MILLIPEDE_SEGMENT_COUNT + 4) * MILLIPEDE_SPACING / SAMPLE_SPACING) + 4);
+}
+
+// Preserve head, endpoint, bridge order without constructing temporary capsules.
+function capsuleEnd(boss: Boss, index: number): Vector { return index === 0 ? boss : boss.segments[Math.ceil(index / 2) - 1]; }
+function capsuleStart(boss: Boss, index: number, end: Vector): Vector {
+	return index > 0 && index % 2 === 0 ? index === 2 ? boss : boss.segments[index / 2 - 2] : end;
 }
 
 // Sweep the mech against connected body capsules, then resolve body motion into it.
 export function resolveMillipedeBarrier(boss: Boss, player: Vector, previous: Vector, radius = 14) {
 	if (boss.variant !== "millipede" || boss.health <= 0 || boss.phase === "emerge") return false;
-	const points = [boss, ...boss.segments];
-	const capsules: { from: Vector; to: Vector; radius: number }[] = [];
-	capsules.push({ from: boss, to: boss, radius: 24 });
-	for (let i = 1; i < points.length; i++) {
-		capsules.push({ from: points[i], to: points[i], radius: 18 });
-		capsules.push({ from: points[i - 1], to: points[i], radius: 18 });
-	}
+	const count = 1 + boss.segments.length * 2;
+	const minX = Math.min(previous.x, player.x), maxX = Math.max(previous.x, player.x);
+	const minY = Math.min(previous.y, player.y), maxY = Math.max(previous.y, player.y);
 	let contact = false, hit = Infinity;
-	for (const c of capsules) {
-		if (distanceToSegment(previous, c.from, c.to) <= c.radius + radius + .1) continue;
-		hit = Math.min(hit, segmentHitTime(player, previous, c.from, c.to, c.radius + radius));
+	for (let i = 0; i < count; i++) {
+		const to = capsuleEnd(boss, i), from = capsuleStart(boss, i, to), required = (i ? 18 : 24) + radius;
+		if (maxX < Math.min(from.x, to.x) - required || minX > Math.max(from.x, to.x) + required || maxY < Math.min(from.y, to.y) - required || minY > Math.max(from.y, to.y) + required) continue;
+		if (distanceToSegment(previous, from, to) <= required + .1) continue;
+		hit = Math.min(hit, segmentHitTime(player, previous, from, to, required));
 	}
 	if (hit <= 1) { const t = Math.max(0, hit - .001); player.x = previous.x + (player.x - previous.x) * t; player.y = previous.y + (player.y - previous.y) * t; contact = true; }
 	for (let iteration = 0; iteration < 6; iteration++) {
 		let changed = false;
-		for (const c of capsules) {
-			const dx = c.to.x - c.from.x, dy = c.to.y - c.from.y, length = dx * dx + dy * dy;
-			const t = length ? clamp(((player.x - c.from.x) * dx + (player.y - c.from.y) * dy) / length, 0, 1) : 0;
-			const x = c.from.x + dx * t, y = c.from.y + dy * t, distance = Math.hypot(player.x - x, player.y - y), required = c.radius + radius;
+		for (let i = 0; i < count; i++) {
+			const to = capsuleEnd(boss, i), from = capsuleStart(boss, i, to), required = (i ? 18 : 24) + radius;
+			if (player.x < Math.min(from.x, to.x) - required || player.x > Math.max(from.x, to.x) + required || player.y < Math.min(from.y, to.y) - required || player.y > Math.max(from.y, to.y) + required) continue;
+			const dx = to.x - from.x, dy = to.y - from.y, length = dx * dx + dy * dy;
+			const t = length ? clamp(((player.x - from.x) * dx + (player.y - from.y) * dy) / length, 0, 1) : 0;
+			const x = from.x + dx * t, y = from.y + dy * t, distance = Math.hypot(player.x - x, player.y - y);
 			if (distance >= required) continue;
 			let nx = player.x - x, ny = player.y - y;
 			if (distance < .001) { nx = previous.x - x; ny = previous.y - y; if (Math.hypot(nx, ny) < .001) { nx = -dy || 1; ny = dx; } }

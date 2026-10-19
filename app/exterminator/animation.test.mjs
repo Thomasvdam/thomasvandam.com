@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { BUG_RIG, bugPose, SPIDER_RIG, DRAGONFLY_RIG, spiderPose, dragonflyPose, MECH_RIG, mechPose, resolveRig, spawnAppearance } from "./animation";
+import { BUG_RIG, bugPose, SPIDER_RIG, DRAGONFLY_RIG, spiderPose, dragonflyPose, MECH_RIG, mechPose, resolveRig, createRigResolver, spawnAppearance } from "./animation";
 import { BUG_SKINS, mechSkin, SPRITE_PARTS, upgradePart } from "./sprite-parts";
 import { newGame, start as prepare, chooseHive, upgradeLevels, step, SPAWN_WARNING_TIME } from "./game";
 
@@ -124,4 +124,23 @@ test("spiders animate eight legs and dragonflies animate four wings with distinc
 	expect(fly.filter(part => part.bone.startsWith("wing"))).toHaveLength(4);
 	expect(spiderPose({ ...state, distance: 16 }).legL3.angle).not.toBe(spiderPose(state).legL3.angle);
 	expect(dragonflyPose({ ...state, time: 2.1 }).wingRearL.angle).not.toBe(dragonflyPose(state).wingRearL.angle);
+});
+
+test("reusable rig resolution refreshes transforms, skins and paint order without stale parts", () => {
+	const resolve = createRigResolver(BUG_RIG), skin = BUG_SKINS.flyer;
+	const first = resolve(skin, bugPose({ distance: 8, angle: .7, time: 2 }));
+	const array = first, part = first[0];
+	for (const nextSkin of [BUG_SKINS.burrower, skin, { ...skin, head: undefined, legs: undefined }, skin]) {
+		const pose = bugPose({ distance: 19, angle: -.4, time: 5, deathProgress: .6 });
+		const actual = resolve(nextSkin, pose);
+		expect(actual).toBe(array); expect(actual[0]).toBe(part);
+		expect(actual).toEqual(resolveRig(BUG_RIG, nextSkin, pose));
+	}
+	const snapshot = resolveRig(BUG_RIG, skin, bugPose({ distance: 1, angle: 0, time: 0 }));
+	const saved = globalThis.structuredClone(snapshot);
+	resolve(skin, bugPose({ distance: 40, angle: 2, time: 10 }));
+	expect(snapshot).toEqual(saved);
+	const other = createRigResolver(BUG_RIG);
+	expect(other(skin, {})).not.toBe(array);
+	expect(other(skin, {})[0]).not.toBe(part);
 });
