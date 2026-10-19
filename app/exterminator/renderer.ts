@@ -1,3 +1,5 @@
+import { drawBrood, drawNewTelegraph } from "./specialist-renderer";
+import { clickElevation, enemyPosition } from "./specialists";
 import { warningLit } from "./lighting";
 import { createLightingLayer, drawLightFixtures } from "./lighting-renderer";
 import { createRemainsLayer, drawRemains, drawBackpack } from "./remains-renderer";
@@ -135,7 +137,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		}
 		const poseState = { distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge };
 		let pose = variant === "bolasSpider" ? spiderPose(poseState) : variant === "dragonfly" ? dragonflyPose(poseState) : bugPose(poseState);
-		if (variant === "slug") {
+		if (variant === "slug" || variant === "velvetWorm" || variant === "larva") {
 			const glide = Math.sin(distance / 8) * .06;
 			pose = { ...pose, body: { scaleX: 1 + glide, scaleY: 1 - glide }, shell: { scaleY: 1 + glide } };
 		}
@@ -151,7 +153,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 		ctx.strokeStyle = "#efaa76"; ctx.lineWidth = 2;
 		ctx.beginPath(); ctx.arc(warning.x, warning.y, radius, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2); ctx.stroke();
-		if (warning.variant !== "flyer" && warning.variant !== "dragonfly" && warning.variant !== "moth" && warning.variant !== "courier") {
+		if (warning.variant !== "flyer" && warning.variant !== "dragonfly" && warning.variant !== "moth" && warning.variant !== "courier" && warning.variant !== "parasitoidWasp") {
 			ctx.fillStyle = "#101610"; ctx.beginPath(); ctx.ellipse(warning.x, warning.y, 20 * progress + 3, 14 * progress + 2, 0, 0, Math.PI * 2); ctx.fill();
 			for (let i = 0; i < 8; i++) {
 				const angle = i * Math.PI / 4 + warning.id, distance = 9 + progress * 22;
@@ -252,7 +254,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	}
 	for (const enemy of game.enemies) {
 		const lit = warningLit(game, enemy);
-		if (lit) drawPredatorTelegraph(ctx, game, enemy);
+		if (lit) { drawPredatorTelegraph(ctx, game, enemy); drawNewTelegraph(ctx, game, enemy); }
 		if (!visible(enemy.x, enemy.y) && !(enemy.variant === "centipede" && enemy.state.segments.some(segment => visible(segment.x, segment.y))) && !(enemy.variant === "dragonfly" && visible(enemy.state.target.x, enemy.state.target.y))) continue;
 		const arrival = clamp((game.time - enemy.bornAt) / .18, 0, 1);
 		if (lit && arrival < 1) {
@@ -292,13 +294,23 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		for (const segment of segments) shadow(segment.x, segment.y, 14);
 		shadow(enemy.x, enemy.y, BUG_SPECS[enemy.variant].radius + 7);
 		ctx.save();
+		ctx.translate(0, -clickElevation(enemy));
+		if (enemy.variant === "clickBeetle" && enemy.state.phase === "windup") {
+			ctx.translate(enemy.x, enemy.y); ctx.scale(.85, 1.16); ctx.translate(-enemy.x, -enemy.y);
+		}
+		if (enemy.variant === "explodingAnt" && enemy.state.phase === "charge") {
+			const pulse = 1 + Math.sin(game.time * 32) * .09;
+			ctx.translate(enemy.x, enemy.y); ctx.scale(pulse, pulse); ctx.translate(-enemy.x, -enemy.y);
+		}
 		if (enemy.variant === "lunger" && enemy.state.phase === "windup") {
 			ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.angle); ctx.scale(.85, 1.12); ctx.rotate(-enemy.angle); ctx.translate(-enemy.x, -enemy.y);
 		}
 		drawBug(enemy.variant, enemy.id, enemy.x, enemy.y, enemy.angle, enemy.walkDistance, 1, 0, game.time - enemy.hitAt < .08, segments, enemy.variant === "beetle", spitCharge);
 		ctx.restore();
+		drawBrood(ctx, game, enemy);
 		if (enemy.lightSensitive) {
-			ctx.save(); ctx.translate(enemy.x, enemy.y); ctx.rotate(enemy.angle);
+			const point = enemyPosition(enemy);
+			ctx.save(); ctx.translate(point.x, point.y); ctx.rotate(enemy.angle);
 			ctx.strokeStyle = "#f4c36b"; ctx.lineWidth = 3;
 			ctx.beginPath(); ctx.moveTo(-8, -6); ctx.lineTo(-2, 0); ctx.lineTo(-8, 6); ctx.stroke(); ctx.restore();
 		}
@@ -309,11 +321,16 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			ctx.drawImage(sprites.dungBall, -size / 2, -size / 2, size, size); ctx.restore();
 		}
 		if (enemy.maxHealth > 1) {
-			ctx.fillStyle = "#172219"; ctx.fillRect(enemy.x - 13, enemy.y - 32, 26, 3);
-			ctx.fillStyle = "#d39b65"; ctx.fillRect(enemy.x - 13, enemy.y - 32, 26 * enemy.health / enemy.maxHealth, 3);
+			const point = enemyPosition(enemy);
+			ctx.fillStyle = "#172219"; ctx.fillRect(point.x - 13, point.y - 32, 26, 3);
+			ctx.fillStyle = "#d39b65"; ctx.fillRect(point.x - 13, point.y - 32, 26 * enemy.health / enemy.maxHealth, 3);
 		}
 	}
 	const player = game.player;
+	if (game.glue > .01) {
+		ctx.save(); ctx.strokeStyle = `rgba(224,190,224,${game.glue * .8})`; ctx.lineWidth = 2 + game.glue * 4;
+		ctx.beginPath(); ctx.ellipse(player.x, player.y + 5, 22, 16, player.moveAngle, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+	}
 	shadow(player.x, player.y, 24);
 	ctx.strokeStyle = "#afcd9577"; ctx.lineWidth = 1;
 	ctx.beginPath(); ctx.ellipse(player.x, player.y + 4, 25, 18, 0, 0, Math.PI * 2); ctx.stroke();

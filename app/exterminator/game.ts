@@ -1,3 +1,4 @@
+import { broodPosition, broodRadius, damageBrood, enemyPosition, resolveAntExplosions, stepBroods, updateGlue } from "./specialists";
 import { beginSchematicHunt, extractSchematic } from "./courier";
 import { equipmentUnlocked, normalizeSchematics, type Schematic } from "./schematics";
 import { assignLightTrait, cornerPosition, damageLamp, emptyLightCover, LAMP_HEALTH, LAMP_RADIUS, MOTH_SWARM_SIZE, refreshLightCover, type LightId } from "./light-threats";
@@ -57,7 +58,7 @@ export type Game = {
 	debug: { queue: BugVariant[]; total: number; lightSensitivePercent: number } | null;
 	mode: "ready" | "playing" | "paused" | "shop" | "base" | "workshop" | "weapons" | "dead";
 	player: Vector & { health: number; angle: number; invulnerable: number; moveAngle: number; walkDistance: number; walkBlend: number; shotAt: number };
-	lampHealth: Record<CornerLight, number>; lightCover: Record<LightId, number>; playerVelocity: Vector; pitTerrain: Terrain | null; bolas: Bola[]; tethers: Tether[]; slimed: boolean; slime: Slime[]; enemies: Enemy[]; acid: Acid[]; acidImpacts: AcidImpact[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
+	lampHealth: Record<CornerLight, number>; lightCover: Record<LightId, number>; playerVelocity: Vector; pitTerrain: Terrain | null; bolas: Bola[]; tethers: Tether[]; glue: number; slimed: boolean; slime: Slime[]; enemies: Enemy[]; acid: Acid[]; acidImpacts: AcidImpact[]; lobs: Lob[]; bullets: Bullet[]; spawns: SpawnWarning[]; remains: BugRemains[]; explosions: Explosion[]; deflections: Deflection[];
 	hivesCleared: number; hive: Hive | null; hives: Hive[]; terrain: Terrain[]; runSeed: number; undercarriage: Undercarriage; weapon: Weapon;
 	wave: number; toSpawn: number; spawnTimer: number; intermission: number;
 	money: number; lastJob: { name: string; payment: number } | null; kills: number; time: number;
@@ -80,7 +81,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs", schemat
 		schematics: unlocked, schematicReward: null, carriedSchematic: null, lastSchematic: null,
 		debug: null, hivesCleared: 0, hive: null, hives: createHives(seed, 0), terrain: createTerrain(seed, 0, "firm"), runSeed: seed, undercarriage: equipmentUnlocked(unlocked, undercarriage) ? undercarriage : "legs", weapon: "cannon",
 		mode: "ready", player: { x: FIELD.width / 2, y: FIELD.height / 2, health: 100, angle: -Math.PI / 2, invulnerable: 0, moveAngle: -Math.PI / 2, walkDistance: 0, walkBlend: 0, shotAt: -10 },
-		lampHealth: { northWest: 0, northEast: 0, southWest: 0, southEast: 0 }, lightCover: emptyLightCover(), playerVelocity: { x: 0, y: 0 }, pitTerrain: null, bolas: [], tethers: [], slimed: false, slime: [], enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
+		lampHealth: { northWest: 0, northEast: 0, southWest: 0, southEast: 0 }, lightCover: emptyLightCover(), playerVelocity: { x: 0, y: 0 }, pitTerrain: null, bolas: [], tethers: [], glue: 0, slimed: false, slime: [], enemies: [], acid: [], acidImpacts: [], lobs: [], bullets: [], spawns: [], remains: [], explosions: [], deflections: [], wave: 1, toSpawn: 0, spawnTimer: .5, intermission: 0,
 		money: 0, lastJob: null, kills: 0, time: 0, shotTimer: 0,
 		parts: { weapons: { cannon: { damage: 0, mod: 0 }, shotgun: { damage: 0, mod: 0 }, rpg: { damage: 0, mod: 0 }, flamethrower: { damage: 0, mod: 0 } }, sensor: 0, lights: 0, cornerLights: { northWest: false, northEast: false, southWest: false, southEast: false }, undercarriages: { legs: 0, wheels: 0, treads: 0 } }, nextId: 1, seed: seed >>> 0,
 	};
@@ -89,7 +90,7 @@ export function newGame(seed = 1, undercarriage: Undercarriage = "legs", schemat
 // All combat lifetimes end together when replacing a wave or returning to base.
 export function clearCombat(game: Game) {
 	game.schematicReward = null; game.carriedSchematic = null;
-	game.lightCover = emptyLightCover(); game.playerVelocity = { x: 0, y: 0 }; game.pitTerrain = null; game.bolas = []; game.tethers = []; game.slimed = false; game.slime = []; game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
+	game.lightCover = emptyLightCover(); game.playerVelocity = { x: 0, y: 0 }; game.pitTerrain = null; game.bolas = []; game.tethers = []; game.glue = 0; game.slimed = false; game.slime = []; game.enemies = []; game.spawns = []; game.bullets = []; game.lobs = []; game.acid = [];
 	game.remains = []; game.explosions = []; game.deflections = []; game.acidImpacts = [];
 }
 export function start(game: Game) {
@@ -181,7 +182,7 @@ function spawnEnemy(game: Game, warning: SpawnWarning) {
 }
 function bulletHitTime(bullet: Vector, enemy: Enemy, previous: Vector, projectileRadius = 4) {
 	const radius = BUG_SPECS[enemy.variant].radius;
-	let time = circleHitTime(bullet, enemy, radius, previous, projectileRadius);
+	let time = circleHitTime(bullet, enemyPosition(enemy), radius, previous, projectileRadius);
 	if (enemy.variant === "centipede") for (const segment of enemy.state.segments) time = Math.min(time, circleHitTime(bullet, segment, radius, previous, projectileRadius));
 	return time;
 }
@@ -193,13 +194,14 @@ function deflect(game: Game, bullet: Bullet, enemy: Enemy) {
 	if (game.deflections.length > 64) game.deflections.shift();
 	enemy.blockedAt = game.time;
 }
-function damageEnemy(game: Game, enemy: Enemy, damage: number, flame = false) {
+export function damageEnemy(game: Game, enemy: Enemy, damage: number, flame = false) {
 	enemy.health -= absorbBackpack(enemy, damage, game.time, flame);
 	if (flame && enemy.health <= 0) enemy.burnt = true;
 	enemy.hitAt = game.time; provokeBombardier(game, enemy);
 }
 function explode(game: Game, bullet: Bullet, spiders: SpiderIndex) {
 	for (const enemy of game.enemies) {
+		if (enemy.health > 0 && enemy.brood && Math.hypot(broodPosition(enemy).x - bullet.x, broodPosition(enemy).y - bullet.y) <= bullet.blastRadius + broodRadius(enemy)) damageBrood(game, enemy, bullet.damage);
 		if (enemy.health > 0 && enemyCircles(enemy).some(circle => Math.hypot(circle.x - bullet.x, circle.y - bullet.y) <= bullet.blastRadius + circle.radius)) damageEnemy(game, enemy, bullet.damage);
 	}
 	blastTethers(game, spiders, bullet, bullet.blastRadius);
@@ -216,6 +218,7 @@ function fireWeapon(game: Game, dt: number, spiders: SpiderIndex) {
 		flameTethers(game, spiders, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
 		burnRemains(game, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
 		for (const enemy of game.enemies) {
+			if (enemy.health > 0 && enemy.brood && inFlame(broodPosition(enemy), broodRadius(enemy), origin, player.angle, stats.range, FLAME_HALF_ANGLE)) damageBrood(game, enemy, stats.damage * dt);
 			const hit = enemyCircles(enemy).some(circle => inFlame(circle, circle.radius, origin, player.angle, stats.range, FLAME_HALF_ANGLE));
 			if (enemy.health > 0 && hit) damageEnemy(game, enemy, stats.damage * dt * (frontArmour(enemy, origin) ? FRONT_FLAME_MULTIPLIER : 1), true);
 		}
@@ -244,7 +247,7 @@ export function step(game: Game, input: Input, dt: number) {
 	const previousPlayer = { x: player.x, y: player.y };
 	const stats = playerStats(game), pulls = preparePulls(game, dt); game.pitTerrain = pulls.terrain;
 	const slimeFactor = slimeSpeedFactor(game, PLAYER_RADIUS); game.slimed = slimeFactor < 1;
-	const speed = stats.speed * MOVEMENT[game.undercarriage][game.pitTerrain ?? terrainAt(game.terrain, player.x, player.y)] * slimeFactor;
+	const speed = stats.speed * MOVEMENT[game.undercarriage][game.pitTerrain ?? terrainAt(game.terrain, player.x, player.y)] * slimeFactor * updateGlue(game, dt, PLAYER_RADIUS);
 	player.x = clamp(player.x + (move.x * speed + pulls.force.x) * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
 	player.y = clamp(player.y + (move.y * speed + pulls.force.y) * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
 	resolveBarriers(player, game.enemies, PLAYER_RADIUS, FIELD);
@@ -284,17 +287,27 @@ export function step(game: Game, input: Input, dt: number) {
 		const previous = { x: bullet.x, y: bullet.y };
 		const travelTime = Math.min(dt, bullet.life);
 		bullet.x += bullet.vx * travelTime; bullet.y += bullet.vy * travelTime; bullet.life -= dt;
-		let hit: Enemy | undefined, hitTime = Infinity;
+		let hit: Enemy | undefined, hitTime = Infinity, sac: Enemy | undefined, sacTime = Infinity;
 		for (const enemy of game.enemies) {
 			if (enemy.health <= 0) continue;
+			if (enemy.brood) {
+				const t = circleHitTime(bullet, broodPosition(enemy), broodRadius(enemy), previous, 4);
+				if (t < sacTime) { sac = enemy; sacTime = t; }
+			}
 			const t = bulletHitTime(bullet, enemy, previous);
 			if (t < hitTime) { hit = enemy; hitTime = t; }
 		}
 		const cord = firstTetherHit(game, pulls.spiders, previous, bullet);
-		if (cord.owner !== null && cord.time < hitTime) {
+		if (cord.owner !== null && cord.time < Math.min(hitTime, sacTime)) {
 			bullet.x = previous.x + (bullet.x - previous.x) * cord.time; bullet.y = previous.y + (bullet.y - previous.y) * cord.time;
 			game.tethers = game.tethers.filter(tether => tether.owner !== cord.owner);
 			if (bullet.weapon === "rpg") explode(game, bullet, pulls.spiders);
+			return false;
+		}
+		if (sac && sacTime < hitTime) {
+			bullet.x = previous.x + (bullet.x - previous.x) * sacTime; bullet.y = previous.y + (bullet.y - previous.y) * sacTime;
+			if (bullet.weapon === "rpg") explode(game, bullet, pulls.spiders);
+			else damageBrood(game, sac, bullet.damage);
 			return false;
 		}
 		if (hit) {
@@ -311,6 +324,9 @@ export function step(game: Game, input: Input, dt: number) {
 		}
 		return !expired;
 	});
+	resolveAntExplosions(game, PLAYER_RADIUS);
+	stepBroods(game, dt, FIELD);
+	resolveAntExplosions(game, PLAYER_RADIUS);
 	game.enemies = game.enemies.filter(enemy => {
 		if (enemy.health > 0) return true;
 		if (enemy.variant === "courier" && !game.debug && enemy.state.schematic !== null && enemy.state.schematic === game.schematicReward) game.carriedSchematic = enemy.state.schematic;
@@ -350,7 +366,7 @@ export function step(game: Game, input: Input, dt: number) {
 	refreshLightCover(game);
 	if (player.health === 0) { game.carriedSchematic = null; game.schematicReward = null; game.mode = "dead"; return; }
 	const lunged = game.enemies.some(enemy => lungeContacts.has(enemy.id));
-	const touching = game.enemies.some(enemy => enemy.variant === "dragonfly" ? enemy.state.contact : enemy.variant !== "centipede" && enemy.variant !== "egg" && enemy.variant !== "moth" && enemy.variant !== "courier" && distanceToSegment(enemy, previousPlayer, player) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
+	const touching = game.enemies.some(enemy => enemy.variant === "dragonfly" ? enemy.state.contact : enemy.variant !== "clickBeetle" && enemy.variant !== "explodingAnt" && enemy.variant !== "parasitoidWasp" && enemy.variant !== "centipede" && enemy.variant !== "egg" && enemy.variant !== "moth" && enemy.variant !== "courier" && distanceToSegment(enemy, previousPlayer, player) < PLAYER_RADIUS + BUG_SPECS[enemy.variant].radius);
 	if (player.invulnerable === 0 && (lunged || touching)) {
 		player.health = Math.max(0, player.health - (lunged ? 30 : 20));
 		player.invulnerable = .9;

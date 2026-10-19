@@ -8,7 +8,7 @@ const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: 0 }, fire: false };
 
 test("seeded offers have distinct enemy themes, only change on a new job, and respect every unlock", () => {
 	const seen = new Set();
-	for (let cleared = 0; cleared < 15; cleared++) for (let seed = 1; seed <= 20; seed++) {
+	for (let cleared = 0; cleared < 19; cleared++) for (let seed = 1; seed <= 20; seed++) {
 		const hives = createHives(seed, cleared), baseline = defaultBugWeights(cleared, seed);
 		expect(hives).toEqual(createHives(seed, cleared));
 		expect(new Set(hives.map(hive => hive.enemyMix.kind)).size).toBe(3);
@@ -25,7 +25,7 @@ test("seeded offers have distinct enemy themes, only change on a new job, and re
 });
 
 test("actual spawn proportions match scanner claims for abundance, scarcity, absence, and dominant groups", () => {
-	for (let cleared = 0; cleared < 15; cleared++) for (let seed = 1; seed <= 10; seed++) for (const hive of createHives(seed, cleared)) {
+	for (let cleared = 0; cleared < 19; cleared++) for (let seed = 1; seed <= 10; seed++) for (const hive of createHives(seed, cleared)) {
 		const mix = hive.enemyMix, baseline = defaultBugWeights(cleared, seed);
 		const counts = Object.fromEntries(BUG_TYPES.map(type => [type, 0]));
 		for (let wave = 1; wave <= 3; wave++) for (let i = 0; i < 300; i++) counts[bugForSpawn(cleared, wave, i, mix.weights)]++;
@@ -44,7 +44,7 @@ test("actual spawn proportions match scanner claims for abundance, scarcity, abs
 });
 
 test("deployed themes drive warnings throughout all three automatic waves and exclusions never spawn", () => {
-	for (let cleared = 0; cleared < 14; cleared++) for (const offer of createHives(19, cleared)) {
+	for (let cleared = 0; cleared < 18; cleared++) for (const offer of createHives(19, cleared)) {
 		const game = newGame(19); game.hivesCleared = cleared; game.hives = createHives(19, cleared); start(game); chooseHive(game, offer.id);
 		for (let wave = 1; wave <= 3; wave++) {
 			expect(game.wave).toBe(wave);

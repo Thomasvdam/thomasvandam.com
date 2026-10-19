@@ -54,7 +54,7 @@ export function stepMoth(game: Game, moth: Extract<Enemy, { variant: "moth" }>, 
 	walkBugTo(moth, { x: source.x + Math.cos(angle) * radius, y: source.y + Math.sin(angle) * radius }, dt, bounds);
 }
 
-const excludedAttackers = new Set<BugVariant>(["moth", "queen", "worker", "egg", "slug", "antlion", "centipede", "courier"]);
+const excludedAttackers = new Set<BugVariant>(["velvetWorm", "parasitoidWasp", "larva", "moth", "queen", "worker", "egg", "slug", "antlion", "centipede", "courier"]);
 export const canAttackLights = (variant: BugVariant) => !excludedAttackers.has(variant);
 export function lightSensitiveChance(cleared: number, threat: number) {
 	return cleared < 4 ? 0 : Math.min(.45, .1 + (cleared - 4) * .025 + Math.max(0, threat - cleared - 1) * .04);

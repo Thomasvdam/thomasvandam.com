@@ -266,6 +266,7 @@ waves per hive. New types become eligible on this schedule:
 | 8–10 | Slug, antlion, bombardier beetle: one per hive in random order |
 | 11 | Queen ant colony, with worker/soldier/bullet ants and eggs |
 | 12–14 | Dragonfly, bolas spider, backpack assassin: one per hive in random order |
+| 15–18 | Click beetle, exploding ant, velvet worm, parasitoid wasp: one per hive in random order |
 
 Each random group is shuffled independently from the run seed. Unlocks stay
 available through later hives; choosing another offer, opening the workshop, or
@@ -276,8 +277,38 @@ their separate every-third-hive schedule.
 From hive 2, the baseline weighted mix reserves two thirds for burrowers/flyers
 and shares the rest among unlocked specialists; each hive theme skews those weights. Ants and
 eggs are produced by colonies rather than selected as independent normal spawns.
+Wasp larvae only hatch from implanted hosts in normal play; debug can spawn them directly.
 Specialist health and movement scale with threat too. Provisional behavior:
 
+- **Click beetle:** locks a landing point within 290 units, winds up for 0.75
+  seconds, flies there over crowds in 0.7 seconds, and recovers for 0.9 seconds.
+  It remains shootable throughout the jump; killing it before landing prevents
+  the impact attack. Landing has a 65-unit radius and deals 25 mech damage. Light attackers can jump
+  onto corner lamps. The landing warning follows the current visibility of the source.
+- **Exploding ant:** runs within 52 units, stands still for a 0.65-second charge,
+  then bursts. Every death also detonates it, even before charging or when burnt.
+  Its 75-unit blast deals 30 mech damage and 8 damage to friendly bugs, including
+  centipede segments and assassin armour. Nearby exploding ants detonate regardless
+  of remaining health, resolving chains iteratively and exactly once per ant.
+  Light attackers can detonate against a corner lamp for 30 damage.
+- **Velvet worm:** approaches slowly, warns for 0.7 seconds, then sweeps a
+  155-unit glue cone for 2.4 seconds at 0.42 radians/second before recovering.
+  Exposure adds 65% of the glue meter per second; it drains at 30% per second
+  outside the spray. Full glue reduces movement by 65% on every undercarriage,
+  multiplying existing terrain/slime handling. Overlapping worms do not increase
+  buildup. The HUD reports the current penalty; glue clears on base/debug cleanup.
+- **Parasitoid wasp:** visits suitable bugs and implants a separately shootable,
+  visibly growing sac. After six seconds the living host dies and releases four
+  larvae. Killing the host or destroying the sac prevents hatching, including on
+  the final countdown step. Cannon/shotgun shots resolve the nearest sac/body/cord
+  hit; RPG blasts and flame can also destroy sacs. Sacs have two health and cannot
+  be replaced for three seconds after removal. Killing the wasp does not remove
+  its existing sacs. Queens, eggs, centipedes, moths, couriers, wasps and larvae
+  cannot be hosts. Wasps reserve capacity before implanting so living larvae plus
+  incubating offspring stay at most 80; accepted broods always finish on schedule.
+- **Wasp larva:** a small, legless chaser with ordinary 20-damage contact. Larvae
+  count toward wave completion and cannot be implanted. Wasps, larvae and velvet
+  worms do not inherit the light-attacker trait; click beetles and exploding ants can.
 - **Lunger:** approaches to 180 units, winds up for 1.15
   seconds with a visible 310-unit attack corridor. It then lunges at 680 units/s,
   followed by a recovery pause. A quick mech can leave the entire attack range
@@ -440,7 +471,7 @@ transitions, activity/terrain previews, per-part ranks, speed limits, and sprite
 registration/animation contracts. Full project validation is `./scripts/check`.
 Manually verify simultaneous touch, physical controllers, and subjective motion.
 
-Tuning is provisional. This version has four weapons, 19 ordinary bug types plus eggs and an optional
+Tuning is provisional. This version has four weapons, 23 ordinary bug types plus eggs, wasp larvae, and an optional
 schematic courier, and no audio. Only recovered schematic ownership persists
 between runs; run currency and paid part ranks reset.
 
@@ -454,7 +485,8 @@ choices do not alter health, movement, armour, collision shapes, or animation.
 
 ## Debug waves
 
-Open `/exterminator#debug` to reveal the manual-wave panel. Choose a hive normally;
+Open `/exterminator#debug` to reveal the scrollable manual-wave panel. Its height
+is capped so the arena remains usable with the expanded roster on mobile. Choose a hive normally;
 deployment waits without spawning enemies. Set counts for bug types and eggs and click **Spawn wave**. Counts must total 1–100. All types are available,
 including specialists not yet unlocked in the run. Queens add two worker guards
 and keep laying eggs; eggs hatch into their assigned ant role. Custom waves retain normal
@@ -537,3 +569,18 @@ Browser checks decode 277 sprites, inspect the golden courier, verify initial
 locks and controller skipping, exercise controlled capture/extraction, then load
 the resulting save in the actual game and verify equipment after page reload and
 restart. Mobile weapon selection fits without horizontal overflow.
+
+
+The four hive-15–18 specialists add 18 combat tests covering locked click landings,
+crowd traversal, airborne damage with every weapon and cancelled landings on death,
+timed and on-death explosions, friendly damage and chain reactions,
+all weapon kills, glue buildup/decay on every terrain and undercarriage with slime,
+host exclusions and reservation races, sac growth/hatching, both hatch-prevention
+paths, exposed sacs at arena edges, nearest-hit ordering, actual aimed input with every weapon on both sac
+sides, larvae contact/progression, pause/cleanup, and source-lit warnings.
+The progression suite checks all 24 orders for the new four-enemy group and normal
+wave warnings through hive 18. Shared-browser checks decoded all 334 assets,
+inspected the new bodies/flight/spray/sacs, exercised the actual debug controls,
+and verified mobile scrolling without horizontal overflow. The deterministic
+benchmark includes mixed specialists, wasps with hosts, larvae, and a 100-ant chain.
+Physical-device tuning remains outstanding.
