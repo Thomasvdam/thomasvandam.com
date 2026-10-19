@@ -1,3 +1,5 @@
+import { createBoss } from "./bosses";
+import type { BossVariant } from "./boss-types";
 import { BUG_TYPES, type BugVariant } from "./bug-types";
 import { clearCombat, WAVES_PER_HIVE, type Game } from "./game";
 import { normalizeSchematics, SCHEMATICS } from "./schematics";
@@ -30,4 +32,10 @@ export function spawnDebugWave(game: Game, composition: WaveComposition, lightSe
 	game.debug = { queue: BUG_TYPES.flatMap(type => Array<BugVariant>(composition[type]).fill(type)), total, lightSensitivePercent };
 	clearCombat(game);
 	game.toSpawn = total; game.spawnTimer = 0; game.intermission = 0;
+}
+
+export function spawnDebugBoss(game: Game, variant: BossVariant) {
+	if (!game.debug || !game.hive || !["playing", "paused"].includes(game.mode)) return;
+	clearCombat(game); game.debug.queue = []; game.debug.total = 0; game.toSpawn = 0; game.intermission = 0; game.wave = 3;
+	game.boss = createBoss(variant, game.hivesCleared, game.player);
 }

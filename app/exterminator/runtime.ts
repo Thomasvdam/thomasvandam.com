@@ -1,10 +1,10 @@
 import { armourReduction } from "./player-damage";
 import { createEncounterProgress, recordVisibleEncounters } from "./encounters";
-import { BUG_NAMES, type BugVariant } from "./bug-types";
+import { encounterName, bossForHive, BOSS_NAMES, type EncounterVariant, type BossVariant } from "./boss-types";
 import { createSchematicProgress, SCHEMATIC_NAMES, schematicForHive } from "./schematics";
 import { lightSensitiveChance, MOTHS_TO_BLOCK } from "./light-threats";
 import { enemyMixHints } from "./hives";
-import { enableDebugSchematics, grantDebugFunds, setDebug, spawnDebugWave, type WaveComposition } from "./debug";
+import { enableDebugSchematics, grantDebugFunds, setDebug, spawnDebugWave, spawnDebugBoss, type WaveComposition } from "./debug";
 import { weaponSpec, type Weapon } from "./weapons";
 import { terrainAt, terrainByPrevalence, TERRAIN_NAMES, type Undercarriage } from "./terrain";
 import { cameraFor, screenToWorld } from "./camera";
@@ -14,7 +14,7 @@ import type { Vector } from "./math";
 import { loadSprites, createRenderer } from "./renderer";
 
 function menuChoices(game: Game) {
-	if (game.mode === "bugpedia") return [...game.encounters.map(id => ({ id, name: BUG_NAMES[id], key: "", kind: "entry" as const })), { id: "closeBugpedia", name: "Back", key: "B", kind: "closeBugpedia" as const }];
+	if (game.mode === "bugpedia") return [...game.encounters.map(id => ({ id, name: encounterName(id), key: "", kind: "entry" as const })), { id: "closeBugpedia", name: "Back", key: "B", kind: "closeBugpedia" as const }];
 	if (game.mode === "paused") return [{ id: "pause", name: "Resume game", key: "1", kind: "pause" as const }, { id: "bugpedia", name: "Bugpedia", key: "B", kind: "bugpedia" as const }];
 	if (game.mode === "weapons") return [...weaponChoices(game), { id: "workshop", name: "Back to workshop", key: "5", kind: "workshop" as const }];
 	if (game.mode === "shop") return [...upgradeChoices(game), ...workshopServices(game), { id: "workshop", name: "Back to workshop", key: "6", kind: "workshop" as const }];
@@ -38,17 +38,18 @@ export function nextMenuSelection(choices: readonly { kind?: string; locked?: bo
 export type ExterminatorView = ReturnType<typeof viewFromGame>;
 export function viewFromGame(game: Game, controller = false, selection = 0, progressSaved = true) {
 	return {
-		bugpediaEntry: (game.encounters[0] ?? null) as BugVariant | null, encountersSaved: true, encounters: [...game.encounters], bugpediaFrom: game.bugpediaFrom,
+		boss: game.boss ? { name: BOSS_NAMES[game.boss.variant], health: Math.ceil(game.boss.health), maxHealth: game.boss.maxHealth, phase: game.boss.phase } : null, bossIncoming: !game.debug && !game.boss && game.wave === 3 && bossForHive(game.runSeed, game.hivesCleared) !== null,
+		bugpediaEntry: (game.encounters[0] ?? null) as EncounterVariant | null, encountersSaved: true, encounters: [...game.encounters], bugpediaFrom: game.bugpediaFrom,
 		carriedSchematic: game.carriedSchematic ? SCHEMATIC_NAMES[game.carriedSchematic] : null, lastSchematic: game.lastSchematic ? SCHEMATIC_NAMES[game.lastSchematic] : null, schematicHunt: game.schematicReward !== null && game.carriedSchematic === null, unlockedSchematics: game.schematics.length, progressSaved,
 		armourRank: game.parts.armour, armourReduction: Math.round(armourReduction(game.parts.armour) * 100),
 		pit: game.pitTerrain !== null, tethered: game.tethers.filter(tether => !tether.lightTarget).length, slimed: game.slimed, glue: Math.round(game.glue * 65), debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? game.pitTerrain ?? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
-		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.filter(enemy => enemy.variant !== "courier").length + game.toSpawn + game.spawns.length,
+		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.filter(enemy => enemy.variant !== "courier").length + game.toSpawn + game.spawns.length + (game.boss && game.boss.health > 0 ? 1 : 0),
 		blockedLights: Object.values(game.lightCover).filter(count => count >= MOTHS_TO_BLOCK).length, lightRank: game.parts.lights, cornerLights: { ...game.parts.cornerLights }, sensorRank: game.parts.sensor, money: game.money, lastJob: game.lastJob, payment: game.hive?.payment ?? null, kills: game.kills, time: Math.floor(game.time),
 		hives: game.hives.map(hive => {
 			const terrain = terrainByPrevalence(hive.terrain), difficultyKnown = game.parts.sensor >= 1;
 			return {
-				schematicChance: !game.debug && schematicForHive(game.runSeed, game.hivesCleared, game.schematics) !== null, id: hive.id, name: hive.name, payment: hive.payment, activity: difficultyKnown ? hive.activity : null,
+				boss: !game.debug && bossForHive(game.runSeed, game.hivesCleared) !== null, schematicChance: !game.debug && schematicForHive(game.runSeed, game.hivesCleared, game.schematics) !== null, id: hive.id, name: hive.name, payment: hive.payment, activity: difficultyKnown ? hive.activity : null,
 				threat: difficultyKnown ? hive.threat : null,
 				terrain: TERRAIN_NAMES[terrain[0]], secondaryTerrain: game.parts.sensor >= 2 && terrain[1] ? TERRAIN_NAMES[terrain[1]] : null,
 				lightAttackers: game.parts.sensor >= 3 ? Math.round(lightSensitiveChance(game.hivesCleared, hive.threat) * 100) : null,
@@ -71,7 +72,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	const progress = createSchematicProgress(storage), encounters = createEncounterProgress(storage);
 	const freshGame = () => { const next = newGame(crypto.getRandomValues(new Uint32Array(1))[0], "legs", progress.read()); next.encounters = encounters.read(); setDebug(next, window.location.hash === "#debug"); return next; };
 	let game = freshGame(), savedSchematics = JSON.stringify(game.schematics), savedEncounters = JSON.stringify(game.encounters);
-	let bugpediaEntry: BugVariant | null = game.encounters[0] ?? null;
+	let bugpediaEntry: EncounterVariant | null = game.encounters[0] ?? null;
 	let disposed = false, loaded = false, frame = 0, width = 1, height = 1, pixelRatio = 1, accumulator = 0, lastTime = 0;
 	let mouse: Vector | null = null, aimSource: "mouse" | "touch" | "controller" = "mouse";
 	let needsDraw = true;
@@ -127,7 +128,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (game.mode !== "base") return;
 		chooseHive(game, id); selection = 0; changed(); focus();
 	};
-	const browseBug = (id: BugVariant) => { if (game.mode !== "bugpedia" || !game.encounters.includes(id)) return; bugpediaEntry = id; selection = game.encounters.indexOf(id); publish(); };
+	const browseBug = (id: EncounterVariant) => { if (game.mode !== "bugpedia" || !game.encounters.includes(id)) return; bugpediaEntry = id; selection = game.encounters.indexOf(id); publish(); };
 	const confirmChoice = (index: number) => {
 		const choice = menuChoices(game)[index];
 		if (!choice || ("locked" in choice && choice.locked)) return;
@@ -144,6 +145,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (choice.kind === "shop") action("shop");
 	};
 	const debugWave = (composition: WaveComposition, lightSensitivePercent = 0) => { if (!loaded) return; spawnDebugWave(game, composition, lightSensitivePercent); changed(); focus(); };
+	const debugBoss = (id: BossVariant) => { if (!loaded) return; spawnDebugBoss(game, id); changed(); focus(); };
 	const enableSchematics = () => { if (!loaded || !game.debug) return; enableDebugSchematics(game); changed(); focus(); };
 	const giveFunds = () => { if (!loaded || !game.debug) return; grantDebugFunds(game); changed(); focus(); };
 	const hashchange = () => { setDebug(game, window.location.hash === "#debug"); changed(); };
@@ -264,7 +266,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		frame = requestAnimationFrame(tick);
 	}).catch(() => { if (!disposed) onError("The sprites could not load. Reload to try again."); });
 	return {
-		action, browseBug, upgrade, purchase, equip, equipWeapon, deploy, debugWave, enableSchematics, giveFunds,
+		action, browseBug, upgrade, purchase, equip, equipWeapon, deploy, debugWave, debugBoss, enableSchematics, giveFunds,
 		dispose: () => {
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
 			window.removeEventListener("hashchange", hashchange);

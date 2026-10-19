@@ -1,3 +1,4 @@
+import { BOSS_NAMES, BOSS_SPECS, isBossVariant, type BossVariant, type EncounterVariant } from "./boss-types";
 import { attackDamage } from "./player-damage";
 import { BUG_NAMES, BUG_SPECS, type BugVariant } from "./bug-types";
 
@@ -31,7 +32,12 @@ export const BUG_NOTES: Record<BugVariant, FieldNotes> = {
 	larva: { arrival: "Hives 15–18 onward · hatched brood", behaviour: "A small, fragile chaser released by a parasitoid brood sac.", advice: "Clear larvae quickly. They must be killed to finish the wave.", attack: "{20} contact damage" },
 	courier: { arrival: "Every third hive · while schematics remain", behaviour: "An optional golden bug that hides and flees. Appears on the first wave and carries over until the third wave ends.", advice: "Catch it and bring its schematic back to base to unlock equipment permanently. It is not required for wave progression.", attack: "No contact damage · carries a schematic" },
 };
-export function bugEntry(variant: BugVariant, cleared = 0) {
-	const notes = BUG_NOTES[variant];
-	return { id: variant, name: BUG_NAMES[variant], ...BUG_SPECS[variant], ...notes, attack: notes.attack.replace(/\{(\d+)\}/g, (_, value: string) => String(attackDamage(Number(value), cleared))) };
+export const BOSS_NOTES: Record<BossVariant, FieldNotes> = {
+	rhinoceros: { arrival: "Boss · after wave 3 in hive 5, 10 or 15", behaviour: "Sweeps its horn, commits to a straight charge, and lifts the mech at close range. Below half health it can charge twice. Crashing into a wall traps its horn briefly.", advice: "Dodge sideways and bait a wall collision. Its stuck recovery takes 75% more damage. Leave the horn’s close-range arc before a lift.", attack: "{20} contact · {25} sweep · {35} charge · {30} lift damage" },
+	scorpion: { arrival: "Boss · after wave 3 in hive 5, 10 or 15", behaviour: "Alternates claw sweeps with a tail strike aimed at a locked location. Each claw has its own 30 health and can be destroyed permanently for this fight.", advice: "Shoot a claw to remove that sweep. Step away from the sting marker; while its tail is embedded, the body takes 75% more damage.", attack: "{20} contact · {25} claw · {35} sting damage" },
+	millipede: { arrival: "Boss · after wave 3 in hive 5, 10 or 15", behaviour: "Crawls with exposed joints, then coils into a defensive spiral and releases expanding chemical pulses. Coiling reduces incoming damage by 80%.", advice: "Hit extended body joints for 50% extra damage. Move between the expanding pulses and attack during uncoiling for 75% extra damage.", attack: "{20} contact · {25} chemical pulse damage" },
+};
+export function bugEntry(variant: EncounterVariant, cleared = 0) {
+	const notes = isBossVariant(variant) ? BOSS_NOTES[variant] : BUG_NOTES[variant];
+	return { id: variant, name: isBossVariant(variant) ? BOSS_NAMES[variant] : BUG_NAMES[variant], ...(isBossVariant(variant) ? BOSS_SPECS[variant] : BUG_SPECS[variant]), ...notes, attack: notes.attack.replace(/\{(\d+)\}/g, (_, value: string) => String(attackDamage(Number(value), cleared))) };
 }

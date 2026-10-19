@@ -343,6 +343,22 @@ export const SPRITE_PARTS = {
 	rocket: { ...centered, path: "/images/exterminator/rocket.png" },
 	flame: { ...centered, path: "/images/exterminator/flame.png" },
 	bullet: { ...centered, path: "/images/exterminator/bullet.png" },
+	bossRhinoBody: { ...centered, path: "/images/exterminator/parts/boss-rhino-body.png" },
+	bossRhinoShell: { ...centered, path: "/images/exterminator/parts/boss-rhino-shell.png" },
+	bossRhinoHead: { ...centered, path: "/images/exterminator/parts/boss-rhino-head.png" },
+	bossRhinoHorn: { ...centered, path: "/images/exterminator/parts/boss-rhino-horn.png" },
+	bossRhinoLeg: { ...hinged, path: "/images/exterminator/parts/boss-rhino-leg.png" },
+	bossScorpionBody: { ...centered, path: "/images/exterminator/parts/boss-scorpion-body.png" },
+	bossScorpionShell: { ...centered, path: "/images/exterminator/parts/boss-scorpion-shell.png" },
+	bossScorpionHead: { ...centered, path: "/images/exterminator/parts/boss-scorpion-head.png" },
+	bossScorpionClaw: { ...centered, path: "/images/exterminator/parts/boss-scorpion-claw.png" },
+	bossScorpionTail: { ...centered, path: "/images/exterminator/parts/boss-scorpion-tail.png" },
+	bossScorpionStinger: { ...centered, path: "/images/exterminator/parts/boss-scorpion-stinger.png" },
+	bossScorpionLeg: { ...hinged, path: "/images/exterminator/parts/boss-scorpion-leg.png" },
+	bossMillipedeBody: { ...centered, path: "/images/exterminator/parts/boss-millipede-body.png" },
+	bossMillipedeShell: { ...centered, path: "/images/exterminator/parts/boss-millipede-shell.png" },
+	bossMillipedeHead: { ...centered, path: "/images/exterminator/parts/boss-millipede-head.png" },
+	bossMillipedeLeg: { ...hinged, path: "/images/exterminator/parts/boss-millipede-leg.png" },
 } as const;
 export type SpritePart = keyof typeof SPRITE_PARTS;
 export type Skin = Readonly<Record<string, SpritePart | undefined>>;

@@ -1,5 +1,6 @@
 "use client";
 
+import { encounterName, BOSS_NAMES, BOSS_TYPES, isBossVariant } from "./boss-types";
 import { BUG_NAMES, BUG_TYPES, defaultComposition } from "./debug";
 import { MAX_ARMOUR_RANK } from "./player-damage";
 import { bugEntry } from "./bugpedia";
@@ -69,6 +70,7 @@ export function ExterminatorGame() {
 				<summary>Debug / manual waves</summary>
 				<div className={styles.debugActions}><button disabled={!loaded || !!error} onClick={() => runtime.current?.giveFunds()}>Give $1,000</button><span>Add $1,000 to this run per press to test upgrades.</span></div>
 				<div className={styles.debugActions}><button disabled={!loaded || !!error || view.unlockedSchematics === 5} onClick={() => runtime.current?.enableSchematics()}>{view.unlockedSchematics === 5 ? "All schematics enabled" : "Enable all schematics"}</button><span>{view.progressSaved ? "Unlock every weapon and undercarriage for this browser, including future runs." : "Unlock every weapon and undercarriage for this session. Browser saving is unavailable."}</span></div>
+				<div className={styles.debugActions}>{BOSS_TYPES.map(id => <button key={id} disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode)} onClick={() => runtime.current?.debugBoss(id)}>Fight {BOSS_NAMES[id]}</button>)}</div>
 				<div className={styles.debugCounts}>{BUG_TYPES.map(type => <label key={type}>{BUG_NAMES[type]}<input aria-label={`${BUG_NAMES[type]} count`} type="number" min="0" max="100" step="1" value={composition[type]} onChange={event => setComposition(current => ({ ...current, [type]: Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))) }))} /></label>)}<label>Light attackers %<input aria-label="Light attackers percent" type="number" min="0" max="100" step="1" value={lightSensitivePercent} onChange={event => setLightSensitivePercent(Math.max(0, Math.min(100, Math.floor(Number(event.target.value) || 0))))} /></label></div>
 				<div className={styles.debugActions}><button disabled={!loaded || !!error || !["playing", "paused"].includes(view.mode) || debugTotal === 0 || debugTotal > 100} onClick={() => runtime.current?.debugWave(composition, lightSensitivePercent)}>Spawn wave ({debugTotal})</button><span>{view.hive ? "Replaces the current wave. Up to 100 spawns; each moth spawn brings six moths; queens bring guards and lay eggs. Automatic waves are off." : "Deploy to a hive, then spawn a wave. Automatic waves are off."}</span></div>
 			</details>}
@@ -76,7 +78,8 @@ export function ExterminatorGame() {
 			{(view.carriedSchematic || view.schematicHunt || view.lastSchematic) && <p className={styles.schematicHint} role="status">{view.carriedSchematic ? `${view.carriedSchematic} schematic aboard · return to base to unlock it. Death loses this cargo.` : view.lastSchematic ? `${view.lastSchematic} unlocked permanently · equip it in the workshop.` : `Optional schematic courier · find it before wave 3 ends (${view.wave} / 3).`}</p>}
 			<div className={styles.stage} data-playing={!overlay}>
 				<canvas ref={canvas} className={styles.canvas} tabIndex={0} aria-label="Exterminator playfield. WASD or arrow keys to move, mouse to aim. Touch: left joystick to move, right joystick to aim. Controller: left stick to move, right stick to aim." />
-				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.debug && view.enemies === 0 ? "Waiting for a custom wave" : <>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</>}</span></>}</div>}
+				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>{view.boss && view.boss.health === 0 ? "Boss defeated" : `Wave ${view.wave} cleared`}<span>{view.bossIncoming ? "Boss arrives" : view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.debug && view.enemies === 0 ? "Waiting for a custom wave" : <>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</>}</span></>}</div>}
+				{view.boss && <div className={styles.bossHud} aria-label="Boss health"><strong>{view.boss.name}</strong><meter min={0} max={view.boss.maxHealth} value={view.boss.health} aria-label={`${view.boss.name} health`} /><span>{view.boss.health} / {view.boss.maxHealth}</span></div>}
 				<div ref={movePad} className={`${styles.joystick} ${styles.movePad}`} role="group" aria-label="Movement joystick"><span ref={moveThumb} className={styles.thumb}><ArrowUpRight size={21} /></span><span className={styles.stickLabel}>MOVE</span></div>
 				<div ref={aimPad} className={`${styles.joystick} ${styles.aimPad}`} role="group" aria-label="Aim joystick"><span ref={aimThumb} className={styles.thumb}><Crosshair size={21} /></span><span className={styles.stickLabel}>AIM</span></div>
 				{overlay && <div className={styles.overlay} data-bugpedia-scroll={view.mode === "bugpedia" ? true : undefined}>
@@ -90,19 +93,19 @@ export function ExterminatorGame() {
 								<span className={styles.activity}>Difficulty: {hive.activity ?? "Unknown"}{hive.threat !== null && <small>Threat {hive.threat} · {hive.minBugs}–{hive.maxBugs} initial spawns / wave</small>}</span>
 								<span>Mostly {hive.terrain.toLowerCase()}{hive.secondaryTerrain && <small className={styles.secondaryTerrain}>Then {hive.secondaryTerrain.toLowerCase()}</small>}</span>
 								<span>Enemy mix: {hive.enemyMix ?? "Unknown"}{hive.lightAttackers !== null && hive.lightAttackers > 0 && ` · Light attackers: ${hive.lightAttackers}% of eligible bugs`}</span>
-								{hive.schematicChance && <span className={styles.schematicHint}>Schematic courier in this hive</span>}<small>Payment <b>${hive.payment}</b> · Deploy ↗</small>
+								{hive.boss && <span className={styles.schematicHint}>Boss after wave 3</span>}{hive.schematicChance && <span className={styles.schematicHint}>Schematic courier in this hive</span>}<small>Payment <b>${hive.payment}</b> · Deploy ↗</small>
 							</button>)}</div>
 							<button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Open workshop</button>
 							<button className={`${styles.secondary} ${selectedKind === "bugpedia" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("bugpedia")}><kbd>B</kbd> Bugpedia · {view.encounters.length} encountered</button>
 						</> : view.mode === "bugpedia" ? <>
 							<p className={styles.eyebrow}>Field guide / {view.encounters.length} encountered</p><h2>Bugpedia.</h2>
 							{view.encounters.length === 0 ? <p>No bugs recorded yet. Encounter bugs on screen in light or shadow to add them here.</p> : <div className={styles.bugpedia}>
-								<nav className={styles.bugList} aria-label="Encountered bugs">{view.encounters.map((id, index) => <button ref={index === 0 ? firstUpgrade : undefined} key={id} aria-pressed={view.bugpediaEntry === id} className={view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.browseBug(id)}>{BUG_NAMES[id]}</button>)}</nav>
+								<nav className={styles.bugList} aria-label="Encountered bugs">{view.encounters.map((id, index) => <button ref={index === 0 ? firstUpgrade : undefined} key={id} aria-pressed={view.bugpediaEntry === id} className={view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.browseBug(id)}>{encounterName(id)}</button>)}</nav>
 								{entry && <article className={styles.bugNotes} aria-label={`${entry.name} field notes`}>
 									<BugPortrait variant={entry.id} /><h3>{entry.name}</h3><p className={styles.eyebrow}>{entry.arrival}</p>
 									<dl><div><dt>Base health</dt><dd>{entry.health}</dd></div><div><dt>Base speed</dt><dd>{entry.speed} units/s</dd></div><div><dt>Attack / effect</dt><dd>{entry.attack}</dd></div></dl>
 									<h4>Behaviour</h4><p>{entry.behaviour}</p><h4>Field advice</h4><p>{entry.advice}</p>
-									<p className={styles.hint}>Health scales with hive threat. Movement gains a threat and wave bonus, up to its speed cap. Eggs and antlions stay still; moths, eggs, and couriers keep fixed health; couriers keep fixed speed. Damage shown is per hit in hive {view.hivesCleared + 1}, before armour. Ordinary hits start at 10 and gain 1 per hive; other attacks scale proportionally. Your armour reduces incoming damage by {view.armourReduction}%.</p>
+									<p className={styles.hint}>{isBossVariant(entry.id) ? "Boss health increases at later boss milestones. Movement depends on its attack phase." : "Health scales with hive threat. Movement gains a threat and wave bonus, up to its speed cap. Eggs and antlions stay still; moths, eggs, and couriers keep fixed health; couriers keep fixed speed."} Damage shown is per hit in hive {view.hivesCleared + 1}, before armour. Ordinary hits start at 10 and gain 1 per hive; other attacks scale proportionally. Your armour reduces incoming damage by {view.armourReduction}%.</p>
 								</article>}
 							</div>}
 							<button ref={view.encounters.length === 0 ? firstUpgrade : undefined} className={`${styles.secondary} ${selectedKind === "closeBugpedia" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("closeBugpedia")}><kbd>B / Esc</kbd> Back to {view.bugpediaFrom === "base" ? "base" : "pause menu"}</button>
