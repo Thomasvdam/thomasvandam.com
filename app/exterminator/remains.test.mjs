@@ -46,7 +46,7 @@ test("assassins seek nearby corpses, consume each once, cap at five, then chase 
 test("assassins ignore burning and distant bodies, replace consumed targets, and melee without armour", () => {
 	const game = setup(), a = bug(game, "assassin", 500), burning = corpse(game, "burrower", 520); burning.burnAt = 0; corpse(game, "burrower", 1000);
 	const before = a.x; stepAssassin(game, a, .1, FIELD); expect(a.x).toBeLessThan(before); expect(a.state.backpack).toEqual([]);
-	a.x = 230; game.player.invulnerable = 0; advance(game, .5); expect(game.player.health).toBe(80);
+	a.x = 230; game.player.invulnerable = 0; advance(game, .5); expect(game.player.health).toBe(90);
 });
 
 test("armour loses partial health, breaks in order, and passes excess damage to health", () => {

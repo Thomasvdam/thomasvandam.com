@@ -1,3 +1,5 @@
+import { hurtPlayer } from "./player-damage";
+export { hurtPlayer } from "./player-damage";
 import { BUG_SPECS, createBug, type Enemy } from "./bug-types";
 import { moveBug, walkBugTo } from "./bug-motion";
 import { combatTarget, cornerPosition, damageLamp, LAMP_RADIUS } from "./light-threats";
@@ -20,10 +22,6 @@ export const MAX_LARVAE = 80;
 export const airborne = (enemy: Enemy) => enemy.variant === "clickBeetle" && enemy.state.phase === "flight";
 export const clickElevation = (enemy: Enemy) => enemy.variant === "clickBeetle" && enemy.state.phase === "flight" ? Math.sin((1 - enemy.state.remaining / CLICK_FLIGHT) * Math.PI) * 85 : 0;
 export const enemyPosition = (enemy: Enemy): Vector => ({ x: enemy.x, y: enemy.y - clickElevation(enemy) });
-export function hurtPlayer(game: Game, damage: number) {
-	if (game.player.invulnerable > 0) return;
-	game.player.health = Math.max(0, game.player.health - damage); game.player.invulnerable = .9;
-}
 export function stepClickBeetle(game: Game, enemy: Extract<Enemy, { variant: "clickBeetle" }>, dt: number, bounds: Bounds, playerRadius: number) {
 	const state = enemy.state, target = combatTarget(game, enemy), distance = Math.hypot(target.x - enemy.x, target.y - enemy.y);
 	if (state.phase === "approach") {

@@ -114,7 +114,7 @@ test("queen death preserves eggs and ants; orphans guard eggs then wander, and p
 
 test("soldiers chase and deal melee damage; bullet ants kite and fire at a locked aim without seeking armoured cover", () => {
 	const melee = setup(), soldier = bug(melee, "soldier", 240); melee.player.invulnerable = 0;
-	advance(melee, .5); expect(soldier.x).toBeLessThan(240); expect(melee.player.health).toBe(80);
+	advance(melee, .5); expect(soldier.x).toBeLessThan(240); expect(melee.player.health).toBe(90);
 	const game = setup(); game.player.x = 400; const ant = bug(game, "bulletAnt", 750), armour = bug(game, "armoured", 600, 500); armour.speed = 0;
 	step(game, idle, 1 / 120); expect(ant.x).toBeLessThan(750); expect(ant.y).toBe(360); expect(ant.state).not.toHaveProperty("coverId");
 	ant.x = 700; ant.state.remaining = 0; step(game, idle, 1 / 120); expect(ant.state.phase).toBe("windup");

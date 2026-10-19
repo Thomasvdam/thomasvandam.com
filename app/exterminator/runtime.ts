@@ -1,3 +1,4 @@
+import { armourReduction } from "./player-damage";
 import { createEncounterProgress, recordVisibleEncounters } from "./encounters";
 import { BUG_NAMES, type BugVariant } from "./bug-types";
 import { createSchematicProgress, SCHEMATIC_NAMES, schematicForHive } from "./schematics";
@@ -39,6 +40,7 @@ export function viewFromGame(game: Game, controller = false, selection = 0, prog
 	return {
 		bugpediaEntry: (game.encounters[0] ?? null) as BugVariant | null, encountersSaved: true, encounters: [...game.encounters], bugpediaFrom: game.bugpediaFrom,
 		carriedSchematic: game.carriedSchematic ? SCHEMATIC_NAMES[game.carriedSchematic] : null, lastSchematic: game.lastSchematic ? SCHEMATIC_NAMES[game.lastSchematic] : null, schematicHunt: game.schematicReward !== null && game.carriedSchematic === null, unlockedSchematics: game.schematics.length, progressSaved,
+		armourRank: game.parts.armour, armourReduction: Math.round(armourReduction(game.parts.armour) * 100),
 		pit: game.pitTerrain !== null, tethered: game.tethers.filter(tether => !tether.lightTarget).length, slimed: game.slimed, glue: Math.round(game.glue * 65), debug: !!game.debug, hivesCleared: game.hivesCleared, hive: game.hive?.name ?? null, terrain: game.hive ? game.pitTerrain ?? terrainAt(game.terrain, game.player.x, game.player.y) : "firm" as const, undercarriage: game.undercarriage,
 		weapon: game.weapon, weaponName: weaponSpec(game.weapon).name, weaponRanks: structuredClone(game.parts.weapons),
 		mode: game.mode, health: game.player.health, wave: game.wave, enemies: game.enemies.filter(enemy => enemy.variant !== "courier").length + game.toSpawn + game.spawns.length,
@@ -149,7 +151,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
 		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
 		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action((game.mode === "shop" || game.mode === "weapons") ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
-		if (menuChoices(game).length > 0 && /^[0-9lb]$/i.test(event.key)) {
+		if (menuChoices(game).length > 0 && /^[0-9lba]$/i.test(event.key)) {
 			event.preventDefault(); const index = menuChoices(game).findIndex(choice => choice.key.toLowerCase() === event.key.toLowerCase());
 			if (!event.repeat && index >= 0) confirmChoice(index); return;
 		}

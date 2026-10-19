@@ -11,7 +11,7 @@ stick to move and the right stick to aim. Start pauses, and the bottom face butt
 confirms menu choices. Use the D-pad/left stick for menus. Keyboard shortcuts match cards:
 1–3 for upgrades, hives, or undercarriages. Key 4 opens the workshop at base,
 or **Upgrades & repairs** in the workshop. In the shop, keys 4/5 purchase
-healing/sensor ranks, 7 upgrades mech lights, and 8/9/0/L buy the north-west,
+healing/sensor ranks, A buys armour, 7 upgrades mech lights, and 8/9/0/L buy the north-west,
 north-east, south-west, and south-east corner lights. Key 6 returns to the workshop.
 Key 6 opens weapon selection in the workshop. In weapon selection, keys 1–4 equip a weapon and key 5 returns.
 Key 5 returns from the workshop to hive selection. Escape returns from shop or
@@ -185,7 +185,7 @@ Weapon damage, weapon modifications, and movement upgrades start at $100.
 Every purchased rank increases that part's next price by about 60%, rounded to
 $10: $100, $160, $260, $410, etc. Each part has its own price progression; swapping
 back restores its ranks and next price. Sensor ranks cost $150, $240, then $380. Full
-repairs cost a flat $60, restore health to 100, and are unavailable at full health.
+repairs restore health to 100 and cost $0.60 per missing health point, rounded up to whole dollars (maximum $60). They are unavailable at full health. Restoring 10 health costs $6; restoring 50 costs $30.
 
 Prices are visible even with no money. Unaffordable buttons are disabled, and
 simulation guards also reject purchases without sufficient funds or outside the
@@ -617,3 +617,10 @@ Base and pause menus both open the bugpedia (`B`; arrow keys or controller D-pad
 Encounters are recorded when a living bug’s body is on screen with some illumination, including shadow; spawn warnings, off-camera light, and total darkness do not count. Detection samples body centres and edges, includes centipede segments, and uses a jumping click beetle’s elevated position. Observations happen during play, not while a menu obscures the field. All 26 species, including eggs, couriers and larvae, have entries.
 
 Discovered species persist across deaths, restarts and reloads in the browser under `exterminator.bugpedia.v1`, independently of schematic ownership and run upgrades. Saves validate species IDs and merge existing discoveries. Blocked storage falls back to session memory and displays a saving-unavailable note. Debug encounters follow the same visibility rule and can be recorded.
+
+
+### Incoming damage and mech armour
+
+Ordinary hits deal 10 damage in hive 1 and gain one damage per subsequent hive, regardless of the selected job’s threat. Every attack against the mech uses the same multiplier (`0.5 + 0.05 × hivesCleared`) against its original reference damage: 20 ordinary, 25 click-beetle impact, 30 lunge/exploding-ant blast. The older per-species values above are reference values at hive 11, before armour. The bugpedia displays the current hive’s actual unarmoured values. Damage rounds to the nearest whole health point after armour, with a minimum of one. The existing 0.9-second invulnerability window still prevents stacked hits. Lamp damage and explosions against other bugs retain their existing values.
+
+**Upgrade armour** in Upgrades & repairs (`A`) gives 10 percentage points of damage reduction per rank, up to five ranks / 50%. Prices follow the normal $100, $160, $260, $410, $660 progression. Armour applies to contact, projectiles, sprays, impacts, and explosions, stays with the mech when equipment changes and hives finish, and resets on a new run. Current reduction appears in the HUD. There is no mandatory armour purchase or schematic requirement.
