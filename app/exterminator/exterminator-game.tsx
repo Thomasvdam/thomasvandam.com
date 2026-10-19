@@ -1,6 +1,8 @@
 "use client";
 
 import { BUG_NAMES, BUG_TYPES, defaultComposition } from "./debug";
+import { bugEntry } from "./bugpedia";
+import { BugPortrait } from "./bug-portrait";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Crosshair, Gamepad2, HeartPulse, LampDesk, LockKeyhole, Radio, Pause, Play, RotateCcw } from "lucide-react";
@@ -39,10 +41,11 @@ export function ExterminatorGame() {
 		runtime.current = instance;
 		return () => { instance.dispose(); if (runtime.current === instance) runtime.current = null; };
 	}, []);
-	useEffect(() => { if (["shop", "base", "workshop", "weapons"].includes(view.mode)) firstUpgrade.current?.focus({ preventScroll: true }); }, [view.mode, view.money]);
-	useEffect(() => { if (view.controller) menu.current?.querySelector(`.${styles.selected}`)?.scrollIntoView({ block: "nearest" }); }, [view.controller, view.selection, view.mode]);
+	useEffect(() => { if (["shop", "base", "workshop", "weapons", "bugpedia", "paused"].includes(view.mode)) firstUpgrade.current?.focus({ preventScroll: true }); }, [view.mode, view.money]);
+	useEffect(() => { if (view.controller || view.mode === "bugpedia") menu.current?.querySelector(`.${styles.selected}, .${styles.selectedAction}`)?.scrollIntoView({ block: "nearest" }); }, [view.controller, view.selection, view.mode]);
+	const entry = view.bugpediaEntry ? bugEntry(view.bugpediaEntry) : null;
 	const clock = `${Math.floor(view.time / 60)}:${String(view.time % 60).padStart(2, "0")}`;
-	const selectedKind = view.controller ? view.choices[view.selection]?.kind : undefined;
+	const selectedKind = view.controller || view.mode === "bugpedia" ? view.choices[view.selection]?.kind : undefined;
 	const overlay = view.mode !== "playing" || !loaded || !!error;
 	return <div className={styles.page}>
 		<header className={styles.header}>
@@ -75,8 +78,8 @@ export function ExterminatorGame() {
 				{!overlay && <div className={styles.waveNotice}>{view.intermission ? <>Wave {view.wave} cleared<span>{view.wave === WAVES_PER_HIVE ? "Return to base" : "Next wave"} in {view.intermission}</span></> : <><span>{view.debug && view.enemies === 0 ? "Waiting for a custom wave" : <>{view.enemies} {view.enemies === 1 ? "enemy" : "enemies"} remaining</>}</span></>}</div>}
 				<div ref={movePad} className={`${styles.joystick} ${styles.movePad}`} role="group" aria-label="Movement joystick"><span ref={moveThumb} className={styles.thumb}><ArrowUpRight size={21} /></span><span className={styles.stickLabel}>MOVE</span></div>
 				<div ref={aimPad} className={`${styles.joystick} ${styles.aimPad}`} role="group" aria-label="Aim joystick"><span ref={aimThumb} className={styles.thumb}><Crosshair size={21} /></span><span className={styles.stickLabel}>AIM</span></div>
-				{overlay && <div className={styles.overlay}>
-					<div className={styles.card}>
+				{overlay && <div className={styles.overlay} data-bugpedia-scroll={view.mode === "bugpedia" ? true : undefined}>
+					<div ref={menu} className={`${styles.card} ${view.mode === "bugpedia" ? styles.bugpediaCard : ""}`}>
 						{error ? <><p className={styles.eyebrow}>Unable to start</p><h2>Try another round.</h2><p>{error}</p><button className={styles.primary} onClick={() => window.location.reload()}>Reload game <RotateCcw size={16} /></button></>
 						: !loaded ? <><p className={styles.eyebrow}>Exterminator</p><h2>Getting ready…</h2></>
 						: view.mode === "base" ? <>
@@ -89,9 +92,23 @@ export function ExterminatorGame() {
 								{hive.schematicChance && <span className={styles.schematicHint}>Schematic courier in this hive</span>}<small>Payment <b>${hive.payment}</b> · Deploy ↗</small>
 							</button>)}</div>
 							<button className={`${styles.secondary} ${view.controller && view.selection === 3 ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("workshop")}><kbd>4</kbd> Open workshop</button>
+							<button className={`${styles.secondary} ${selectedKind === "bugpedia" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("bugpedia")}><kbd>B</kbd> Bugpedia · {view.encounters.length} encountered</button>
+						</> : view.mode === "bugpedia" ? <>
+							<p className={styles.eyebrow}>Field guide / {view.encounters.length} encountered</p><h2>Bugpedia.</h2>
+							{view.encounters.length === 0 ? <p>No bugs recorded yet. Encounter bugs on screen in light or shadow to add them here.</p> : <div className={styles.bugpedia}>
+								<nav className={styles.bugList} aria-label="Encountered bugs">{view.encounters.map((id, index) => <button ref={index === 0 ? firstUpgrade : undefined} key={id} aria-pressed={view.bugpediaEntry === id} className={view.selection === index ? styles.selected : undefined} onClick={() => runtime.current?.browseBug(id)}>{BUG_NAMES[id]}</button>)}</nav>
+								{entry && <article className={styles.bugNotes} aria-label={`${entry.name} field notes`}>
+									<BugPortrait variant={entry.id} /><h3>{entry.name}</h3><p className={styles.eyebrow}>{entry.arrival}</p>
+									<dl><div><dt>Base health</dt><dd>{entry.health}</dd></div><div><dt>Base speed</dt><dd>{entry.speed} units/s</dd></div><div><dt>Attack / effect</dt><dd>{entry.attack}</dd></div></dl>
+									<h4>Behaviour</h4><p>{entry.behaviour}</p><h4>Field advice</h4><p>{entry.advice}</p>
+									<p className={styles.hint}>Health scales with hive threat. Movement gains a threat and wave bonus, up to its speed cap. Eggs and antlions stay still; moths, eggs, and couriers keep fixed health; couriers keep fixed speed. Attack values are per hit.</p>
+								</article>}
+							</div>}
+							<button ref={view.encounters.length === 0 ? firstUpgrade : undefined} className={`${styles.secondary} ${selectedKind === "closeBugpedia" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("closeBugpedia")}><kbd>B / Esc</kbd> Back to {view.bugpediaFrom === "base" ? "base" : "pause menu"}</button>
+							<p className={styles.hint}>{view.encountersSaved ? "Encounters stay recorded across runs in this browser." : "Browser saving unavailable; encounters last for this session."} {view.controller ? "D-pad / left stick to browse · right stick to scroll · A to confirm · Menu to go back." : "Choose a bug, or use arrow keys to browse and Page Up / Down to scroll. Esc goes back."}</p>
 						</> : view.mode === "shop" || view.mode === "workshop" || view.mode === "weapons" ? <>
 							{view.mode === "workshop" ? <><p className={styles.eyebrow}>Base / workshop</p><h2>Refit your mech.</h2><p>{view.weaponName} equipped. Refit your undercarriage or change weapon.</p></> : view.mode === "weapons" ? <><p className={styles.eyebrow}>Workshop / weapons</p><h2>Choose your firepower.</h2><p>Recover schematics to unlock weapons. Each weapon keeps its own upgrades during a run.</p></> : <><p className={styles.eyebrow}>Workshop / ${view.money} available</p><h2>Put it to work.</h2><p>Upgrade your mech, repair it, or light the hive.</p></>}
-							<div ref={menu} className={`${styles.upgrades} ${view.mode === "weapons" ? styles.weaponChoices : ""}`}>{view.choices.map((upgrade, index) => upgrade.kind === "stat" || upgrade.kind === "undercarriage" || upgrade.kind === "weapon" ? <button ref={index === 0 ? firstUpgrade : undefined} key={upgrade.id} disabled={upgrade.kind === "stat" ? upgrade.cost > view.money : upgrade.locked} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => upgrade.kind === "weapon" ? runtime.current?.equipWeapon(upgrade.id) : upgrade.kind === "undercarriage" ? runtime.current?.equip(upgrade.id) : runtime.current?.upgrade(upgrade.id)}>
+							<div className={`${styles.upgrades} ${view.mode === "weapons" ? styles.weaponChoices : ""}`}>{view.choices.map((upgrade, index) => upgrade.kind === "stat" || upgrade.kind === "undercarriage" || upgrade.kind === "weapon" ? <button ref={index === 0 ? firstUpgrade : undefined} key={upgrade.id} disabled={upgrade.kind === "stat" ? upgrade.cost > view.money : upgrade.locked} className={view.controller && view.selection === index ? styles.selected : undefined} onClick={() => upgrade.kind === "weapon" ? runtime.current?.equipWeapon(upgrade.id) : upgrade.kind === "undercarriage" ? runtime.current?.equip(upgrade.id) : runtime.current?.upgrade(upgrade.id)}>
 								<span className={styles.upgradeTop}><span className={styles.upgradeArt} aria-hidden="true" style={{ backgroundImage: `url(${SPRITE_PARTS[partArt(view, upgrade)].path})` }} />{upgrade.kind !== "stat" && upgrade.locked ? <LockKeyhole size={14} aria-label="Schematic locked" /> : <kbd>{upgrade.key}</kbd>}</span>
 								<strong>{upgrade.name}{((upgrade.kind === "undercarriage" && upgrade.id === view.undercarriage) || (upgrade.kind === "weapon" && upgrade.id === view.weapon)) ? " / equipped" : ""}</strong><span>{upgrade.description}</span>
 								{upgrade.kind === "undercarriage" && <span className={styles.handling}>{(["firm", "rubble", "mud"] as const).map(terrain => <span key={terrain}>{TERRAIN_NAMES[terrain]} <b>{Math.round(MOVEMENT[upgrade.id][terrain] * 1000) / 10}%</b></span>)}</span>}
@@ -110,7 +127,7 @@ export function ExterminatorGame() {
 							<p className={styles.hint}>{view.unlockedSchematics} / 5 schematics recovered. {view.progressSaved ? "Unlocks stay available across runs in this browser." : "Browser saving unavailable; unlocks last for this session."}</p>
 							<p className={styles.hint}>{view.controller ? "D-pad or left stick to choose · A / bottom button to confirm" : "Tap a card, use its shortcut, or press Tab and Enter"}</p>
 						</> : view.mode === "paused" ? <>
-							<p className={styles.eyebrow}>Game paused</p><h2>Take a breather.</h2><p>Your run is right where you left it.</p><button className={styles.primary} onClick={() => runtime.current?.action("pause")}>Resume game <Play size={16} /></button>
+							<p className={styles.eyebrow}>Game paused</p><h2>Take a breather.</h2><p>Your run is right where you left it.</p><button ref={firstUpgrade} className={`${styles.primary} ${selectedKind === "pause" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("pause")}>Resume game <Play size={16} /></button><button className={`${styles.secondary} ${selectedKind === "bugpedia" ? styles.selectedAction : ""}`} onClick={() => runtime.current?.action("bugpedia")}><kbd>B</kbd> Bugpedia</button>
 						</> : view.mode === "dead" ? <>
 							<p className={styles.eyebrow}>Run complete</p><h2>One more round?</h2><p>{view.hivesCleared} hives eradicated · {view.kills} kills · {clock} survived</p><button className={styles.primary} onClick={() => runtime.current?.action("restart")}>Play again <RotateCcw size={16} /></button>
 						</> : <>
@@ -124,6 +141,6 @@ export function ExterminatorGame() {
 			<div className={styles.terrainInfo}><span>{view.weaponName} · {UNDERCARRIAGES.find(part => part.id === view.undercarriage)?.name} / <b>{view.terrain === "firm" ? "Firm ground" : view.terrain === "mud" ? "Mud" : "Rubble"}</b>{view.pit && <b> · Antlion pit</b>}{view.tethered > 0 && <b> · {view.tethered} tether{view.tethered === 1 ? "" : "s"}</b>}{view.slimed && <b> · Slime: half speed</b>}{view.glue > 0 && <b> · Glue: −{view.glue}% speed</b>}</span><span className={styles.terrainLegend}><i />Firm <i />Mud <i />Rubble</span></div>
 			<footer className={styles.footer}><span className={styles.desktopHint}>WASD / arrows <b>move</b> · mouse <b>aim</b> · Esc <b>pause</b></span><span className={styles.touchHint}>Left stick <b>move</b> · right stick <b>aim</b></span><span className={styles.controller}><Gamepad2 size={15} />{view.controller ? "Controller connected" : "Controller ready"}</span></footer>
 		</section>
-		<p className={styles.status} role="status">{view.mode === "paused" ? "Game paused." : view.mode === "base" ? `At base. ${view.hivesCleared} hives eradicated. Choose a hive or open the workshop.` : view.mode === "weapons" ? "Workshop. Equip a weapon or return to refit." : view.mode === "workshop" ? "Workshop. Equip parts or return to hive selection." : view.mode === "shop" ? `Workshop. $${view.money} available for upgrades and repairs.` : view.mode === "dead" ? `Run ended. ${view.hivesCleared} hives eradicated.` : ""}</p>
+		<p className={styles.status} role="status">{view.mode === "bugpedia" ? "Bugpedia. Browse encountered bugs. Combat is paused." : view.mode === "paused" ? "Game paused." : view.mode === "base" ? `At base. ${view.hivesCleared} hives eradicated. Choose a hive or open the workshop.` : view.mode === "weapons" ? "Workshop. Equip a weapon or return to refit." : view.mode === "workshop" ? "Workshop. Equip parts or return to hive selection." : view.mode === "shop" ? `Workshop. $${view.money} available for upgrades and repairs.` : view.mode === "dead" ? `Run ended. ${view.hivesCleared} hives eradicated.` : ""}</p>
 	</div>;
 }

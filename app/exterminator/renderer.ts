@@ -59,7 +59,7 @@ export function createRenderer(makeCanvas = () => document.createElement("canvas
 	const background = makeCanvas(), context = background.getContext("2d")!;
 	let lightingLayer: ReturnType<typeof createLightingLayer> | undefined;
 	return (ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number) => {
-		if (BASE_MODES.has(game.mode)) return render(ctx, game, sprites, width, height, pixelRatio);
+		if (BASE_MODES.has(game.mode) || (game.mode === "bugpedia" && game.bugpediaFrom === "base")) return render(ctx, game, sprites, width, height, pixelRatio);
 		if (tiles !== game.terrain || variation !== game.hivesCleared % 2 || ratio !== pixelRatio) {
 			tiles = game.terrain; variation = game.hivesCleared % 2; ratio = pixelRatio;
 			background.width = Math.round(FIELD.width * ratio); background.height = Math.round(FIELD.height * ratio);
@@ -74,7 +74,7 @@ export function createRenderer(makeCanvas = () => document.createElement("canvas
 }
 
 export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, width: number, height: number, pixelRatio: number, terrainLayer?: CanvasImageSource, slimeLayer?: CanvasImageSource, remainsLayer?: CanvasImageSource, lightingLayer?: CanvasImageSource): Camera {
-	if (BASE_MODES.has(game.mode)) {
+	if (BASE_MODES.has(game.mode) || (game.mode === "bugpedia" && game.bugpediaFrom === "base")) {
 		ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); ctx.imageSmoothingEnabled = false;
 		ctx.fillStyle = "#15211d"; ctx.fillRect(0, 0, width, height);
 		ctx.strokeStyle = "#334638"; ctx.lineWidth = 2;
