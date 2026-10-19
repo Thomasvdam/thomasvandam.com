@@ -64,18 +64,10 @@ test("scorpion claws have independent hitboxes and health, removed claws cannot 
 	const before = boss.health; damageBoss(boss, 4, game.time); expect(before - boss.health).toBe(7);
 });
 
-test("millipede changes shape, shares health across joints, armours its coil and emits avoidable expanding pulses", () => {
-	const game = fight("millipede"), boss = game.boss; boss.segments = Array.from({ length: 8 }, (_, i) => ({ x: boss.x - (i + 1) * 22, y: boss.y }));
-	const initial = boss.segments.map(segment => ({ ...segment })), health = boss.health; damageBoss(boss, 4, 0, "joint"); expect(health - boss.health).toBe(6);
-	boss.phase = "coilWindup"; boss.remaining = .01; advance(game, .5); expect(boss.phase).toBe("coil"); expect(boss.segments).not.toEqual(initial); expect(boss.pulses.length).toBeGreaterThan(0);
-	const before = boss.health; damageBoss(boss, 5, game.time, "joint"); expect(before - boss.health).toBe(1);
-	game.player.x = boss.x + 150; game.player.y = boss.y; game.player.invulnerable = 0; advance(game, 1); expect(game.player.health).toBeLessThan(100);
-	boss.phase = "uncoil"; boss.remaining = 1; const vulnerable = boss.health; damageBoss(boss, 4, game.time); expect(vulnerable - boss.health).toBe(7);
-});
 
 test("every weapon can damage every boss and RPG/flame do not multiply damage across millipede segments", () => {
 	for (const variant of BOSS_TYPES) for (const weapon of ["cannon", "shotgun", "rpg", "flamethrower"]) {
-		const game = fight(variant), boss = game.boss; boss.phase = variant === "millipede" ? "crawl" : "recover"; boss.remaining = 100;
+		const game = fight(variant), boss = game.boss; boss.phase = variant === "millipede" ? "crossing" : "recover"; boss.remaining = 100;
 		boss.x = game.player.x + 90; boss.y = game.player.y; if (variant === "millipede") boss.segments = Array.from({ length: 8 }, (_, i) => ({ x: boss.x + (i + 1) * 22, y: boss.y }));
 		game.weapon = weapon; const before = boss.health; advance(game, .3, { ...idle, fire: true }); expect(boss.health, `${variant}/${weapon}`).toBeLessThan(before);
 	}
@@ -98,7 +90,7 @@ test("bosses enter bugpedia only when their illuminated body is on screen and pe
 
 
 test("area attacks hit shared millipede health once and the nearest boss blocks shots to bugs behind it", () => {
-	const game = fight("millipede"), boss = game.boss; boss.phase = "crawl"; boss.segments = Array.from({ length: 8 }, () => ({ x: boss.x - 30, y: boss.y }));
+	const game = fight("millipede"), boss = game.boss; boss.phase = "crossing"; boss.segments = Array.from({ length: 8 }, () => ({ x: boss.x - 30, y: boss.y }));
 	const before = boss.health; blastBoss(game, boss, 200, 4); expect(before - boss.health).toBe(6);
 	const after = boss.health; flameBoss(game, { x: boss.x - 90, y: boss.y }, 0, 250, Math.PI / 4, 2); expect(after - boss.health).toBe(3);
 	const blocked = fight("rhinoceros"); blocked.boss.x = blocked.player.x + 80; blocked.boss.phase = "recover"; blocked.boss.remaining = 100;

@@ -2,13 +2,16 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolveRig } from "./animation";
 import { BOSS_SCALE, bossPose, bossRig, bossSkin } from "./boss-art";
+import { isMillipedeWeak, MILLIPEDE_SEGMENT_COUNT, MILLIPEDE_SPACING } from "./boss-types";
 import { SPRITE_PARTS } from "./sprite-parts";
 
 function boss(variant, overrides = {}) {
+	const spacing = variant === "millipede" ? MILLIPEDE_SPACING : 22;
+	const segmentCount = variant === "millipede" ? MILLIPEDE_SEGMENT_COUNT : 8;
 	return {
 		variant, x: 400, y: 300, angle: 0, walkDistance: 30, health: 100, maxHealth: 100, hitAt: 0,
-		phase: variant === "millipede" ? "crawl" : "approach", remaining: 1, attackIndex: 0,
-		target: { x: 420, y: 300 }, claws: [30, 30], segments: Array.from({ length: 8 }, (_, i) => ({ x: 400 - (i + 1) * 22, y: 300 })),
+		phase: variant === "millipede" ? "crossing" : "approach", remaining: 1, attackIndex: 0,
+		target: { x: 420, y: 300 }, claws: [30, 30], segments: Array.from({ length: segmentCount }, (_, i) => ({ x: 400 - (i + 1) * spacing, y: 300 })),
 		...overrides,
 	};
 }
@@ -20,8 +23,8 @@ test("bosses use distinct native parts and complete PNG registrations", () => {
 		const spec = SPRITE_PARTS[part];
 		const file = readFileSync(`public${spec.path}`);
 		expect(file.subarray(1, 4).toString()).toBe("PNG");
-		expect(file.readUInt32BE(16)).toBe(spec.width);
-		expect(file.readUInt32BE(20)).toBe(spec.height);
+		expect(file.readUInt32BE(16)).toBe(spec.width * 4);
+		expect(file.readUInt32BE(20)).toBe(spec.height * 4);
 	}
 });
 
@@ -34,8 +37,8 @@ test("unique rigs expose articulated legs, horn, claws, tail and millipede segme
 	expect(scorpion.filter(part => part.bone.startsWith("leg"))).toHaveLength(8);
 	expect(scorpion.filter(part => part.bone.startsWith("tail"))).toHaveLength(4);
 	expect(scorpion.filter(part => part.bone.startsWith("claw"))).toHaveLength(2);
-	expect(millipede.filter(part => part.bone.startsWith("segmentBody"))).toHaveLength(8);
-	expect(millipede.filter(part => part.bone.startsWith("leg"))).toHaveLength(16);
+	expect(millipede.filter(part => part.bone.startsWith("segmentBody"))).toHaveLength(MILLIPEDE_SEGMENT_COUNT);
+	expect(millipede.filter(part => part.bone.startsWith("leg"))).toHaveLength(MILLIPEDE_SEGMENT_COUNT * 2);
 });
 
 test("attack poses move the rhino horn, hide destroyed claws, and follow live millipede centres", () => {
@@ -43,7 +46,7 @@ test("attack poses move the rhino horn, hide destroyed claws, and follow live mi
 	expect(rhinoSweep.horn.angle).not.toBe(rhinoRest.horn.angle);
 	const scorpion = resolveRig(bossRig("scorpion"), bossSkin("scorpion"), bossPose(boss("scorpion", { claws: [0, 30] }), 1));
 	expect(scorpion.find(part => part.bone === "clawL").opacity).toBe(0);
-	const moving = boss("millipede", { segments: Array.from({ length: 8 }, (_, i) => ({ x: 400 - (i + 1) * 22, y: 300 + i * 4 })) });
+	const moving = boss("millipede", { segments: Array.from({ length: MILLIPEDE_SEGMENT_COUNT }, (_, i) => ({ x: 400 - (i + 1) * MILLIPEDE_SPACING, y: 300 + i * 4 })) });
 	const segments = resolveRig(bossRig("millipede"), bossSkin("millipede"), bossPose(moving, 1)).filter(part => part.bone === "segmentBody1");
 	expect(segments[0].y).toBeCloseTo(4 / BOSS_SCALE.millipede);
 });
@@ -64,7 +67,7 @@ test("resolved boss limb centres stay aligned with world collision geometry afte
 
 	const segments = boss("millipede", {
 		angle: -.24,
-		segments: Array.from({ length: 8 }, (_, i) => ({ x: 360 - i * 22, y: 315 + i * 5 })),
+		segments: Array.from({ length: MILLIPEDE_SEGMENT_COUNT }, (_, i) => ({ x: 360 - i * MILLIPEDE_SPACING, y: 315 + i * 5 })),
 	});
 	const segmentParts = resolveRig(bossRig("millipede"), bossSkin("millipede"), bossPose(segments, 1));
 	for (const [index, point] of segments.segments.entries()) {
@@ -110,4 +113,16 @@ test("a long sting keeps every tail joint connected to the target", () => {
 	const tip = chain.at(-1);
 	expect(tip.x * BOSS_SCALE.scorpion + scorpion.x).toBeCloseTo(scorpion.target.x);
 	expect(tip.y * BOSS_SCALE.scorpion + scorpion.y).toBeCloseTo(scorpion.target.y);
+});
+
+test("millipede skins cover shell variants, weak sections, neck and tail", () => {
+		const regular = bossSkin("millipede");
+		const shellVariants = new Set(Array.from({ length: 6 }, (_, index) => regular[`shell${index + 2}`]));
+		expect(shellVariants.size).toBe(6);
+		expect(regular.shell0).toBe("bossMillipedeNeckShell");
+		expect(regular.shell1).toBe("bossMillipedeNeckShell");
+		expect(regular.shell55).toBe("bossMillipedeTailShell");
+		const weakIndex = 4;
+		expect(isMillipedeWeak(weakIndex)).toBe(true);
+		expect(regular[`shell${weakIndex}`]).toBe("bossMillipedeShellWeak");
 });

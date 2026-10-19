@@ -1,3 +1,4 @@
+import { resolveMillipedeBarrier } from "./millipede";
 import { createBoss, stepBoss, firstBossHit, damageBoss, blastBoss, flameBoss } from "./bosses";
 import { bossForHive, type Boss, type EncounterVariant } from "./boss-types";
 import { hurtPlayer, MAX_ARMOUR_RANK, armourReduction } from "./player-damage";
@@ -274,6 +275,7 @@ export function step(game: Game, input: Input, dt: number) {
 	player.x = clamp(player.x + (move.x * speed + pulls.force.x + knock.x) * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
 	player.y = clamp(player.y + (move.y * speed + pulls.force.y + knock.y) * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
 	resolveBarriers(player, game.enemies, PLAYER_RADIUS, FIELD);
+	if (game.boss && resolveMillipedeBarrier(game.boss, player, previousPlayer, PLAYER_RADIUS)) hurtPlayer(game, 20);
 	game.playerVelocity = { x: (player.x - previousPlayer.x) / dt, y: (player.y - previousPlayer.y) / dt };
 	const traveled = Math.hypot(player.x - previousPlayer.x, player.y - previousPlayer.y);
 	player.walkDistance += traveled;
@@ -367,7 +369,7 @@ export function step(game: Game, input: Input, dt: number) {
 		leaveCorpse(game, enemy);
 		return false;
 	});
-	if (game.boss && game.boss.health <= 0 && game.boss.diedAt === undefined) { game.boss.diedAt = game.time; game.boss.pulses = []; game.kills++; }
+	if (game.boss && game.boss.health <= 0 && game.boss.diedAt === undefined) { game.boss.diedAt = game.time; game.kills++; }
 	const waveCleared = (!game.boss || game.boss.health <= 0) && game.toSpawn === 0 && game.spawns.length === 0 && game.enemies.every(enemy => enemy.variant === "courier");
 	if (waveCleared) { game.lobs = []; game.acid = []; game.bolas = []; game.tethers = []; }
 	stepBolas(game, dt, pulls.spiders, PLAYER_RADIUS);
