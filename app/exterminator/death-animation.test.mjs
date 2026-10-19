@@ -48,6 +48,15 @@ test("every species starts dying at its live size and frozen pose, including all
 		leaveCorpse(game, enemy);
 		expect(painted(game), variant).toEqual(live.calls);
 	}
+	for (const variant of ["lunger", "clickBeetle", "explodingAnt"]) {
+		const { game, enemy } = setup(variant), live = recorder();
+		enemy.state.phase = variant === "explodingAnt" ? "charge" : "windup";
+		const pulse = 1 + Math.sin(game.time * 32) * .09;
+		const [x, y] = variant === "lunger" ? [.85, 1.12] : variant === "clickBeetle" ? [.85, 1.16] : [pulse, pulse];
+		live.ctx.translate(enemy.x, enemy.y); live.ctx.scale(x, y); live.ctx.translate(-enemy.x, -enemy.y);
+		drawRig(live.ctx, sprites, bugRig(variant), bugSkin(variant, enemy.id), speciesPose(variant, { distance: enemy.walkDistance, angle: enemy.angle, time: game.time }), enemy.x, enemy.y, BUG_SPECS[variant].radius / 15 * 1.05);
+		leaveCorpse(game, enemy); expect(painted(game), `${variant} windup`).toEqual(live.calls);
+	}
 });
 
 test("the final collapse frame matches settled carapace size, part registration, opacity and centipede geometry", () => {
