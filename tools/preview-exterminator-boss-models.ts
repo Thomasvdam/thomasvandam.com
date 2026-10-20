@@ -97,36 +97,81 @@ function rhinoceros() {
 	curve(bug, "thoracic-horn", [[.72, 1.13, 0], [1.03, 1.48, 0], [1.43, 1.57, 0], [1.7, 1.4, 0]], .17, palette.olive, true);
 	return bug;
 }
+// Bevelled chitin plates and tapered limbs break up the rounded study forms.
+function armour(parent: THREE.Group, name: string, outline: number[][], bottom: number, top: number, mat: THREE.Material) {
+	const area = outline.reduce((sum, p, i) => { const next = outline[(i + 1) % outline.length]; return sum + p[0] * next[1] - next[0] * p[1]; }, 0);
+	if (area > 0) outline = [...outline].reverse();
+	const centre = outline.reduce((sum, p) => [sum[0] + p[0] / outline.length, sum[1] + p[1] / outline.length], [0, 0]);
+	const vertices: number[] = [], indices: number[] = [], n = outline.length;
+	for (const [scale, y] of [[.87, bottom], [1, top - .055], [.79, top]]) for (const p of outline) vertices.push(centre[0] + (p[0] - centre[0]) * scale, y, centre[1] + (p[1] - centre[1]) * scale);
+	vertices.push(centre[0], top + .035, centre[1]);
+	for (let i = 0; i < n; i++) {
+		const next = (i + 1) % n;
+		for (let ring = 0; ring < 2; ring++) { const k = ring * n; indices.push(k + i, k + next, k + n + i, k + next, k + n + next, k + n + i); }
+		indices.push(n * 2 + i, n * 2 + next, n * 3);
+	}
+	const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices);
+	// Flat normals make the bevels read as plates rather than soft beads.
+	const faceted = geometry.toNonIndexed(); faceted.computeVertexNormals(); geometry.dispose();
+	const mesh = new THREE.Mesh(faceted, mat); mesh.name = name; mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+}
+function taperedLimb(parent: THREE.Group, name: string, a: number[], b: number[], radius: number, mat: THREE.Material) {
+	const from = new THREE.Vector3(a[0], a[1], a[2]), to = new THREE.Vector3(b[0], b[1], b[2]);
+	const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius * .48, radius, from.distanceTo(to), 6), mat);
+	mesh.name = name; mesh.position.copy(from.clone().add(to).multiplyScalar(.5));
+	mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
+	mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+}
 function scorpion() {
 	const bug = new THREE.Group(); bug.name = "scorpion-study";
-	ellipsoid(bug, "underside", [-.16, .32, 0], [1.1, .24, .51], palette.joint);
+	const chitin = material(0x302b2a, .62, .2), ridge = material(0x665345, .68, .18);
+	const claw = material(0x49342c, .58, .22), joint = material(0x15191a, .8), point = material(0x9e8c60, .62);
+	for (const mat of [chitin, ridge, claw]) { mat.bumpMap = surface; mat.bumpScale = .025; }
+	ellipsoid(bug, "underside", [-.16, .28, 0], [1.15, .16, .46], joint);
 	for (let i = 0; i < 6; i++) {
-		const x = -1.1 + i * .28, width = .42 + Math.sin(i / 5 * Math.PI) * .12;
-		ellipsoid(bug, `abdominal-plate-${i}`, [x, .47, 0], [.245, .24, width], i % 2 ? palette.plate : palette.purple);
-		curve(bug, "plate-lip", [[x + .12, .5, -width * .9], [x + .16, .7, 0], [x + .12, .5, width * .9]], .022, palette.edge);
+		const x = -1.24 + i * .3, w = .4 + Math.sin(i / 5 * Math.PI) * .1;
+		const outline = [[x - .18, -w * .77], [x + .09, -w], [x + .23, -w * .74], [x + .23, w * .74], [x + .09, w], [x - .18, w * .77]];
+		armour(bug, `abdominal-plate-${i}`, outline, .3, .56, i % 2 ? chitin : claw);
+		curve(bug, "dorsal-keel", [[x - .12, .59, 0], [x + .16, .6, 0]], .025, ridge);
+		for (const side of [-1, 1]) curve(bug, "armour-serration", [[x + .1, .43, side * w], [x + .27, .44, side * (w + .13)]], .055, chitin, true);
 	}
-	ellipsoid(bug, "carapace", [.66, .49, 0], [.57, .3, .51], palette.plate);
+	armour(bug, "cephalothorax-shield", [[.29, -.48], [.74, -.5], [1.11, -.29], [1.16, .29], [.74, .5], [.29, .48]], .28, .61, chitin);
 	for (const side of [-1, 1]) {
-		for (let i = 0; i < 4; i++) feet(bug, -.48 + i * .36, side, -.9 + i * .6, i, false);
-		for (let i = 0; i < 3; i++) ellipsoid(bug, "lateral-eye", [.93 + i * .055, .59, side * (.29 - i * .035)], [.026, .026, .026], palette.black);
-		const arm = [[.8, .42, side * .41], [1.16, .38, side * .83], [1.62, .48, side * 1.1]];
-		link(bug, "pedipalp-upper", arm[0], arm[1], .12, palette.purple);
-		ellipsoid(bug, "pedipalp-elbow", arm[1], [.14, .13, .14], palette.joint);
-		link(bug, "pedipalp-forearm", arm[1], arm[2], .15, palette.plate);
-		ellipsoid(bug, "claw-palm", [1.95, .49, side * 1.1], [.46, .255, .31], palette.claw);
-		curve(bug, "fixed-pincer", [[2.08, .51, side * 1.3], [2.43, .52, side * 1.32], [2.7, .49, side * 1.12]], .125, palette.plate, true);
-		curve(bug, "moving-pincer", [[2.08, .5, side * .9], [2.37, .5, side * .78], [2.67, .49, side * .95]], .11, palette.edge, true);
-		curve(bug, "claw-ridge", [[1.59, .55, side * 1.1], [1.92, .73, side * 1.1], [2.21, .59, side * 1.12]], .025, palette.edge);
+		curve(bug, "brow-keel", [[.4, .63, side * .31], [.75, .69, side * .18], [1.08, .61, side * .16]], .05, ridge);
+		ellipsoid(bug, "recessed-eye", [.91, .63, side * .12], [.033, .019, .026], palette.eye);
+		curve(bug, "chelicera", [[1.04, .33, side * .18], [1.33, .37, side * .22], [1.48, .32, side * .06]], .085, chitin, true);
+		for (let i = 0; i < 4; i++) {
+			const x = -.55 + i * .37, fan = [-1.55, -.65, .6, 1.55][i];
+			const hip = [x, .32, side * .43], knee = [x + fan * .3, .49, side * .93], ankle = [x + fan * .72, .12, side * 1.47];
+			taperedLimb(bug, `femur-${i}-${side}`, hip, knee, .115, chitin);
+			ellipsoid(bug, "angular-knee", knee, [.085, .075, .09], joint);
+			taperedLimb(bug, `tibia-${i}-${side}`, knee, ankle, .085, claw);
+			curve(bug, "needle-foot", [ankle, [ankle[0] - .12, .055, side * 1.65], [ankle[0] - .25, .02, side * 1.73]], .04, chitin, true);
+			curve(bug, "knee-spur", [knee, [knee[0] - .13, .52, knee[2] + side * .2]], .045, ridge, true);
+		}
+		const arm = [[.8, .34, side * .42], [1.12, .38, side * .82], [1.62, .46, side * 1.12]];
+		taperedLimb(bug, "pedipalp-upper", arm[0], arm[1], .16, chitin);
+		ellipsoid(bug, "pedipalp-elbow", arm[1], [.13, .11, .13], joint);
+		taperedLimb(bug, "pedipalp-forearm", arm[1], arm[2], .18, claw);
+		const palm = [[1.58, side * .94], [1.83, side * .77], [2.2, side * .83], [2.39, side * 1.1], [2.17, side * 1.44], [1.79, side * 1.39]];
+		armour(bug, "pincer-armour", palm, .33, .68, claw);
+		curve(bug, "fixed-pincer", [[2.12, .52, side * 1.35], [2.55, .52, side * 1.46], [2.92, .49, side * 1.13]], .16, chitin, true);
+		curve(bug, "moving-pincer", [[2.12, .5, side * .86], [2.48, .51, side * .63], [2.83, .49, side * .94]], .13, ridge, true);
+		for (let tooth = 0; tooth < 3; tooth++) {
+			const x = 2.33 + tooth * .15;
+			curve(bug, "pincer-tooth", [[x, .51, side * (1.37 - tooth * .025)], [x + .045, .51, side * (1.2 - tooth * .025)]], .045, point, true);
+		}
+		curve(bug, "claw-keel", [[1.64, .58, side * 1.1], [1.98, .75, side * 1.13], [2.27, .63, side * 1.13]], .035, ridge);
 	}
-	for (const z of [-.1, .1]) ellipsoid(bug, "central-eye", [.69, .78, z], [.045, .025, .04], palette.black);
-	// Five connected, raised tail sections make an arch above the back.
-	const tail = [[-1.25, .46, 0], [-1.63, .77, -.08], [-1.66, 1.22, -.2], [-1.28, 1.77, -.31], [-.7, 2.05, -.34], [-.08, 1.92, -.3]];
+	// A forward-cocked tail makes the hook readable above the body at this camera angle.
+	const tail = [[-1.34, .4, 0], [-1.85, .73, -.1], [-1.96, 1.39, -.24], [-1.5, 2.04, -.35], [-.73, 2.4, -.4], [.1, 2.27, -.4]];
 	for (let i = 1; i < tail.length; i++) {
-		link(bug, `tail-armour-${i}`, tail[i - 1], tail[i], .19 - i * .009, i % 2 ? palette.plate : palette.purple);
-		ellipsoid(bug, "tail-joint", tail[i - 1], [.14, .13, .14], palette.joint);
+		taperedLimb(bug, `tail-armour-${i}`, tail[i - 1], tail[i], .23 - i * .012, i % 2 ? claw : chitin);
+		ellipsoid(bug, "tail-joint", tail[i - 1], [.13, .13, .13], joint);
+		const p = tail[i]; curve(bug, "tail-spur", [p, [p[0] - .1, p[1] + .18, p[2] - .1]], .055, ridge, true);
 	}
-	ellipsoid(bug, "venom-bulb", [.13, 1.79, -.29], [.3, .24, .21], palette.claw);
-	curve(bug, "stinger", [[.3, 1.77, -.29], [.67, 1.65, -.29], [.74, 1.23, -.29]], .12, palette.tip, true);
+	ellipsoid(bug, "venom-bulb", [.3, 2.13, -.4], [.29, .22, .2], chitin);
+	curve(bug, "raised-stinger", [[.45, 2.14, -.4], [.85, 2.0, -.45], [1.08, 1.58, -.49], [.91, 1.27, -.5]], .14, point, true);
 	return bug;
 }
 

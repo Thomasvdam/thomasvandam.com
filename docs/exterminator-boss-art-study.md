@@ -4,9 +4,10 @@ These are posed **3D model renders for art review**, not replacement gameplay sp
 The existing boss rigs, animations, hitboxes, attacks and rendering stay in use.
 
 - [Rhinoceros beetle](../public/images/exterminator/concepts/rhinoceros-3d-study.png)
-- [Scorpion](../public/images/exterminator/concepts/scorpion-3d-study.png)
+- [Scorpion, revised](../public/images/exterminator/concepts/scorpion-3d-study-v2.png)
+- [Scorpion, first study](../public/images/exterminator/concepts/scorpion-3d-study.png)
 
-Both PNGs are 768×768 RGBA with a transparent background and a baked contact shadow.
+The PNGs are 768×768 RGBA with a transparent background and a baked contact shadow.
 They share an orthographic camera tilted about 27 degrees from vertical, facing
 right, with warm key light, cool fill, physically raised parts and surface shading.
 The intended gameplay image footprint is roughly 160–200 pixels wide; the larger
@@ -15,8 +16,11 @@ sculpting or texture work.
 
 The beetle has two wing cases following one ovoid, a narrow seam, raised head and
 thoracic horns, six articulated legs, tibial spines and mandibles. The scorpion has
-eight legs, separate claw appendages, overlapping abdominal plates, a five-section
-raised tail, venom bulb and hooked stinger. Named meshes can be regrouped under
+eight angular legs, separate serrated claw appendages, overlapping bevelled
+armour plates, a five-section forward-cocked tail, venom bulb and hooked stinger.
+The second scorpion study replaces the rounded purple forms with flatter dark
+chitin, stronger limb angles and a threatening pincer/stinger silhouette. The
+first render remains available for comparison; the beetle study is unchanged. Named meshes can be regrouped under
 animation joints in a later pass; these studies do not yet contain a motion rig.
 
 ## Reproduce
