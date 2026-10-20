@@ -9,7 +9,9 @@ export function bossHitSprites(sprites: Sprites, makeCanvas = () => document.cre
 	const cached = brightened.get(sprites); if (cached) return cached;
 	const result = { ...sprites };
 	for (const [name, spec] of Object.entries(SPRITE_PARTS)) {
-		if (!name.startsWith("boss")) continue;
+		if (!name.startsWith("boss") || name.endsWith("SheetHit")) continue;
+		if (name === "bossRhinoSheet") { result.bossRhinoSheet = sprites.bossRhinoSheetHit; continue; }
+		if (name === "bossScorpionSheet") { result.bossScorpionSheet = sprites.bossScorpionSheetHit; continue; }
 		const key = name as keyof Sprites, source = sprites[key];
 		const canvas = makeCanvas();
 		// Boss source art has four pixels per logical rig unit.

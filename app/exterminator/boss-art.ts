@@ -1,3 +1,4 @@
+import { drawModelBoss } from "./model-boss-renderer";
 import type { Bone, Pose, Rig, Transform } from "./animation";
 import { drawRig } from "./rig-renderer";
 import type { Sprites } from "./renderer";
@@ -203,6 +204,7 @@ export function bossPose(boss: Boss, time: number): Pose {
 
 /** Draw a live boss or its static portrait. The caller supplies world/portrait coordinates in boss.x/y. */
 export function drawBoss(ctx: CanvasRenderingContext2D, sprites: Sprites, boss: Boss, time: number, _portrait = false) {
+	if (drawModelBoss(ctx, sprites, boss, time)) return;
 	const variant = boss.variant as BossVariant;
 	const skin = bossSkin(variant);
 	const rig = bossRig(variant);

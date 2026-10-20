@@ -22,13 +22,16 @@ import { bugSkin, mechSkin, SPRITE_PARTS, type SpritePart } from "./sprite-parts
 
 const BASE_MODES = new Set<Game["mode"]>(["ready", "base", "workshop", "weapons", "shop"]);
 export type Sprites = Record<SpritePart, CanvasImageSource>;
-export async function loadSprites(): Promise<Sprites> {
-	const entries = await Promise.all(Object.entries(SPRITE_PARTS).map(async ([name, spec]) => {
+let spriteLoad: Promise<Sprites> | undefined;
+// Field rendering and bugpedia portraits share the decoded sheets and hit cache.
+export function loadSprites(): Promise<Sprites> {
+	return spriteLoad ??= Promise.all(Object.entries(SPRITE_PARTS).map(async ([name, spec]) => {
 		const image = new Image(); image.src = spec.path; await image.decode(); return [name, image] as const;
-	}));
-	const sprites = Object.fromEntries(entries) as Sprites;
-	bossHitSprites(sprites);
-	return sprites;
+	})).then(entries => {
+		const sprites = Object.fromEntries(entries) as Sprites;
+		bossHitSprites(sprites);
+		return sprites;
+	}).catch(error => { spriteLoad = undefined; throw error; });
 }
 
 

@@ -644,12 +644,12 @@ Ordinary hits deal 10 damage in hive 1 and gain one damage per subsequent hive, 
 Hives 5, 10 and 15 finish with a boss after all three ordinary waves. A separate stream of the run seed shuffles rhinoceros beetle, scorpion and giant millipede into a permutation: each appears exactly once per run, independent of hive offers and enemy unlocks. The three-second wave-clear interval announces the boss arrival. The duel has no recurring ordinary bugs; remaining courier and wave hazards are removed on arrival. Carried schematic cargo remains aboard. Hive payment, schematic extraction and the cleared-hive counter wait until the boss dies and the final return countdown completes. Death during the duel loses cargo and pays nothing.
 
 - **Rhinoceros beetle:** six heavy legs and separate head/horn rig. Alternates horn sweeps, a locked straight charge and a close lifting attack that throws the mech. Charges stop at the arena boundary and leave the horn stuck for 1.8 seconds; damage then increases by 75%. Below half health, a wall recovery can lead into a second telegraphed charge. Reference damage: contact 20, sweep 25, charge 35, lift 30.
-- **Scorpion:** eight legs, independent claws and a four-jointed tail with a stinger that reaches its locked target. Alternates left/right claw sweeps with a delayed 48-unit sting. Each claw has 30 health; destroying it removes its hitbox and corresponding sweep for the rest of the fight. A missed sting leaves the tail embedded for 1.65 seconds, increasing body damage taken by 75%. Reference damage: contact 20, claw 25, sting 35.
+- **Scorpion:** eight legs, independent claws and an articulated tail with a stinger that reaches its locked target. Alternates left/right claw sweeps with a delayed 48-unit sting. Each claw has 30 health; destroying it removes its hitbox and corresponding sweep for the rest of the fight. A missed sting leaves the tail embedded for 1.65 seconds, increasing body damage taken by 75%. Reference damage: contact 20, claw 25, sting 35.
 - **Giant millipede:** 56 shared-health segments and 112 staggered legs form a 1,456-unit body, longer than the 1,120-unit arena width. After a two-second emergence warning, the head makes broad crossing passes and turns; the body follows its travelled path at 26-unit spacing. Connected body capsules block the mech, dividing the arena into moving lanes. Exposed orange joints take 50% extra damage. Area attacks damage its shared health once, rather than once per segment. Reference damage: contact 20.
 
 Boss reference damage follows the same hive scaling, mech armour and invulnerability rules as ordinary attacks. Base health is 160/150/180 respectively, multiplied by 1, 1.6 and 2.2 at the first, second and third boss milestones. These values are provisional playtest tuning. Every weapon works against every boss. Warnings update continuously and require the source to be lit; the world lighting mask still hides attacks and bodies outside illuminated regions. The HUD shows boss health, hive cards flag a coming boss, and visible encounters enter the persistent bugpedia, including boss portraits and counterplay. Debug provides separate **Fight** buttons without consuming or changing the normal run order.
 
-Bosses use one fixed set of 27 detailed 128×128 pixel parts, bringing the asset registry to 361 images. Boss images retain the 32-unit logical registration grid; six shell designs, specialised neck/tail sections and exposed joints vary the millipede along its length. Generate these with `python3 tools/generate-exterminator-boss-sprites.py`. Their bespoke rigs/poses live in `boss-art.ts`; simulation and collision live in `bosses.ts` and `millipede.ts`. Boss death flattens the frozen rig over 0.35 seconds during the return interval. Pause, restart and debug replacement retain the normal freeze/cleanup rules.
+The millipede uses detailed 128×128 pixel parts. The approved rhinoceros and scorpion designs use four directional model sheets (normal/hit for each), bringing the asset registry to 365 images; the original part rigs remain available as fallbacks. Boss images retain the 32-unit logical registration grid; six shell designs, specialised neck/tail sections and exposed joints vary the millipede along its length. Generate these with `python3 tools/generate-exterminator-boss-sprites.py`. Their bespoke rigs/poses live in `boss-art.ts`; simulation and collision live in `bosses.ts` and `millipede.ts`. Boss death flattens the frozen rig over 0.35 seconds during the return interval. Pause, restart and debug replacement retain the normal freeze/cleanup rules.
 
 
 Boss damage flashes use 27 prewarmed 128×128 brightened part canvases, held in a
@@ -662,3 +662,15 @@ completion/copy overhead; these are host diagnostics, not device FPS predictions
 `tools/benchmark-exterminator-boss-hits.ts` exercises this GPU/filter path separately
 from the CPU simulation benchmark. Bundle it with Bun for a temporary browser
 page served by the site; remove the generated page/bundle afterward.
+
+
+The approved 3D rhinoceros and revised scorpion artwork is active in gameplay and
+bugpedia portraits. Sixteen pre-rendered directions preserve their camera angle
+and surface lighting as they turn. Walking and attack pose frames, removable claw
+layers, and a connected extending tail preserve the existing combat behaviour.
+The model sheets include pre-brightened hit artwork, avoiding runtime filters.
+The model/render pipeline, footprint and regeneration instructions are documented
+in [the boss-art guide](exterminator-boss-art-study.md). The game does not render
+live Three.js scenes. Shared-browser normal/hit readback samples were 6.7/7.5 ms
+median for the rhino and 6.9/14.1 ms for the scorpion; these include full-canvas
+readback overhead and are not device FPS predictions.
