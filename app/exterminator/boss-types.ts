@@ -15,7 +15,7 @@ export type BossPhase = "approach" | "sweepWindup" | "sweep" | "chargeWindup" | 
 export type Boss = Vector & {
 	variant: BossVariant; health: number; maxHealth: number; angle: number; walkDistance: number; hitAt: number;
 	phase: BossPhase; remaining: number; attackIndex: number; target: Vector; claws: [number, number]; segments: BossSegment[]; trail?: Vector[]; routeIndex?: number;
-	windupDuration?: number; comboStep?: number; knockback: Vector; knockTime: number; diedAt?: number;
+	comboStep?: number; knockback: Vector; knockTime: number; diedAt?: number;
 };
 export type BossCircle = Vector & { radius: number; part: "body" | "head" | "joint" | "leftClaw" | "rightClaw" };
 export const isBossVariant = (id: string): id is BossVariant => (BOSS_TYPES as readonly string[]).includes(id);

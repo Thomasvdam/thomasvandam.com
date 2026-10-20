@@ -78,10 +78,10 @@ test("resolved boss limb centres stay aligned with world collision geometry afte
 });
 
 test("scorpion claw windups animate only the selected living claw", () => {
-	const pose = bossPose(boss("scorpion", { phase: "clawWindup", attackIndex: 1 }), 1);
+	const pose = bossPose(boss("scorpion", { phase: "clawWindup", remaining: .3, attackIndex: 1 }), 1);
 	expect(pose.clawL.angle).not.toBe(0);
 	expect(pose.clawR.angle).toBe(0);
-	const other = bossPose(boss("scorpion", { phase: "clawWindup", attackIndex: 2 }), 1);
+	const other = bossPose(boss("scorpion", { phase: "clawWindup", remaining: .3, attackIndex: 2 }), 1);
 	expect(other.clawL.angle).toBe(0);
 	expect(other.clawR.angle).not.toBe(0);
 });
@@ -125,4 +125,12 @@ test("millipede skins cover shell variants, weak sections, neck and tail", () =>
 		const weakIndex = 4;
 		expect(isMillipedeWeak(weakIndex)).toBe(true);
 		expect(regular[`shell${weakIndex}`]).toBe("bossMillipedeShellWeak");
+});
+
+test("millipede crossing tell progressively rears its head and braces front legs without moving its barrier", () => {
+	const b = boss("millipede", { phase: "crossingWindup", remaining: 1.25 });
+	const before = bossPose(b, 1); b.remaining = .625; const middle = bossPose(b, 1); b.remaining = 0; const ready = bossPose(b, 1);
+	expect(middle.head.y).toBeLessThan(before.head.y); expect(ready.head.y).toBeLessThan(middle.head.y);
+	expect(ready.legL0.angle).not.toBe(before.legL0.angle); expect(ready.legL30.angle).toBe(before.legL30.angle);
+	for (let i = 0; i < 56; i++) expect(ready[`segment${i}`]).toEqual(before[`segment${i}`]);
 });

@@ -1,8 +1,7 @@
 # Boss models and directional sprite sheets
 
 The approved rhinoceros beetle and revised scorpion models now supply gameplay
-and bugpedia artwork through pre-rendered directional sprite sheets. Movement,
-attacks, hitboxes and damage rules are unchanged; Three.js remains offline tooling.
+and bugpedia artwork through pre-rendered directional sprite sheets. Three.js remains offline tooling; combat state selects the authored wind-up poses.
 The original posed studies remain below for reference.
 
 - [Rhinoceros beetle](../public/images/exterminator/concepts/rhinoceros-3d-study.png)
@@ -68,9 +67,7 @@ await window.bossModelPreview.bake("scorpion");
 The receiver exits after writing four PNGs to `public/images/exterminator/bosses/`
 and the shared `app/exterminator/boss-sheets.json` manifest, or times out after ten
 minutes. `window.bossModelPreview.progress` reports the current render. Each sheet
-contains 16 camera-consistent headings and four walking frames. The rhino adds
-head/horn attack poses (128 cropped frames total). The scorpion separates body,
-claw windup/sweep poses, and six tail sections (256 cropped frames total).
+contains 16 camera-consistent headings and four walking frames. The rhino separates body/legs and head/horn layers, with four progressively authored poses for each charge, sweep and lift tell, plus three planted-leg poses (368 cropped frames total). The scorpion separates body, three dash-brace poses, four wind-up poses per claw, claw sweeps and six tail sections (400 cropped frames total). Head and claw layers rotate in the actual 3D model before baking; their smaller crops limit the additional atlas cost. Runtime coils the connected tail above the body during the sting tell, then snaps the whole chain to the locked target on the strike. Wind-up progress uses fixed attack durations and never adjusts to player terrain.
 
 The generated manifest records cropped source rectangles, projected ground
 origins, claw anchors and tail joints. It is generated data; edit the model or
@@ -79,7 +76,7 @@ centres and interpolates the connected tail to the locked sting target. Missing
 claws are omitted. Hit PNGs are brightened offline, so hit frames use normal image
 draws with no filtering or canvas allocation. The millipede keeps its existing rig.
 
-Both normal and hit sheets decode to about 54.4 MiB of RGBA pixels combined; the
-four compressed PNGs total about 6.2 MiB. The loader shares one promise/decoded set between
+Both normal and hit sheets decode to about 69.4 MiB of RGBA pixels combined; the
+four compressed PNGs total about 9.4 MiB. The loader shares one promise/decoded set between
 gameplay and bugpedia portraits, resetting failed loads so they can be retried.
 This is a fixed asset cost rather than per-boss/per-frame allocation. No model geometry enters the game bundle.

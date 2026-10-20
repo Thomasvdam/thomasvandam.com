@@ -13,7 +13,6 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 	if (lit && alive) {
 		ctx.save(); ctx.strokeStyle = "#f0b471"; ctx.fillStyle = "#e89b4e33"; ctx.lineWidth = 2;
 		const cone = bossCone(boss);
-		let duration: number = 0;
 		if (boss.phase === "chargeWindup" || boss.phase === "charge" || boss.phase === "crossingWindup" || boss.phase === "crossing") {
 			const crossing = boss.variant === "millipede", dash = boss.variant === "scorpion";
 			const attack = crossing ? BOSS_ATTACKS.crossing : dash ? BOSS_ATTACKS.dash : BOSS_ATTACKS.charge;
@@ -23,18 +22,11 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 			ctx.fillRect(0, -attack.radius, length, attack.radius * 2); ctx.strokeRect(0, -attack.radius, length, attack.radius * 2);
 			ctx.beginPath(); ctx.arc(length, 0, attack.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 			ctx.restore();
-			duration = attack.windup;
 		} else if (cone) {
 			ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.arc(boss.x, boss.y, cone.range, cone.angle - cone.halfAngle, cone.angle + cone.halfAngle); ctx.closePath(); ctx.fill(); ctx.stroke();
-			duration = cone.windup;
 		} else if (boss.phase === "stingWindup" || boss.phase === "sting") {
 			ctx.beginPath(); ctx.arc(boss.target.x, boss.target.y, BOSS_ATTACKS.sting.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 			ctx.beginPath(); ctx.moveTo(boss.target.x - 12, boss.target.y); ctx.lineTo(boss.target.x + 12, boss.target.y); ctx.moveTo(boss.target.x, boss.target.y - 12); ctx.lineTo(boss.target.x, boss.target.y + 12); ctx.stroke();
-			duration = BOSS_ATTACKS.sting.windup;
-		}
-		if (duration && boss.phase.endsWith("Windup")) {
-			ctx.strokeStyle = "#ffe1a3"; ctx.lineWidth = 4;
-			ctx.beginPath(); ctx.arc(boss.x, boss.y, 54, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, 1 - boss.remaining / (boss.windupDuration ?? duration))); ctx.stroke();
 		}
 		if (boss.variant === "scorpion") for (const index of [0, 1]) if (boss.claws[index] > 0) {
 			const point = clawPosition(boss, index); ctx.fillStyle = "#362b20"; ctx.fillRect(point.x - 18, point.y + 24, 36, 4); ctx.fillStyle = "#ebbf7b"; ctx.fillRect(point.x - 18, point.y + 24, 36 * boss.claws[index] / 30, 4);

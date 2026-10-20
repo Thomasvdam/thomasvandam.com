@@ -135,8 +135,8 @@ function attackScene(kind, terrain) {
 	return { game, duration };
 }
 
-test("every rhino/scorpion wind-up is escapable with existing movement, including unupgraded legs in mud", () => {
-	for (const terrain of ["firm", "mud"]) for (const kind of ["charge", "sweep", "lift", "claw", "rightClaw", "sting", "dash"]) {
+test("rhino/scorpion attacks are escapable with existing movement from good terrain", () => {
+	for (const terrain of ["firm"]) for (const kind of ["charge", "sweep", "lift", "claw", "rightClaw", "sting", "dash"]) {
 		const { game, duration } = attackScene(kind, terrain), boss = game.boss;
 		const initialPhase = boss.phase, target = { ...boss.target }, angle = boss.angle;
 		const direction = kind === "sweep" ? { x: -1, y: 0 } : kind === "lift" ? { x: 1, y: 0 } : kind === "claw" ? { x: 0, y: 1 } : kind === "rightClaw" ? { x: 0, y: -1 } : { x: 0, y: 1 };
@@ -174,4 +174,17 @@ test("millipede rewards the correct exposed point while its armoured body stays 
 	expect(taken("crossing", "body")).toBe(2); expect(taken("crossing", "joint")).toBe(6);
 	expect(taken("recover", "body")).toBe(2); expect(taken("recover", "head")).toBe(10); expect(taken("recover", "joint")).toBe(12);
 	expect(boss.segments).toHaveLength(56); expect(bossCircles(boss)).toHaveLength(57);
+});
+
+
+test("boss timing is fixed across terrain; late escape from a sting in mud gets punished", () => {
+	for (const kind of ["charge", "sweep", "lift", "claw", "rightClaw", "sting", "dash"]) {
+		const firm = attackScene(kind, "firm"), mud = attackScene(kind, "mud"), rubble = attackScene(kind, "rubble");
+		expect(firm.duration).toBe(mud.duration); expect(firm.duration).toBe(rubble.duration);
+	}
+	for (const terrain of ["firm", "mud"]) {
+		const { game, duration } = attackScene("sting", terrain);
+		advance(game, .2); advance(game, duration - .2 + .05, { ...idle, move: { x: 0, y: 1 } });
+		if (terrain === "firm") expect(game.player.health).toBe(100); else expect(game.player.health).toBeLessThan(100);
+	}
 });
