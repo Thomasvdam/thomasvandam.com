@@ -1,91 +1,111 @@
 import { expect, test } from "bun:test";
-import { createBoss, stepBoss, bossCircles } from "./bosses";
-import { newGame, FIELD, start, chooseHive, step } from "./game";
+import { createBoss, stepBoss, bossCircles, damageBoss, blastBoss, flameBoss } from "./bosses";
+import { newGame, FIELD, start, chooseHive, step, clearCombat } from "./game";
 import { MILLIPEDE_SEGMENT_COUNT, MILLIPEDE_SPACING } from "./boss-types";
-import { resolveMillipedeBarrier, followMillipedeTrail } from "./millipede";
-function game() { const game = newGame(); game.mode = "playing"; game.player.invulnerable = 100000; game.boss = createBoss("millipede", 4, game.player); return game; }
+import { resolveMillipedeBarrier, positionMillipede, rampageSafeZone, insideSafeZone, MILLIPEDE_PATTERNS, ACID_POOL_LIFETIME, ACID_POOL_TICK, ACID_BOMB_FLIGHT } from "./millipede";
+const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: -1 }, fire: false };
+function game() {
+	const g = newGame(47); start(g); chooseHive(g, g.hives[0].id); g.toSpawn = 1; g.spawnTimer = 10000; g.spawns = []; g.enemies = []; g.terrain.fill("firm");
+	g.player.invulnerable = 100000; g.boss = createBoss("millipede", 4, g.player); return g;
+}
+function advance(g, seconds, input = idle) { for (let i = 0; i < Math.round(seconds * 120); i++) step(g, input, 1 / 120); }
+function until(g, phase, max = 20) { for (let i = 0; i < max * 120 && g.boss.phase !== phase; i++) step(g, idle, 1 / 120); expect(g.boss.phase).toBe(phase); }
 
-test("millipede has an articulated body longer than the arena and emerges before becoming solid", () => {
-	const g = game(), b = g.boss; expect(b.segments).toHaveLength(MILLIPEDE_SEGMENT_COUNT); expect(b.segments.length * MILLIPEDE_SPACING).toBeGreaterThan(FIELD.width);
-	expect(b.phase).toBe("emerge"); const point = { ...b.segments[10] }; expect(resolveMillipedeBarrier(b, point, { ...point })).toBe(false);
-	for (const s of b.segments) { expect(s.x).toBeGreaterThanOrEqual(18); expect(s.x).toBeLessThanOrEqual(FIELD.width - 18); expect(s.y).toBeGreaterThanOrEqual(18); expect(s.y).toBeLessThanOrEqual(FIELD.height - 18); }
+test("millipede suggests almost eight arena-widths of body and opens with acid from the north edge", () => {
+	const g = game(), b = g.boss; expect(b.segments.length).toBe(MILLIPEDE_SEGMENT_COUNT); expect(b.segments.length * MILLIPEDE_SPACING).toBeGreaterThan(FIELD.width * 7);
+	expect(b.phase).toBe("emerge"); expect(resolveMillipedeBarrier(b, g.player, { ...g.player })).toBe(false);
+	advance(g, 3); expect(b.phase).toBe("acid"); expect(b.y).toBe(115); expect(g.acid.length).toBeGreaterThan(0);
+	advance(g, 5); expect(b.millipede.bombs.length + b.millipede.pools.length).toBeGreaterThan(0); expect(b.millipede.rampages).toBe(0);
 });
 
-test("long body follows a bounded path for multiple arena sweeps without coiling or segment bunching", () => {
-	const g = game(), b = g.boss, phases = new Set(), xs = [], ys = [];
-	for (let i = 0; i < 120 * 90; i++) {
-		g.time += 1 / 120; g.player.x = 560 + Math.cos(g.time * .47) * 430; g.player.y = 360 + Math.sin(g.time * .31) * 240; stepBoss(g, 1 / 120, g.player); phases.add(b.phase);
-		if (i % 120 === 0) { xs.push(b.x); ys.push(b.y); let leader = b; for (const segment of b.segments) { const d = Math.hypot(leader.x - segment.x, leader.y - segment.y); expect(d).toBeLessThanOrEqual(MILLIPEDE_SPACING + .01); expect(d).toBeGreaterThan(15); leader = segment; } }
+test("80/60/40/20 percent thresholds each queue one complete rampage and never repeat", () => {
+	const g = game(), b = g.boss, state = b.millipede; b.health = b.maxHealth * .19;
+	const patterns = new Set();
+	for (let count = 1; count <= 4; count++) {
+		until(g, "crossingWindup"); expect(state.rampages).toBe(count); patterns.add(state.pattern);
+		const safe = { ...state.safe }, before = g.acid.length; state.bombs = []; state.pools = [];
+		advance(g, 1); expect(b.phase).toBe("crossingWindup"); expect(state.safe).toEqual(safe); expect(g.acid.length).toBeLessThanOrEqual(before);
+		until(g, "crossing"); advance(g, 7.5); expect(b.phase).toBe("crossing");
+		until(g, "return"); until(g, "acid"); expect(state.rampages).toBe(count);
 	}
-	expect(phases).toEqual(new Set(["emerge", "crossingWindup", "crossing", "recover"])); expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(750); expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(300);
-	expect(b.trail.length).toBeLessThan(410);
+	expect(patterns.size).toBe(3); advance(g, 15); expect(state.rampages).toBe(4); expect(b.y).toBe(115);
 });
 
-test("body capsules stop swept crossings and remain escapable when moving away", () => {
-	const g = game(), b = g.boss; b.phase = "crossing"; b.x = 200; b.y = 300; b.segments = Array.from({ length: 20 }, (_, i) => ({ x: 200 + (i + 1) * 26, y: 300 }));
-	const previous = { x: 450, y: 200 }, mech = { x: 450, y: 400 }; expect(resolveMillipedeBarrier(b, mech, previous)).toBe(true); expect(mech.y).toBeLessThanOrEqual(268);
-	const away = { x: mech.x, y: mech.y - 50 }; resolveMillipedeBarrier(b, away, mech); expect(away.y).toBeLessThan(mech.y - 40);
-	expect(bossCircles(b).length).toBe(21);
-});
-
-
-test("normal movement input cannot cross the moving body, and contact uses player armour", () => {
-	const g = newGame(); start(g); chooseHive(g, g.hives[0].id);
-	g.toSpawn = 0; g.spawns = []; g.enemies = []; g.boss = createBoss("millipede", 4, g.player);
-	const b = g.boss; b.phase = "crossing"; b.x = 200; b.y = 300;
-	b.segments = Array.from({ length: 20 }, (_, i) => ({ x: 200 + (i + 1) * 26, y: 300 }));
-	// Keep the path coherent while it starts advancing towards the left edge.
-	b.trail = Array.from({ length: 150 }, (_, i) => ({ x: 200 + i * 4, y: 300 }));
-	g.player.x = 450; g.player.y = 250; g.player.invulnerable = 0; g.parts.armour = 5;
-	const health = g.player.health;
-	for (let i = 0; i < 60; i++) step(g, { move: { x: 0, y: 1 }, aim: { x: 0, y: 1 }, fire: false }, 1 / 120);
-	expect(g.player.y).toBeLessThan(270); expect(g.player.health).toBeLessThan(health);
-	expect(health - g.player.health).toBeLessThanOrEqual(10);
-});
-
-test("virtual head sampling preserves breadcrumb ownership and matches an explicit prefix", () => {
-	const original = game().boss, explicit = globalThis.structuredClone(original);
-	original.x -= 3; explicit.x -= 3;
-	const trail = original.trail, saved = globalThis.structuredClone(trail);
-	for (const point of trail) expect(Object.keys(point).sort()).toEqual(["x", "y"]);
-	explicit.trail.unshift({ x: explicit.x, y: explicit.y });
-	followMillipedeTrail(original, true); followMillipedeTrail(explicit);
-	expect(original.segments).toEqual(explicit.segments);
-	expect(original.trail).toBe(trail); expect(trail).toEqual(saved);
-});
-
-test("millipede signals a locked lane, crosses quickly, then stops its entire body for a punish window", () => {
-	const g = game(), b = g.boss; b.remaining = 0; stepBoss(g, 1 / 120, g.player);
-	expect(b.phase).toBe("crossingWindup"); const locked = { ...b.target }, still = globalThis.structuredClone([b, ...b.segments].map(({ x, y }) => ({ x, y })));
-	for (let i = 0; i < 100; i++) { g.player.y += .1; stepBoss(g, 1 / 120, g.player); }
-	expect(b.target).toEqual(locked); expect([b, ...b.segments].map(({ x, y }) => ({ x, y }))).toEqual(still);
-	while (b.phase !== "crossing") stepBoss(g, 1 / 120, g.player);
-	const x = b.x; for (let i = 0; i < 12; i++) stepBoss(g, 1 / 120, g.player); expect(x - b.x).toBeCloseTo(36);
-	while (b.phase !== "recover") stepBoss(g, 1 / 120, g.player);
-	expect(b.remaining).toBeCloseTo(1.9); const resting = globalThis.structuredClone([b, ...b.segments].map(({ x, y }) => ({ x, y })));
-	for (let i = 0; i < 120; i++) stepBoss(g, 1 / 120, g.player);
-	expect([b, ...b.segments].map(({ x, y }) => ({ x, y }))).toEqual(resting);
-});
-
-test("a signalled millipede crossing can be escaped with unupgraded movement in mud", () => {
-	for (const evade of [true, false]) {
-		const g = newGame(); start(g); chooseHive(g, g.hives[0].id); g.toSpawn = 1; g.spawnTimer = 1000; g.spawns = []; g.enemies = []; g.terrain.fill("mud");
-		g.boss = createBoss("millipede", 4, g.player); g.boss.remaining = 0; g.player.x = 850; g.player.y = 360; g.player.invulnerable = 0;
-		for (let i = 0; i < 3.5 * 120; i++) step(g, { move: { x: 0, y: evade && i > .2 * 120 && i < 1.2 * 120 ? 1 : 0 }, aim: { x: 1, y: 0 }, fire: false }, 1 / 120);
-		if (evade) expect(g.player.health).toBe(100); else expect(g.player.health).toBeLessThan(100);
+test("each pattern's reserved zone stays free of the head, bodies and collision bridges for the full rampage", () => {
+	for (const pattern of MILLIPEDE_PATTERNS) for (const player of [{ x: 100, y: 150 }, { x: 560, y: 360 }, { x: 1000, y: 650 }]) {
+		const g = game(), b = g.boss, state = b.millipede; state.pattern = pattern; state.safe = rampageSafeZone(pattern, player); b.phase = "crossing";
+		expect(insideSafeZone(player, state.safe)).toBe(false);
+		for (let tick = 0; tick <= 32; tick++) {
+			state.elapsed = tick / 4; positionMillipede(b);
+			for (const circle of bossCircles(b)) expect(insideSafeZone(circle, state.safe, 14)).toBe(false);
+			for (const fx of [.1, .5, .9]) for (const fy of [.1, .5, .9]) {
+				const point = { x: state.safe.x + state.safe.width * fx, y: state.safe.y + state.safe.height * fy }, previous = { ...point };
+				expect(resolveMillipedeBarrier(b, point, previous)).toBe(false); expect(point).toEqual(previous);
+			}
+		}
 	}
 });
 
-test("millipede chooses a crossing through the player's side, then commits despite repositioning", () => {
-	const targets = [];
-	for (const y of [200, 520]) {
-		const g = game(), b = g.boss; g.player.x = 560; g.player.y = y; b.remaining = 0;
-		stepBoss(g, 1 / 120, g.player); const target = { ...b.target }; targets.push(target);
-		const dx = target.x - b.x, dy = target.y - b.y;
-		expect(Math.abs((g.player.x - b.x) * dy - (g.player.y - b.y) * dx) / Math.hypot(dx, dy)).toBeLessThan(1);
-		g.player.y = 720 - y;
-		for (let i = 0; i < 160; i++) stepBoss(g, 1 / 120, g.player);
-		expect(b.target).toEqual(target);
+test("body previews and returns cannot hurt or block; active ribbons block without connecting separate passes", () => {
+	const g = game(), b = g.boss;
+	b.segments = [{ x: 200, y: 300, breakBefore: true }, { x: 226, y: 300 }, { x: 800, y: 300, breakBefore: true }];
+	for (const phase of ["emerge", "crossingWindup", "return"]) { b.phase = phase; const point = { x: 210, y: 300 }; expect(resolveMillipedeBarrier(b, point, { ...point })).toBe(false); }
+	b.phase = "crossing";
+	const point = { x: 210, y: 400 }; expect(resolveMillipedeBarrier(b, point, { x: 210, y: 200 })).toBe(true); expect(point.y).toBeLessThan(270);
+	const gap = { x: 500, y: 400 }; expect(resolveMillipedeBarrier(b, gap, { x: 500, y: 200 })).toBe(false);
+});
+
+test("acid phase head is vulnerable; rampage head and joints bypass armour; area weapons hit shared health once", () => {
+	const g = game(), b = g.boss;
+	function taken(phase, part) { b.phase = phase; const before = b.health; damageBoss(b, 4, g.time, part); return before - b.health; }
+	expect(taken("acid", "head")).toBe(4); expect(taken("acid", "body")).toBeCloseTo(.4);
+	expect(taken("crossing", "body")).toBeCloseTo(.4); expect(taken("crossing", "head")).toBe(12); expect(taken("crossing", "joint")).toBe(12);
+	b.phase = "acid"; b.segments = Array.from({ length: 20 }, () => ({ x: b.x, y: b.y }));
+	let health = b.health; blastBoss(g, b, 200, 4); expect(health - b.health).toBe(4);
+	health = b.health; flameBoss(g, { x: b.x, y: b.y + 70 }, -Math.PI / 2, 250, Math.PI / 4, 2); expect(health - b.health).toBe(2);
+});
+
+test("bomb lands at its locked target; pools last ten seconds through rampages and overlapping pools share DOT ticks", () => {
+	const g = game(), b = g.boss, state = b.millipede; b.phase = "bombWindup"; b.remaining = .001; state.acidTime = 0;
+	b.target = { x: 700, y: 500 }; stepBoss(g, 1 / 120, g.player); expect(state.bombs).toHaveLength(1);
+	g.player.x = 800; advance(g, ACID_BOMB_FLIGHT + .1); expect(state.pools[0].x).toBe(700); expect(state.pools[0].y).toBe(500);
+	b.health = b.maxHealth * .79; until(g, "crossingWindup"); expect(state.pools).toHaveLength(1);
+	g.player.x = 700; g.player.y = 500; g.player.invulnerable = 100; state.poolTick = 0;
+	state.pools.push({ ...state.pools[0] }); const health = g.player.health, invulnerability = g.player.invulnerable;
+	stepBoss(g, 1 / 120, g.player); expect(health - g.player.health).toBe(2); expect(g.player.invulnerable).toBe(invulnerability);
+	for (let i = 0; i < 50; i++) { g.time += 1 / 120; stepBoss(g, 1 / 120, g.player); }
+	expect(health - g.player.health).toBe(2);
+	for (let i = 0; i < 12; i++) { g.time += 1 / 120; stepBoss(g, 1 / 120, g.player); }
+	expect(health - g.player.health).toBe(4); expect(ACID_POOL_TICK).toBe(.5);
+	g.time += ACID_POOL_LIFETIME; stepBoss(g, 1 / 120, g.player); expect(state.pools).toHaveLength(0);
+});
+
+test("acid DOT respects armour and frame rate, cannot stack, and never grants hit invulnerability", () => {
+	for (const fps of [30, 60, 120]) for (const armour of [0, 5]) {
+		const g = game(), b = g.boss, state = b.millipede; b.phase = "acid"; g.parts.armour = armour; g.player.invulnerable = 0;
+		state.pools = Array.from({ length: 4 }, () => ({ x: g.player.x, y: g.player.y, bornAt: 0 }));
+		for (let i = 0; i < fps * 2; i++) { g.time += 1 / fps; stepBoss(g, 1 / fps, g.player); }
+		expect(g.player.health).toBe(armour ? 96 : 92); expect(g.player.invulnerable).toBe(0);
 	}
-	expect(targets[0].y).toBeLessThan(targets[1].y);
+});
+
+test("pause freezes phases, projectiles and puddles; death and debug cleanup stop the fight", () => {
+	const g = game(); advance(g, 6); g.mode = "paused"; const snapshot = JSON.stringify(g); advance(g, 2); expect(JSON.stringify(g)).toBe(snapshot);
+	g.mode = "playing"; g.boss.health = 0; const state = JSON.stringify(g.boss); stepBoss(g, .1, g.player); expect(JSON.stringify(g.boss)).toBe(state);
+	clearCombat(g); expect(g.boss).toBeNull(); expect(g.acid).toHaveLength(0);
+});
+
+test("reading each rampage preview and moving into its opening evades damage; standing still can be hit", () => {
+	for (const pattern of MILLIPEDE_PATTERNS) for (const evade of [false, true]) {
+		const g = game(), b = g.boss, state = b.millipede; g.player.invulnerable = 0;
+		g.player.x = 560; g.player.y = 360; b.phase = "crossingWindup"; b.remaining = 2.2;
+		state.pattern = pattern; state.safe = rampageSafeZone(pattern, g.player); state.rampages = 1; b.health = b.maxHealth * .79;
+		const target = { x: state.safe.x + state.safe.width / 2, y: state.safe.y + state.safe.height / 2 };
+		for (let i = 0; i < 10 * 120 && g.mode === "playing"; i++) {
+			const dx = target.x - g.player.x, dy = target.y - g.player.y, distance = Math.hypot(dx, dy);
+			const move = evade && i > 24 && distance > 3 ? { x: dx / distance, y: dy / distance } : idle.move;
+			step(g, { ...idle, move }, 1 / 120);
+		}
+		if (evade) expect(g.player.health, pattern).toBe(100); else expect(g.player.health, pattern).toBeLessThan(100);
+	}
 });

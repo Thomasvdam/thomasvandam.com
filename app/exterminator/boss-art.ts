@@ -1,13 +1,14 @@
+import { drawMillipede, type MillipedeVisible } from "./millipede-art";
 import { activeClaw as bossActiveClaw, bossWindupProgress } from "./boss-patterns";
 import { drawModelBoss } from "./model-boss-renderer";
 import type { Bone, Pose, Rig, Transform } from "./animation";
 import { drawRig } from "./rig-renderer";
 import type { Sprites } from "./renderer";
-import type { Skin, SpritePart } from "./sprite-parts";
-import { isMillipedeWeak, MILLIPEDE_SEGMENT_COUNT, MILLIPEDE_SPACING, type Boss } from "./boss-types";
+import type { Skin } from "./sprite-parts";
+import type { Boss } from "./boss-types";
 
 export type BossVariant = "rhinoceros" | "scorpion" | "millipede";
-export const BOSS_SCALE: Record<BossVariant, number> = { rhinoceros: 2.7, scorpion: 2.4, millipede: 1.25 };
+export const BOSS_SCALE: Record<Exclude<BossVariant, "millipede">, number> = { rhinoceros: 2.7, scorpion: 2.4 };
 
 const SCORPION_TAIL_X = [-25 / 2.4, -18, -17, -15, -11] as const;
 const SCORPION_TAIL_ANGLES = [-.45, -.45, -.5, -.55, -.45] as const;
@@ -47,45 +48,15 @@ export const SCORPION_RIG: Rig = [
 	{ id: "clawR", parent: "root", x: 45 / 2.4, y: 38 / 2.4, angle: .18, slot: "claw", layer: 4, flipY: true },
 ];
 
-export const MILLIPEDE_RIG: Rig = [
-	{ id: "root", x: 0, y: 0, layer: 0 },
-	...Array.from({ length: MILLIPEDE_SEGMENT_COUNT }, (_, index): Bone[] => {
-		const segment = `segment${index}`;
-		return [
-			{ id: segment, parent: "root", x: -(index + 1) * MILLIPEDE_SPACING / BOSS_SCALE.millipede, y: 0, layer: 0 },
-			{ id: `legL${index}`, parent: segment, x: 0, y: -12 / BOSS_SCALE.millipede, angle: -.8, slot: `legsL${index}`, layer: 0, flipY: true },
-			{ id: `legR${index}`, parent: segment, x: 0, y: 12 / BOSS_SCALE.millipede, angle: .8, slot: `legsR${index}`, layer: 0 },
-			{ id: `segmentBody${index}`, parent: segment, x: 0, y: 0, slot: `body${index}`, layer: 1 },
-			{ id: `segmentShell${index}`, parent: segment, x: 0, y: 0, slot: `shell${index}`, layer: 2 },
-		];
-	}).flat(),
-	{ id: "neckLink", parent: "root", x: -10, y: 0, slot: "neckLink", layer: 3 },
-	{ id: "head", parent: "root", x: 0, y: 0, slot: "head", layer: 4 },
-];
-
 const RHINO_SKIN: Skin = { body: "bossRhinoBody", shell: "bossRhinoShell", head: "bossRhinoHead", horn: "bossRhinoHorn", legs: "bossRhinoLeg" };
 const SCORPION_SKIN: Skin = { body: "bossScorpionBody", shell: "bossScorpionShell", head: "bossScorpionHead", claw: "bossScorpionClaw", tail: "bossScorpionTail", stinger: "bossScorpionStinger", legs: "bossScorpionLeg" };
 
-export function bossRig(variant: BossVariant): Rig {
-	return variant === "rhinoceros" ? RHINOCEROS_RIG : variant === "scorpion" ? SCORPION_RIG : MILLIPEDE_RIG;
+export function bossRig(variant: "rhinoceros" | "scorpion"): Rig {
+	return variant === "rhinoceros" ? RHINOCEROS_RIG : SCORPION_RIG;
 }
 
-const MILLIPEDE_SKIN: Skin = (() => {
-	const skin: Record<string, SpritePart | undefined> = { head: "bossMillipedeHead", neckLink: "bossMillipedeNeckBody" };
-	const shells: readonly SpritePart[] = ["bossMillipedeShellA", "bossMillipedeShellB", "bossMillipedeShellC", "bossMillipedeShellD", "bossMillipedeShellE", "bossMillipedeShellF"];
-	for (let index = 0; index < MILLIPEDE_SEGMENT_COUNT; index++) {
-		const weak = isMillipedeWeak(index);
-		const front = index < 2, tail = index === MILLIPEDE_SEGMENT_COUNT - 1;
-		skin[`body${index}`] = weak ? "bossMillipedeBodyWeak" : front ? "bossMillipedeNeckBody" : tail ? "bossMillipedeTailBody" : "bossMillipedeBody";
-		skin[`shell${index}`] = weak ? "bossMillipedeShellWeak" : front ? "bossMillipedeNeckShell" : tail ? "bossMillipedeTailShell" : shells[index % shells.length];
-		skin[`legsL${index}`] = "bossMillipedeLeg";
-		skin[`legsR${index}`] = "bossMillipedeLeg";
-	}
-	return skin;
-})();
-
-export function bossSkin(variant: BossVariant): Skin {
-	return variant === "rhinoceros" ? RHINO_SKIN : variant === "scorpion" ? SCORPION_SKIN : MILLIPEDE_SKIN;
+export function bossSkin(variant: "rhinoceros" | "scorpion"): Skin {
+	return variant === "rhinoceros" ? RHINO_SKIN : SCORPION_SKIN;
 }
 
 function stride(distance: number, time: number, offset: number, speed = 1) {
@@ -177,41 +148,15 @@ function scorpionPose(boss: Boss, time: number): Pose {
 	return pose;
 }
 
-function millipedePose(boss: Boss, time: number): Pose {
-	const pose: Record<string, Transform> = { root: { angle: boss.angle } };
-	const segments = boss.segments ?? [];
-	const gait = boss.phase === "crossing" ? 1.8 : boss.phase === "turn" ? 1.05 : 1.35;
-	const c = Math.cos(boss.angle), s = Math.sin(boss.angle), scale = BOSS_SCALE.millipede;
-	for (let index = 0; index < MILLIPEDE_SEGMENT_COUNT; index++) {
-		const expectedDistance = (index + 1) * MILLIPEDE_SPACING;
-		const segment = segments[index] ?? { x: boss.x - c * expectedDistance, y: boss.y - s * expectedDistance };
-		const dx = segment.x - boss.x, dy = segment.y - boss.y;
-		const x = dx * c + dy * s, y = -dx * s + dy * c;
-		const leader = index === 0 ? boss : segments[index - 1] ?? boss;
-		const segmentAngle = Math.atan2(leader.y - segment.y, leader.x - segment.x) - boss.angle;
-		const baseX = -(index + 1) * MILLIPEDE_SPACING / scale;
-		const liveSegment = segments[index];
-		const visible = liveSegment !== undefined;
-		pose[`segment${index}`] = { x: x / scale - baseX, y: y / scale, angle: segmentAngle, opacity: visible ? 1 : 0 };
-		const brace = boss.phase === "crossingWindup" ? bossWindupProgress(boss) * Math.max(0, 1 - index / 10) : 0;
-		const step = stride(boss.walkDistance + index * 6, boss.phase === "crossing" ? time : 0, index * .9, gait);
-		pose[`legL${index}`] = { angle: -.8 + step * .18 - brace * .6, x: step * 1.3 - brace * 2, scaleY: visible ? 1 : 0 };
-		pose[`legR${index}`] = { angle: .8 - step * .18 + brace * .6, x: -step * 1.3 - brace * 2, scaleY: visible ? 1 : 0 };
-	}
-	const rear = boss.phase === "crossingWindup" ? bossWindupProgress(boss) : 0;
-	pose.neckLink = { y: -5 * rear, angle: -.5 * rear, scaleX: .8, scaleY: .7, opacity: rear > 0 ? 1 : 0 };
-	pose.head = { y: boss.phase === "crossingWindup" ? -10 * bossWindupProgress(boss) : boss.phase === "crossing" ? Math.sin(time * 3) * .8 : 0, angle: boss.phase === "crossingWindup" ? -.2 * bossWindupProgress(boss) : boss.phase === "turn" ? .15 : 0 };
-	return pose;
-}
-
 export function bossPose(boss: Boss, time: number): Pose {
-	return boss.variant === "rhinoceros" ? rhinoPose(boss, time) : boss.variant === "scorpion" ? scorpionPose(boss, time) : millipedePose(boss, time);
+	return boss.variant === "rhinoceros" ? rhinoPose(boss, time) : scorpionPose(boss, time);
 }
 
 /** Draw a live boss or its static portrait. The caller supplies world/portrait coordinates in boss.x/y. */
-export function drawBoss(ctx: CanvasRenderingContext2D, sprites: Sprites, boss: Boss, time: number, _portrait = false) {
+export function drawBoss(ctx: CanvasRenderingContext2D, sprites: Sprites, boss: Boss, time: number, _portrait = false, visible?: MillipedeVisible) {
+	if (boss.variant === "millipede") { drawMillipede(ctx, sprites, boss, time, visible); return; }
 	if (drawModelBoss(ctx, sprites, boss, time)) return;
-	const variant = boss.variant as BossVariant;
+	const variant = boss.variant;
 	const skin = bossSkin(variant);
 	const rig = bossRig(variant);
 	drawRig(ctx, sprites, rig, skin, bossPose(boss, time), boss.x, boss.y, BOSS_SCALE[variant]);

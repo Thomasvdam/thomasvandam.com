@@ -3,9 +3,8 @@
 // The live-filter comparison can take seconds per frame on some canvas backends.
 import { drawBoss } from "../app/exterminator/boss-art";
 import { drawBossFight } from "../app/exterminator/boss-renderer";
-import { createBoss } from "../app/exterminator/bosses";
+import { createBoss, stepBoss } from "../app/exterminator/bosses";
 import { newGame } from "../app/exterminator/game";
-import { stepMillipede } from "../app/exterminator/millipede";
 import { loadSprites } from "../app/exterminator/renderer";
 
 async function benchmark() {
@@ -13,8 +12,8 @@ async function benchmark() {
 	canvas.width = 1120; canvas.height = 720; document.body.append(output, canvas);
 	const ctx = canvas.getContext("2d")!, sprites = await loadSprites(), game = newGame();
 	ctx.imageSmoothingEnabled = false;
-	game.boss = createBoss("millipede", 14, game.player); game.boss.phase = "crossing"; game.boss.remaining = 0; game.time = 8;
-	for (let i = 0; i < 600; i++) stepMillipede(game.boss, 1 / 120, game.player);
+	game.boss = createBoss("millipede", 14, game.player); game.boss.health *= .79; game.boss.remaining = 0; game.time = 8;
+	for (let i = 0; i < 600; i++) { game.time += 1 / 120; stepBoss(game, 1 / 120, game.player); }
 	const cases = [
 		{ name: "normal", hit: false, draw: () => drawBossFight(ctx, game, sprites), frames: 12 },
 		{ name: "live-filter-hit", hit: true, frames: 4, draw: () => {

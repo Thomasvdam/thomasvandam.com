@@ -79,9 +79,10 @@ test("scorpion claws have independent hitboxes and health, removed claws cannot 
 
 test("every weapon can damage every boss and RPG/flame do not multiply damage across millipede segments", () => {
 	for (const variant of BOSS_TYPES) for (const weapon of ["cannon", "shotgun", "rpg", "flamethrower"]) {
-		const game = fight(variant), boss = game.boss; boss.phase = variant === "millipede" ? "crossing" : "recover"; boss.remaining = 100;
+		const game = fight(variant), boss = game.boss; boss.phase = variant === "millipede" ? "acid" : "recover"; boss.remaining = 100;
 		boss.x = game.player.x + 90; boss.y = game.player.y; if (variant === "millipede") boss.segments = Array.from({ length: 8 }, (_, i) => ({ x: boss.x + (i + 1) * 22, y: boss.y }));
-		game.weapon = weapon; const before = boss.health; advance(game, .3, { ...idle, fire: true }); expect(boss.health, `${variant}/${weapon}`).toBeLessThan(before);
+		if (variant === "millipede") { game.player.x = 570; game.player.y = 200; }
+		game.weapon = weapon; const before = boss.health; advance(game, .3, { ...idle, aim: variant === "millipede" ? { x: 0, y: -1 } : idle.aim, fire: true }); expect(boss.health, `${variant}/${weapon}`).toBeLessThan(before);
 	}
 });
 
@@ -103,8 +104,8 @@ test("bosses enter bugpedia only when their illuminated body is on screen and pe
 
 test("area attacks hit shared millipede health once and the nearest boss blocks shots to bugs behind it", () => {
 	const game = fight("millipede"), boss = game.boss; boss.phase = "crossing"; boss.segments = Array.from({ length: 8 }, () => ({ x: boss.x - 30, y: boss.y }));
-	const before = boss.health; blastBoss(game, boss, 200, 4); expect(before - boss.health).toBeCloseTo(.4);
-	const after = boss.health; flameBoss(game, { x: boss.x - 90, y: boss.y }, 0, 250, Math.PI / 4, 2); expect(after - boss.health).toBeCloseTo(.2);
+	const before = boss.health; blastBoss(game, boss, 200, 4); expect(before - boss.health).toBe(12);
+	const after = boss.health; flameBoss(game, { x: boss.x - 90, y: boss.y }, 0, 250, Math.PI / 4, 2); expect(after - boss.health).toBe(6);
 	const blocked = fight("rhinoceros"); blocked.boss.x = blocked.player.x + 80; blocked.boss.phase = "recover"; blocked.boss.remaining = 100;
 	const bug = createBug({ variant: "burrower", id: 99, position: { x: blocked.player.x + 180, y: blocked.player.y }, player: blocked.player, time: 0, threat: 1, wave: 1, bounds: FIELD }); bug.speed = 0; blocked.enemies.push(bug);
 	blocked.bullets.push({ id: 100, x: blocked.player.x + 25, y: blocked.player.y, vx: 12000, vy: 0, life: 1, weapon: "cannon", damage: 1, blastRadius: 0 });
@@ -165,14 +166,6 @@ test("scorpion plays both claws then delayed sting without passive recovery betw
 	}
 	expect(sequence).toEqual(["clawWindup:0", "claw:0", "clawWindup:1", "claw:1", "stingWindup:", "sting:", "embedded:"]);
 	boss.claws = [0, 0]; boss.phase = "approach"; boss.remaining = 0; stepBoss(game, 1 / 120, game.player); expect(boss.phase).toBe("stingWindup");
-});
-
-test("millipede rewards the correct exposed point while its armoured body stays intact", () => {
-	const boss = createBoss("millipede", 4, { x: 560, y: 360 });
-	function taken(phase, part) { boss.phase = phase; const before = boss.health; damageBoss(boss, 4, 0, part); return before - boss.health; }
-	expect(taken("crossing", "body")).toBeCloseTo(.4); expect(taken("crossing", "joint")).toBeCloseTo(.4);
-	expect(taken("recover", "body")).toBeCloseTo(.8); expect(taken("recover", "head")).toBe(12); expect(taken("recover", "joint")).toBe(12);
-	expect(boss.segments).toHaveLength(56); expect(bossCircles(boss)).toHaveLength(57);
 });
 
 
@@ -241,7 +234,7 @@ test("all weapons can punish the rhino flank and embedded stinger through actual
 });
 
 test("armoured hits do chip damage; correct recovery targets deal thirty times as much", () => {
-	for (const [variant, phase, part] of [["rhinoceros", "stuck", "flank"], ["scorpion", "embedded", "stinger"], ["millipede", "recover", "joint"]]) {
+	for (const [variant, phase, part] of [["rhinoceros", "stuck", "flank"], ["scorpion", "embedded", "stinger"]]) {
 		const boss = createBoss(variant, 4, { x: 560, y: 360 }); boss.phase = "approach";
 		let health = boss.health; damageBoss(boss, 4, 0); const chip = health - boss.health;
 		boss.phase = phase; health = boss.health; damageBoss(boss, 4, 0, part);

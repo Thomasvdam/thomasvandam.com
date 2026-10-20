@@ -1,6 +1,6 @@
 import { activeClaw, BOSS_ATTACKS, bossCone, bossDamageMultiplier, bossWeakPoints } from "./boss-patterns";
-import { stepMillipede, millipedeTrail, followMillipedeTrail, resolveMillipedeBarrier } from "./millipede";
-import { BOSS_SPECS, MILLIPEDE_SEGMENT_COUNT, isMillipedeWeak, type Boss, type BossCircle, type BossVariant } from "./boss-types";
+import { stepMillipede, initMillipede, resolveMillipedeBarrier } from "./millipede";
+import { BOSS_SPECS, isMillipedeWeak, type Boss, type BossCircle, type BossVariant } from "./boss-types";
 import { FIELD, PLAYER_RADIUS, type Game } from "./game";
 import { angleDifference, clamp, circleHitTime, distanceToSegment, type Vector } from "./math";
 import { hurtPlayer } from "./player-damage";
@@ -11,11 +11,7 @@ export function createBoss(variant: BossVariant, cleared: number, player: Vector
 	const x = player.x < FIELD.width / 2 ? FIELD.width - 130 : 130, y = player.y < FIELD.height / 2 ? FIELD.height - 130 : 130;
 	const angle = Math.atan2(player.y - y, player.x - x);
 	const boss: Boss = { variant, x, y, health, maxHealth: health, angle, walkDistance: 0, hitAt: -10, phase: "approach", remaining: 1, attackIndex: 0, target: { ...player }, claws: [30, 30], segments: Array.from({ length: 8 }, (_, i) => ({ x: clamp(x - Math.cos(angle) * (i + 1) * 22, 18, FIELD.width - 18), y: clamp(y - Math.sin(angle) * (i + 1) * 22, 18, FIELD.height - 18) })), knockback: { x: 0, y: 0 }, knockTime: 0 };
-	if (variant === "millipede") {
-		boss.x = 1030; boss.y = 360; boss.angle = Math.PI; boss.phase = "emerge"; boss.remaining = 2;
-		boss.segments = Array.from({ length: MILLIPEDE_SEGMENT_COUNT }, () => ({ x: boss.x, y: boss.y }));
-		boss.trail = millipedeTrail(boss); followMillipedeTrail(boss);
-	}
+	if (variant === "millipede") initMillipede(boss);
 	return boss;
 }
 export function clawPosition(boss: Boss, index: number) {
@@ -26,7 +22,10 @@ export function bossCircles(boss: Boss): BossCircle[] {
 	if (boss.health <= 0) return [];
 	const circles: BossCircle[] = [{ x: boss.x, y: boss.y, radius: boss.variant === "rhinoceros" ? 32 : BOSS_SPECS[boss.variant].radius, part: boss.variant === "millipede" ? "head" : "body" }];
 	if (boss.variant === "scorpion") for (const index of [0, 1]) if (boss.claws[index] > 0) circles.push({ ...clawPosition(boss, index), radius: 20, part: index === 0 ? "leftClaw" : "rightClaw" });
-	if (boss.variant === "millipede") circles.push(...boss.segments.map((point, index) => ({ ...point, radius: 18, part: isMillipedeWeak(index) ? "joint" as const : "body" as const })));
+	if (boss.variant === "millipede") {
+		if (boss.millipede?.headHidden || boss.x < -24 || boss.x > FIELD.width + 24 || boss.y < -24 || boss.y > FIELD.height + 24) circles.length = 0;
+		for (let index = 0; index < boss.segments.length; index++) { const point = boss.segments[index]; if (!point.hidden && point.x >= -18 && point.x <= FIELD.width + 18 && point.y >= -18 && point.y <= FIELD.height + 18) circles.push({ x: point.x, y: point.y, radius: 18, part: isMillipedeWeak(index) ? "joint" : "body" }); }
+	}
 	if (boss.variant !== "millipede") circles.push(...bossWeakPoints(boss));
 	return circles;
 }
@@ -56,7 +55,7 @@ export function flameBoss(game: Game, origin: Vector, angle: number, range: numb
 	const boss = game.boss; if (!boss || boss.health <= 0) return;
 	const circles = bossCircles(boss).filter(c => inFlame(c, c.radius, origin, angle, range, halfAngle));
 	if (!circles.length) return;
-	const body = circles.find(c => c.part === "flank" || c.part === "stinger" || c.part === "joint") ?? circles.find(c => c.part === "head") ?? circles.find(c => c.part === "body") ?? circles[0];
+	const body = circles.reduce((best, circle) => bossDamageMultiplier(boss, circle.part) > bossDamageMultiplier(boss, best.part) ? circle : best);
 	damageBoss(boss, damage, game.time, body.part);
 	for (const c of circles) if ((c.part === "leftClaw" || c.part === "rightClaw") && c !== body) { const i = c.part === "leftClaw" ? 0 : 1; boss.claws[i] = Math.max(0, boss.claws[i] - damage); }
 }
@@ -185,6 +184,6 @@ export function stepBoss(game: Game, dt: number, previousPlayer: Vector) {
 	boss.remaining = Math.max(0, boss.remaining - dt);
 	if (boss.variant === "rhinoceros") stepRhino(game, boss, dt, previousPlayer);
 	else if (boss.variant === "scorpion") stepScorpion(game, boss, dt, previousPlayer);
-	else { stepMillipede(boss, dt, game.player); if (resolveMillipedeBarrier(boss, game.player, previousPlayer, PLAYER_RADIUS)) hurtPlayer(game, 20); }
+	else { stepMillipede(game, boss, dt); if (resolveMillipedeBarrier(boss, game.player, previousPlayer, PLAYER_RADIUS)) hurtPlayer(game, 20); }
 	if (boss.variant !== "millipede" && bossCircles(boss).some(c => c.part !== "flank" && c.part !== "stinger" && distanceToSegment(c, previousPlayer, game.player) < c.radius + PLAYER_RADIUS)) hurtPlayer(game, boss.phase === "charge" ? boss.variant === "scorpion" ? 25 : 35 : 20);
 }

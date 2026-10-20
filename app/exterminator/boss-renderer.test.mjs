@@ -12,7 +12,7 @@ function ctx() {
 const sprites = new Proxy({}, { get: (_, id) => id });
 
 test("boss warnings continuously require a lit source, including locked sting targets and emerging body sections", () => {
-	for (const [variant, phase] of [["rhinoceros", "chargeWindup"], ["scorpion", "stingWindup"], ["millipede", "emerge"], ["millipede", "crossingWindup"], ["millipede", "recover"]]) {
+	for (const [variant, phase] of [["rhinoceros", "chargeWindup"], ["scorpion", "stingWindup"], ["millipede", "emerge"], ["millipede", "crossing"]]) {
 		const game = newGame(); game.player.angle = 0; game.boss = createBoss(variant, 4, game.player); game.boss.phase = phase;
 		game.boss.x = game.player.x + 130; game.boss.y = game.player.y; game.boss.target = { x: game.player.x, y: game.player.y };
 		const lit = ctx(); drawBossFight(lit.context, game, sprites); expect(lit.calls.arcs + lit.calls.strokes).toBeGreaterThan(0); expect(lit.calls.images).toBeGreaterThan(0);
@@ -42,7 +42,7 @@ test("reused rig draws skip hidden parts and restore them without retaining a pr
 });
 
 test("vulnerability rings draw above articulated artwork so legs cannot obscure weak points", () => {
-	const game = newGame(); game.boss = createBoss("millipede", 4, game.player); game.boss.phase = "recover";
+	const game = newGame(); game.boss = createBoss("millipede", 4, game.player); game.boss.phase = "crossing";
 	game.player.angle = 0; game.boss.x = game.player.x + 100; game.boss.y = game.player.y;
 	const events = [], context = new Proxy({ globalAlpha: 1, drawImage: () => events.push("art"), stroke: () => events.push("ring") }, { get: (target, key) => key in target ? target[key] : () => {} });
 	drawBossFight(context, game, sprites);

@@ -7,14 +7,22 @@ export const encounterName = (id: EncounterVariant) => isBossVariant(id) ? BOSS_
 export type BossVariant = typeof BOSS_TYPES[number];
 export const BOSS_NAMES: Record<BossVariant, string> = { rhinoceros: "Rhinoceros beetle", scorpion: "Scorpion", millipede: "Giant millipede" };
 export const BOSS_SPECS = { rhinoceros: { health: 160, speed: 340, radius: 42 }, scorpion: { health: 150, speed: 310, radius: 38 }, millipede: { health: 180, speed: 360, radius: 24 } };
-export const MILLIPEDE_SEGMENT_COUNT = 56;
+export const MILLIPEDE_SEGMENT_COUNT = 336;
 export const MILLIPEDE_SPACING = 26;
 export const isMillipedeWeak = (index: number) => index >= 3 && index % 8 === 4;
-export type BossSegment = Vector;
-export type BossPhase = "approach" | "sweepWindup" | "sweep" | "chargeWindup" | "charge" | "stuck" | "liftWindup" | "lift" | "recover" | "clawWindup" | "claw" | "stingWindup" | "sting" | "embedded" | "crossing" | "crossingWindup" | "turn" | "emerge";
+export type BossSegment = Vector & { angle?: number; hidden?: boolean; breakBefore?: boolean };
+export type MillipedePattern = "zigzag" | "lattice" | "diagonal";
+export type SafeZone = { x: number; y: number; width: number; height: number };
+export type MillipedeState = {
+	rampages: number; pattern: MillipedePattern; safe: SafeZone; elapsed: number; acidTime: number;
+	shotTimer: number; bombTimer: number; headHidden: boolean; poolTick: number;
+	bombs: { from: Vector; target: Vector; age: number }[];
+	pools: (Vector & { bornAt: number })[];
+};
+export type BossPhase = "approach" | "sweepWindup" | "sweep" | "chargeWindup" | "charge" | "stuck" | "liftWindup" | "lift" | "recover" | "clawWindup" | "claw" | "stingWindup" | "sting" | "embedded" | "crossing" | "crossingWindup" | "emerge" | "acid" | "bombWindup" | "return";
 export type Boss = Vector & {
 	variant: BossVariant; health: number; maxHealth: number; angle: number; walkDistance: number; hitAt: number;
-	phase: BossPhase; remaining: number; attackIndex: number; target: Vector; claws: [number, number]; segments: BossSegment[]; trail?: Vector[];
+	phase: BossPhase; remaining: number; attackIndex: number; target: Vector; claws: [number, number]; segments: BossSegment[]; millipede?: MillipedeState;
 	comboStep?: number; sequenceAttacks?: number; knockback: Vector; knockTime: number; diedAt?: number;
 };
 export type BossCircle = Vector & { radius: number; part: "body" | "head" | "joint" | "leftClaw" | "rightClaw" | "flank" | "stinger" };

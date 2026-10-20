@@ -1,7 +1,5 @@
 import { createBoss } from "../app/exterminator/bosses";
-import { BOSS_TYPES, MILLIPEDE_SEGMENT_COUNT } from "../app/exterminator/boss-types";
-import { bossPose, bossRig, bossSkin } from "../app/exterminator/boss-art";
-import { createRigResolver } from "../app/exterminator/animation";
+import { BOSS_TYPES } from "../app/exterminator/boss-types";
 import { CORNER_LIGHTS } from "../app/exterminator/lighting";
 import { canAttackLights, LAMP_HEALTH } from "../app/exterminator/light-threats";
 import { leaveCorpse } from "../app/exterminator/remains";
@@ -28,7 +26,7 @@ for (const scenario of [...Object.keys(scenarioTypes), ...BOSS_TYPES]) {
 	game.mode = "playing"; game.toSpawn = 1; game.spawnTimer = 1000; game.player.invulnerable = 1000;
 	if (scenario === "moths" || scenario === "light-attackers") for (const corner of CORNER_LIGHTS) { game.parts.cornerLights[corner.id] = true; game.lampHealth[corner.id] = LAMP_HEALTH; }
 	const bossVariant = BOSS_TYPES.find(type => type === scenario);
-	if (bossVariant) { game.boss = createBoss(bossVariant, 14, game.player); game.boss.phase = bossVariant === "millipede" ? "crossing" : "approach"; game.boss.remaining = 0; }
+	if (bossVariant) { game.boss = createBoss(bossVariant, 14, game.player); game.boss.phase = bossVariant === "millipede" ? "crossing" : "approach"; game.boss.remaining = bossVariant === "millipede" ? 8 : 0; if (game.boss.millipede) game.boss.millipede.pattern = "lattice"; }
 	for (let i = 0; i < (bossVariant ? 0 : scenario === "moths" ? 600 : 100); i++) {
 		const variants = scenarioTypes[scenario], variant = variants[i % variants.length];
 		const enemy = createBug({ variant, id: game.nextId++, position: { x: 60 + i % 10 * 105, y: 45 + Math.floor(i / 10) * 65 }, player: game.player, threat: 3, wave: 3, time: 0, bounds: FIELD });
@@ -63,18 +61,4 @@ for (const scenario of [...Object.keys(scenarioTypes), ...BOSS_TYPES]) {
 	}
 	samples.sort((a, b) => a - b);
 	console.log(JSON.stringify({ scenario, bugs: game.enemies.length, slime: game.slime.length, corpses: game.remains.length, samples: samples.length, meanMs: samples.reduce((sum, ms) => sum + ms) / samples.length, maxMs: samples.at(-1), medianMs: samples[Math.floor(samples.length * .5)], p95Ms: samples[Math.floor(samples.length * .95)] }));
-}
-
-// Resolve the full pose as the canvas renderer does; excludes GPU submission.
-if (!process.argv[2] || process.argv[2] === "rig-millipede") {
-	const boss = createBoss("millipede", 14, { x: 560, y: 360 }), samples: number[] = [];
-	const resolve = createRigResolver(bossRig(boss.variant));
-	for (let i = 0; i < 2000; i++) {
-		const before = performance.now();
-		const parts = resolve(bossSkin(boss.variant), bossPose(boss, i / 60));
-		if (parts.length !== MILLIPEDE_SEGMENT_COUNT * 4 + 1) throw new Error("Incomplete millipede rig");
-		if (i >= 200) samples.push(performance.now() - before);
-	}
-	samples.sort((a, b) => a - b);
-	console.log(JSON.stringify({ scenario: "rig-millipede", samples: samples.length, medianMs: samples[Math.floor(samples.length * .5)], p95Ms: samples[Math.floor(samples.length * .95)] }));
 }
