@@ -650,3 +650,15 @@ Hives 5, 10 and 15 finish with a boss after all three ordinary waves. A separate
 Boss reference damage follows the same hive scaling, mech armour and invulnerability rules as ordinary attacks. Base health is 160/150/180 respectively, multiplied by 1, 1.6 and 2.2 at the first, second and third boss milestones. These values are provisional playtest tuning. Every weapon works against every boss. Warnings update continuously and require the source to be lit; the world lighting mask still hides attacks and bodies outside illuminated regions. The HUD shows boss health, hive cards flag a coming boss, and visible encounters enter the persistent bugpedia, including boss portraits and counterplay. Debug provides separate **Fight** buttons without consuming or changing the normal run order.
 
 Bosses use one fixed set of 27 detailed 128×128 pixel parts, bringing the asset registry to 361 images. Boss images retain the 32-unit logical registration grid; six shell designs, specialised neck/tail sections and exposed joints vary the millipede along its length. Generate these with `python3 tools/generate-exterminator-boss-sprites.py`. Their bespoke rigs/poses live in `boss-art.ts`; simulation and collision live in `bosses.ts` and `millipede.ts`. Boss death flattens the frozen rig over 0.35 seconds during the return interval. Pause, restart and debug replacement retain the normal freeze/cleanup rules.
+
+
+Boss damage flashes use 27 prewarmed 128×128 brightened part canvases, held in a
+weak cache per loaded sprite set (about 1.7 MiB of RGBA pixels). Sprite loading
+prepares them before gameplay. Hit frames swap those sources for 80 ms instead
+of applying a live canvas brightness filter to 225 articulated millipede draws.
+The shared-browser readback benchmark measured roughly 2,279 ms per old hit frame,
+13 ms for cached hits and 17 ms for normal frames. Readback includes canvas
+completion/copy overhead; these are host diagnostics, not device FPS predictions.
+`tools/benchmark-exterminator-boss-hits.ts` exercises this GPU/filter path separately
+from the CPU simulation benchmark. Bundle it with Bun for a temporary browser
+page served by the site; remove the generated page/bundle afterward.

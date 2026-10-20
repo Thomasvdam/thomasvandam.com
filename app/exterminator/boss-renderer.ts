@@ -1,3 +1,4 @@
+import { bossHitSprites } from "./boss-hit-sprites";
 import { drawBoss } from "./boss-art";
 import { clawPosition } from "./bosses";
 import type { Game } from "./game";
@@ -36,6 +37,6 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 	if (!alive && boss.diedAt !== undefined) {
 		const progress = Math.min(1, (game.time - boss.diedAt) / .35); ctx.translate(boss.x, boss.y); ctx.scale(1, 1 - progress * .5); ctx.translate(-boss.x, -boss.y); ctx.globalAlpha = 1 - progress * .35;
 	}
-	if (game.time - boss.hitAt < .08) ctx.filter = "brightness(1.65)";
-	drawBoss(ctx, sprites, boss, boss.diedAt ?? game.time); ctx.restore();
+	const art = game.time - boss.hitAt < .08 ? bossHitSprites(sprites) : sprites;
+	drawBoss(ctx, art, boss, boss.diedAt ?? game.time); ctx.restore();
 }
