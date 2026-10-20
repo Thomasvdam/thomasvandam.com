@@ -26,3 +26,11 @@ export function bossDamageMultiplier(boss: Boss, part: BossCircle["part"]) {
 	if (part === "head" && bossExposed(boss)) return 2.5;
 	return .5;
 }
+
+export function bossWindupProgress(boss: Boss) {
+	const duration = boss.phase === "chargeWindup" ? boss.variant === "scorpion" ? BOSS_ATTACKS.dash.windup : BOSS_ATTACKS.charge.windup
+		: boss.phase === "sweepWindup" ? BOSS_ATTACKS.sweep.windup : boss.phase === "liftWindup" ? BOSS_ATTACKS.lift.windup
+		: boss.phase === "clawWindup" ? BOSS_ATTACKS.claw.windup : boss.phase === "stingWindup" ? BOSS_ATTACKS.sting.windup
+		: boss.phase === "crossingWindup" ? BOSS_ATTACKS.crossing.windup : 0;
+	return duration ? Math.max(0, Math.min(1, 1 - boss.remaining / duration)) : 0;
+}

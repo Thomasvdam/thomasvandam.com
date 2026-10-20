@@ -48,3 +48,13 @@ test("vulnerability rings draw above articulated artwork so legs cannot obscure 
 	drawBossFight(context, game, sprites);
 	expect(events.lastIndexOf("ring")).toBeGreaterThan(events.lastIndexOf("art"));
 });
+
+
+test("wind-ups do not draw circular charging meters around bosses", () => {
+	for (const [variant, phase] of [["rhinoceros", "chargeWindup"], ["rhinoceros", "sweepWindup"], ["scorpion", "clawWindup"], ["scorpion", "stingWindup"], ["millipede", "crossingWindup"]]) {
+		const game = newGame(); game.boss = createBoss(variant, 4, game.player); game.player.angle = 0;
+		Object.assign(game.boss, { x: game.player.x + 100, y: game.player.y, phase, remaining: .4 });
+		const arcs = [], context = new Proxy({ globalAlpha: 1, arc: (...args) => arcs.push(args) }, { get: (target, key) => key in target ? target[key] : () => {} });
+		drawBossFight(context, game, sprites); expect(arcs.some(([, , radius]) => radius === 54)).toBe(false);
+	}
+});

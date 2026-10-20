@@ -1,8 +1,7 @@
-import { MOVEMENT, terrainAt } from "./terrain";
 import { activeClaw, BOSS_ATTACKS, bossCone, bossDamageMultiplier } from "./boss-patterns";
 import { stepMillipede, millipedeTrail, followMillipedeTrail, resolveMillipedeBarrier } from "./millipede";
 import { BOSS_SPECS, MILLIPEDE_SEGMENT_COUNT, isMillipedeWeak, type Boss, type BossCircle, type BossVariant } from "./boss-types";
-import { FIELD, PLAYER_RADIUS, playerStats, type Game } from "./game";
+import { FIELD, PLAYER_RADIUS, type Game } from "./game";
 import { angleDifference, clamp, circleHitTime, distanceToSegment, type Vector } from "./math";
 import { hurtPlayer } from "./player-damage";
 import { inFlame } from "./remains";
@@ -60,7 +59,7 @@ export function flameBoss(game: Game, origin: Vector, angle: number, range: numb
 	damageBoss(boss, damage, game.time, body.part);
 	for (const c of circles) if ((c.part === "leftClaw" || c.part === "rightClaw") && c !== body) { const i = c.part === "leftClaw" ? 0 : 1; boss.claws[i] = Math.max(0, boss.claws[i] - damage); }
 }
-function phase(boss: Boss, name: Boss["phase"], time: number) { boss.phase = name; boss.remaining = time; boss.windupDuration = undefined; }
+function phase(boss: Boss, name: Boss["phase"], time: number) { boss.phase = name; boss.remaining = time; }
 function turn(boss: Boss, destination: Vector, dt: number, rate = 1.2) { boss.angle += clamp(angleDifference(Math.atan2(destination.y - boss.y, destination.x - boss.x), boss.angle), -dt * rate, dt * rate); }
 function move(boss: Boss, speed: number, dt: number) {
 	const radius = BOSS_SPECS[boss.variant].radius, previous = { x: boss.x, y: boss.y };
@@ -76,25 +75,16 @@ function attackCone(game: Game, boss: Boss) {
 	return false;
 }
 function aim(boss: Boss, player: Vector) { boss.target = { x: player.x, y: player.y }; boss.angle = Math.atan2(player.y - boss.y, player.x - boss.x); }
-function windup(game: Game, boss: Boss, player: Vector, name: Boss["phase"], duration: number) {
-	// Acquire once, then commit. There is no late tracking during the tell or strike.
-	aim(boss, player);
-	setWindup(game, boss, name, duration);
-}
-function setWindup(game: Game, boss: Boss, name: Boss["phase"], duration: number) {
-	// Legs in mud can move at 55 units/s. Preserve a reaction margin there too;
-	// the committed attack stays fast, while the visible tell gets longer.
-	const speed = playerStats(game).speed * MOVEMENT[game.undercarriage][terrainAt(game.terrain, game.player.x, game.player.y)];
-	const escape = name === "stingWindup" ? 62 : name === "chargeWindup" ? 56 : 90;
-	const time = Math.max(duration, .25 + escape / speed);
-	phase(boss, name, time); boss.windupDuration = time;
+function windup(boss: Boss, player: Vector, name: Boss["phase"], duration: number) {
+	// Fixed timing: terrain and undercarriage affect escape, never the boss's tell.
+	aim(boss, player); phase(boss, name, duration);
 }
 function stepRhino(game: Game, boss: Boss, dt: number) {
 	if (boss.phase === "approach") {
 		turn(boss, game.player, dt, 4);
 		if (Math.hypot(boss.x - game.player.x, boss.y - game.player.y) > 190) move(boss, BOSS_SPECS.rhinoceros.speed, dt);
 		if (!boss.remaining) {
-			boss.attackIndex++; windup(game, boss, game.player, "chargeWindup", BOSS_ATTACKS.charge.windup);
+			boss.attackIndex++; windup(boss, game.player, "chargeWindup", BOSS_ATTACKS.charge.windup);
 			// Run just past the locked position, rather than abandoning the player at
 			// the far wall. The horn follow-up then matters after the sidestep.
 			const dx = Math.cos(boss.angle), dy = Math.sin(boss.angle), radius = BOSS_SPECS.rhinoceros.radius;
@@ -109,13 +99,13 @@ function stepRhino(game: Game, boss: Boss, dt: number) {
 		const before = move(boss, Math.min(BOSS_ATTACKS.charge.speed, distance / dt), dt);
 		if (distanceToSegment(game.player, before, boss) <= BOSS_ATTACKS.charge.radius + PLAYER_RADIUS) hurtPlayer(game, 35);
 		if (distance <= BOSS_ATTACKS.charge.speed * dt || !boss.remaining || boss.x === 42 || boss.y === 42 || boss.x === FIELD.width - 42 || boss.y === FIELD.height - 42) {
-			windup(game, boss, game.player, "sweepWindup", BOSS_ATTACKS.sweep.windup);
+			windup(boss, game.player, "sweepWindup", BOSS_ATTACKS.sweep.windup);
 		}
 	} else if (boss.phase === "sweepWindup" && !boss.remaining) phase(boss, "sweep", BOSS_ATTACKS.sweep.active);
 	else if (boss.phase === "sweep") {
 		attackCone(game, boss);
 		if (!boss.remaining) {
-			if (boss.attackIndex % 2 === 0 || boss.health < boss.maxHealth / 2) windup(game, boss, game.player, "liftWindup", BOSS_ATTACKS.lift.windup);
+			if (boss.attackIndex % 2 === 0 || boss.health < boss.maxHealth / 2) windup(boss, game.player, "liftWindup", BOSS_ATTACKS.lift.windup);
 			else phase(boss, "stuck", 2.1);
 		}
 	} else if (boss.phase === "liftWindup" && !boss.remaining) {
@@ -126,9 +116,9 @@ function stepRhino(game: Game, boss: Boss, dt: number) {
 }
 function scorpionClaw(game: Game, boss: Boss, index: number) {
 	boss.comboStep = index;
-	if (boss.claws[index] > 0) windup(game, boss, game.player, "clawWindup", BOSS_ATTACKS.claw.windup);
+	if (boss.claws[index] > 0) windup(boss, game.player, "clawWindup", BOSS_ATTACKS.claw.windup);
 	else if (index === 0) scorpionClaw(game, boss, 1);
-	else windup(game, boss, game.player, "stingWindup", BOSS_ATTACKS.sting.windup);
+	else windup(boss, game.player, "stingWindup", BOSS_ATTACKS.sting.windup);
 }
 function stepScorpion(game: Game, boss: Boss, dt: number) {
 	if (boss.phase === "approach") {
@@ -141,7 +131,7 @@ function stepScorpion(game: Game, boss: Boss, dt: number) {
 			aim(boss, game.player);
 			const reach = Math.min(BOSS_ATTACKS.dash.distance, Math.max(0, distance - 125));
 			boss.target = { x: clamp(boss.x + Math.cos(boss.angle) * reach, 38, FIELD.width - 38), y: clamp(boss.y + Math.sin(boss.angle) * reach, 38, FIELD.height - 38) };
-			setWindup(game, boss, "chargeWindup", BOSS_ATTACKS.dash.windup);
+			phase(boss, "chargeWindup", BOSS_ATTACKS.dash.windup);
 		} else scorpionClaw(game, boss, 0);
 	} else if (boss.phase === "chargeWindup" && !boss.remaining) phase(boss, "charge", 1);
 	else if (boss.phase === "charge") {
@@ -155,7 +145,7 @@ function stepScorpion(game: Game, boss: Boss, dt: number) {
 		if (boss.claws[index] > 0) attackCone(game, boss);
 		if (!boss.remaining) {
 			if (index === 0) scorpionClaw(game, boss, 1);
-			else windup(game, boss, game.player, "stingWindup", BOSS_ATTACKS.sting.windup);
+			else windup(boss, game.player, "stingWindup", BOSS_ATTACKS.sting.windup);
 		}
 	} else if (boss.phase === "stingWindup" && !boss.remaining) {
 		if (Math.hypot(game.player.x - boss.target.x, game.player.y - boss.target.y) <= BOSS_ATTACKS.sting.radius + PLAYER_RADIUS) hurtPlayer(game, BOSS_ATTACKS.sting.damage);

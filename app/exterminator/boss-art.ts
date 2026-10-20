@@ -1,4 +1,4 @@
-import { activeClaw as bossActiveClaw, BOSS_ATTACKS } from "./boss-patterns";
+import { activeClaw as bossActiveClaw, bossWindupProgress } from "./boss-patterns";
 import { drawModelBoss } from "./model-boss-renderer";
 import type { Bone, Pose, Rig, Transform } from "./animation";
 import { drawRig } from "./rig-renderer";
@@ -59,6 +59,7 @@ export const MILLIPEDE_RIG: Rig = [
 			{ id: `segmentShell${index}`, parent: segment, x: 0, y: 0, slot: `shell${index}`, layer: 2 },
 		];
 	}).flat(),
+	{ id: "neckLink", parent: "root", x: -10, y: 0, slot: "neckLink", layer: 3 },
 	{ id: "head", parent: "root", x: 0, y: 0, slot: "head", layer: 4 },
 ];
 
@@ -70,7 +71,7 @@ export function bossRig(variant: BossVariant): Rig {
 }
 
 const MILLIPEDE_SKIN: Skin = (() => {
-	const skin: Record<string, SpritePart | undefined> = { head: "bossMillipedeHead" };
+	const skin: Record<string, SpritePart | undefined> = { head: "bossMillipedeHead", neckLink: "bossMillipedeNeckBody" };
 	const shells: readonly SpritePart[] = ["bossMillipedeShellA", "bossMillipedeShellB", "bossMillipedeShellC", "bossMillipedeShellD", "bossMillipedeShellE", "bossMillipedeShellF"];
 	for (let index = 0; index < MILLIPEDE_SEGMENT_COUNT; index++) {
 		const weak = isMillipedeWeak(index);
@@ -98,8 +99,9 @@ function rhinoPose(boss: Boss, time: number): Pose {
 		const step = stride(boss.walkDistance, time, (side + row) * Math.PI, charge ? 2.2 : 1);
 		pose[`leg${side === 0 ? "L" : "R"}${row}`] = { x: step * (charge ? 2.4 : 1.5), angle: step * .12 + (boss.phase === "stuck" ? (side ? -.08 : .08) : 0), scaleX: .72 };
 	}
-	const sweep = boss.phase === "sweepWindup" ? -.16 : boss.phase === "sweep" ? .2 : 0;
-	const lift = boss.phase === "liftWindup" ? -.08 : boss.phase === "lift" ? .15 : 0;
+	const progress = bossWindupProgress(boss);
+	const sweep = boss.phase === "sweepWindup" ? -.4 * progress : boss.phase === "sweep" ? .2 : 0;
+	const lift = boss.phase === "liftWindup" ? -.3 * progress : boss.phase === "lift" ? .15 : 0;
 	pose.head = { y: sweep * 14 + lift * 5, angle: sweep + lift };
 	pose.horn = { angle: sweep * 1.6 + lift * 1.2 };
 	return pose;
@@ -112,11 +114,11 @@ function scorpionPose(boss: Boss, time: number): Pose {
 		pose[`leg${side === 0 ? "L" : "R"}${row}`] = { x: step * 1.7, angle: step * .18, scaleX: .72 };
 	}
 	const clawHealth = boss.claws ?? [1, 1];
-	const clawAction = boss.phase === "clawWindup" ? -.25 : boss.phase === "claw" ? .18 : 0;
+	const clawAction = boss.phase === "clawWindup" ? -.6 * bossWindupProgress(boss) : boss.phase === "claw" ? .18 : 0;
 	const activeClaw = bossActiveClaw(boss);
 	pose.clawL = { angle: activeClaw === 0 ? clawAction : 0, opacity: clawHealth[0] > 0 ? 1 : 0 };
 	pose.clawR = { angle: activeClaw === 1 ? -clawAction : 0, opacity: clawHealth[1] > 0 ? 1 : 0 };
-	const sting = boss.phase === "stingWindup" ? -.22 : boss.phase === "sting" ? .28 : boss.phase === "embedded" ? .42 : 0;
+	const sting = boss.phase === "stingWindup" ? -.5 * bossWindupProgress(boss) : boss.phase === "sting" ? .28 : boss.phase === "embedded" ? .42 : 0;
 	pose.tail0 = { angle: sting * .25 };
 	pose.tail1 = { angle: sting * .35 };
 	pose.tail2 = { angle: sting * .45 };
@@ -125,8 +127,8 @@ function scorpionPose(boss: Boss, time: number): Pose {
 	// During a sting the tail tip reaches the locked target.  The offset is
 	// expressed in the tail3 parent frame because resolveRig applies each
 	// child transform before the final boss scale and root rotation.
-	if (boss.phase === "stingWindup" || boss.phase === "sting" || boss.phase === "embedded") {
-		const reach = boss.phase === "stingWindup" ? Math.max(0, Math.min(1, 1 - boss.remaining / (boss.windupDuration ?? BOSS_ATTACKS.sting.windup))) : 1;
+	if (boss.phase === "sting" || boss.phase === "embedded") {
+		const reach = 1;
 		const scale = BOSS_SCALE.scorpion;
 		const dx = (boss.target.x - boss.x) / scale, dy = (boss.target.y - boss.y) / scale;
 		const c = Math.cos(boss.angle), s = Math.sin(boss.angle);
@@ -191,11 +193,14 @@ function millipedePose(boss: Boss, time: number): Pose {
 		const liveSegment = segments[index];
 		const visible = liveSegment !== undefined;
 		pose[`segment${index}`] = { x: x / scale - baseX, y: y / scale, angle: segmentAngle, opacity: visible ? 1 : 0 };
+		const brace = boss.phase === "crossingWindup" ? bossWindupProgress(boss) * Math.max(0, 1 - index / 10) : 0;
 		const step = stride(boss.walkDistance + index * 6, boss.phase === "crossing" ? time : 0, index * .9, gait);
-		pose[`legL${index}`] = { angle: -.8 + step * .18, x: step * 1.3, scaleY: visible ? 1 : 0 };
-		pose[`legR${index}`] = { angle: .8 - step * .18, x: -step * 1.3, scaleY: visible ? 1 : 0 };
+		pose[`legL${index}`] = { angle: -.8 + step * .18 - brace * .6, x: step * 1.3 - brace * 2, scaleY: visible ? 1 : 0 };
+		pose[`legR${index}`] = { angle: .8 - step * .18 + brace * .6, x: -step * 1.3 - brace * 2, scaleY: visible ? 1 : 0 };
 	}
-	pose.head = { y: boss.phase === "crossingWindup" ? Math.sin(time * 12) * 1.2 : boss.phase === "crossing" ? Math.sin(time * 3) * .8 : 0, angle: boss.phase === "turn" ? .15 : 0 };
+	const rear = boss.phase === "crossingWindup" ? bossWindupProgress(boss) : 0;
+	pose.neckLink = { y: -5 * rear, angle: -.5 * rear, scaleX: .8, scaleY: .7, opacity: rear > 0 ? 1 : 0 };
+	pose.head = { y: boss.phase === "crossingWindup" ? -10 * bossWindupProgress(boss) : boss.phase === "crossing" ? Math.sin(time * 3) * .8 : 0, angle: boss.phase === "crossingWindup" ? -.2 * bossWindupProgress(boss) : boss.phase === "turn" ? .15 : 0 };
 	return pose;
 }
 

@@ -227,7 +227,10 @@ async function bake(variant: BossStudy, destination = "http://localhost:3013") {
 	renderer.shadowMap.autoUpdate = false;
 	const scratch = document.createElement("canvas"); scratch.width = scratch.height = CELL;
 	const paint = scratch.getContext("2d", { willReadFrequently: true })!;
-	const rows = variant === "rhinoceros" ? ["walk0", "walk1", "walk2", "walk3", "windup", "sweep", "lift", "charge"] : ["walk0", "walk1", "walk2", "walk3", "clawL0", "clawL1", "clawL2", "clawR0", "clawR1", "clawR2", "tail0", "tail1", "tail2", "tail3", "tail4", "tail5"];
+	const tellRows = (prefix: string) => Array.from({ length: 4 }, (_, index) => `${prefix}Tell${index}`);
+	const rows = variant === "rhinoceros"
+		? ["walk0", "walk1", "walk2", "walk3", "brace0", "brace1", "brace2", "headRest", "headSweep", "headLift", "headCharge", ...tellRows("charge"), ...tellRows("sweep"), ...tellRows("lift")]
+		: ["walk0", "walk1", "walk2", "walk3", "dashTell0", "dashTell1", "dashTell2", "clawL0", "clawL2", "clawR0", "clawR2", ...tellRows("clawL"), ...tellRows("clawR"), "tail0", "tail1", "tail2", "tail3", "tail4", "tail5"];
 	type Frame = { x: number; y: number; w: number; h: number; dx: number; dy: number };
 	const frames: Record<string, Frame[]> = {}, captures: { canvas: HTMLCanvasElement; frame: Frame }[] = [];
 	const tailNodes: { x: number; y: number }[][] = [], clawAnchors: { x: number; y: number }[][] = [];
@@ -247,18 +250,30 @@ async function bake(variant: BossStudy, destination = "http://localhost:3013") {
 		tailNodes.push(TAIL.map(relative)); clawAnchors.push([-1, 1].map(side => relative([1.95, .49, side * 1.1])));
 		for (const row of rows) {
 			for (const child of current.children) {
-				child.visible = variant === "rhinoceros" || (row.startsWith("walk") ? !/^(claw[LR]|tail\d)$/.test(child.name) : child.name === row.replace(/[012]$/, "") || child.name === row);
+				const rhinoHead = row.startsWith("head") || /^(charge|sweep|lift)Tell/.test(row);
+				child.visible = variant === "rhinoceros" ? rhinoHead ? child.name === "head-motion" : child.name !== "head-motion"
+					: row.startsWith("walk") || row.startsWith("dashTell") ? !/^(claw[LR]|tail\d)$/.test(child.name) : child.name === row.replace(/(Tell)?\d$/, "") || child.name === row;
 				if (!(child instanceof THREE.Group)) continue;
 				child.rotation.set(0, 0, 0);
 				if (child.name.startsWith("leg-") && row.startsWith("walk")) {
 					const [, side, index] = /^leg-(-?\d+)-(\d+)$/.exec(child.name)!, step = Math.sin(Number(row.at(-1)) * Math.PI / 2 + Number(index) * Math.PI + (Number(side) < 0 ? Math.PI : 0));
 					child.rotation.y = step * .2; child.rotation.z = step * .07;
 				}
-				if (child.name === "head-motion") {
-					child.rotation.y = row === "sweep" ? .35 : row === "windup" ? -.18 : 0;
-					child.rotation.z = row === "lift" ? .32 : row === "charge" ? -.15 : 0;
+				const tell = row.includes("Tell") ? Number(row.at(-1)) / (row.startsWith("dash") ? 2 : 3) : 0;
+				if (child.name.startsWith("leg-") && (row.startsWith("brace") || row.startsWith("dashTell"))) {
+					const [, side, index] = /^leg-(-?\d+)-(\d+)$/.exec(child.name)!;
+					const brace = row.startsWith("brace") ? Number(row.at(-1)) / 2 : tell;
+					child.rotation.y = (Number(index) % 2 ? -.28 : .28) * brace;
+					child.rotation.z = (Number(side) < 0 ? -1 : 1) * .18 * brace;
 				}
-				if (row.startsWith("claw") && child.name === row.slice(0, 5)) child.rotation.y = (row.endsWith("1") ? -.2 : row.endsWith("2") ? .25 : 0) * (row[4] === "L" ? 1 : -1);
+				if (child.name === "head-motion") {
+					child.rotation.y = row === "headSweep" ? .55 : row.startsWith("sweepTell") ? -.65 * tell : 0;
+					child.rotation.z = row === "headLift" ? .45 : row === "headCharge" ? -.3 : row.startsWith("liftTell") ? -.4 * tell : row.startsWith("chargeTell") ? -.3 * tell : 0;
+				}
+				if (row.startsWith("claw") && child.name === row.slice(0, 5)) {
+					child.rotation.y = (row.includes("Tell") ? -.65 * tell : row.endsWith("2") ? .4 : 0) * (row[4] === "L" ? 1 : -1);
+					child.rotation.z = row.includes("Tell") ? .22 * tell : 0;
+				}
 			}
 			renderer.render(scene, camera); paint.clearRect(0, 0, CELL, CELL); paint.drawImage(renderer.domElement, 0, 0);
 			const pixels = paint.getImageData(0, 0, CELL, CELL).data;
