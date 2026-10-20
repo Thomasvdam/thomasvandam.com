@@ -1,3 +1,4 @@
+import { prepareMillipedeSprites } from "./millipede-art";
 import { bossHitSprites } from "./boss-hit-sprites";
 import { drawBossFight } from "./boss-renderer";
 import { drawRig } from "./rig-renderer";
@@ -29,7 +30,8 @@ export function loadSprites(): Promise<Sprites> {
 		const image = new Image(); image.src = spec.path; await image.decode(); return [name, image] as const;
 	})).then(entries => {
 		const sprites = Object.fromEntries(entries) as Sprites;
-		bossHitSprites(sprites);
+		const hit = bossHitSprites(sprites);
+		prepareMillipedeSprites(sprites); prepareMillipedeSprites(hit);
 		return sprites;
 	}).catch(error => { spriteLoad = undefined; throw error; });
 }
@@ -312,7 +314,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 			ctx.fillStyle = "#d39b65"; ctx.fillRect(point.x - 13, point.y - 32, 26 * enemy.health / enemy.maxHealth, 3);
 		}
 	}
-	drawBossFight(ctx, game, sprites);
+	drawBossFight(ctx, game, sprites, visible);
 	const player = game.player;
 	if (game.glue > .01) {
 		ctx.save(); ctx.strokeStyle = `rgba(224,190,224,${game.glue * .8})`; ctx.lineWidth = 2 + game.glue * 4;

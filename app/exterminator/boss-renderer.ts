@@ -1,3 +1,5 @@
+import { drawMillipedeAcid } from "./millipede-hazards-renderer";
+import type { MillipedeVisible } from "./millipede-art";
 import { BOSS_ATTACKS, bossCone, bossExposed, bossWeakPoints } from "./boss-patterns";
 import { bossHitSprites } from "./boss-hit-sprites";
 import { drawBoss } from "./boss-art";
@@ -6,17 +8,18 @@ import type { Game } from "./game";
 import { warningLit } from "./lighting";
 import type { Sprites } from "./renderer";
 
-export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites) {
+export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprites, visible?: MillipedeVisible) {
 	const boss = game.boss; if (!boss) return;
+	if (boss.variant === "millipede" && boss.health > 0) drawMillipedeAcid(ctx, game);
 	const lit = warningLit(game, boss), alive = boss.health > 0;
-	if (lit && alive) {
+	if (lit && alive && boss.variant !== "millipede") {
 		ctx.save(); ctx.strokeStyle = "#f0b471"; ctx.fillStyle = "#e89b4e33"; ctx.lineWidth = 2;
 		const cone = bossCone(boss);
-		if (boss.phase === "chargeWindup" || boss.phase === "charge" || boss.phase === "crossingWindup" || boss.phase === "crossing") {
-			const crossing = boss.variant === "millipede", dash = boss.variant === "scorpion";
-			const attack = crossing ? BOSS_ATTACKS.crossing : dash ? BOSS_ATTACKS.dash : BOSS_ATTACKS.charge;
+		if (boss.phase === "chargeWindup" || boss.phase === "charge") {
+			const dash = boss.variant === "scorpion";
+			const attack = dash ? BOSS_ATTACKS.dash : BOSS_ATTACKS.charge;
 			const length = Math.hypot(boss.target.x - boss.x, boss.target.y - boss.y);
-			const angle = crossing ? Math.atan2(boss.target.y - boss.y, boss.target.x - boss.x) : boss.angle;
+			const angle = boss.angle;
 			ctx.save(); ctx.translate(boss.x, boss.y); ctx.rotate(angle);
 			ctx.fillRect(0, -attack.radius, length, attack.radius * 2); ctx.strokeRect(0, -attack.radius, length, attack.radius * 2);
 			ctx.beginPath(); ctx.arc(length, 0, attack.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -43,10 +46,10 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 		const progress = Math.min(1, (game.time - boss.diedAt) / .35); ctx.translate(boss.x, boss.y); ctx.scale(1, 1 - progress * .5); ctx.translate(-boss.x, -boss.y); ctx.globalAlpha = 1 - progress * .35;
 	}
 	const art = game.time - boss.hitAt < .08 ? bossHitSprites(sprites) : sprites;
-	drawBoss(ctx, art, boss, boss.diedAt ?? game.time); ctx.restore();
-	if (alive && bossExposed(boss)) {
-		ctx.save(); ctx.strokeStyle = "#a8f1bd"; ctx.lineWidth = 3;
-		for (const point of bossWeakPoints(boss)) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point.radius + 6, 0, Math.PI * 2); ctx.stroke(); }
+	drawBoss(ctx, art, boss, boss.diedAt ?? game.time, false, visible); ctx.restore();
+	if (alive && bossExposed(boss) && !(boss.variant === "millipede" && boss.phase === "crossingWindup")) {
+		ctx.save(); ctx.strokeStyle = boss.variant === "millipede" ? "#a8f1bd99" : "#a8f1bd"; ctx.lineWidth = boss.variant === "millipede" ? 1.5 : 3;
+		for (const point of bossWeakPoints(boss)) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point.radius + (boss.variant === "millipede" ? -3 : 6), 0, Math.PI * 2); ctx.stroke(); }
 		ctx.restore();
 	}
 }

@@ -6,7 +6,7 @@ test("sprite loading retries a failure and coalesces field/portrait loads into o
 	const originalImage = globalThis.Image, originalDocument = globalThis.document;
 	let failing = true, decodes = 0, canvases = 0;
 	globalThis.Image = class { decode() { decodes++; return failing ? Promise.reject(new Error("decode failed")) : Promise.resolve(); } };
-	globalThis.document = { createElement() { canvases++; return { width: 0, height: 0, getContext: () => ({ filter: "none", drawImage() {} }) }; } };
+	globalThis.document = { createElement() { canvases++; return { width: 0, height: 0, getContext: () => new Proxy({ filter: "none", drawImage() {} }, { get: (target, key) => key in target ? target[key] : () => {} }) }; } };
 	try {
 		await expect(loadSprites()).rejects.toThrow("decode failed");
 		failing = false; decodes = 0;
