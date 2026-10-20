@@ -1,3 +1,4 @@
+import { bossHitSprites } from "./boss-hit-sprites";
 import { drawBossFight } from "./boss-renderer";
 import { drawRig } from "./rig-renderer";
 export { drawRig } from "./rig-renderer";
@@ -20,12 +21,14 @@ import { bugRig, speciesPose, BUG_RIG, bugPose, MECH_RIG, mechPose, spawnAppeara
 import { bugSkin, mechSkin, SPRITE_PARTS, type SpritePart } from "./sprite-parts";
 
 const BASE_MODES = new Set<Game["mode"]>(["ready", "base", "workshop", "weapons", "shop"]);
-export type Sprites = Record<SpritePart, HTMLImageElement>;
+export type Sprites = Record<SpritePart, CanvasImageSource>;
 export async function loadSprites(): Promise<Sprites> {
 	const entries = await Promise.all(Object.entries(SPRITE_PARTS).map(async ([name, spec]) => {
 		const image = new Image(); image.src = spec.path; await image.decode(); return [name, image] as const;
 	}));
-	return Object.fromEntries(entries) as Sprites;
+	const sprites = Object.fromEntries(entries) as Sprites;
+	bossHitSprites(sprites);
+	return sprites;
 }
 
 
