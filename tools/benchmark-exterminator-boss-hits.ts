@@ -14,7 +14,7 @@ async function benchmark() {
 	const ctx = canvas.getContext("2d")!, sprites = await loadSprites(), game = newGame();
 	ctx.imageSmoothingEnabled = false;
 	game.boss = createBoss("millipede", 14, game.player); game.boss.phase = "crossing"; game.boss.remaining = 0; game.time = 8;
-	for (let i = 0; i < 600; i++) stepMillipede(game.boss, 1 / 120);
+	for (let i = 0; i < 600; i++) stepMillipede(game.boss, 1 / 120, game.player);
 	const cases = [
 		{ name: "normal", hit: false, draw: () => drawBossFight(ctx, game, sprites), frames: 12 },
 		{ name: "live-filter-hit", hit: true, frames: 4, draw: () => {

@@ -5,12 +5,6 @@ import { angleDifference, clamp, distanceToSegment, segmentHitTime, type Vector 
 import { FIELD } from "./game";
 
 const SAMPLE_SPACING = 4;
-// Long sweeps across the interior alternate with roomy turns near the edges.
-export const MILLIPEDE_ROUTE: readonly Vector[] = [
-	{ x: 90, y: 360 }, { x: 90, y: 120 }, { x: 1030, y: 120 }, { x: 1030, y: 540 },
-	{ x: 90, y: 540 }, { x: 90, y: 360 }, { x: 850, y: 360 }, { x: 850, y: 180 },
-	{ x: 270, y: 180 }, { x: 270, y: 540 }, { x: 1030, y: 540 }, { x: 1030, y: 360 },
-];
 export function millipedeTrail(head: Vector): Vector[] {
 	// Seed a continuous U-shaped history instead of piling a long body against a wall.
 	const anchors = [head, { x: 1030, y: 90 }, { x: 90, y: 90 }, { x: 90, y: 630 }, { x: 1030, y: 630 }];
@@ -37,14 +31,34 @@ export function followMillipedeTrail(boss: Boss, includeHead = false) {
 		boss.segments[index].x = from.x + (to.x - from.x) * t; boss.segments[index].y = from.y + (to.y - from.y) * t;
 	}
 }
-function prepareCrossing(boss: Boss) {
-	boss.target = { ...MILLIPEDE_ROUTE[boss.routeIndex ?? 0] };
+function prepareCrossing(boss: Boss, player: Vector) {
+	// Score crossing lanes around the player, while forbidding reversals into our
+	// own body. At an edge this produces a broad turn before the next intercept.
+	const candidates: Vector[] = [
+		{ x: 90, y: 90 }, { x: 560, y: 90 }, { x: 1030, y: 90 },
+		{ x: 90, y: 360 }, { x: 1030, y: 360 },
+		{ x: 90, y: 630 }, { x: 560, y: 630 }, { x: 1030, y: 630 },
+	];
+	const dx = player.x - boss.x, dy = player.y - boss.y;
+	const wallX = Math.abs(dx) < .00001 ? Infinity : ((dx > 0 ? 1030 : 90) - boss.x) / dx;
+	const wallY = Math.abs(dy) < .00001 ? Infinity : ((dy > 0 ? 630 : 90) - boss.y) / dy;
+	const reach = Math.min(wallX, wallY);
+	if (Number.isFinite(reach)) candidates.push({ x: boss.x + dx * reach, y: boss.y + dy * reach });
+	let best = candidates[0], score = Infinity;
+	for (const point of candidates) {
+		const distance = Math.hypot(point.x - boss.x, point.y - boss.y);
+		const turn = Math.abs(angleDifference(Math.atan2(point.y - boss.y, point.x - boss.x), boss.angle));
+		if (distance < 220 || turn > Math.PI / 2 + .001) continue;
+		const cost = distanceToSegment(player, boss, point) - distance * .08;
+		if (cost < score) { score = cost; best = point; }
+	}
+	boss.target = { ...best };
 	boss.phase = "crossingWindup"; boss.remaining = BOSS_ATTACKS.crossing.windup;
 }
-export function stepMillipede(boss: Boss, dt: number) {
-	if (boss.phase === "emerge") { if (!boss.remaining) prepareCrossing(boss); return; }
+export function stepMillipede(boss: Boss, dt: number, player: Vector) {
+	if (boss.phase === "emerge") { if (!boss.remaining) prepareCrossing(boss, player); return; }
 	if (boss.phase === "recover") {
-		if (!boss.remaining) { boss.routeIndex = ((boss.routeIndex ?? 0) + 1) % MILLIPEDE_ROUTE.length; prepareCrossing(boss); }
+		if (!boss.remaining) prepareCrossing(boss, player);
 		return;
 	}
 	if (boss.phase === "crossingWindup" || boss.phase === "turn") {
@@ -53,9 +67,9 @@ export function stepMillipede(boss: Boss, dt: number) {
 		if (!boss.remaining) { boss.angle = angle; boss.phase = "crossing"; }
 		return;
 	}
-	// Route legs are committed straight lines. The entire body stops during the tell
+	// Chosen lanes are committed straight lines. The entire body stops during the tell
 	// and recovery, so a player can read the next lane before the fast crossing.
-	const target = MILLIPEDE_ROUTE[boss.routeIndex ?? 0];
+	const target = boss.target;
 	const dx = target.x - boss.x, dy = target.y - boss.y, distance = Math.hypot(dx, dy);
 	const before = { x: boss.x, y: boss.y }, travel = Math.min(distance, BOSS_ATTACKS.crossing.speed * dt);
 	boss.angle = Math.atan2(dy, dx);

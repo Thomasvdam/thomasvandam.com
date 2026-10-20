@@ -1,4 +1,4 @@
-import type { Boss, BossCircle } from "./boss-types";
+import { isMillipedeWeak, type Boss, type BossCircle } from "./boss-types";
 
 // Simulation, warning footprints and animation share these attack dimensions.
 export const BOSS_ATTACKS = {
@@ -21,10 +21,21 @@ export function bossCone(boss: Boss) {
 }
 
 export function bossDamageMultiplier(boss: Boss, part: BossCircle["part"]) {
-	if (boss.variant !== "millipede") return bossExposed(boss) ? 1.75 : boss.phase === "recover" ? 1 : .65;
-	if (part === "joint") return bossExposed(boss) ? 3 : 1.5;
-	if (part === "head" && bossExposed(boss)) return 2.5;
-	return .5;
+	if (!bossExposed(boss)) return .1;
+	if ((boss.variant === "rhinoceros" && part === "flank") || (boss.variant === "scorpion" && part === "stinger")) return 3;
+	if (boss.variant === "millipede" && (part === "joint" || part === "head")) return 3;
+	return .2;
+}
+
+// Hitboxes and visible opening markers use the same world-space locations.
+export function bossWeakPoints(boss: Boss): BossCircle[] {
+	if (!bossExposed(boss)) return [];
+	if (boss.variant === "rhinoceros") return [-1, 1].map(side => ({
+		x: boss.x - Math.cos(boss.angle) * 12 - Math.sin(boss.angle) * side * 25,
+		y: boss.y - Math.sin(boss.angle) * 12 + Math.cos(boss.angle) * side * 25, radius: 18, part: "flank",
+	}));
+	if (boss.variant === "scorpion") return [{ ...boss.target, radius: 18, part: "stinger" }];
+	return [{ x: boss.x, y: boss.y, radius: 24, part: "head" }, ...boss.segments.flatMap((point, index): BossCircle[] => isMillipedeWeak(index) ? [{ ...point, radius: 18, part: "joint" }] : [])];
 }
 
 export function bossWindupProgress(boss: Boss) {
