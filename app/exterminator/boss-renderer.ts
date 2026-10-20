@@ -1,5 +1,4 @@
-import { BOSS_ATTACKS, bossCone, bossExposed } from "./boss-patterns";
-import { isMillipedeWeak } from "./boss-types";
+import { BOSS_ATTACKS, bossCone, bossExposed, bossWeakPoints } from "./boss-patterns";
 import { bossHitSprites } from "./boss-hit-sprites";
 import { drawBoss } from "./boss-art";
 import { clawPosition } from "./bosses";
@@ -47,8 +46,7 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 	drawBoss(ctx, art, boss, boss.diedAt ?? game.time); ctx.restore();
 	if (alive && bossExposed(boss)) {
 		ctx.save(); ctx.strokeStyle = "#a8f1bd"; ctx.lineWidth = 3;
-		const points = boss.variant === "millipede" ? [boss, ...boss.segments.filter((_, index) => isMillipedeWeak(index))] : [boss];
-		for (const point of points) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point === boss ? boss.variant === "millipede" ? 32 : 52 : 24, 0, Math.PI * 2); ctx.stroke(); }
+		for (const point of bossWeakPoints(boss)) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point.radius + 6, 0, Math.PI * 2); ctx.stroke(); }
 		ctx.restore();
 	}
 }

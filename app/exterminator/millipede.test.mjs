@@ -14,7 +14,7 @@ test("millipede has an articulated body longer than the arena and emerges before
 test("long body follows a bounded path for multiple arena sweeps without coiling or segment bunching", () => {
 	const g = game(), b = g.boss, phases = new Set(), xs = [], ys = [];
 	for (let i = 0; i < 120 * 90; i++) {
-		g.time += 1 / 120; stepBoss(g, 1 / 120, g.player); phases.add(b.phase);
+		g.time += 1 / 120; g.player.x = 560 + Math.cos(g.time * .47) * 430; g.player.y = 360 + Math.sin(g.time * .31) * 240; stepBoss(g, 1 / 120, g.player); phases.add(b.phase);
 		if (i % 120 === 0) { xs.push(b.x); ys.push(b.y); let leader = b; for (const segment of b.segments) { const d = Math.hypot(leader.x - segment.x, leader.y - segment.y); expect(d).toBeLessThanOrEqual(MILLIPEDE_SPACING + .01); expect(d).toBeGreaterThan(15); leader = segment; } }
 	}
 	expect(phases).toEqual(new Set(["emerge", "crossingWindup", "crossing", "recover"])); expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(750); expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(300);
@@ -74,4 +74,18 @@ test("a signalled millipede crossing can be escaped with unupgraded movement in 
 		for (let i = 0; i < 3.5 * 120; i++) step(g, { move: { x: 0, y: evade && i > .2 * 120 && i < 1.2 * 120 ? 1 : 0 }, aim: { x: 1, y: 0 }, fire: false }, 1 / 120);
 		if (evade) expect(g.player.health).toBe(100); else expect(g.player.health).toBeLessThan(100);
 	}
+});
+
+test("millipede chooses a crossing through the player's side, then commits despite repositioning", () => {
+	const targets = [];
+	for (const y of [200, 520]) {
+		const g = game(), b = g.boss; g.player.x = 560; g.player.y = y; b.remaining = 0;
+		stepBoss(g, 1 / 120, g.player); const target = { ...b.target }; targets.push(target);
+		const dx = target.x - b.x, dy = target.y - b.y;
+		expect(Math.abs((g.player.x - b.x) * dy - (g.player.y - b.y) * dx) / Math.hypot(dx, dy)).toBeLessThan(1);
+		g.player.y = 720 - y;
+		for (let i = 0; i < 160; i++) stepBoss(g, 1 / 120, g.player);
+		expect(b.target).toEqual(target);
+	}
+	expect(targets[0].y).toBeLessThan(targets[1].y);
 });

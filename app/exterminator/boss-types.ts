@@ -6,7 +6,7 @@ export type EncounterVariant = BugVariant | BossVariant;
 export const encounterName = (id: EncounterVariant) => isBossVariant(id) ? BOSS_NAMES[id] : BUG_NAMES[id];
 export type BossVariant = typeof BOSS_TYPES[number];
 export const BOSS_NAMES: Record<BossVariant, string> = { rhinoceros: "Rhinoceros beetle", scorpion: "Scorpion", millipede: "Giant millipede" };
-export const BOSS_SPECS = { rhinoceros: { health: 160, speed: 230, radius: 42 }, scorpion: { health: 150, speed: 250, radius: 38 }, millipede: { health: 180, speed: 360, radius: 24 } };
+export const BOSS_SPECS = { rhinoceros: { health: 160, speed: 340, radius: 42 }, scorpion: { health: 150, speed: 310, radius: 38 }, millipede: { health: 180, speed: 360, radius: 24 } };
 export const MILLIPEDE_SEGMENT_COUNT = 56;
 export const MILLIPEDE_SPACING = 26;
 export const isMillipedeWeak = (index: number) => index >= 3 && index % 8 === 4;
@@ -14,10 +14,10 @@ export type BossSegment = Vector;
 export type BossPhase = "approach" | "sweepWindup" | "sweep" | "chargeWindup" | "charge" | "stuck" | "liftWindup" | "lift" | "recover" | "clawWindup" | "claw" | "stingWindup" | "sting" | "embedded" | "crossing" | "crossingWindup" | "turn" | "emerge";
 export type Boss = Vector & {
 	variant: BossVariant; health: number; maxHealth: number; angle: number; walkDistance: number; hitAt: number;
-	phase: BossPhase; remaining: number; attackIndex: number; target: Vector; claws: [number, number]; segments: BossSegment[]; trail?: Vector[]; routeIndex?: number;
-	comboStep?: number; knockback: Vector; knockTime: number; diedAt?: number;
+	phase: BossPhase; remaining: number; attackIndex: number; target: Vector; claws: [number, number]; segments: BossSegment[]; trail?: Vector[];
+	comboStep?: number; sequenceAttacks?: number; knockback: Vector; knockTime: number; diedAt?: number;
 };
-export type BossCircle = Vector & { radius: number; part: "body" | "head" | "joint" | "leftClaw" | "rightClaw" };
+export type BossCircle = Vector & { radius: number; part: "body" | "head" | "joint" | "leftClaw" | "rightClaw" | "flank" | "stinger" };
 export const isBossVariant = (id: string): id is BossVariant => (BOSS_TYPES as readonly string[]).includes(id);
 
 // A separate seeded stream makes all three milestone bosses a permutation per run.
