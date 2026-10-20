@@ -1,0 +1,115 @@
+import { expect, test } from "bun:test";
+import { createBoss, damageBoss, firstBossHit } from "./bosses";
+import { bossExposed } from "./boss-patterns";
+import { newGame, step, clearCombat, FIELD } from "./game";
+import { dropRhinoRocks, RHINO_ROCK, resolveRockBarriers, firstRockHit } from "./rhino-rocks";
+import { RHINO_TIMING } from "./rhino";
+import { modelBossPose } from "./model-boss-renderer";
+import { spawnDebugBoss, spawnDebugWave, defaultComposition } from "./debug";
+const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
+function scene() {
+	const g = newGame(47); g.mode = "playing"; g.toSpawn = 1; g.spawnTimer = 1000; g.terrain.fill("firm"); g.hivesCleared = 10;
+	g.boss = createBoss("rhinoceros", 4, g.player);
+	Object.assign(g.boss, { x: 250, y: 360, angle: 0, phase: "approach", remaining: 0 });
+	Object.assign(g.player, { x: 750, y: 360, invulnerable: 100 }); return g;
+}
+function rock(g, x = 500, y = 360, remaining = 0) {
+	const r = { id: g.nextId++, x, y, remaining, health: RHINO_ROCK.health, hitAt: -10, landedAt: -10 }; g.boss.rhino.rocks.push(r); return r;
+}
+function advance(g, seconds, input = idle) { for (let i = 0; i < Math.ceil(seconds * 120); i++) step(g, input, 1 / 120); }
+function until(g, phase, seconds = 8) { for (let i = 0; i < seconds * 120 && g.boss.phase !== phase; i++) step(g, idle, 1 / 120); expect(g.boss.phase).toBe(phase); }
+
+test("all four arena walls stop a charge and shake loose one warned cluster at the locked impact-time player position", () => {
+	for (const [x, y, px, py] of [[250, 360, 750, 360], [850, 360, 350, 360], [560, 200, 560, 550], [560, 550, 560, 200]]) {
+		const g = scene(), b = g.boss; Object.assign(b, { x, y }); Object.assign(g.player, { x: px, y: py });
+		step(g, idle, 1 / 120); const target = { ...b.target }; until(g, "charge"); g.player.x = 600; g.player.y = 330;
+		until(g, "stuck"); expect(b.x).toBeCloseTo(target.x); expect(b.y).toBeCloseTo(target.y);
+		expect(b.rhino.rocks.some(r => r.x === 600 && r.y === 330)).toBe(true);
+		expect(b.rhino.rocks.every(r => r.remaining >= RHINO_ROCK.warning)).toBe(true);
+		const count = b.rhino.rocks.length; advance(g, .2); expect(b.rhino.rocks).toHaveLength(count);
+	}
+});
+
+test("charging hits the nearest solid rock along the swept path, smashes only it, and exposes a longer daze without more rockfalls", () => {
+	const g = scene(), b = g.boss; const far = rock(g, 650), near = rock(g, 450), falling = rock(g, 350, 360, 10);
+	step(g, idle, 1 / 120); until(g, "dazed");
+	expect(b.x).toBeCloseTo(450 - RHINO_ROCK.radius - 42); expect(near.health).toBe(0); expect(far.health).toBe(RHINO_ROCK.health); expect(falling.health).toBe(RHINO_ROCK.health);
+	expect(b.remaining).toBe(RHINO_TIMING.dazed); expect(b.remaining).toBeGreaterThan(RHINO_TIMING.stuck);
+	const before = b.health; damageBoss(b, 4, g.time, "flank"); expect(before - b.health).toBe(12);
+});
+
+test("falling rock warns, deals scaled armoured AoE once, then persists as a non-damaging obstruction", () => {
+	for (const escaped of [false, true]) {
+		const g = scene(); g.boss.remaining = 100; g.player.x = 500; g.player.invulnerable = 0; g.parts.armour = 2;
+		const r = rock(g, 500, 360, RHINO_ROCK.warning);
+		advance(g, 1); expect(g.player.health).toBe(100); expect(r.remaining).toBeGreaterThan(0);
+		if (escaped) g.player.y += 150;
+		advance(g, .6); expect(g.player.health).toBe(escaped ? 100 : 80);
+		const health = g.player.health; advance(g, 6); expect(g.player.health).toBe(health); expect(g.boss.rhino.rocks).toHaveLength(1);
+		if (!escaped) expect(Math.hypot(g.player.x - r.x, g.player.y - r.y)).toBeGreaterThanOrEqual(44 - .001);
+	}
+});
+
+test("movement slides around piles, cannot tunnel with knockback, and falling or destroyed rocks do not block", () => {
+	const g = scene(); g.boss.remaining = 100; g.player.x = 420; const r = rock(g);
+	advance(g, 1, { ...idle, move: { x: 1, y: 0 } }); expect(g.player.x).toBeCloseTo(456);
+	g.player.x = 600; resolveRockBarriers(g, { x: 420, y: 360 }); expect(g.player.x).toBeCloseTo(456);
+	g.player.x = 420; g.player.y = 340; advance(g, .6, { ...idle, move: { x: 1, y: -1 } }); expect(g.player.y).toBeLessThan(300);
+	for (const falling of [true, false]) { r.remaining = falling ? 10 : 0; r.health = falling ? 6 : 0; g.player.x = 420; g.player.y = 360; advance(g, .7, { ...idle, move: { x: 1, y: 0 } }); expect(g.player.x).toBeGreaterThan(550); }
+});
+
+test("rock clusters leave passages and avoid overlaps even after many wall crashes", () => {
+	const g = scene(); g.player.x = 20; g.player.y = 20;
+	for (let n = 0; n < 100; n++) { g.boss.attackIndex++; dropRhinoRocks(g, g.boss); }
+	const rocks = g.boss.rhino.rocks; expect(rocks.length).toBeGreaterThan(0);
+	for (const r of rocks) {
+		expect(r.x).toBeGreaterThanOrEqual(76); expect(r.y).toBeGreaterThanOrEqual(76); expect(r.x).toBeLessThanOrEqual(FIELD.width - 76); expect(r.y).toBeLessThanOrEqual(FIELD.height - 76);
+		for (const other of rocks) if (other !== r) expect(Math.hypot(other.x - r.x, other.y - r.y)).toBeGreaterThanOrEqual(108);
+	}
+});
+
+test("all weapons destroy piles through real firing and piles intercept shots before the boss", () => {
+	for (const weapon of ["cannon", "shotgun", "rpg", "flamethrower"]) {
+		const g = scene(); g.boss.remaining = 100; g.boss.x = 1000; g.player.x = 390; g.weapon = weapon;
+		const r = rock(g), health = g.boss.health;
+		advance(g, 2, { ...idle, fire: true });
+		expect(r.health, weapon).toBe(0); expect(g.boss.health, weapon).toBe(health);
+	}
+	const g = scene(); rock(g, 600); const near = rock(g, 500); const hit = firstRockHit(g.boss, { x: 400, y: 360 }, { x: 800, y: 360 }); expect(hit.rock).toBe(near);
+});
+
+test("recovery visibly gets up, stays vulnerable until standing, then sweeps immediately; escaping its reach triggers a warned charge", () => {
+	for (const phase of ["stuck", "dazed"]) for (const escape of [false, true]) {
+		const g = scene(), b = g.boss; b.phase = phase; b.remaining = 0; g.player.x = b.x + 100; g.player.invulnerable = 0;
+		step(g, idle, 1 / 120); expect(b.phase).toBe("rising"); expect(bossExposed(b)).toBe(true); expect(g.player.health).toBe(100);
+		const poses = new Set(); for (const t of [1, .6, .3, .01]) { b.remaining = t; poses.add(JSON.stringify(modelBossPose(b, g.time))); } expect(poses.size).toBeGreaterThan(2);
+		b.remaining = .01; if (escape) g.player.x += 300;
+		step(g, idle, 1 / 60); expect(bossExposed(b)).toBe(false);
+		if (escape) { expect(b.phase).toBe("chargeWindup"); expect(g.player.health).toBe(100); }
+		else { expect(b.phase).toBe("sweep"); expect(g.player.health).toBe(75); }
+		const health = b.health; damageBoss(b, 4, g.time, "flank"); expect(health - b.health).toBeCloseTo(.4);
+	}
+});
+
+test("moving away during get-up evades the immediate sweep, while remaining in its reach is punished", () => {
+	for (const escape of [false, true]) {
+		const g = scene(); g.boss.phase = "stuck"; g.boss.remaining = 0; g.player.x = 350; g.player.invulnerable = 0;
+		step(g, idle, 1 / 120); advance(g, .2);
+		advance(g, .85, escape ? { ...idle, move: { x: 1, y: 0 } } : idle);
+		expect(g.player.health).toBe(escape ? 100 : 75);
+	}
+});
+
+test("vulnerable flanks remain actual hittable geometry during daze and rising", () => {
+	const g = scene(), b = g.boss;
+	for (const phase of ["stuck", "dazed", "rising"]) {
+		b.phase = phase; const hit = firstBossHit(b, { x: b.x - 12, y: b.y + 150 }, { x: b.x - 12, y: b.y }); expect(hit.circle.part).toBe("flank");
+	}
+});
+
+test("pause freezes hazards; death cancels them; replacement and cleanup discard the boss-owned rock state", () => {
+	const g = scene(); g.boss.remaining = 100; rock(g, 500, 360, .1); g.mode = "paused"; const before = JSON.stringify(g); advance(g, 2); expect(JSON.stringify(g)).toBe(before);
+	g.mode = "playing"; g.boss.health = 0; g.player.x = 500; g.player.invulnerable = 0; advance(g, .3); expect(g.player.health).toBe(100);
+	clearCombat(g); expect(g.boss).toBeNull();
+	g.debug = { queue: [], total: 0, lightSensitivePercent: 0 }; g.hive = { id: "test" }; spawnDebugBoss(g, "rhinoceros"); rock(g); spawnDebugBoss(g, "rhinoceros"); expect(g.boss.rhino.rocks).toHaveLength(0); rock(g); spawnDebugWave(g, defaultComposition()); expect(g.boss).toBeNull();
+});

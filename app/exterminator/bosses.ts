@@ -1,3 +1,4 @@
+import { stepRhino } from "./rhino";
 import { activeClaw, BOSS_ATTACKS, bossCone, bossDamageMultiplier, bossWeakPoints } from "./boss-patterns";
 import { stepMillipede, initMillipede, resolveMillipedeBarrier } from "./millipede";
 import { BOSS_SPECS, isMillipedeWeak, type Boss, type BossCircle, type BossVariant } from "./boss-types";
@@ -12,6 +13,7 @@ export function createBoss(variant: BossVariant, cleared: number, player: Vector
 	const angle = Math.atan2(player.y - y, player.x - x);
 	const boss: Boss = { variant, x, y, health, maxHealth: health, angle, walkDistance: 0, hitAt: -10, phase: "approach", remaining: 1, attackIndex: 0, target: { ...player }, claws: [30, 30], segments: Array.from({ length: 8 }, (_, i) => ({ x: clamp(x - Math.cos(angle) * (i + 1) * 22, 18, FIELD.width - 18), y: clamp(y - Math.sin(angle) * (i + 1) * 22, 18, FIELD.height - 18) })), knockback: { x: 0, y: 0 }, knockTime: 0 };
 	if (variant === "millipede") initMillipede(boss);
+	if (variant === "rhinoceros") boss.rhino = { rocks: [], riseAngle: angle };
 	return boss;
 }
 export function clawPosition(boss: Boss, index: number) {
@@ -85,45 +87,6 @@ function leadPlayer(game: Game, previous: Vector, dt: number, seconds: number) {
 	const lead = seconds / Math.max(dt, 1 / 240);
 	return { x: clamp(game.player.x + (game.player.x - previous.x) * lead, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS), y: clamp(game.player.y + (game.player.y - previous.y) * lead, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS) };
 }
-function rhinoCharge(game: Game, boss: Boss, previous: Vector, dt: number) {
-	windup(boss, playerDistance(game, boss) > 300 ? leadPlayer(game, previous, dt, .8) : game.player, "chargeWindup", BOSS_ATTACKS.charge.windup);
-	const dx = Math.cos(boss.angle), dy = Math.sin(boss.angle), radius = BOSS_SPECS.rhinoceros.radius;
-	const wallX = Math.abs(dx) < .00001 ? Infinity : ((dx > 0 ? FIELD.width - radius : radius) - boss.x) / dx;
-	const wallY = Math.abs(dy) < .00001 ? Infinity : ((dy > 0 ? FIELD.height - radius : radius) - boss.y) / dy;
-	const reach = Math.min(Math.hypot(boss.target.x - boss.x, boss.target.y - boss.y) + 110, wallX, wallY);
-	boss.target = { x: boss.x + dx * reach, y: boss.y + dy * reach };
-}
-function rhinoNext(game: Game, boss: Boss, previous: Vector, dt: number) {
-	boss.sequenceAttacks = (boss.sequenceAttacks ?? 0) + 1;
-	if (boss.sequenceAttacks >= 3) { phase(boss, "stuck", 2.1); return; }
-	if (playerDistance(game, boss) > 210) rhinoCharge(game, boss, previous, dt);
-	else windup(boss, game.player, boss.phase === "sweep" ? "liftWindup" : "sweepWindup", boss.phase === "sweep" ? BOSS_ATTACKS.lift.windup : BOSS_ATTACKS.sweep.windup);
-}
-function stepRhino(game: Game, boss: Boss, dt: number, previous: Vector) {
-	if (boss.phase === "approach") {
-		turn(boss, game.player, dt, 5);
-		if (playerDistance(game, boss) > 155) move(boss, BOSS_SPECS.rhinoceros.speed, dt);
-		if (!boss.remaining) {
-			boss.attackIndex++; boss.sequenceAttacks = 0;
-			if (playerDistance(game, boss) > 175) rhinoCharge(game, boss, previous, dt);
-			else windup(boss, game.player, "sweepWindup", BOSS_ATTACKS.sweep.windup);
-		}
-	} else if (boss.phase === "chargeWindup" && !boss.remaining) phase(boss, "charge", 3);
-	else if (boss.phase === "charge") {
-		const distance = Math.hypot(boss.target.x - boss.x, boss.target.y - boss.y);
-		const before = move(boss, Math.min(BOSS_ATTACKS.charge.speed, distance / dt), dt);
-		if (distanceToSegment(game.player, before, boss) <= BOSS_ATTACKS.charge.radius + PLAYER_RADIUS) hurtPlayer(game, 35);
-		if (distance <= BOSS_ATTACKS.charge.speed * dt || !boss.remaining) rhinoNext(game, boss, previous, dt);
-	} else if (boss.phase === "sweepWindup" && !boss.remaining) phase(boss, "sweep", BOSS_ATTACKS.sweep.active);
-	else if (boss.phase === "sweep") {
-		attackCone(game, boss);
-		if (!boss.remaining) rhinoNext(game, boss, previous, dt);
-	} else if (boss.phase === "liftWindup" && !boss.remaining) {
-		phase(boss, "lift", BOSS_ATTACKS.lift.active);
-		if (attackCone(game, boss)) { boss.knockback = { x: Math.cos(boss.angle) * 500, y: Math.sin(boss.angle) * 500 }; boss.knockTime = .25; }
-	} else if (boss.phase === "lift" && !boss.remaining) rhinoNext(game, boss, previous, dt);
-	else if ((boss.phase === "stuck" || boss.phase === "recover") && !boss.remaining) phase(boss, "approach", .25);
-}
 function scorpionSting(game: Game, boss: Boss, previous: Vector, dt: number) {
 	windup(boss, playerDistance(game, boss) > 280 ? leadPlayer(game, previous, dt, .95) : game.player, "stingWindup", BOSS_ATTACKS.sting.windup);
 }
@@ -182,8 +145,8 @@ function stepScorpion(game: Game, boss: Boss, dt: number, previous: Vector) {
 export function stepBoss(game: Game, dt: number, previousPlayer: Vector) {
 	const boss = game.boss; if (!boss || boss.health <= 0) return;
 	boss.remaining = Math.max(0, boss.remaining - dt);
-	if (boss.variant === "rhinoceros") stepRhino(game, boss, dt, previousPlayer);
+	if (boss.variant === "rhinoceros") stepRhino(game, boss, dt);
 	else if (boss.variant === "scorpion") stepScorpion(game, boss, dt, previousPlayer);
 	else { stepMillipede(game, boss, dt); if (resolveMillipedeBarrier(boss, game.player, previousPlayer, PLAYER_RADIUS)) hurtPlayer(game, 20); }
-	if (boss.variant !== "millipede" && bossCircles(boss).some(c => c.part !== "flank" && c.part !== "stinger" && distanceToSegment(c, previousPlayer, game.player) < c.radius + PLAYER_RADIUS)) hurtPlayer(game, boss.phase === "charge" ? boss.variant === "scorpion" ? 25 : 35 : 20);
+	if (boss.variant !== "millipede" && !(boss.variant === "rhinoceros" && ["stuck", "dazed", "rising"].includes(boss.phase)) && bossCircles(boss).some(c => c.part !== "flank" && c.part !== "stinger" && distanceToSegment(c, previousPlayer, game.player) < c.radius + PLAYER_RADIUS)) hurtPlayer(game, boss.phase === "charge" ? boss.variant === "scorpion" ? 25 : 35 : 20);
 }

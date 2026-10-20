@@ -1,3 +1,4 @@
+import { RHINO_TIMING } from "./rhino";
 import { activeClaw, bossWindupProgress } from "./boss-patterns";
 import sheets from "./boss-sheets.json";
 import type { Boss } from "./boss-types";
@@ -19,7 +20,12 @@ export function modelBossPose(boss: Boss, time: number) {
 			head = `${boss.phase.replace("Windup", "")}Tell${tell}`;
 		} else if (boss.phase === "sweep") head = "headSweep";
 		else if (boss.phase === "lift") head = "headLift";
-		else if (boss.phase === "charge" || boss.phase === "stuck") head = "headCharge";
+		else if (boss.phase === "charge") head = "headCharge";
+		else if (boss.phase === "stuck" || boss.phase === "dazed") { row = "brace2"; head = "headCharge"; }
+		else if (boss.phase === "rising") {
+			const rise = Math.max(0, Math.min(1, 1 - boss.remaining / RHINO_TIMING.rising));
+			row = `brace${2 - Math.min(2, Math.floor(rise * 3))}`; head = `sweepTell${Math.min(3, Math.floor(rise * 4))}`;
+		}
 	} else if (boss.phase === "chargeWindup") row = `dashTell${Math.min(2, Math.floor(progress * 3))}`;
 	const active = activeClaw(boss);
 	const clawRow = (index: number) => `${index === 0 ? "clawL" : "clawR"}${active === index ? boss.phase === "clawWindup" ? `Tell${tell}` : boss.phase === "claw" ? 2 : 0 : 0}`;
@@ -65,8 +71,10 @@ export function drawModelBoss(ctx: CanvasRenderingContext2D, sprites: Sprites, b
 	ctx.save(); ctx.translate(boss.x, boss.y); ctx.imageSmoothingEnabled = true;
 	ctx.save(); ctx.globalAlpha *= .22; ctx.fillStyle = "#07100c"; ctx.beginPath(); ctx.ellipse(0, 6, boss.variant === "rhinoceros" ? 51 : 43, 28, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
 	if (boss.variant === "rhinoceros") {
+		const down = boss.phase === "stuck" || boss.phase === "dazed" ? 1 : boss.phase === "rising" ? Math.min(1, boss.remaining / RHINO_TIMING.rising) : 0;
+		ctx.save(); ctx.translate(0, down * 6); ctx.scale(1, 1 - down * .22);
 		frame(ctx, image, sheet, sheet.frames[pose.row][pose.direction]);
-		frame(ctx, image, sheet, sheet.frames[pose.head][pose.direction]);
+		frame(ctx, image, sheet, sheet.frames[pose.head][pose.direction]); ctx.restore();
 	} else {
 		const nodes = modelTailNodes(boss, pose.direction);
 		const tail = (index: number) => {

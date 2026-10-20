@@ -1,3 +1,4 @@
+import { drawRhinoRocks } from "./rhino-rocks-renderer";
 import { prepareMillipedeSprites } from "./millipede-art";
 import { bossHitSprites } from "./boss-hit-sprites";
 import { drawBossFight } from "./boss-renderer";
@@ -120,6 +121,7 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 		}
 		ctx.restore();
 	}
+	drawRhinoRocks(ctx, game);
 	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = [], rolling = false, spitCharge = 0) => {
 		const skin = bugSkin(variant, appearance);
 		if (variant === "centipede") {

@@ -1,4 +1,5 @@
 import { BUG_NAMES, type BugVariant } from "./bug-types";
+import type { RhinoState } from "./rhino-rocks";
 import type { Vector } from "./math";
 
 export const BOSS_TYPES = ["rhinoceros", "scorpion", "millipede"] as const;
@@ -19,10 +20,10 @@ export type MillipedeState = {
 	bombs: { from: Vector; target: Vector; age: number }[];
 	pools: (Vector & { bornAt: number })[];
 };
-export type BossPhase = "approach" | "sweepWindup" | "sweep" | "chargeWindup" | "charge" | "stuck" | "liftWindup" | "lift" | "recover" | "clawWindup" | "claw" | "stingWindup" | "sting" | "embedded" | "crossing" | "crossingWindup" | "emerge" | "acid" | "bombWindup" | "return";
+export type BossPhase = "approach" | "dazed" | "rising" | "sweepWindup" | "sweep" | "chargeWindup" | "charge" | "stuck" | "liftWindup" | "lift" | "recover" | "clawWindup" | "claw" | "stingWindup" | "sting" | "embedded" | "crossing" | "crossingWindup" | "emerge" | "acid" | "bombWindup" | "return";
 export type Boss = Vector & {
 	variant: BossVariant; health: number; maxHealth: number; angle: number; walkDistance: number; hitAt: number;
-	phase: BossPhase; remaining: number; attackIndex: number; target: Vector; claws: [number, number]; segments: BossSegment[]; millipede?: MillipedeState;
+	phase: BossPhase; remaining: number; attackIndex: number; target: Vector; claws: [number, number]; segments: BossSegment[]; millipede?: MillipedeState; rhino?: RhinoState;
 	comboStep?: number; sequenceAttacks?: number; knockback: Vector; knockTime: number; diedAt?: number;
 };
 export type BossCircle = Vector & { radius: number; part: "body" | "head" | "joint" | "leftClaw" | "rightClaw" | "flank" | "stinger" };
