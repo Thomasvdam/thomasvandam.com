@@ -56,3 +56,12 @@ test("model draws use cropped sheet art, remove destroyed claws and never apply 
 	scorpion.claws[1] = 0; draws.length = 0; drawModelBoss(ctx, sprites, scorpion, 0); expect(draws).toHaveLength(7); expect(filters).toHaveLength(0);
 	expect(drawModelBoss(ctx, sprites, boss("millipede"), 0)).toBe(false);
 });
+
+test("terrain-extended sting tells preserve animation timing and combo steps drive the correct claw", () => {
+	const scorpion = boss(); scorpion.phase = "stingWindup"; scorpion.windupDuration = 2; scorpion.remaining = 2;
+	const nodes = modelTailNodes(scorpion, 0); expect(nodes.posed).toBe(nodes.rest);
+	scorpion.remaining = 1; const half = modelTailNodes(scorpion, 0); scorpion.phase = "sting"; const full = modelTailNodes(scorpion, 0);
+	for (let i = 0; i < 7; i++) { expect(half.posed[i].x).toBeCloseTo((nodes.rest[i].x + full.posed[i].x) / 2); expect(half.posed[i].y).toBeCloseTo((nodes.rest[i].y + full.posed[i].y) / 2); }
+	scorpion.phase = "claw"; scorpion.attackIndex = 9; scorpion.comboStep = 1;
+	expect(modelBossPose(scorpion, 2).claws).toEqual(["clawL0", "clawR2"]);
+});

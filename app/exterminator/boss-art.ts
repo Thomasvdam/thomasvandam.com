@@ -1,3 +1,4 @@
+import { activeClaw as bossActiveClaw, BOSS_ATTACKS } from "./boss-patterns";
 import { drawModelBoss } from "./model-boss-renderer";
 import type { Bone, Pose, Rig, Transform } from "./animation";
 import { drawRig } from "./rig-renderer";
@@ -112,7 +113,7 @@ function scorpionPose(boss: Boss, time: number): Pose {
 	}
 	const clawHealth = boss.claws ?? [1, 1];
 	const clawAction = boss.phase === "clawWindup" ? -.25 : boss.phase === "claw" ? .18 : 0;
-	const activeClaw = (boss.attackIndex - 1 + 3) % 3;
+	const activeClaw = bossActiveClaw(boss);
 	pose.clawL = { angle: activeClaw === 0 ? clawAction : 0, opacity: clawHealth[0] > 0 ? 1 : 0 };
 	pose.clawR = { angle: activeClaw === 1 ? -clawAction : 0, opacity: clawHealth[1] > 0 ? 1 : 0 };
 	const sting = boss.phase === "stingWindup" ? -.22 : boss.phase === "sting" ? .28 : boss.phase === "embedded" ? .42 : 0;
@@ -125,7 +126,7 @@ function scorpionPose(boss: Boss, time: number): Pose {
 	// expressed in the tail3 parent frame because resolveRig applies each
 	// child transform before the final boss scale and root rotation.
 	if (boss.phase === "stingWindup" || boss.phase === "sting" || boss.phase === "embedded") {
-		const reach = boss.phase === "stingWindup" ? Math.max(0, Math.min(1, 1 - boss.remaining / 1.15)) : 1;
+		const reach = boss.phase === "stingWindup" ? Math.max(0, Math.min(1, 1 - boss.remaining / (boss.windupDuration ?? BOSS_ATTACKS.sting.windup))) : 1;
 		const scale = BOSS_SCALE.scorpion;
 		const dx = (boss.target.x - boss.x) / scale, dy = (boss.target.y - boss.y) / scale;
 		const c = Math.cos(boss.angle), s = Math.sin(boss.angle);
@@ -190,11 +191,11 @@ function millipedePose(boss: Boss, time: number): Pose {
 		const liveSegment = segments[index];
 		const visible = liveSegment !== undefined;
 		pose[`segment${index}`] = { x: x / scale - baseX, y: y / scale, angle: segmentAngle, opacity: visible ? 1 : 0 };
-		const step = stride(boss.walkDistance + index * 6, time, index * .9, gait);
+		const step = stride(boss.walkDistance + index * 6, boss.phase === "crossing" ? time : 0, index * .9, gait);
 		pose[`legL${index}`] = { angle: -.8 + step * .18, x: step * 1.3, scaleY: visible ? 1 : 0 };
 		pose[`legR${index}`] = { angle: .8 - step * .18, x: -step * 1.3, scaleY: visible ? 1 : 0 };
 	}
-	pose.head = { y: Math.sin(time * 3) * .8, angle: boss.phase === "turn" ? .15 : 0 };
+	pose.head = { y: boss.phase === "crossingWindup" ? Math.sin(time * 12) * 1.2 : boss.phase === "crossing" ? Math.sin(time * 3) * .8 : 0, angle: boss.phase === "turn" ? .15 : 0 };
 	return pose;
 }
 

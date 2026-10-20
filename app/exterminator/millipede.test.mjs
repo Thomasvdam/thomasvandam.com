@@ -17,7 +17,7 @@ test("long body follows a bounded path for multiple arena sweeps without coiling
 		g.time += 1 / 120; stepBoss(g, 1 / 120, g.player); phases.add(b.phase);
 		if (i % 120 === 0) { xs.push(b.x); ys.push(b.y); let leader = b; for (const segment of b.segments) { const d = Math.hypot(leader.x - segment.x, leader.y - segment.y); expect(d).toBeLessThanOrEqual(MILLIPEDE_SPACING + .01); expect(d).toBeGreaterThan(15); leader = segment; } }
 	}
-	expect(phases).toEqual(new Set(["emerge", "crossing", "turn"])); expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(750); expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(300);
+	expect(phases).toEqual(new Set(["emerge", "crossingWindup", "crossing", "recover"])); expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(750); expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(300);
 	expect(b.trail.length).toBeLessThan(410);
 });
 
@@ -52,4 +52,26 @@ test("virtual head sampling preserves breadcrumb ownership and matches an explic
 	followMillipedeTrail(original, true); followMillipedeTrail(explicit);
 	expect(original.segments).toEqual(explicit.segments);
 	expect(original.trail).toBe(trail); expect(trail).toEqual(saved);
+});
+
+test("millipede signals a locked lane, crosses quickly, then stops its entire body for a punish window", () => {
+	const g = game(), b = g.boss; b.remaining = 0; stepBoss(g, 1 / 120, g.player);
+	expect(b.phase).toBe("crossingWindup"); const locked = { ...b.target }, still = globalThis.structuredClone([b, ...b.segments].map(({ x, y }) => ({ x, y })));
+	for (let i = 0; i < 100; i++) { g.player.y += .1; stepBoss(g, 1 / 120, g.player); }
+	expect(b.target).toEqual(locked); expect([b, ...b.segments].map(({ x, y }) => ({ x, y }))).toEqual(still);
+	while (b.phase !== "crossing") stepBoss(g, 1 / 120, g.player);
+	const x = b.x; for (let i = 0; i < 12; i++) stepBoss(g, 1 / 120, g.player); expect(x - b.x).toBeCloseTo(36);
+	while (b.phase !== "recover") stepBoss(g, 1 / 120, g.player);
+	expect(b.remaining).toBeCloseTo(1.9); const resting = globalThis.structuredClone([b, ...b.segments].map(({ x, y }) => ({ x, y })));
+	for (let i = 0; i < 120; i++) stepBoss(g, 1 / 120, g.player);
+	expect([b, ...b.segments].map(({ x, y }) => ({ x, y }))).toEqual(resting);
+});
+
+test("a signalled millipede crossing can be escaped with unupgraded movement in mud", () => {
+	for (const evade of [true, false]) {
+		const g = newGame(); start(g); chooseHive(g, g.hives[0].id); g.toSpawn = 1; g.spawnTimer = 1000; g.spawns = []; g.enemies = []; g.terrain.fill("mud");
+		g.boss = createBoss("millipede", 4, g.player); g.boss.remaining = 0; g.player.x = 850; g.player.y = 360; g.player.invulnerable = 0;
+		for (let i = 0; i < 3.5 * 120; i++) step(g, { move: { x: 0, y: evade && i > .2 * 120 && i < 1.2 * 120 ? 1 : 0 }, aim: { x: 1, y: 0 }, fire: false }, 1 / 120);
+		if (evade) expect(g.player.health).toBe(100); else expect(g.player.health).toBeLessThan(100);
+	}
 });

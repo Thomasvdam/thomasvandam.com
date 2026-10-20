@@ -1,3 +1,4 @@
+import { BOSS_ATTACKS } from "./boss-patterns";
 import type { Boss } from "./boss-types";
 import { MILLIPEDE_SEGMENT_COUNT, MILLIPEDE_SPACING } from "./boss-types";
 import { angleDifference, clamp, distanceToSegment, segmentHitTime, type Vector } from "./math";
@@ -36,22 +37,36 @@ export function followMillipedeTrail(boss: Boss, includeHead = false) {
 		boss.segments[index].x = from.x + (to.x - from.x) * t; boss.segments[index].y = from.y + (to.y - from.y) * t;
 	}
 }
+function prepareCrossing(boss: Boss) {
+	boss.target = { ...MILLIPEDE_ROUTE[boss.routeIndex ?? 0] };
+	boss.phase = "crossingWindup"; boss.remaining = BOSS_ATTACKS.crossing.windup;
+}
 export function stepMillipede(boss: Boss, dt: number) {
-	if (boss.phase === "emerge") { if (boss.remaining === 0) boss.phase = "crossing"; return; }
-	const index = boss.routeIndex ?? 0;
-	if (Math.hypot(boss.x - MILLIPEDE_ROUTE[index].x, boss.y - MILLIPEDE_ROUTE[index].y) < 90) boss.routeIndex = (index + 1) % MILLIPEDE_ROUTE.length;
-	const target = MILLIPEDE_ROUTE[boss.routeIndex ?? 0], turn = angleDifference(Math.atan2(target.y - boss.y, target.x - boss.x), boss.angle);
-	boss.phase = Math.abs(turn) > .35 ? "turn" : "crossing";
-	boss.angle += clamp(turn, -dt * 1.5, dt * 1.5);
-	const before = { x: boss.x, y: boss.y }, speed = boss.phase === "turn" ? 78 : 105;
-	boss.x = clamp(boss.x + Math.cos(boss.angle) * speed * dt, 48, FIELD.width - 48); boss.y = clamp(boss.y + Math.sin(boss.angle) * speed * dt, 48, FIELD.height - 48);
-	boss.walkDistance += Math.hypot(boss.x - before.x, boss.y - before.y);
+	if (boss.phase === "emerge") { if (!boss.remaining) prepareCrossing(boss); return; }
+	if (boss.phase === "recover") {
+		if (!boss.remaining) { boss.routeIndex = ((boss.routeIndex ?? 0) + 1) % MILLIPEDE_ROUTE.length; prepareCrossing(boss); }
+		return;
+	}
+	if (boss.phase === "crossingWindup" || boss.phase === "turn") {
+		const angle = Math.atan2(boss.target.y - boss.y, boss.target.x - boss.x);
+		boss.angle += clamp(angleDifference(angle, boss.angle), -dt * 4, dt * 4);
+		if (!boss.remaining) { boss.angle = angle; boss.phase = "crossing"; }
+		return;
+	}
+	// Route legs are committed straight lines. The entire body stops during the tell
+	// and recovery, so a player can read the next lane before the fast crossing.
+	const target = MILLIPEDE_ROUTE[boss.routeIndex ?? 0];
+	const dx = target.x - boss.x, dy = target.y - boss.y, distance = Math.hypot(dx, dy);
+	const before = { x: boss.x, y: boss.y }, travel = Math.min(distance, BOSS_ATTACKS.crossing.speed * dt);
+	boss.angle = Math.atan2(dy, dx);
+	if (distance) { boss.x += dx / distance * travel; boss.y += dy / distance * travel; }
+	boss.walkDistance += travel;
 	boss.trail ??= millipedeTrail(before);
 	const first = boss.trail[0];
 	if (Math.hypot(boss.x - first.x, boss.y - first.y) >= SAMPLE_SPACING) boss.trail.unshift({ x: boss.x, y: boss.y });
-	// The current head is transient; fixed-distance breadcrumbs retain a bounded history.
 	followMillipedeTrail(boss, true);
 	boss.trail.length = Math.min(boss.trail.length, Math.ceil((MILLIPEDE_SEGMENT_COUNT + 4) * MILLIPEDE_SPACING / SAMPLE_SPACING) + 4);
+	if (distance <= travel) { boss.phase = "recover"; boss.remaining = 1.9; }
 }
 
 // Preserve head, endpoint, bridge order without constructing temporary capsules.
