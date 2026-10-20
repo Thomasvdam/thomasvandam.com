@@ -12,9 +12,9 @@ export const BOSS_ATTACKS = {
 } as const;
 
 export function activeClaw(boss: Boss) { return boss.comboStep ?? (boss.attackIndex - 1 + 3) % 3; }
-export function bossExposed(boss: Boss) { return boss.phase === "stuck" || boss.phase === "embedded" || boss.variant === "millipede" && (boss.phase === "crossing" || boss.phase === "crossingWindup"); }
+export function bossExposed(boss: Boss) { return boss.phase === "stuck" || boss.variant === "rhinoceros" && (boss.phase === "dazed" || boss.phase === "rising") || boss.phase === "embedded" || boss.variant === "millipede" && (boss.phase === "crossing" || boss.phase === "crossingWindup"); }
 export function bossCone(boss: Boss) {
-	if (boss.phase === "sweepWindup" || boss.phase === "sweep") return { ...BOSS_ATTACKS.sweep, angle: boss.angle };
+	if (boss.phase === "sweepWindup" || boss.phase === "sweep" || boss.variant === "rhinoceros" && boss.phase === "rising") return { ...BOSS_ATTACKS.sweep, angle: boss.angle };
 	if (boss.phase === "liftWindup" || boss.phase === "lift") return { ...BOSS_ATTACKS.lift, angle: boss.angle };
 	if (boss.phase === "clawWindup" || boss.phase === "claw") return { ...BOSS_ATTACKS.claw, angle: boss.angle + (activeClaw(boss) === 0 ? -.55 : .55) };
 	return null;

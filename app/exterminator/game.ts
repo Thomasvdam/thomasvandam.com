@@ -1,3 +1,4 @@
+import { blastRocks, damageRock, firstRockHit, flameRocks, resolveRockBarriers } from "./rhino-rocks";
 import { resolveMillipedeBarrier } from "./millipede";
 import { createBoss, stepBoss, firstBossHit, damageBoss, blastBoss, flameBoss } from "./bosses";
 import { bossForHive, type Boss, type EncounterVariant } from "./boss-types";
@@ -222,6 +223,7 @@ function explode(game: Game, bullet: Bullet, spiders: SpiderIndex) {
 		if (enemy.health > 0 && enemyCircles(enemy).some(circle => Math.hypot(circle.x - bullet.x, circle.y - bullet.y) <= bullet.blastRadius + circle.radius)) damageEnemy(game, enemy, bullet.damage);
 	}
 	blastBoss(game, bullet, bullet.blastRadius, bullet.damage);
+	blastRocks(game, bullet, bullet.blastRadius, bullet.damage);
 	blastTethers(game, spiders, bullet, bullet.blastRadius);
 	game.explosions.push({ id: game.nextId++, x: bullet.x, y: bullet.y, radius: bullet.blastRadius, bornAt: game.time });
 	if (game.explosions.length > 32) game.explosions.shift();
@@ -236,6 +238,7 @@ function fireWeapon(game: Game, dt: number, spiders: SpiderIndex) {
 		flameTethers(game, spiders, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
 		burnRemains(game, origin, player.angle, stats.range, FLAME_HALF_ANGLE);
 		flameBoss(game, origin, player.angle, stats.range, FLAME_HALF_ANGLE, stats.damage * dt);
+		flameRocks(game, origin, player.angle, stats.range, FLAME_HALF_ANGLE, stats.damage * dt);
 		for (const enemy of game.enemies) {
 			if (enemy.health > 0 && enemy.brood && inFlame(broodPosition(enemy), broodRadius(enemy), origin, player.angle, stats.range, FLAME_HALF_ANGLE)) damageBrood(game, enemy, stats.damage * dt);
 			const hit = enemyCircles(enemy).some(circle => inFlame(circle, circle.radius, origin, player.angle, stats.range, FLAME_HALF_ANGLE));
@@ -275,6 +278,7 @@ export function step(game: Game, input: Input, dt: number) {
 	player.x = clamp(player.x + (move.x * speed + pulls.force.x + knock.x) * dt, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS);
 	player.y = clamp(player.y + (move.y * speed + pulls.force.y + knock.y) * dt, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS);
 	resolveBarriers(player, game.enemies, PLAYER_RADIUS, FIELD);
+	resolveRockBarriers(game, previousPlayer);
 	if (game.boss && resolveMillipedeBarrier(game.boss, player, previousPlayer, PLAYER_RADIUS)) hurtPlayer(game, 20);
 	game.playerVelocity = { x: (player.x - previousPlayer.x) / dt, y: (player.y - previousPlayer.y) / dt };
 	const traveled = Math.hypot(player.x - previousPlayer.x, player.y - previousPlayer.y);
@@ -311,6 +315,7 @@ export function step(game: Game, input: Input, dt: number) {
 	const lungeContacts = stepBugs(game, dt, FIELD, PLAYER_RADIUS);
 	separateBugs(game.enemies, FIELD);
 	resolveBarriers(player, game.enemies, PLAYER_RADIUS, FIELD);
+	resolveRockBarriers(game, previousPlayer);
 	game.bullets = game.bullets.filter(bullet => {
 		const previous = { x: bullet.x, y: bullet.y };
 		const travelTime = Math.min(dt, bullet.life);
@@ -327,6 +332,13 @@ export function step(game: Game, input: Input, dt: number) {
 		}
 		const bossHit = firstBossHit(game.boss, previous, bullet);
 		const cord = firstTetherHit(game, pulls.spiders, previous, bullet);
+		const rockHit = firstRockHit(game.boss, previous, bullet);
+		if (rockHit.rock && rockHit.time <= Math.min(hitTime, sacTime, bossHit.time, cord.time)) {
+			bullet.x = previous.x + (bullet.x - previous.x) * rockHit.time; bullet.y = previous.y + (bullet.y - previous.y) * rockHit.time;
+			if (bullet.weapon === "rpg") explode(game, bullet, pulls.spiders);
+			else damageRock(rockHit.rock, bullet.damage, game.time);
+			return false;
+		}
 		if (cord.owner !== null && cord.time < Math.min(hitTime, sacTime, bossHit.time)) {
 			bullet.x = previous.x + (bullet.x - previous.x) * cord.time; bullet.y = previous.y + (bullet.y - previous.y) * cord.time;
 			game.tethers = game.tethers.filter(tether => tether.owner !== cord.owner);

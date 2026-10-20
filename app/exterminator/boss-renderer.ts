@@ -47,6 +47,14 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 	}
 	const art = game.time - boss.hitAt < .08 ? bossHitSprites(sprites) : sprites;
 	drawBoss(ctx, art, boss, boss.diedAt ?? game.time, false, visible); ctx.restore();
+	if (alive && lit && boss.variant === "rhinoceros" && boss.phase === "dazed") {
+		ctx.save(); ctx.strokeStyle = "#f2d790"; ctx.lineWidth = 2;
+		for (let i = 0; i < 3; i++) {
+			const angle = game.time * 3 + i * Math.PI * 2 / 3, x = boss.x + Math.cos(angle) * 28, y = boss.y - 36 + Math.sin(angle) * 8;
+			ctx.beginPath(); ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y); ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 4); ctx.stroke();
+		}
+		ctx.restore();
+	}
 	if (alive && bossExposed(boss) && !(boss.variant === "millipede" && boss.phase === "crossingWindup")) {
 		ctx.save(); ctx.strokeStyle = boss.variant === "millipede" ? "#a8f1bd99" : "#a8f1bd"; ctx.lineWidth = boss.variant === "millipede" ? 1.5 : 3;
 		for (const point of bossWeakPoints(boss)) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point.radius + (boss.variant === "millipede" ? -3 : 6), 0, Math.PI * 2); ctx.stroke(); }
