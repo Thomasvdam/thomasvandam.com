@@ -7,10 +7,11 @@ import { createHives } from "./hives";
 import { recordVisibleEncounters, createEncounterProgress } from "./encounters";
 import { setDebug, spawnDebugBoss, spawnDebugWave, defaultComposition } from "./debug";
 import { viewFromGame } from "./runtime";
+import { activeClaw, BOSS_ATTACKS } from "./boss-patterns";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
 function setup(cleared = 4, seed = 47) { const game = newGame(seed); game.hivesCleared = cleared; game.hives = createHives(seed, cleared); start(game); chooseHive(game, game.hives[0].id); game.toSpawn = 0; game.spawns = []; game.enemies = []; game.player.invulnerable = 1000; return game; }
 function advance(game, seconds, input = idle) { for (let i = 0; i < Math.round(seconds * 120); i++) step(game, input, 1 / 120); }
-function fight(variant) { const game = setup(); game.toSpawn = 1; game.spawnTimer = 1000; game.boss = createBoss(variant, game.hivesCleared, game.player); game.boss.x = 400; game.boss.y = 360; game.boss.angle = 0; return game; }
+function fight(variant) { const game = setup(); game.toSpawn = 1; game.spawnTimer = 1000; game.terrain.fill("firm"); game.boss = createBoss(variant, game.hivesCleared, game.player); game.boss.x = 400; game.boss.y = 360; game.boss.angle = 0; return game; }
 
 test("hives 5, 10, 15 draw a complete unique permutation; order is seeded independently of offers", () => {
 	const orders = new Set();
@@ -40,12 +41,23 @@ test("boss appears only after wave 3, fights alone, gates payment and counts one
 	}
 });
 
-test("rhino charge locks aim, crosses space with swept damage, sticks at wall and exposes recovery", () => {
-	const game = fight("rhinoceros"), boss = game.boss; boss.phase = "chargeWindup"; boss.remaining = .1; boss.target = { x: 560, y: 360 };
-	game.player.y = 500; advance(game, .12); expect(boss.phase).toBe("charge"); expect(boss.angle).toBeCloseTo(0);
-	game.player.x = 560; game.player.y = 360; game.player.invulnerable = 0; advance(game, .5); expect(game.player.health).toBeLessThan(100);
-	advance(game, 1.3); expect(boss.phase).toBe("stuck"); const before = boss.health; damageBoss(boss, 4, game.time); expect(before - boss.health).toBe(7);
-	boss.health = boss.maxHealth / 3; boss.remaining = 0; stepBoss(game, 1 / 120, game.player); expect(boss.phase).toBe("chargeWindup");
+function until(game, phase, max = 8) {
+	for (let i = 0; i < max * 120 && game.boss.phase !== phase; i++) step(game, idle, 1 / 120);
+	expect(game.boss.phase).toBe(phase);
+}
+
+test("rhino commits to a fast charge, telegraphs its follow-up and only then exposes recovery", () => {
+	const game = fight("rhinoceros"), boss = game.boss; boss.phase = "approach"; boss.remaining = 0;
+	stepBoss(game, 1 / 120, game.player); expect(boss.phase).toBe("chargeWindup");
+	const angle = boss.angle, target = { ...boss.target }; game.player.y = 500;
+	until(game, "charge"); expect(boss.angle).toBe(angle); expect(boss.target).toEqual(target);
+	game.player.x = boss.x + 150; game.player.y = boss.y; game.player.invulnerable = 0;
+	advance(game, .3); expect(game.player.health).toBeLessThan(100);
+	until(game, "sweepWindup"); const shielded = boss.health; damageBoss(boss, 4, game.time); expect(shielded - boss.health).toBeCloseTo(2.6);
+	until(game, "stuck"); const exposed = boss.health; damageBoss(boss, 4, game.time); expect(exposed - boss.health).toBe(7);
+	boss.health = boss.maxHealth / 3; boss.remaining = 0; stepBoss(game, 1 / 120, game.player); expect(boss.phase).toBe("approach");
+	// Low health extends the combo with a separately telegraphed lift, never a surprise re-charge.
+	until(game, "liftWindup"); expect(boss.remaining).toBeGreaterThanOrEqual(BOSS_ATTACKS.lift.windup);
 });
 
 test("rhino windups give escape windows and a landed lift throws while respecting armour", () => {
@@ -59,7 +71,8 @@ test("scorpion claws have independent hitboxes and health, removed claws cannot 
 	const game = fight("scorpion"), boss = game.boss, left = clawPosition(boss, 0), right = clawPosition(boss, 1);
 	const hit = firstBossHit(boss, { x: left.x + 90, y: left.y }, left); expect(hit.circle.part).toBe("leftClaw");
 	damageBoss(boss, 30, game.time, "leftClaw"); expect(boss.claws).toEqual([0, 30]); expect(bossCircles(boss).some(c => c.part === "leftClaw")).toBe(false); expect(bossCircles(boss).find(c => c.part === "rightClaw").x).toBe(right.x);
-	boss.phase = "approach"; boss.remaining = 0; boss.attackIndex = 0; stepBoss(game, .01, game.player); expect(boss.phase).toBe("stingWindup");
+	boss.phase = "approach"; boss.remaining = 0; boss.attackIndex = 0; stepBoss(game, .01, game.player); expect(boss.phase).toBe("clawWindup"); expect(activeClaw(boss)).toBe(1);
+	until(game, "stingWindup");
 	const target = { ...boss.target }; game.player.y += 150; advance(game, 1.2); expect(boss.target).toEqual(target); expect(game.player.health).toBe(100); advance(game, .3); expect(boss.phase).toBe("embedded");
 	const before = boss.health; damageBoss(boss, 4, game.time); expect(before - boss.health).toBe(7);
 });
@@ -106,4 +119,59 @@ test("schematic cargo unlocks only after the milestone boss, and dying during th
 	game.boss.health = 0; step(game, idle, 1 / 120); game.intermission = .001; step(game, idle, 1 / 120); expect(game.mode).toBe("base"); expect(game.schematics).toContain("shotgun");
 	const dead = fight("rhinoceros"); dead.carriedSchematic = "shotgun"; dead.player.health = 5; dead.player.invulnerable = 0; dead.boss.x = dead.player.x; dead.boss.y = dead.player.y;
 	step(dead, idle, 1 / 120); expect(dead.mode).toBe("dead"); expect(dead.money).toBe(0); expect(dead.carriedSchematic).toBeNull(); expect(dead.schematics).not.toContain("shotgun");
+});
+
+// Exercise real input and terrain speed, with no armour, upgrades or invulnerability.
+// A brief reaction delay is included; standing in the same footprint must get hit.
+function attackScene(kind, terrain) {
+	const game = fight(kind === "sting" || kind === "claw" || kind === "rightClaw" || kind === "dash" ? "scorpion" : "rhinoceros");
+	const boss = game.boss; game.terrain.fill(terrain); game.player.x = 500; game.player.y = 360;
+	if (kind === "charge" || kind === "dash" || kind === "claw") { boss.phase = "approach"; boss.remaining = 0; if (kind === "dash") game.player.x = 850; }
+	if (kind === "sweep") { boss.x = 1078; boss.angle = 0; boss.phase = "charge"; boss.remaining = 0; game.player.x = 978; }
+	if (kind === "lift") { boss.phase = "sweep"; boss.remaining = 0; boss.attackIndex = 2; }
+	if (kind === "sting" || kind === "rightClaw") { boss.phase = "claw"; boss.remaining = 0; boss.comboStep = kind === "sting" ? 1 : 0; }
+	stepBoss(game, 1 / 120, game.player); game.player.health = 100; game.player.invulnerable = 0;
+	const duration = boss.remaining;
+	return { game, duration };
+}
+
+test("every rhino/scorpion wind-up is escapable with existing movement, including unupgraded legs in mud", () => {
+	for (const terrain of ["firm", "mud"]) for (const kind of ["charge", "sweep", "lift", "claw", "rightClaw", "sting", "dash"]) {
+		const { game, duration } = attackScene(kind, terrain), boss = game.boss;
+		const initialPhase = boss.phase, target = { ...boss.target }, angle = boss.angle;
+		const direction = kind === "sweep" ? { x: -1, y: 0 } : kind === "lift" ? { x: 1, y: 0 } : kind === "claw" ? { x: 0, y: 1 } : kind === "rightClaw" ? { x: 0, y: -1 } : { x: 0, y: 1 };
+		// Let the player recognise the tell before starting movement.
+		advance(game, .2);
+		for (let i = 0; i < Math.ceil((duration - .2) * 120); i++) {
+			if (boss.phase === initialPhase) { expect(boss.target).toEqual(target); expect(boss.angle).toBe(angle); }
+			step(game, { ...idle, move: direction }, 1 / 120);
+		}
+		// Check the committed strike, ending before the next wind-up can resolve.
+		advance(game, kind === "charge" || kind === "dash" ? .6 : .25);
+		expect(game.player.health, `${kind}/${terrain}: escape`).toBe(100);
+		const standing = attackScene(kind, terrain);
+		advance(standing.game, standing.duration + (kind === "charge" || kind === "dash" ? .7 : .2));
+		// Dash closes space rather than reaching a far-away stationary player.
+		if (kind !== "dash") expect(standing.game.player.health, `${kind}/${terrain}: standing`).toBeLessThan(100);
+	}
+});
+
+test("scorpion plays both claws then delayed sting without passive recovery between hits", () => {
+	const game = fight("scorpion"), boss = game.boss; game.player.x = 550; game.player.y = 360; boss.remaining = 0;
+	const sequence = []; let previous = "";
+	for (let i = 0; i < 6 * 120 && boss.phase !== "embedded"; i++) {
+		step(game, idle, 1 / 120);
+		const state = `${boss.phase}:${boss.phase.startsWith("claw") ? activeClaw(boss) : ""}`;
+		if (state !== previous) sequence.push(state); previous = state;
+	}
+	expect(sequence).toEqual(["clawWindup:0", "claw:0", "clawWindup:1", "claw:1", "stingWindup:", "sting:", "embedded:"]);
+	boss.claws = [0, 0]; boss.phase = "approach"; boss.remaining = 0; stepBoss(game, 1 / 120, game.player); expect(boss.phase).toBe("stingWindup");
+});
+
+test("millipede rewards the correct exposed point while its armoured body stays intact", () => {
+	const boss = createBoss("millipede", 4, { x: 560, y: 360 });
+	function taken(phase, part) { boss.phase = phase; const before = boss.health; damageBoss(boss, 4, 0, part); return before - boss.health; }
+	expect(taken("crossing", "body")).toBe(2); expect(taken("crossing", "joint")).toBe(6);
+	expect(taken("recover", "body")).toBe(2); expect(taken("recover", "head")).toBe(10); expect(taken("recover", "joint")).toBe(12);
+	expect(boss.segments).toHaveLength(56); expect(bossCircles(boss)).toHaveLength(57);
 });

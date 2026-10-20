@@ -1,3 +1,4 @@
+import { activeClaw, BOSS_ATTACKS } from "./boss-patterns";
 import sheets from "./boss-sheets.json";
 import type { Boss } from "./boss-types";
 import { clawPosition } from "./bosses";
@@ -9,7 +10,7 @@ type Sheet = { unit: number; directions: number; frames: Record<string, Frame[]>
 
 export function modelBossPose(boss: Boss, time: number) {
 	const direction = ((Math.round(boss.angle / (Math.PI * 2) * 16) % 16) + 16) % 16;
-	const walk = ((Math.floor((boss.walkDistance / 22 + time) * 2 / Math.PI) % 4) + 4) % 4;
+	const walk = ((Math.floor((boss.walkDistance / 22 + (boss.phase === "approach" || boss.phase === "charge" ? time : 0)) * 2 / Math.PI) % 4) + 4) % 4;
 	let row = `walk${walk}`;
 	if (boss.variant === "rhinoceros") {
 		if (boss.phase === "sweepWindup" || boss.phase === "liftWindup") row = "windup";
@@ -17,14 +18,14 @@ export function modelBossPose(boss: Boss, time: number) {
 		else if (boss.phase === "lift") row = "lift";
 		else if (["charge", "chargeWindup", "stuck"].includes(boss.phase)) row = "charge";
 	}
-	const active = (boss.attackIndex - 1 + 3) % 3;
+	const active = activeClaw(boss);
 	const clawRow = (index: number) => `${index === 0 ? "clawL" : "clawR"}${active === index ? boss.phase === "clawWindup" ? 1 : boss.phase === "claw" ? 2 : 0 : 0}`;
 	return { direction, row, claws: [clawRow(0), clawRow(1)] };
 }
 
 export function modelTailNodes(boss: Boss, direction: number): { rest: readonly Vector[]; posed: readonly Vector[] } {
 	const rest = sheets.scorpion.tailNodes[direction];
-	const reach = boss.phase === "stingWindup" ? clamp(1 - boss.remaining / 1.15, 0, 1) : boss.phase === "sting" || boss.phase === "embedded" ? 1 : 0;
+	const reach = boss.phase === "stingWindup" ? clamp(1 - boss.remaining / (boss.windupDuration ?? BOSS_ATTACKS.sting.windup), 0, 1) : boss.phase === "sting" || boss.phase === "embedded" ? 1 : 0;
 	if (!reach) return { rest, posed: rest };
 	const root = rest[0], dx = boss.target.x - boss.x - root.x, dy = boss.target.y - boss.y - root.y, length = Math.hypot(dx, dy) || 1;
 	const curve = Math.min(12, length * .03);
