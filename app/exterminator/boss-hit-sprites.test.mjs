@@ -19,13 +19,15 @@ function fixtures() {
 
 test("boss flashes prewarm one full-resolution image per part and reuse it across hits", () => {
 	const { sprites, canvases, makeCanvas } = fixtures();
-	const art = bossHitSprites(sprites, makeCanvas), parts = Object.keys(SPRITE_PARTS).filter(key => key.startsWith("boss"));
+	const art = bossHitSprites(sprites, makeCanvas), parts = Object.keys(SPRITE_PARTS).filter(key => key.startsWith("boss") && !key.includes("Sheet"));
 	expect(canvases).toHaveLength(parts.length);
 	for (const key of parts) {
 		const image = art[key], spec = SPRITE_PARTS[key];
 		expect(image).not.toBe(sprites[key]); expect(image.width).toBe(spec.width * 4); expect(image.height).toBe(spec.height * 4);
 		expect(image.context.filter).toBe("brightness(1.65)"); expect(image.draw[0]).toBe(sprites[key]);
 	}
+	expect(art.bossRhinoSheet).toBe(sprites.bossRhinoSheetHit);
+	expect(art.bossScorpionSheet).toBe(sprites.bossScorpionSheetHit);
 	expect(art.mechFoot).toBe(sprites.mechFoot);
 	for (let i = 0; i < 100; i++) expect(bossHitSprites(sprites, makeCanvas)).toBe(art);
 	expect(canvases).toHaveLength(parts.length);

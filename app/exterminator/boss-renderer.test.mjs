@@ -25,7 +25,7 @@ test("boss warnings continuously require a lit source, including locked sting ta
 test("all boss rigs draw during life and death without creating per-frame sprite assets", () => {
 	for (const variant of BOSS_TYPES) {
 		const game = newGame(); game.boss = createBoss(variant, 4, game.player); game.boss.health = 0; game.boss.diedAt = 1; game.time = 1.15;
-		const recorder = ctx(); drawBossFight(recorder.context, game, sprites); expect(recorder.calls.images).toBeGreaterThan(8); expect(recorder.calls.arcs).toBe(0);
+		const recorder = ctx(); drawBossFight(recorder.context, game, sprites); expect(recorder.calls.images).toBeGreaterThan(0); expect(recorder.calls.arcs).toBe(0);
 	}
 });
 

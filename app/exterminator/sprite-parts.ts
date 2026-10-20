@@ -1,3 +1,4 @@
+import bossSheets from "./boss-sheets.json";
 import type { BugVariant } from "./bug-types";
 import type { Weapon } from "./weapons";
 import type { Undercarriage } from "./terrain";
@@ -343,6 +344,10 @@ export const SPRITE_PARTS = {
 	rocket: { ...centered, path: "/images/exterminator/rocket.png" },
 	flame: { ...centered, path: "/images/exterminator/flame.png" },
 	bullet: { ...centered, path: "/images/exterminator/bullet.png" },
+	bossRhinoSheet: { width: bossSheets.rhinoceros.width / 4, height: bossSheets.rhinoceros.height / 4, pivotX: 0, pivotY: 0, path: "/images/exterminator/bosses/rhinoceros.png" },
+	bossRhinoSheetHit: { width: bossSheets.rhinoceros.width / 4, height: bossSheets.rhinoceros.height / 4, pivotX: 0, pivotY: 0, path: "/images/exterminator/bosses/rhinoceros-hit.png" },
+	bossScorpionSheet: { width: bossSheets.scorpion.width / 4, height: bossSheets.scorpion.height / 4, pivotX: 0, pivotY: 0, path: "/images/exterminator/bosses/scorpion.png" },
+	bossScorpionSheetHit: { width: bossSheets.scorpion.width / 4, height: bossSheets.scorpion.height / 4, pivotX: 0, pivotY: 0, path: "/images/exterminator/bosses/scorpion-hit.png" },
 	bossRhinoBody: { ...centered, path: "/images/exterminator/parts/boss-rhino-body.png" },
 	bossRhinoShell: { ...centered, path: "/images/exterminator/parts/boss-rhino-shell.png" },
 	bossRhinoHead: { ...centered, path: "/images/exterminator/parts/boss-rhino-head.png" },

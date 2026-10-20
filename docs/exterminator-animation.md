@@ -140,7 +140,7 @@ burn timers remain independent of this visual transition; pausing freezes it.
 
 ## Boss rigs
 
-`boss-art.ts` defines three separate skeletons with one fixed sprite set each: a six-legged rhinoceros beetle with articulated horn, an eight-legged scorpion with separately removable claws and a connected four-jointed striking tail, and a millipede with 56 world-positioned segments and 112 staggered legs. Bone translations compensate artwork scale so scorpion claw and millipede segment centres match the combat hitboxes. Tests resolve actual world-space centres, including root rotation and scaling. Scorpion sting poses extend the entire connected tail toward the locked target. Segment animation follows the same live centres used for millipede path-following body collisions.
+`boss-art.ts` retains procedural fallback rigs and the millipede skeleton: a six-legged rhinoceros beetle with articulated horn, an eight-legged scorpion with separately removable claws and a connected four-jointed striking tail, and a millipede with 56 world-positioned segments and 112 staggered legs. Bone translations compensate artwork scale so scorpion claw and millipede segment centres match the combat hitboxes. Tests resolve actual world-space centres, including root rotation and scaling. Scorpion sting poses extend the entire connected tail toward the locked target. Segment animation follows the same live centres used for millipede path-following body collisions.
 
 `tools/generate-exterminator-boss-sprites.py` generates 27 detailed 128×128 PNG parts on a 32-unit logical grid, with six millipede shell designs plus neck, tail and exposed-joint parts. The renderer uses existing part registration, image loading and pose resolution. Boss corpses freeze pose time and flatten over 0.35 seconds; the hive return interval clears them afterward.
 
@@ -149,3 +149,15 @@ parts are borrowed until the next resolver call and consumed synchronously by
 `drawRig`. `resolveRig` remains the independent snapshot API for death poses and
 other retained state. Reused buffers refresh skins, omitted slots, mirrored
 scales, opacity, transforms and paint order on every call.
+
+The approved rhinoceros and scorpion designs now render via
+`model-boss-renderer.ts` and `boss-sheets.json`. These sheets bake the 3D geometry,
+camera, surface shading and animation poses offline in 16 headings. Ordinary
+runtime drawing uses one cropped body image for the rhino, and up to nine body,
+claw and tail images for the scorpion. Claws are translated to their combat
+anchors and disappear when destroyed. Six connected tail images interpolate from
+the projected rest pose to the locked sting target; the final tip reaches it
+exactly. Pause and death retain the existing simulation-clock freeze rules.
+Normal and pre-brightened hit sheets load through the existing sprite loader,
+and the same drawing path supplies bugpedia portraits. See
+[the model/baking guide](exterminator-boss-art-study.md).

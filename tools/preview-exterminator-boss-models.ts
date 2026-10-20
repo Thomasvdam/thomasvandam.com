@@ -1,5 +1,5 @@
-// Posed 3D art study only; not imported by the game. Bundle this browser entry
-// with Bun and load it from a temporary page to reproduce the transparent PNGs.
+// Offline 3D model authoring and sprite-sheet baker; never imported by the game.
+// Bundle this browser entry with Bun. See docs/exterminator-boss-art-study.md.
 import * as THREE from "three";
 
 type BossStudy = "rhinoceros" | "scorpion";
@@ -49,7 +49,14 @@ function curve(parent: THREE.Group, name: string, points: number[][], radius: nu
 	}
 	const mesh = new THREE.Mesh(geometry, mat); mesh.name = name; mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
 }
+function jointGroup(parent: THREE.Group, name: string, start: number, pivot: number[]) {
+	const children = parent.children.slice(start), group = new THREE.Group(); group.name = name;
+	group.position.set(pivot[0], pivot[1], pivot[2]); parent.add(group);
+	for (const child of children) group.attach(child);
+	return group;
+}
 function feet(parent: THREE.Group, rootX: number, side: number, spread: number, index: number, beetle: boolean) {
+	const start = parent.children.length;
 	const hip = [rootX, beetle ? .57 : .34, side * (beetle ? .58 : .42)];
 	const knee = [rootX + spread * .25, .42, side * (beetle ? 1.04 : .83)];
 	const ankle = [rootX + spread * .7, .12, side * (beetle ? 1.46 : 1.27)];
@@ -64,6 +71,7 @@ function feet(parent: THREE.Group, rootX: number, side: number, spread: number, 
 		const t = .35 + tooth * .2, x = knee[0] + (ankle[0] - knee[0]) * t, y = knee[1] + (ankle[1] - knee[1]) * t, z = knee[2] + (ankle[2] - knee[2]) * t;
 		curve(parent, "tibial-spine", [[x, y, z], [x + .12, y, z + side * .11]], .045, palette.bronze, true);
 	}
+	jointGroup(parent, `leg-${side}-${index}`, start, hip);
 }
 function rhinoceros() {
 	const bug = new THREE.Group(); bug.name = "rhinoceros-study";
@@ -85,6 +93,7 @@ function rhinoceros() {
 		feet(bug, -.94, side, -1.1, 0, true); feet(bug, -.13, side, -.1, 1, true); feet(bug, .69, side, 1.1, 2, true);
 	}
 	ellipsoid(bug, "pronotum", [.53, .8, 0], [.64, .48, .68], palette.oliveLight);
+	const headStart = bug.children.length;
 	ellipsoid(bug, "neck", [1.03, .58, 0], [.36, .29, .46], palette.seam);
 	ellipsoid(bug, "head", [1.27, .64, 0], [.43, .32, .43], palette.olive);
 	for (const side of [-1, 1]) {
@@ -94,6 +103,7 @@ function rhinoceros() {
 	}
 	curve(bug, "raised-head-horn", [[1.42, .82, 0], [1.72, 1.05, 0], [2.07, 1.46, 0], [2.35, 1.65, 0]], .23, palette.horn, true);
 	for (const side of [-1, 1]) curve(bug, "horn-fork", [[2.09, 1.48, 0], [2.34, 1.64, side * .14], [2.48, 1.69, side * .2]], .065, palette.tip, true);
+	jointGroup(bug, "head-motion", headStart, [1.03, .58, 0]);
 	curve(bug, "thoracic-horn", [[.72, 1.13, 0], [1.03, 1.48, 0], [1.43, 1.57, 0], [1.7, 1.4, 0]], .17, palette.olive, true);
 	return bug;
 }
@@ -142,13 +152,16 @@ function scorpion() {
 		curve(bug, "chelicera", [[1.04, .33, side * .18], [1.33, .37, side * .22], [1.48, .32, side * .06]], .085, chitin, true);
 		for (let i = 0; i < 4; i++) {
 			const x = -.55 + i * .37, fan = [-1.55, -.65, .6, 1.55][i];
+			const start = bug.children.length;
 			const hip = [x, .32, side * .43], knee = [x + fan * .3, .49, side * .93], ankle = [x + fan * .72, .12, side * 1.47];
 			taperedLimb(bug, `femur-${i}-${side}`, hip, knee, .115, chitin);
 			ellipsoid(bug, "angular-knee", knee, [.085, .075, .09], joint);
 			taperedLimb(bug, `tibia-${i}-${side}`, knee, ankle, .085, claw);
 			curve(bug, "needle-foot", [ankle, [ankle[0] - .12, .055, side * 1.65], [ankle[0] - .25, .02, side * 1.73]], .04, chitin, true);
 			curve(bug, "knee-spur", [knee, [knee[0] - .13, .52, knee[2] + side * .2]], .045, ridge, true);
+			jointGroup(bug, `leg-${side}-${i}`, start, hip);
 		}
+		const clawStart = bug.children.length;
 		const arm = [[.8, .34, side * .42], [1.12, .38, side * .82], [1.62, .46, side * 1.12]];
 		taperedLimb(bug, "pedipalp-upper", arm[0], arm[1], .16, chitin);
 		ellipsoid(bug, "pedipalp-elbow", arm[1], [.13, .11, .13], joint);
@@ -162,16 +175,21 @@ function scorpion() {
 			curve(bug, "pincer-tooth", [[x, .51, side * (1.37 - tooth * .025)], [x + .045, .51, side * (1.2 - tooth * .025)]], .045, point, true);
 		}
 		curve(bug, "claw-keel", [[1.64, .58, side * 1.1], [1.98, .75, side * 1.13], [2.27, .63, side * 1.13]], .035, ridge);
+		jointGroup(bug, side < 0 ? "clawL" : "clawR", clawStart, arm[0]);
 	}
 	// A forward-cocked tail makes the hook readable above the body at this camera angle.
 	const tail = [[-1.34, .4, 0], [-1.85, .73, -.1], [-1.96, 1.39, -.24], [-1.5, 2.04, -.35], [-.73, 2.4, -.4], [.1, 2.27, -.4]];
 	for (let i = 1; i < tail.length; i++) {
+		const start = bug.children.length;
 		taperedLimb(bug, `tail-armour-${i}`, tail[i - 1], tail[i], .23 - i * .012, i % 2 ? claw : chitin);
 		ellipsoid(bug, "tail-joint", tail[i - 1], [.13, .13, .13], joint);
 		const p = tail[i]; curve(bug, "tail-spur", [p, [p[0] - .1, p[1] + .18, p[2] - .1]], .055, ridge, true);
+		jointGroup(bug, `tail${i - 1}`, start, [0, 0, 0]);
 	}
+	const stingerStart = bug.children.length;
 	ellipsoid(bug, "venom-bulb", [.3, 2.13, -.4], [.29, .22, .2], chitin);
 	curve(bug, "raised-stinger", [[.45, 2.14, -.4], [.85, 2.0, -.45], [1.08, 1.58, -.49], [.91, 1.27, -.5]], .14, point, true);
+	jointGroup(bug, "tail5", stingerStart, [0, 0, 0]);
 	return bug;
 }
 
@@ -188,12 +206,88 @@ const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMa
 const models = { rhinoceros: rhinoceros(), scorpion: scorpion() };
 let current: THREE.Group | undefined;
 function render(variant: BossStudy, size = 768) {
+	for (const model of Object.values(models)) { model.rotation.set(0, 0, 0); for (const child of model.children) { child.visible = true; if (child instanceof THREE.Group) child.rotation.set(0, 0, 0); } }
+	floor.visible = true; renderer.shadowMap.autoUpdate = true;
 	if (current) scene.remove(current); current = models[variant]; scene.add(current);
 	renderer.setSize(size, size); renderer.render(scene, camera);
 	return renderer.domElement.toDataURL("image/png");
 }
-declare global { interface Window { bossModelPreview: { render: typeof render } } }
-window.bossModelPreview = { render };
+declare global { interface Window { bossModelPreview: { render: typeof render; bake: typeof bake; progress: string } } }
+window.bossModelPreview = { render, bake, progress: "idle" };
 for (const type of ["rhinoceros", "scorpion"] as const) {
 	const image = document.createElement("img"); image.src = render(type); image.alt = type; image.style.width = "min(46vw,600px)"; document.body.append(image);
+}
+
+
+const DIRECTIONS = 16, CELL = 256, WORLD_SCALE = 32;
+const TAIL = [[-1.34, .4, 0], [-1.85, .73, -.1], [-1.96, 1.39, -.24], [-1.5, 2.04, -.35], [-.73, 2.4, -.4], [.1, 2.27, -.4], [.91, 1.27, -.5]];
+async function bake(variant: BossStudy, destination = "http://localhost:3013") {
+	if (current) scene.remove(current); current = models[variant]; scene.add(current); floor.visible = false;
+	renderer.setSize(CELL, CELL); key.shadow.mapSize.set(512, 512); key.shadow.map?.dispose(); key.shadow.map = null;
+	renderer.shadowMap.autoUpdate = false;
+	const scratch = document.createElement("canvas"); scratch.width = scratch.height = CELL;
+	const paint = scratch.getContext("2d", { willReadFrequently: true })!;
+	const rows = variant === "rhinoceros" ? ["walk0", "walk1", "walk2", "walk3", "windup", "sweep", "lift", "charge"] : ["walk0", "walk1", "walk2", "walk3", "clawL0", "clawL1", "clawL2", "clawR0", "clawR1", "clawR2", "tail0", "tail1", "tail2", "tail3", "tail4", "tail5"];
+	type Frame = { x: number; y: number; w: number; h: number; dx: number; dy: number };
+	const frames: Record<string, Frame[]> = {}, captures: { canvas: HTMLCanvasElement; frame: Frame }[] = [];
+	const tailNodes: { x: number; y: number }[][] = [], clawAnchors: { x: number; y: number }[][] = [];
+	const unit = 6.7 * WORLD_SCALE / CELL;
+	const project = (point: number[]) => {
+		const p = new THREE.Vector3(point[0], point[1], point[2]).applyMatrix4(current!.matrixWorld).project(camera);
+		return { x: (p.x + 1) * CELL / 2, y: (1 - p.y) * CELL / 2 };
+	};
+	camera.updateMatrixWorld();
+	for (let direction = 0; direction < DIRECTIONS; direction++) {
+		const angle = direction / DIRECTIONS * Math.PI * 2;
+		current.rotation.y = -Math.atan2(Math.sin(angle) / Math.cos(Math.atan2(5.4, 10.5)), Math.cos(angle)); current.updateMatrixWorld(true);
+		for (const child of current.children) child.visible = true;
+		renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera);
+		const origin = project([0, 0, 0]);
+		const relative = (p: number[]) => { const v = project(p); return { x: (v.x - origin.x) * unit, y: (v.y - origin.y) * unit }; };
+		tailNodes.push(TAIL.map(relative)); clawAnchors.push([-1, 1].map(side => relative([1.95, .49, side * 1.1])));
+		for (const row of rows) {
+			for (const child of current.children) {
+				child.visible = variant === "rhinoceros" || (row.startsWith("walk") ? !/^(claw[LR]|tail\d)$/.test(child.name) : child.name === row.replace(/[012]$/, "") || child.name === row);
+				if (!(child instanceof THREE.Group)) continue;
+				child.rotation.set(0, 0, 0);
+				if (child.name.startsWith("leg-") && row.startsWith("walk")) {
+					const [, side, index] = /^leg-(-?\d+)-(\d+)$/.exec(child.name)!, step = Math.sin(Number(row.at(-1)) * Math.PI / 2 + Number(index) * Math.PI + (Number(side) < 0 ? Math.PI : 0));
+					child.rotation.y = step * .2; child.rotation.z = step * .07;
+				}
+				if (child.name === "head-motion") {
+					child.rotation.y = row === "sweep" ? .35 : row === "windup" ? -.18 : 0;
+					child.rotation.z = row === "lift" ? .32 : row === "charge" ? -.15 : 0;
+				}
+				if (row.startsWith("claw") && child.name === row.slice(0, 5)) child.rotation.y = (row.endsWith("1") ? -.2 : row.endsWith("2") ? .25 : 0) * (row[4] === "L" ? 1 : -1);
+			}
+			renderer.render(scene, camera); paint.clearRect(0, 0, CELL, CELL); paint.drawImage(renderer.domElement, 0, 0);
+			const pixels = paint.getImageData(0, 0, CELL, CELL).data;
+			let left = CELL, top = CELL, right = 0, bottom = 0;
+			for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) if (pixels[(y * CELL + x) * 4 + 3]) { left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y); }
+			if (right < left || bottom < top) throw new Error(`Empty sprite: ${variant}/${row}/${direction}`);
+			left = Math.max(0, left - 2); top = Math.max(0, top - 2); right = Math.min(CELL - 1, right + 2); bottom = Math.min(CELL - 1, bottom + 2);
+			const crop = document.createElement("canvas"); crop.width = right - left + 1; crop.height = bottom - top + 1;
+			crop.getContext("2d")!.drawImage(scratch, left, top, crop.width, crop.height, 0, 0, crop.width, crop.height);
+			const frame: Frame = { x: 0, y: 0, w: crop.width, h: crop.height, dx: (left - origin.x) * unit, dy: (top - origin.y) * unit };
+			(frames[row] ??= [])[direction] = frame; captures.push({ canvas: crop, frame });
+			window.bossModelPreview.progress = `${variant}: ${direction + 1}/${DIRECTIONS} ${row}`;
+			await new Promise(resolve => setTimeout(resolve, 0));
+		}
+	}
+	captures.sort((a, b) => b.frame.h - a.frame.h);
+	let x = 2, y = 2, height = 0;
+	for (const { frame } of captures) {
+		if (x + frame.w + 2 > 2048) { x = 2; y += height + 2; height = 0; }
+		frame.x = x; frame.y = y; x += frame.w + 2; height = Math.max(height, frame.h);
+	}
+	const atlas = document.createElement("canvas"); atlas.width = 2048; atlas.height = Math.ceil((y + height + 2) / 4) * 4;
+	const ctx = atlas.getContext("2d")!; for (const item of captures) ctx.drawImage(item.canvas, item.frame.x, item.frame.y);
+	const post = async (name: string, body: string) => { const response = await fetch(`${destination}/${name}`, { method: "POST", headers: { "Content-Type": "text/plain" }, body }); if (!response.ok) throw new Error(`Save failed: ${name}`); };
+	await post(`${variant}.png`, atlas.toDataURL("image/png"));
+	const hit = document.createElement("canvas"); hit.width = atlas.width; hit.height = atlas.height;
+	const hitCtx = hit.getContext("2d")!; hitCtx.filter = "brightness(1.65)"; hitCtx.drawImage(atlas, 0, 0);
+	await post(`${variant}-hit.png`, hit.toDataURL("image/png"));
+	await post(`${variant}.json`, JSON.stringify({ width: atlas.width, height: atlas.height, unit, directions: DIRECTIONS, frames, tailNodes, clawAnchors }));
+	window.bossModelPreview.progress = `${variant}: saved ${captures.length} frames`;
+	return { variant, width: atlas.width, height: atlas.height, frames: captures.length };
 }
