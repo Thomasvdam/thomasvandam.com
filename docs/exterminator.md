@@ -679,3 +679,23 @@ in [the boss-art guide](exterminator-boss-art-study.md). The game does not rende
 live Three.js scenes. Shared-browser normal/hit readback samples were 6.7/7.5 ms
 median for the rhino and 6.9/14.1 ms for the scorpion; these include full-canvas
 readback overhead and are not device FPS predictions.
+
+Ordinary enemy hit flashes now prewarm 300 small 32×32 images at 1.8× brightness
+when the shared sprite set loads (about 1.2 MiB of RGBA pixels). They retain the
+80 ms hit window and never apply live canvas filters during combat. In a desktop
+shared-browser stress scene of 100 mixed enemies, completed hit-frame readback
+fell from 10,662 ms median with live filters to roughly 56–64 ms with cached art.
+These are host diagnostics, not device FPS estimates. Normal images were
+pixel-identical; cached hit images differed in only 105 of 3,225,600 channel
+values, by at most 2/255. Combining each rig part's translation, rotation and
+scale into one canvas transform preserves the cached output while reducing
+native canvas calls. `tools/benchmark-exterminator-render.ts` reproduces normal
+and hit stress scenes; bundle it for a temporary HTML page with a canvas and pre.
+
+Millipede bullets reject sections outside the swept projectile bounds before
+precise intersection and allocate only the winning hit instead of building
+337 circle objects per query. `bun tools/benchmark-exterminator-projectiles.ts`
+compares this against the exhaustive reference: warmed batches of 3,000 rays
+measured about 53–57 ms versus 18–20 ms, with the same 1,387 hits. Seeded tests
+also compare complete hit geometry/order across hidden and off-arena sections,
+variable projectile sizes and boss death.

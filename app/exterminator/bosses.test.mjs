@@ -232,3 +232,18 @@ test("armoured hits do chip damage; correct recovery targets deal thirty times a
 	boss.target = { ...game.player }; game.player.invulnerable = 0; stepBoss(game, 1 / 120, game.player);
 	expect(game.player.health).toBe(100); // The embedded weak point cannot inflict contact damage.
 });
+
+test("millipede projectile broad phase preserves exhaustive hit order, hidden sections and arena-edge hitboxes", async () => {
+	const { circleHitTime } = await import("./math");
+	const boss = createBoss("millipede", 14, { x: 560, y: 360 });
+	let seed = 47; const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+	for (let i = 0; i < boss.segments.length; i++) { boss.segments[i] = { x: random() * 1300 - 90, y: random() * 900 - 90, hidden: i % 7 === 0 }; }
+	boss.x = -24; boss.y = 300;
+	for (let i = 0; i < 1000; i++) {
+		boss.millipede.headHidden = i % 2 === 0; boss.health = i % 31 === 0 ? 0 : 100;
+		const from = { x: random() * 1300 - 90, y: random() * 900 - 90 }, to = { x: random() * 1300 - 90, y: random() * 900 - 90 }, radius = i % 15;
+		let time = Infinity, circle = null;
+		for (const candidate of bossCircles(boss)) { const t = circleHitTime(to, candidate, candidate.radius, from, radius); if (t < time) { time = t; circle = candidate; } }
+		expect(firstBossHit(boss, from, to, radius)).toEqual({ time, circle });
+	}
+});

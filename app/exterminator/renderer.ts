@@ -1,3 +1,4 @@
+import { bugHitSprites } from "./bug-hit-sprites";
 import { drawRhinoRocks } from "./rhino-rocks-renderer";
 import { prepareMillipedeSprites } from "./millipede-art";
 import { bossHitSprites } from "./boss-hit-sprites";
@@ -31,6 +32,7 @@ export function loadSprites(): Promise<Sprites> {
 		const image = new Image(); image.src = spec.path; await image.decode(); return [name, image] as const;
 	})).then(entries => {
 		const sprites = Object.fromEntries(entries) as Sprites;
+		bugHitSprites(sprites);
 		const hit = bossHitSprites(sprites);
 		prepareMillipedeSprites(sprites); prepareMillipedeSprites(hit);
 		return sprites;
@@ -123,16 +125,16 @@ export function render(ctx: CanvasRenderingContext2D, game: Game, sprites: Sprit
 	}
 	drawRhinoRocks(ctx, game);
 	const drawBug = (variant: BugVariant, appearance: number, x: number, y: number, angle: number, distance: number, spawnProgress = 1, deathProgress = 0, flash = false, segments: { x: number; y: number }[] = [], rolling = false, spitCharge = 0) => {
-		const skin = bugSkin(variant, appearance);
+		const skin = bugSkin(variant, appearance), art = flash ? bugHitSprites(sprites) : sprites;
 		if (variant === "centipede") {
 			for (let i = segments.length - 1; i >= 0; i--) {
 				const segment = segments[i], leader = i === 0 ? { x, y } : segments[i - 1];
 				const segmentAngle = Math.atan2(leader.y - segment.y, leader.x - segment.x);
-				drawRig(ctx, sprites, BUG_RIG, { ...skin, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8, flash);
+				drawRig(ctx, art, BUG_RIG, { ...skin, head: undefined }, bugPose({ distance: distance - i * 9, angle: segmentAngle, time: game.time, spawnProgress, deathProgress }), segment.x, segment.y, .8);
 			}
 		}
 		const poseState = { distance, angle, time: game.time, spawnProgress, deathProgress, rolling, spitCharge };
-		drawRig(ctx, sprites, bugRig(variant), skin, speciesPose(variant, poseState), x, y, BUG_SPECS[variant].radius / 15 * 1.05, flash);
+		drawRig(ctx, art, bugRig(variant), skin, speciesPose(variant, poseState), x, y, BUG_SPECS[variant].radius / 15 * 1.05);
 	};
 
 	for (const warning of game.spawns) {
