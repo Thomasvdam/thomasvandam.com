@@ -6,7 +6,8 @@ export function drawResolvedParts(ctx: CanvasRenderingContext2D, sprites: Sprite
 	for (const part of parts) {
 		if (part.opacity <= 0 || part.scaleX === 0 || part.scaleY === 0) continue;
 		const spec = SPRITE_PARTS[part.sprite];
-		ctx.save(); ctx.translate(part.x, part.y); ctx.rotate(part.angle); ctx.scale(part.scaleX, part.scaleY);
+		const cos = Math.cos(part.angle), sin = Math.sin(part.angle);
+		ctx.save(); ctx.transform(cos * part.scaleX, sin * part.scaleX, -sin * part.scaleY, cos * part.scaleY, part.x, part.y);
 		ctx.globalAlpha *= part.opacity;
 		ctx.drawImage(sprites[part.sprite], -spec.pivotX, -spec.pivotY, spec.width, spec.height);
 		if (part.sprite.endsWith("Wheel") || part.sprite.endsWith("Tread")) {

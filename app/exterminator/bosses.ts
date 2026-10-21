@@ -33,7 +33,22 @@ export function bossCircles(boss: Boss): BossCircle[] {
 }
 export function firstBossHit(boss: Boss | null, from: Vector, to: Vector, radius = 4) {
 	let time = Infinity, circle: BossCircle | null = null;
-	if (boss) for (const candidate of bossCircles(boss)) { const t = circleHitTime(to, candidate, candidate.radius, from, radius); if (t < time) { time = t; circle = candidate; } }
+	if (boss?.variant === "millipede" && boss.health > 0) {
+		// Projectiles query this at 120Hz. Reject distant sections before the
+		// swept-circle solve and only allocate the winning hit, not 337 circles.
+		const minX = Math.min(from.x, to.x) - radius, maxX = Math.max(from.x, to.x) + radius;
+		const minY = Math.min(from.y, to.y) - radius, maxY = Math.max(from.y, to.y) + radius;
+		let winner: Vector | null = null, winnerRadius = 0, part: BossCircle["part"] = "body";
+		for (let i = -1; i < boss.segments.length; i++) {
+			const point = i < 0 ? boss : boss.segments[i], r = i < 0 ? 24 : 18;
+			if (i < 0 ? boss.millipede?.headHidden : boss.segments[i].hidden) continue;
+			if (point.x < -r || point.x > FIELD.width + r || point.y < -r || point.y > FIELD.height + r) continue;
+			if (point.x < minX - r || point.x > maxX + r || point.y < minY - r || point.y > maxY + r) continue;
+			const t = circleHitTime(to, point, r, from, radius);
+			if (t < time) { time = t; winner = point; winnerRadius = r; part = i < 0 ? "head" : isMillipedeWeak(i) ? "joint" : "body"; }
+		}
+		if (winner) circle = { x: winner.x, y: winner.y, radius: winnerRadius, part };
+	} else if (boss) for (const candidate of bossCircles(boss)) { const t = circleHitTime(to, candidate, candidate.radius, from, radius); if (t < time) { time = t; circle = candidate; } }
 	return { time, circle };
 }
 export function damageBoss(boss: Boss, damage: number, time: number, part: BossCircle["part"] = "body") {

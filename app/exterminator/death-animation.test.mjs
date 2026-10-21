@@ -23,6 +23,7 @@ function recorder() {
 	const ctx = {
 		get globalAlpha() { return alpha; }, set globalAlpha(value) { alpha = value; },
 		save() { stack.push({ matrix: [...matrix], alpha }); }, restore() { ({ matrix, alpha } = stack.pop()); },
+		transform(...values) { multiply(values); },
 		translate(x, y) { multiply([1, 0, 0, 1, x, y]); }, rotate(angle) { const c = Math.cos(angle), s = Math.sin(angle); multiply([c, s, -s, c, 0, 0]); }, scale(x, y) { multiply([x, 0, 0, y, 0, 0]); },
 		drawImage(sprite, x, y, width, height) {
 			if (alpha <= 1e-6) return;
