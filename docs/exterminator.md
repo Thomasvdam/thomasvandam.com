@@ -212,7 +212,9 @@ do. Resizing never changes simulation bounds.
 Firm ground, mud (puddles), and rubble (angular stones) form traversable 80-unit
 tiles for movement lookup. Painting blends the surface colours along warped,
 soft boundaries and scatters stones, puddle marks and grit across world space;
-there are no alternating tile shades or repeated per-tile decorations. The
+there are no alternating tile shades or repeated per-tile decorations. Mud uses
+a richer brown base with larger dark puddles, raised earthen rims and narrow
+reflected highlights so it remains distinct under the mech lights. The
 runtime bakes this into its existing single background canvas once per layout,
 lighting variation or pixel-density change, then reuses one image each frame.
 No additional textures, canvases or live filters are needed. Shared-browser
