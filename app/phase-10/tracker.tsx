@@ -100,14 +100,15 @@ function Tracker() {
 		<div className={styles.shell}>
 			<div className={styles.container}>
 				<header className={styles.header}>
-					<a href="/phase-10" className={styles.brand} aria-label="Phase 10 scorekeeper"><span className={styles.logo}>10</span><span>PHASE TEN<span className={styles.brandSub}>THE TABLE COMPANION</span></span></a>
+					<a href="/" className={styles.homeLink}>← Thomas van Dam</a>
+					<a href="/phase-10" className={styles.brand} aria-label="Phase 10 scorekeeper"><span className={styles.logo}>10</span><span><span className={styles.brandName}>PHASE 10</span><span className={styles.brandSub}>YOUR GAME NIGHT SCOREKEEPER</span></span></a>
 					<span className={styles.edition}>JUST ADD CARDS.</span>
 				</header>
 
 				{!game ? (
 					<section className={styles.setup} aria-labelledby="setup-heading">
-						<div className={styles.eyebrow}>GOOD COMPANY. TEN PHASES.</div>
-						<h1 id="setup-heading">Cards on the table.<br /><span>We’ll keep score.</span></h1>
+						<div className={styles.eyebrow}>SHUFFLE. DEAL. PLAY.</div>
+						<h1 id="setup-heading">Ten phases.<br /><span>We’ll keep score.</span></h1>
 						<p className={styles.intro}>Your phases, points, and who starts next.<br />A little less counting. A lot more playing.</p>
 						<form onSubmit={event => { event.preventDefault(); try { setGame(newGame(names, firstStarter)); setError(""); setNotice(""); window.scrollTo({ top: 0 }); } catch (cause) { setError((cause as Error).message); } }} className={styles.setupPanel}>
 							<div className={styles.panelHeading}><h2>Who’s playing?</h2><span>{names.length} / 6</span></div>
