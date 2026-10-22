@@ -67,7 +67,7 @@ await window.bossModelPreview.bake("scorpion");
 The receiver exits after writing four PNGs to `public/images/exterminator/bosses/`
 and the shared `app/exterminator/boss-sheets.json` manifest, or times out after ten
 minutes. `window.bossModelPreview.progress` reports the current render. Each sheet
-contains 16 camera-consistent headings and four walking frames. The rhino separates body/legs and head/horn layers, with four progressively authored poses for each charge, sweep and lift tell, plus three planted-leg poses (368 cropped frames total). The scorpion separates body, three dash-brace poses, four wind-up poses per claw, claw sweeps and six tail sections (400 cropped frames total). Head and claw layers rotate in the actual 3D model before baking; their smaller crops limit the additional atlas cost. Runtime coils the connected tail above the body during the sting tell, then snaps the whole chain to the locked target on the strike. Wind-up progress uses fixed attack durations and never adjusts to player terrain.
+contains 16 camera-consistent headings and four walking frames. The rhino separates body/legs and head/horn layers, with four progressively authored poses for each charge, sweep and lift tell, plus three planted-leg and three open-shell poses (416 cropped frames total). The scorpion separates body, three dash-brace poses, four wind-up poses per claw, claw sweeps and six tail sections (400 cropped frames total). Head and claw layers rotate in the actual 3D model before baking; their smaller crops limit the additional atlas cost. Runtime coils the connected tail above the body during the sting tell, then snaps the whole chain to the locked target on the strike. Wind-up progress uses fixed attack durations and never adjusts to player terrain.
 
 The generated manifest records cropped source rectangles, projected ground
 origins, claw anchors and tail joints. It is generated data; edit the model or
@@ -76,7 +76,18 @@ centres and interpolates the connected tail to the locked sting target. Missing
 claws are omitted. Hit PNGs are brightened offline, so hit frames use normal image
 draws with no filtering or canvas allocation. The millipede keeps its existing rig.
 
-Both normal and hit sheets decode to about 69.4 MiB of RGBA pixels combined; the
-four compressed PNGs total about 9.4 MiB. The loader shares one promise/decoded set between
+The normal and hit sheets decode to about 81.1 MiB of RGBA pixels combined; the
+four compressed PNGs total about 11.1 MiB. The loader shares one promise/decoded set between
 gameplay and bugpedia portraits, resetting failed loads so they can be retried.
 This is a fixed asset cost rather than per-boss/per-frame allocation. No model geometry enters the game bundle.
+
+The rhino wing cases and their ribs are hinged groups. Opening them exposes
+fleshy flank panels; three baked body rows animate opening and closing during
+stuck, dazed and get-up phases. Gameplay still draws two cropped images for the
+beetle. Re-bake only this boss with
+`python3 tools/save-exterminator-boss-sheets.py --variant rhinoceros`, followed by
+`await window.bossModelPreview.bake("rhinoceros")`; the receiver preserves the
+scorpion sheet and manifest.
+
+Rhino sheet URLs carry a revision query when loaded, so updated crop coordinates
+cannot accidentally use an older cached atlas. Bump that revision when rebaking.

@@ -1,8 +1,9 @@
 """Receive the offline browser baker's two sheets and write their shared manifest.
 
 Run this localhost-only receiver before bossModelPreview.bake; see the art guide.
-It exits after the six expected uploads or a ten-minute deadline.
+It exits after the requested uploads (both bosses by default) or ten minutes.
 """
+import argparse
 import base64
 import json
 import time
@@ -11,7 +12,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "public/images/exterminator/bosses"
-ALLOWED = {f"{variant}{suffix}" for variant in ("rhinoceros", "scorpion") for suffix in (".png", "-hit.png", ".json")}
+parser = argparse.ArgumentParser()
+parser.add_argument("--variant", choices=("rhinoceros", "scorpion"))
+args = parser.parse_args()
+variants = (args.variant,) if args.variant else ("rhinoceros", "scorpion")
+ALLOWED = {f"{variant}{suffix}" for variant in variants for suffix in (".png", "-hit.png", ".json")}
 received = set()
 manifests = {}
 
@@ -40,8 +45,11 @@ class Receiver(BaseHTTPRequestHandler):
             self.send_error(400)
             return
         received.add(name)
-        if len(manifests) == 2:
-            (ROOT / "app/exterminator/boss-sheets.json").write_text(json.dumps(manifests, separators=(",", ":"), sort_keys=True) + "\n")
+        if len(manifests) == len(variants):
+            path = ROOT / "app/exterminator/boss-sheets.json"
+            merged = json.loads(path.read_text()) if path.exists() else {}
+            merged.update(manifests)
+            path.write_text(json.dumps(merged, separators=(",", ":"), sort_keys=True) + "\n")
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()

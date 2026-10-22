@@ -6,7 +6,7 @@ type BossStudy = "rhinoceros" | "scorpion";
 const material = (color: number, roughness = .7, metalness = .16) => new THREE.MeshStandardMaterial({ color, roughness, metalness });
 const palette = {
 	olive: material(0x56603b), oliveLight: material(0x728052), seam: material(0x20291e),
-	bronze: material(0x9d8550), horn: material(0x645638), tip: material(0xc9b77e),
+	flesh: material(0xb37554, .65, .05), bronze: material(0x9d8550), horn: material(0x645638), tip: material(0xc9b77e),
 	joint: material(0x28262a), purple: material(0x4b3546), plate: material(0x70505b),
 	edge: material(0xa37865), claw: material(0x61434d), black: material(0x151918), eye: material(0xb65834, .23),
 };
@@ -77,6 +77,7 @@ function rhinoceros() {
 	const bug = new THREE.Group(); bug.name = "rhinoceros-study";
 	ellipsoid(bug, "abdomen", [-.65, .63, 0], [1.22, .57, .83], palette.seam);
 	for (const side of [-1, 1]) {
+		const shellStart = bug.children.length;
 		const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 28, side < 0 ? Math.PI : 0, Math.PI), palette.olive);
 		shell.name = `elytron-${side}`; shell.position.set(-.69, .72, side * .009); shell.scale.set(1.2, .54, .81);
 		shell.castShadow = true; shell.receiveShadow = true; bug.add(shell);
@@ -90,6 +91,9 @@ function rhinoceros() {
 			}
 			curve(bug, "elytral-rib", points, .008, palette.oliveLight);
 		}
+		jointGroup(bug, `wingcase-${side}`, shellStart, [.3, .72, 0]);
+		ellipsoid(bug, "exposed-flank", [-.45, 1.03, side * .55], [.78, .15, .23], palette.flesh);
+		for (let band = 0; band < 5; band++) ellipsoid(bug, "flank-fold", [-1.04 + band * .29, 1.15, side * .55], [.045, .06, .22], palette.bronze);
 		feet(bug, -.94, side, -1.1, 0, true); feet(bug, -.13, side, -.1, 1, true); feet(bug, .69, side, 1.1, 2, true);
 	}
 	ellipsoid(bug, "pronotum", [.53, .8, 0], [.64, .48, .68], palette.oliveLight);
@@ -229,7 +233,7 @@ async function bake(variant: BossStudy, destination = "http://localhost:3013") {
 	const paint = scratch.getContext("2d", { willReadFrequently: true })!;
 	const tellRows = (prefix: string) => Array.from({ length: 4 }, (_, index) => `${prefix}Tell${index}`);
 	const rows = variant === "rhinoceros"
-		? ["walk0", "walk1", "walk2", "walk3", "brace0", "brace1", "brace2", "headRest", "headSweep", "headLift", "headCharge", ...tellRows("charge"), ...tellRows("sweep"), ...tellRows("lift")]
+		? ["walk0", "walk1", "walk2", "walk3", "brace0", "brace1", "brace2", "open0", "open1", "open2", "headRest", "headSweep", "headLift", "headCharge", ...tellRows("charge"), ...tellRows("sweep"), ...tellRows("lift")]
 		: ["walk0", "walk1", "walk2", "walk3", "dashTell0", "dashTell1", "dashTell2", "clawL0", "clawL2", "clawR0", "clawR2", ...tellRows("clawL"), ...tellRows("clawR"), "tail0", "tail1", "tail2", "tail3", "tail4", "tail5"];
 	type Frame = { x: number; y: number; w: number; h: number; dx: number; dy: number };
 	const frames: Record<string, Frame[]> = {}, captures: { canvas: HTMLCanvasElement; frame: Frame }[] = [];
@@ -253,16 +257,21 @@ async function bake(variant: BossStudy, destination = "http://localhost:3013") {
 				const rhinoHead = row.startsWith("head") || /^(charge|sweep|lift)Tell/.test(row);
 				child.visible = variant === "rhinoceros" ? rhinoHead ? child.name === "head-motion" : child.name !== "head-motion"
 					: row.startsWith("walk") || row.startsWith("dashTell") ? !/^(claw[LR]|tail\d)$/.test(child.name) : child.name === row.replace(/(Tell)?\d$/, "") || child.name === row;
+				if (variant === "rhinoceros" && (child.name === "exposed-flank" || child.name === "flank-fold")) child.visible = row.startsWith("open");
 				if (!(child instanceof THREE.Group)) continue;
 				child.rotation.set(0, 0, 0);
+				if (child.name.startsWith("wingcase-") && row.startsWith("open")) {
+					const side = Number(child.name.slice("wingcase-".length)), opening = (Number(row.at(-1)) + 1) / 3;
+					child.rotation.x = -side * .3 * opening; child.rotation.y = side * .65 * opening;
+				}
 				if (child.name.startsWith("leg-") && row.startsWith("walk")) {
 					const [, side, index] = /^leg-(-?\d+)-(\d+)$/.exec(child.name)!, step = Math.sin(Number(row.at(-1)) * Math.PI / 2 + Number(index) * Math.PI + (Number(side) < 0 ? Math.PI : 0));
 					child.rotation.y = step * .2; child.rotation.z = step * .07;
 				}
 				const tell = row.includes("Tell") ? Number(row.at(-1)) / (row.startsWith("dash") ? 2 : 3) : 0;
-				if (child.name.startsWith("leg-") && (row.startsWith("brace") || row.startsWith("dashTell"))) {
+				if (child.name.startsWith("leg-") && (row.startsWith("brace") || row.startsWith("open") || row.startsWith("dashTell"))) {
 					const [, side, index] = /^leg-(-?\d+)-(\d+)$/.exec(child.name)!;
-					const brace = row.startsWith("brace") ? Number(row.at(-1)) / 2 : tell;
+					const brace = row.startsWith("open") ? 1 : row.startsWith("brace") ? Number(row.at(-1)) / 2 : tell;
 					child.rotation.y = (Number(index) % 2 ? -.28 : .28) * brace;
 					child.rotation.z = (Number(side) < 0 ? -1 : 1) * .18 * brace;
 				}

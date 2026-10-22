@@ -31,7 +31,7 @@ let spriteLoad: Promise<Sprites> | undefined;
 // Field rendering and bugpedia portraits share the decoded sheets and hit cache.
 export function loadSprites(): Promise<Sprites> {
 	return spriteLoad ??= Promise.all(Object.entries(SPRITE_PARTS).map(async ([name, spec]) => {
-		const image = new Image(); image.src = spec.path; await image.decode(); return [name, image] as const;
+		const image = new Image(); image.src = spec.path + ("revision" in spec ? `?v=${spec.revision}` : ""); await image.decode(); return [name, image] as const;
 	})).then(entries => {
 		const sprites = Object.fromEntries(entries) as Sprites;
 		bugHitSprites(sprites);
