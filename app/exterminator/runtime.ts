@@ -156,7 +156,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	const hashchange = () => { setDebug(game, window.location.hash === "#debug"); changed(); };
 	const keydown = (event: KeyboardEvent) => {
 		if (!loaded || !(canvas.parentElement?.contains(document.activeElement))) return;
-		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea");
+		const interactive = (event.target as HTMLElement)?.closest("button, a, input, select, textarea, summary");
 		if (event.code === "Escape" || event.code === "KeyP") { event.preventDefault(); if (!event.repeat) action((game.mode === "shop" || game.mode === "weapons") ? "workshop" : game.mode === "workshop" ? "hives" : "pause"); return; }
 		if (menuChoices(game).length > 0 && /^[0-9lba]$/i.test(event.key)) {
 			event.preventDefault(); const index = menuChoices(game).findIndex(choice => choice.key.toLowerCase() === event.key.toLowerCase());

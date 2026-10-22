@@ -148,6 +148,9 @@ function stepScorpion(game: Game, boss: Boss, dt: number, previous: Vector) {
 			if (boss.sequenceAttacks >= 3) scorpionSting(game, boss, previous, dt);
 			else scorpionClaw(game, boss, 0, previous, dt);
 		}
+	} else if ((boss.phase === "clawWindup" || boss.phase === "claw") && boss.claws[activeClaw(boss)] <= 0) {
+		// Breaking the attacking claw cancels the swipe and forces the finisher.
+		scorpionSting(game, boss, previous, dt);
 	} else if (boss.phase === "clawWindup" && !boss.remaining) phase(boss, "claw", BOSS_ATTACKS.claw.active);
 	else if (boss.phase === "claw") {
 		const index = activeClaw(boss);
@@ -161,9 +164,8 @@ function stepScorpion(game: Game, boss: Boss, dt: number, previous: Vector) {
 		if (Math.hypot(game.player.x - boss.target.x, game.player.y - boss.target.y) <= BOSS_ATTACKS.sting.radius + PLAYER_RADIUS) hurtPlayer(game, BOSS_ATTACKS.sting.damage);
 		phase(boss, "sting", BOSS_ATTACKS.sting.active);
 	} else if (boss.phase === "sting" && !boss.remaining) {
-		boss.sequenceAttacks = (boss.sequenceAttacks ?? 0) + 1;
-		if (boss.sequenceAttacks < 3 && playerDistance(game, boss) > 220) scorpionDash(game, boss);
-		else phase(boss, "embedded", 1.9);
+		// Every committed sting gives the player a predictable punish window.
+		phase(boss, "embedded", BOSS_ATTACKS.sting.recovery);
 	} else if ((boss.phase === "embedded" || boss.phase === "recover") && !boss.remaining) phase(boss, "approach", .25);
 }
 export function stepBoss(game: Game, dt: number, previousPlayer: Vector) {

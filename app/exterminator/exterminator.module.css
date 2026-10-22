@@ -118,3 +118,18 @@
 .bossHud meter { width: 100%; height: 8px; appearance: none; background: #412c29; border: 1px solid #99674b; border-radius: 3px; }
 .bossHud meter::-webkit-meter-bar { background: #412c29; border: none; }.bossHud meter::-webkit-meter-optimum-value { background: #e3a265; }.bossHud meter::-moz-meter-bar { background: #e3a265; }
 .bossHud span { font-size: 9px; }
+
+/* Keep menu scrolling inside the panel, including short landscape viewports. */
+.overlay { overflow: hidden; }
+.card { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #71835c transparent; }
+.card h2 { font-size: clamp(28px, 4vw, 38px); margin: 8px 0 16px; }
+.menuActions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-top: 24px; }
+.menuActions > button { margin-top: 0; }
+.controls { margin: 22px 0 0; text-align: left; border-block: 1px solid #42503d; font-size: 12px; color: var(--muted); }
+.controls summary { padding: 12px 0; cursor: pointer; color: var(--ink); }
+.controls summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.controls .instructions { margin: 4px 0 16px; }
+.upgrades { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.upgrades button { text-align: left; }
+.weaponChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 600px) { .upgrades { grid-template-columns: minmax(0, 1fr); }.menuActions > button { flex: 1 1 auto; }.controls .instructions { grid-template-columns: 1fr; } }

@@ -248,3 +248,33 @@ test("millipede projectile broad phase preserves exhaustive hit order, hidden se
 		expect(firstBossHit(boss, from, to, radius)).toEqual({ time, circle });
 	}
 });
+
+test("a ranged sting always exposes its landing point before another attack", () => {
+	const game = fight("scorpion"), boss = game.boss;
+	boss.x = 150; boss.y = 200; boss.remaining = 0;
+	game.player.x = 800; game.player.y = 200;
+	stepBoss(game, 1 / 120, game.player);
+	expect(boss.phase).toBe("stingWindup");
+	const target = { ...boss.target };
+	game.player.y += 100;
+	until(game, "embedded", 2);
+	expect(boss.target).toEqual(target);
+	expect(boss.remaining).toBeCloseTo(2.6);
+	const stinger = bossCircles(boss).find(circle => circle.part === "stinger");
+	// A glancing shot which missed the old 18-unit weak point now connects.
+	expect(firstBossHit(boss, { x: target.x - 60, y: target.y + 22 }, { x: target.x + 60, y: target.y + 22 }, 0).circle).toEqual(stinger);
+	advance(game, 2.4); expect(boss.phase).toBe("embedded");
+	advance(game, .22); expect(boss.phase).toBe("approach");
+});
+
+test("breaking the active claw interrupts both its tell and strike without swipe damage", () => {
+	for (const phase of ["clawWindup", "claw"]) for (const index of [0, 1]) {
+		const game = fight("scorpion"), boss = game.boss;
+		boss.phase = phase; boss.comboStep = index; boss.remaining = .1;
+		game.player.x = boss.x + 120; game.player.y = boss.y; game.player.invulnerable = 0;
+		damageBoss(boss, 30, game.time, index === 0 ? "leftClaw" : "rightClaw");
+		stepBoss(game, 1 / 120, game.player);
+		expect(boss.phase).toBe("stingWindup"); expect(game.player.health).toBe(100);
+		expect(boss.remaining).toBeGreaterThan(1);
+	}
+});
