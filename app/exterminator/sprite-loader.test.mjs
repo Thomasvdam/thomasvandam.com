@@ -11,7 +11,7 @@ test("sprite loading retries a failure and coalesces field/portrait loads into o
 		await expect(loadSprites()).rejects.toThrow("decode failed");
 		failing = false; decodes = 0;
 		const field = loadSprites(), portrait = loadSprites(); expect(field).toBe(portrait);
-		const sprites = await field; expect(await portrait).toBe(sprites); expect(decodes).toBe(Object.keys(SPRITE_PARTS).length);
+		const sprites = await field; expect(await portrait).toBe(sprites); expect(decodes).toBe(5); expect(Object.keys(sprites).sort()).toEqual(Object.keys(SPRITE_PARTS).sort());
 		const count = canvases; expect(await loadSprites()).toBe(sprites); expect(canvases).toBe(count);
 	} finally { globalThis.Image = originalImage; globalThis.document = originalDocument; }
 });

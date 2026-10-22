@@ -1,0 +1,2177 @@
+{
+	"atlas": "/images/exterminator/optimized/parts-63d61e7f0dbf776b.webp",
+	"crops": {
+		"bossMillipedeBody": {
+			"x": 0,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeBodyWeak": {
+			"x": 128,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeHead": {
+			"x": 256,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeLeg": {
+			"x": 384,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeNeckBody": {
+			"x": 512,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeNeckShell": {
+			"x": 640,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeShellA": {
+			"x": 768,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeShellB": {
+			"x": 896,
+			"y": 0,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeShellC": {
+			"x": 0,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeShellD": {
+			"x": 128,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeShellE": {
+			"x": 256,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeShellF": {
+			"x": 384,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeShellWeak": {
+			"x": 512,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeTailBody": {
+			"x": 640,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossMillipedeTailShell": {
+			"x": 768,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossRhinoBody": {
+			"x": 896,
+			"y": 128,
+			"width": 128,
+			"height": 128
+		},
+		"bossRhinoHead": {
+			"x": 0,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossRhinoHorn": {
+			"x": 128,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossRhinoLeg": {
+			"x": 256,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossRhinoShell": {
+			"x": 384,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossScorpionBody": {
+			"x": 512,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossScorpionClaw": {
+			"x": 640,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossScorpionHead": {
+			"x": 768,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossScorpionLeg": {
+			"x": 896,
+			"y": 256,
+			"width": 128,
+			"height": 128
+		},
+		"bossScorpionShell": {
+			"x": 0,
+			"y": 384,
+			"width": 128,
+			"height": 128
+		},
+		"bossScorpionStinger": {
+			"x": 128,
+			"y": 384,
+			"width": 128,
+			"height": 128
+		},
+		"bossScorpionTail": {
+			"x": 256,
+			"y": 384,
+			"width": 128,
+			"height": 128
+		},
+		"acid": {
+			"x": 384,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionBody": {
+			"x": 416,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionBodyB": {
+			"x": 448,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionBodyC": {
+			"x": 480,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionHead": {
+			"x": 512,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionHeadB": {
+			"x": 544,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionHeadC": {
+			"x": 576,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionShell": {
+			"x": 608,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionShellB": {
+			"x": 640,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugAntlionShellC": {
+			"x": 672,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredBody": {
+			"x": 704,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredBodyB": {
+			"x": 736,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredBodyC": {
+			"x": 768,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredHead": {
+			"x": 800,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredHeadB": {
+			"x": 832,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredHeadC": {
+			"x": 864,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredLeg": {
+			"x": 896,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredLegB": {
+			"x": 928,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredLegC": {
+			"x": 960,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredShell": {
+			"x": 992,
+			"y": 384,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredShellB": {
+			"x": 0,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugArmouredShellC": {
+			"x": 32,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinBody": {
+			"x": 64,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinBodyB": {
+			"x": 96,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinBodyC": {
+			"x": 128,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinHead": {
+			"x": 160,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinHeadB": {
+			"x": 192,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinHeadC": {
+			"x": 224,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinLeg": {
+			"x": 256,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinLegB": {
+			"x": 288,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinLegC": {
+			"x": 320,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinShell": {
+			"x": 352,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinShellB": {
+			"x": 384,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugAssassinShellC": {
+			"x": 416,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleBody": {
+			"x": 448,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleBodyB": {
+			"x": 480,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleBodyC": {
+			"x": 512,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleHead": {
+			"x": 544,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleHeadB": {
+			"x": 576,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleHeadC": {
+			"x": 608,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleLeg": {
+			"x": 640,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleLegB": {
+			"x": 672,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleLegC": {
+			"x": 704,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleShell": {
+			"x": 736,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleShellB": {
+			"x": 768,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBeetleShellC": {
+			"x": 800,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasBody": {
+			"x": 832,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasBodyB": {
+			"x": 864,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasBodyC": {
+			"x": 896,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasHead": {
+			"x": 928,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasHeadB": {
+			"x": 960,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasHeadC": {
+			"x": 992,
+			"y": 512,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasLeg": {
+			"x": 0,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasLegB": {
+			"x": 32,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasLegC": {
+			"x": 64,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasShell": {
+			"x": 96,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasShellB": {
+			"x": 128,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBolasShellC": {
+			"x": 160,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierBody": {
+			"x": 192,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierBodyB": {
+			"x": 224,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierBodyC": {
+			"x": 256,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierHead": {
+			"x": 288,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierHeadB": {
+			"x": 320,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierHeadC": {
+			"x": 352,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierLeg": {
+			"x": 384,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierLegB": {
+			"x": 416,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierLegC": {
+			"x": 448,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierShell": {
+			"x": 480,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierShellB": {
+			"x": 512,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBombardierShellC": {
+			"x": 544,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntBody": {
+			"x": 576,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntBodyB": {
+			"x": 608,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntBodyC": {
+			"x": 640,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntHead": {
+			"x": 672,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntHeadB": {
+			"x": 704,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntHeadC": {
+			"x": 736,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntLeg": {
+			"x": 768,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntLegB": {
+			"x": 800,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntLegC": {
+			"x": 832,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntShell": {
+			"x": 864,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntShellB": {
+			"x": 896,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugBulletAntShellC": {
+			"x": 928,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeBody": {
+			"x": 960,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeBodyB": {
+			"x": 992,
+			"y": 544,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeBodyC": {
+			"x": 0,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeHead": {
+			"x": 32,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeHeadB": {
+			"x": 64,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeHeadC": {
+			"x": 96,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeLeg": {
+			"x": 128,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeLegB": {
+			"x": 160,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeLegC": {
+			"x": 192,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeShell": {
+			"x": 224,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeShellB": {
+			"x": 256,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCentipedeShellC": {
+			"x": 288,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickBody": {
+			"x": 320,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickBodyB": {
+			"x": 352,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickBodyC": {
+			"x": 384,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickHead": {
+			"x": 416,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickHeadB": {
+			"x": 448,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickHeadC": {
+			"x": 480,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickLeg": {
+			"x": 512,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickLegB": {
+			"x": 544,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickLegC": {
+			"x": 576,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickShell": {
+			"x": 608,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickShellB": {
+			"x": 640,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugClickShellC": {
+			"x": 672,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierBody": {
+			"x": 704,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierBodyB": {
+			"x": 736,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierBodyC": {
+			"x": 768,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierHead": {
+			"x": 800,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierHeadB": {
+			"x": 832,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierHeadC": {
+			"x": 864,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierShell": {
+			"x": 896,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierShellB": {
+			"x": 928,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierShellC": {
+			"x": 960,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierWing": {
+			"x": 992,
+			"y": 576,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierWingB": {
+			"x": 0,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugCourierWingC": {
+			"x": 32,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyBody": {
+			"x": 64,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyBodyB": {
+			"x": 96,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyBodyC": {
+			"x": 128,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyHead": {
+			"x": 160,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyHeadB": {
+			"x": 192,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyHeadC": {
+			"x": 224,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyLeg": {
+			"x": 256,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyLegB": {
+			"x": 288,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyLegC": {
+			"x": 320,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyShell": {
+			"x": 352,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyShellB": {
+			"x": 384,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyShellC": {
+			"x": 416,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyWing": {
+			"x": 448,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyWingB": {
+			"x": 480,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugDragonflyWingC": {
+			"x": 512,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEggBody": {
+			"x": 544,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEggBodyB": {
+			"x": 576,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEggBodyC": {
+			"x": 608,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderBody": {
+			"x": 640,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderBodyB": {
+			"x": 672,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderBodyC": {
+			"x": 704,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderHead": {
+			"x": 736,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderHeadB": {
+			"x": 768,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderHeadC": {
+			"x": 800,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderLeg": {
+			"x": 832,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderLegB": {
+			"x": 864,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderLegC": {
+			"x": 896,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderShell": {
+			"x": 928,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderShellB": {
+			"x": 960,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugEvaderShellC": {
+			"x": 992,
+			"y": 608,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingBody": {
+			"x": 0,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingBodyB": {
+			"x": 32,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingBodyC": {
+			"x": 64,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingHead": {
+			"x": 96,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingHeadB": {
+			"x": 128,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingHeadC": {
+			"x": 160,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingLeg": {
+			"x": 192,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingLegB": {
+			"x": 224,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingLegC": {
+			"x": 256,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingShell": {
+			"x": 288,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingShellB": {
+			"x": 320,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugExplodingShellC": {
+			"x": 352,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaBody": {
+			"x": 384,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaBodyB": {
+			"x": 416,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaBodyC": {
+			"x": 448,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaHead": {
+			"x": 480,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaHeadB": {
+			"x": 512,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaHeadC": {
+			"x": 544,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaShell": {
+			"x": 576,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaShellB": {
+			"x": 608,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLarvaShellC": {
+			"x": 640,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerBody": {
+			"x": 672,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerBodyB": {
+			"x": 704,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerBodyC": {
+			"x": 736,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerHead": {
+			"x": 768,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerHeadB": {
+			"x": 800,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerHeadC": {
+			"x": 832,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerLeg": {
+			"x": 864,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerLegB": {
+			"x": 896,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerLegC": {
+			"x": 928,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerShell": {
+			"x": 960,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerShellB": {
+			"x": 992,
+			"y": 640,
+			"width": 32,
+			"height": 32
+		},
+		"bugLungerShellC": {
+			"x": 0,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothBody": {
+			"x": 32,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothBodyB": {
+			"x": 64,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothBodyC": {
+			"x": 96,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothHead": {
+			"x": 128,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothHeadB": {
+			"x": 160,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothHeadC": {
+			"x": 192,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothShell": {
+			"x": 224,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothShellB": {
+			"x": 256,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothShellC": {
+			"x": 288,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothWing": {
+			"x": 320,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothWingB": {
+			"x": 352,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugMothWingC": {
+			"x": 384,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveBody": {
+			"x": 416,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveBodyB": {
+			"x": 448,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveBodyC": {
+			"x": 480,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveHead": {
+			"x": 512,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveHeadB": {
+			"x": 544,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveHeadC": {
+			"x": 576,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveLeg": {
+			"x": 608,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveLegB": {
+			"x": 640,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveLegC": {
+			"x": 672,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveShell": {
+			"x": 704,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveShellB": {
+			"x": 736,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugOliveShellC": {
+			"x": 768,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenBody": {
+			"x": 800,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenBodyB": {
+			"x": 832,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenBodyC": {
+			"x": 864,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenHead": {
+			"x": 896,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenHeadB": {
+			"x": 928,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenHeadC": {
+			"x": 960,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenLeg": {
+			"x": 992,
+			"y": 672,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenLegB": {
+			"x": 0,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenLegC": {
+			"x": 32,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenShell": {
+			"x": 64,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenShellB": {
+			"x": 96,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugQueenShellC": {
+			"x": 128,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustBody": {
+			"x": 160,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustBodyB": {
+			"x": 192,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustBodyC": {
+			"x": 224,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustHead": {
+			"x": 256,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustHeadB": {
+			"x": 288,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustHeadC": {
+			"x": 320,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustLeg": {
+			"x": 352,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustLegB": {
+			"x": 384,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustLegC": {
+			"x": 416,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustShell": {
+			"x": 448,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustShellB": {
+			"x": 480,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugRustShellC": {
+			"x": 512,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugBody": {
+			"x": 544,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugBodyB": {
+			"x": 576,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugBodyC": {
+			"x": 608,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugHead": {
+			"x": 640,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugHeadB": {
+			"x": 672,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugHeadC": {
+			"x": 704,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugShell": {
+			"x": 736,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugShellB": {
+			"x": 768,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSlugShellC": {
+			"x": 800,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierBody": {
+			"x": 832,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierBodyB": {
+			"x": 864,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierBodyC": {
+			"x": 896,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierHead": {
+			"x": 928,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierHeadB": {
+			"x": 960,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierHeadC": {
+			"x": 992,
+			"y": 704,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierLeg": {
+			"x": 0,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierLegB": {
+			"x": 32,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierLegC": {
+			"x": 64,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierShell": {
+			"x": 96,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierShellB": {
+			"x": 128,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSoldierShellC": {
+			"x": 160,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterBody": {
+			"x": 192,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterBodyB": {
+			"x": 224,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterBodyC": {
+			"x": 256,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterHead": {
+			"x": 288,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterHeadB": {
+			"x": 320,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterHeadC": {
+			"x": 352,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterLeg": {
+			"x": 384,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterLegB": {
+			"x": 416,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterLegC": {
+			"x": 448,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterShell": {
+			"x": 480,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterShellB": {
+			"x": 512,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugSpitterShellC": {
+			"x": 544,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetBody": {
+			"x": 576,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetBodyB": {
+			"x": 608,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetBodyC": {
+			"x": 640,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetHead": {
+			"x": 672,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetHeadB": {
+			"x": 704,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetHeadC": {
+			"x": 736,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetShell": {
+			"x": 768,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetShellB": {
+			"x": 800,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugVelvetShellC": {
+			"x": 832,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspBody": {
+			"x": 864,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspBodyB": {
+			"x": 896,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspBodyC": {
+			"x": 928,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspHead": {
+			"x": 960,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspHeadB": {
+			"x": 992,
+			"y": 736,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspHeadC": {
+			"x": 0,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspLeg": {
+			"x": 32,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspLegB": {
+			"x": 64,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspLegC": {
+			"x": 96,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspShell": {
+			"x": 128,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspShellB": {
+			"x": 160,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspShellC": {
+			"x": 192,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspWing": {
+			"x": 224,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspWingB": {
+			"x": 256,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWaspWingC": {
+			"x": 288,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWing": {
+			"x": 320,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWingB": {
+			"x": 352,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWingC": {
+			"x": 384,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerBody": {
+			"x": 416,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerBodyB": {
+			"x": 448,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerBodyC": {
+			"x": 480,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerHead": {
+			"x": 512,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerHeadB": {
+			"x": 544,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerHeadC": {
+			"x": 576,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerLeg": {
+			"x": 608,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerLegB": {
+			"x": 640,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerLegC": {
+			"x": 672,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerShell": {
+			"x": 704,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerShellB": {
+			"x": 736,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bugWorkerShellC": {
+			"x": 768,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"bullet": {
+			"x": 800,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"dungBall": {
+			"x": 832,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"flame": {
+			"x": 864,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"mechBoostFoot": {
+			"x": 896,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"mechBoostTread": {
+			"x": 928,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"mechBoostWheel": {
+			"x": 960,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"mechCannon": {
+			"x": 992,
+			"y": 768,
+			"width": 32,
+			"height": 32
+		},
+		"mechChassis": {
+			"x": 0,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechCooler": {
+			"x": 32,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechFlamethrower": {
+			"x": 64,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechFoot": {
+			"x": 96,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechHeavyCannon": {
+			"x": 128,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechHeavyFlamethrower": {
+			"x": 160,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechHeavyRpg": {
+			"x": 192,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechHeavyShotgun": {
+			"x": 224,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechRpg": {
+			"x": 256,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechServoFoot": {
+			"x": 288,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechServoTread": {
+			"x": 320,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechServoWheel": {
+			"x": 352,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechShotgun": {
+			"x": 384,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechSiegeCannon": {
+			"x": 416,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechSiegeFlamethrower": {
+			"x": 448,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechSiegeRpg": {
+			"x": 480,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechSiegeShotgun": {
+			"x": 512,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechSprintFoot": {
+			"x": 544,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechSprintTread": {
+			"x": 576,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechSprintWheel": {
+			"x": 608,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechTorso": {
+			"x": 640,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechTread": {
+			"x": 672,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechTwinCooler": {
+			"x": 704,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechVentCooler": {
+			"x": 736,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"mechWheel": {
+			"x": 768,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		},
+		"rocket": {
+			"x": 800,
+			"y": 800,
+			"width": 32,
+			"height": 32
+		}
+	},
+	"sheets": {
+		"bossRhinoSheet": "/images/exterminator/optimized/bossRhinoSheet-6b3666e9c955e8cd.webp",
+		"bossRhinoSheetHit": "/images/exterminator/optimized/bossRhinoSheetHit-65340dc7a8cfed83.webp",
+		"bossScorpionSheet": "/images/exterminator/optimized/bossScorpionSheet-e265a51a2d4a26ed.webp",
+		"bossScorpionSheetHit": "/images/exterminator/optimized/bossScorpionSheetHit-5fa3831867b63f8f.webp"
+	}
+}
