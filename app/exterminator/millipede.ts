@@ -7,7 +7,7 @@ import { inFlame } from "./remains";
 import { attackDamage, hurtPlayer } from "./player-damage";
 
 export const MILLIPEDE_RAMPAGE_TIME = 8;
-export const MILLIPEDE_RETURN_TIME = 2.4;
+export const MILLIPEDE_RETURN_TIME = 3;
 export const MILLIPEDE_SWIPE = BOSS_ATTACKS.millipedeSwipe;
 export const MILLIPEDE_TELL_TIME = BOSS_ATTACKS.crossing.windup;
 export const ACID_POOL_LIFETIME = 10;
@@ -24,8 +24,8 @@ export function rampageSafeZone(pattern: MillipedePattern, player: Vector): Safe
 	// it: reading the tell and moving is required, even without acid or terrain.
 	const x = clamp(player.x + (player.x < FIELD.width / 2 ? 260 : -260), 190, FIELD.width - 190);
 	const y = clamp(player.y + (player.y < FIELD.height / 2 ? 240 : -240), 205, FIELD.height - 205);
-	if (pattern === "zigzag") return { x: x - 95, y: 0, width: 190, height: FIELD.height };
-	if (pattern === "diagonal") return { x: 0, y: y - 85, width: FIELD.width, height: 170 };
+	if (pattern === "diagonal") return { x: clamp(player.x, 120, FIELD.width - 120) - 90, y: clamp(player.y + (player.y < FIELD.height / 2 ? 240 : -240), 110, FIELD.height - 110) - 70, width: 180, height: 140 };
+	if (pattern === "zigzag") return { x: 0, y: y - 85, width: FIELD.width, height: 170 };
 	return { x: x - 110, y: y - 90, width: 220, height: 180 };
 }
 export function initMillipede(boss: Boss) {
@@ -35,8 +35,8 @@ export function initMillipede(boss: Boss) {
 	positionMillipede(boss);
 }
 
-// Fixed path slots are revealed behind a fast front, then removed tail-first.
-// Flow within each pass and staggered leg gaits keep detached ribbons moving.
+// Six full passes build behind a fast front and keep flowing between edges.
+// Detached sections wrap only off-screen; withdrawal stops feeding each pass.
 const PER_PASS = MILLIPEDE_SEGMENT_COUNT / 6;
 const PASS_LENGTH = PER_PASS * MILLIPEDE_SPACING;
 const PATH_LENGTH = PASS_LENGTH * 6;
@@ -44,54 +44,98 @@ const TRAVEL_TIME = PATH_LENGTH / BOSS_ATTACKS.crossing.speed;
 export function millipedeNormalPhase(boss: Boss) {
 	return boss.phase === "acid" || boss.phase === "bombWindup" || boss.phase === "sweepWindup" || boss.phase === "sweep";
 }
-export function millipedePathPoint(pattern: MillipedePattern, pass: number, along: number, point: BossSegment = { x: 0, y: 0 }) {
+// Distribute whole passes on either side of the opening; never cut a pass.
+function lane(index: number, count: number, min: number, max: number, gapMin: number, gapMax: number) {
+	const left = Math.max(0, Math.min(max, gapMin) - min), rightStart = Math.max(min, gapMax);
+	const right = Math.max(0, max - rightStart), along = (index + .5) / count * (left + right);
+	return along < left ? min + along : rightStart + along - left;
+}
+export function millipedePathPoint(pattern: MillipedePattern, pass: number, along: number, point: BossSegment = { x: 0, y: 0 }, safe = rampageSafeZone(pattern, { x: 560, y: 360 })) {
 	const direction = pass % 2 ? -1 : 1;
-	point.x = direction > 0 ? -168 + along : FIELD.width + 168 - along;
-	point.angle = direction > 0 ? 0 : Math.PI;
-	if (pattern === "lattice" && pass >= 3) { point.x = 240 + (pass - 3) * 320; point.y = direction > 0 ? -368 + along : FIELD.height + 368 - along; point.angle = direction * Math.PI / 2; }
-	else if (pattern === "lattice") point.y = 180 + pass * 180;
-	else if (pattern === "diagonal") { point.y = -240 + pass * 180 + point.x * .48; point.angle += Math.atan(.48); }
-	else { point.y = 115 + pass * 98 + Math.sin(point.x / 145) * 27; point.angle += Math.atan(Math.cos(point.x / 145) * 27 / 145); }
+	if (pattern === "diagonal") {
+		const slope = .48, margin = 64 * (1 + slope);
+		const intercept = lane(pass, 6, -slope * FIELD.width + 30, FIELD.height - 30, safe.y - slope * (safe.x + safe.width) - margin, safe.y + safe.height - slope * safe.x + margin);
+		const startX = Math.max(-80, (-80 - intercept) / slope), endX = Math.min(FIELD.width + 80, (FIELD.height + 80 - intercept) / slope);
+		const ux = 1 / Math.hypot(1, slope), distance = along * direction;
+		point.x = (direction > 0 ? startX : endX) + distance * ux; point.y = slope * point.x + intercept;
+		point.angle = Math.atan(slope) + (direction > 0 ? 0 : Math.PI);
+	} else if (pattern === "lattice" && pass >= 3) {
+		point.x = lane(pass - 3, 3, 38, FIELD.width - 38, safe.x - 64, safe.x + safe.width + 64);
+		point.y = direction > 0 ? -368 + along : FIELD.height + 368 - along; point.angle = direction * Math.PI / 2;
+	} else {
+		point.x = direction > 0 ? -168 + along : FIELD.width + 168 - along;
+		point.y = lane(pass, pattern === "lattice" ? 3 : 6, 38, FIELD.height - 38, safe.y - 64, safe.y + safe.height + 64);
+		point.angle = direction > 0 ? 0 : Math.PI;
+	}
 	return point;
 }
 export function millipedeCoilPoint(index: number, point: BossSegment = { x: 0, y: 0 }) {
 	if (index < 6) { point.x = FIELD.width / 2 + Math.sin(index / 5 * Math.PI) * 30; point.y = 185 - (index + 1) * 25; point.angle = Math.PI / 2; }
 	else {
 		const t = index - 6, angle = -Math.PI / 2 + t * .28, radius = 127 + t * .8;
-		point.x = FIELD.width / 2 + Math.cos(angle) * radius * 1.2; point.y = 60 + Math.sin(angle) * radius * .42; point.angle = angle + Math.PI / 2;
+		point.x = FIELD.width / 2 + Math.cos(angle) * radius * 1.2; point.y = 60 + Math.sin(angle) * radius * .42; point.angle = Math.atan2(-Math.cos(angle) * .42, Math.sin(angle) * 1.2);
 	}
 	return point;
+}
+export const MILLIPEDE_DRAIN_TIME = PASS_LENGTH / BOSS_ATTACKS.crossing.speed;
+// Follow the coil backwards from an off-screen feeder, ending at the raised head.
+// Every section follows the same continuous curve instead of appearing in place.
+export function millipedeReturningPoint(boss: Boss, index: number, point: BossSegment = { x: 0, y: 0 }) {
+	const t = clamp(((boss.millipede?.elapsed ?? 0) - MILLIPEDE_DRAIN_TIME) / (MILLIPEDE_RETURN_TIME - MILLIPEDE_DRAIN_TIME), 0, 1);
+	const sample = index + (1 - t) * 100;
+	if (sample > 75) { millipedeCoilPoint(75, point); point.y -= (sample - 75) * 26; point.angle = Math.PI / 2; }
+	else if (sample < 0) { point.x = FIELD.width / 2; point.y = 160 - sample * 25; point.angle = Math.PI / 2; }
+	else {
+		const from = Math.floor(sample), blend = sample - from;
+		millipedeCoilPoint(from, point);
+		// Smooth the join between the last neck section and the coil.
+		{
+			const next = millipedeCoilPoint(from + 1); point.x += (next.x - point.x) * blend; point.y += (next.y - point.y) * blend;
+			point.angle = Math.atan2(point.y - next.y, point.x - next.x);
+		}
+	}
+	return point;
+}
+// Paint trailing sections first even after a detached pass wraps off-screen.
+// Otherwise the array seam draws a round leading plate in the middle of a pass.
+export function millipedePaintIndex(boss: Boss, paint: number) {
+	if (boss.phase !== "crossing" && boss.phase !== "return") return paint;
+	const pass = Math.floor(paint / PER_PASS), order = PER_PASS - 1 - paint % PER_PASS;
+	const distance = (boss.phase === "return" ? MILLIPEDE_RAMPAGE_TIME : boss.millipede?.elapsed ?? 0) * BOSS_ATTACKS.crossing.speed - pass * PASS_LENGTH;
+	const local = distance < PASS_LENGTH ? PER_PASS - 1 - order : ((Math.floor((distance % PASS_LENGTH) / MILLIPEDE_SPACING) - order) % PER_PASS + PER_PASS) % PER_PASS;
+	return pass * PER_PASS + local;
 }
 export function positionMillipede(boss: Boss) {
 	const state = boss.millipede; if (!state) return;
 	const crossing = boss.phase === "crossing", returning = boss.phase === "return";
-	const progress = crossing ? Math.min(1, state.elapsed / TRAVEL_TIME) : returning ? Math.max(0, 1 - state.elapsed / MILLIPEDE_RETURN_TIME) : 0;
-	const front = progress * PATH_LENGTH;
-	let previousHidden = true;
 	for (let index = 0; index < boss.segments.length; index++) {
 		const point = boss.segments[index];
 		if (!crossing && !returning && index >= 76) { point.hidden = true; point.breakBefore = true; continue; }
 		if (crossing || returning) {
 			const pass = Math.floor(index / PER_PASS), local = index % PER_PASS;
-			// A modulo offset cycles shell/leg positions without moving a pass's bounds.
-			const flow = (state.elapsed * PATH_LENGTH / TRAVEL_TIME) % MILLIPEDE_SPACING;
-			millipedePathPoint(state.pattern, pass, local * MILLIPEDE_SPACING + flow, point);
-			point.hidden = (index + 1) * MILLIPEDE_SPACING > front || insideSafeZone(point, state.safe, 64);
-			point.breakBefore = local === 0 || previousHidden || point.hidden;
+			const time = returning ? MILLIPEDE_RAMPAGE_TIME : state.elapsed;
+			const distance = time * BOSS_ATTACKS.crossing.speed - pass * PASS_LENGTH;
+			let along = distance - local * MILLIPEDE_SPACING;
+			// Wrapping happens only beyond the entry/exit edges. Each individual
+			// section travels continuously through the complete visible pass.
+			if (distance >= PASS_LENGTH) along = ((along % PASS_LENGTH) + PASS_LENGTH) % PASS_LENGTH;
+			if (returning) along += state.elapsed * BOSS_ATTACKS.crossing.speed;
+			millipedePathPoint(state.pattern, pass, along, point, state.safe);
+			point.hidden = distance < 0 || along < 0;
+			const previous = boss.segments[index - 1];
+			point.breakBefore = local === 0 || point.hidden || previous.hidden || Math.hypot(point.x - previous.x, point.y - previous.y) > MILLIPEDE_SPACING * 2;
 		} else {
-			millipedeCoilPoint(index, point); point.hidden = index >= 76; point.breakBefore = index === 6 || point.hidden;
+			millipedeCoilPoint(index, point); point.hidden = false; point.breakBefore = index === 6;
 		}
-		previousHidden = !!point.hidden;
 	}
 	if (crossing) {
-		const pass = Math.min(5, Math.floor(front / PASS_LENGTH));
-		millipedePathPoint(state.pattern, pass, front - pass * PASS_LENGTH, boss);
-		state.headHidden = progress >= 1 || insideSafeZone(boss, state.safe, 64);
+		const front = state.elapsed * BOSS_ATTACKS.crossing.speed, pass = Math.min(5, Math.floor(front / PASS_LENGTH));
+		millipedePathPoint(state.pattern, pass, front - pass * PASS_LENGTH, boss, state.safe);
+		state.headHidden = front >= PATH_LENGTH;
+	} else if (returning) {
+		millipedeReturningPoint(boss, -1, boss); state.headHidden = state.elapsed <= MILLIPEDE_DRAIN_TIME;
 	} else {
-		const from = returning ? state.returnFrom : undefined;
-		const t = Math.min(1, state.elapsed / .55), eased = 1 - (1 - t) ** 2;
-		boss.x = from ? from.x + (FIELD.width / 2 - from.x) * eased : FIELD.width / 2;
-		boss.y = from ? from.y + (185 - from.y) * eased : 185;
+		boss.x = FIELD.width / 2; boss.y = 185;
 		if (boss.phase !== "sweepWindup" && boss.phase !== "sweep") boss.angle = Math.PI / 2;
 		state.headHidden = false;
 	}
@@ -140,7 +184,7 @@ export function stepMillipede(game: Game, boss: Boss, dt: number) {
 	} else if (boss.phase === "crossingWindup") {
 		if (!boss.remaining) { boss.phase = "crossing"; boss.remaining = MILLIPEDE_RAMPAGE_TIME; state.elapsed = 0; }
 	} else if (boss.phase === "crossing") {
-		if (!boss.remaining) { state.returnFrom = { x: boss.x, y: boss.y }; boss.phase = "return"; boss.remaining = MILLIPEDE_RETURN_TIME; state.elapsed = 0; }
+		if (!boss.remaining) { boss.phase = "return"; boss.remaining = MILLIPEDE_RETURN_TIME; state.elapsed = 0; }
 	} else {
 		state.acidTime += dt; state.swipeTimer -= dt;
 		state.shotTimer -= dt; state.bombTimer -= dt;

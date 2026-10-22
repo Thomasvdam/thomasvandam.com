@@ -1,7 +1,7 @@
 import type { Boss } from "./boss-types";
 import { isMillipedeWeak } from "./boss-types";
 import { bossWindupProgress } from "./boss-patterns";
-import { MILLIPEDE_RETURN_TIME, MILLIPEDE_SWIPE, millipedeCoilPoint, millipedeNormalPhase } from "./millipede";
+import { MILLIPEDE_SWIPE, millipedeReturningPoint, millipedeNormalPhase, millipedePaintIndex } from "./millipede";
 import type { Sprites } from "./renderer";
 import { SPRITE_PARTS, type SpritePart } from "./sprite-parts";
 
@@ -33,17 +33,21 @@ export function drawMillipede(ctx: CanvasRenderingContext2D, sprites: Sprites, b
 	const moving = boss.phase !== "crossingWindup", gait = Math.floor(boss.walkDistance / 10) % 4;
 	const preview = boss.phase === "crossingWindup";
 	ctx.save();
-	// The coil grows while the outgoing tail is collected; no whole-body fade.
+	// Feed the returning body through a shared curved path from the north edge.
 	if (boss.phase === "return") {
-		const count = Math.floor(76 * Math.min(1, (boss.millipede?.elapsed ?? 0) / MILLIPEDE_RETURN_TIME));
-		for (let i = count - 1; i >= 0; i--) {
-			const point = millipedeCoilPoint(i); if (!visible(point.x, point.y, 45)) continue;
+		// A continuous underside joins the plates as the exposed coil forms.
+		ctx.strokeStyle = "#40351f"; ctx.lineWidth = 22; ctx.lineCap = "round"; ctx.beginPath();
+		for (let i = -1; i < 76; i++) { const point = millipedeReturningPoint(boss, i); if (i < 0) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y); }
+		ctx.stroke();
+		for (let i = 75; i >= 0; i--) {
+			const point = millipedeReturningPoint(boss, i); if (!visible(point.x, point.y, 45)) continue;
 			ctx.save(); ctx.translate(point.x, point.y); ctx.rotate(point.angle ?? 0);
 			if (cached) ctx.drawImage(cached[i < 6 ? 6 : i % 6][gait], -25, -25, 50, 50);
 			else { ctx.scale(1.25, 1.25); segment(ctx, sprites, i < 6 ? 6 : i % 6, gait); } ctx.restore();
 		}
 	}
-	for (let index = boss.segments.length - 1; index >= 0; index--) {
+	for (let paint = boss.segments.length - 1; paint >= 0; paint--) {
+		const index = millipedePaintIndex(boss, paint);
 		const point = boss.segments[index]; if (point.hidden || !visible(point.x, point.y, 45)) continue;
 		const leader = index === 0 ? boss : boss.segments[index - 1];
 		const angle = point.angle ?? Math.atan2(leader.y - point.y, leader.x - point.x);

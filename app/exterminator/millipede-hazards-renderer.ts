@@ -1,6 +1,6 @@
 import type { Game } from "./game";
 import { warningLit } from "./lighting";
-import { ACID_BOMB_FLIGHT, ACID_POOL_LIFETIME, ACID_POOL_RADIUS, MILLIPEDE_SWIPE, millipedePathPoint, insideSafeZone } from "./millipede";
+import { ACID_BOMB_FLIGHT, ACID_POOL_LIFETIME, ACID_POOL_RADIUS, MILLIPEDE_SWIPE, millipedePathPoint } from "./millipede";
 
 export function drawMillipedeAcid(ctx: CanvasRenderingContext2D, game: Game) {
 	const boss = game.boss, state = boss?.millipede; if (!boss || !state) return;
@@ -18,8 +18,7 @@ export function drawMillipedeAcid(ctx: CanvasRenderingContext2D, game: Game) {
 		for (let pass = 0; pass < 6; pass++) {
 			ctx.beginPath(); let connected = false;
 			for (let local = 0; local < 56; local++) {
-				const point = millipedePathPoint(state.pattern, pass, local * 26);
-				if (insideSafeZone(point, state.safe, 64)) { connected = false; continue; }
+				const point = millipedePathPoint(state.pattern, pass, local * 26, undefined, state.safe);
 				if (connected) ctx.lineTo(point.x, point.y); else ctx.moveTo(point.x, point.y); connected = true;
 			} ctx.stroke();
 		}
