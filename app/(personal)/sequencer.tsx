@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { rumbleImpulse, hatNoise } from "./sequencer-buffers";
 import styles from "@/app/(personal)/personal.module.css";
 
 const STEPS = 16;
@@ -152,7 +153,7 @@ function playKick(context: AudioContext, output: GainNode, now: number) {
 	const convolver = context.createConvolver();
 	const rumbleFilter = context.createBiquadFilter();
 	const rumbleGain = context.createGain();
-	convolver.buffer = createRumbleImpulse(context, 1.15);
+	convolver.buffer = rumbleImpulse(context);
 	rumbleFilter.type = "lowpass";
 	rumbleFilter.frequency.value = 170;
 	rumbleFilter.Q.value = 3.5;
@@ -164,24 +165,9 @@ function playKick(context: AudioContext, output: GainNode, now: number) {
 	oscillator.stop(now + 0.44);
 }
 
-function createRumbleImpulse(context: AudioContext, duration: number) {
-	const length = Math.floor(context.sampleRate * duration);
-	const impulse = context.createBuffer(2, length, context.sampleRate);
-	for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
-		const data = impulse.getChannelData(channel);
-		for (let index = 0; index < length; index += 1) {
-			const decay = Math.pow(1 - index / length, 3);
-			data[index] = (Math.random() * 2 - 1) * decay;
-		}
-	}
-	return impulse;
-}
-
 function playHat(context: AudioContext, output: GainNode, now: number, open: boolean) {
 	const duration = open ? 0.34 : 0.055;
-	const buffer = context.createBuffer(1, context.sampleRate * duration, context.sampleRate);
-	const data = buffer.getChannelData(0);
-	for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+	const buffer = hatNoise(context, open);
 	const noise = context.createBufferSource();
 	const highpass = context.createBiquadFilter();
 	const bandpass = context.createBiquadFilter();

@@ -26,7 +26,7 @@ export default function Home() {
 				</h1>
 				<figure className={styles.gear}>
 					<Image src="/images/modular-synth.jpg" alt="My modular synthesizer, full of patch cables and possibilities" width={1280} height={720} sizes="(max-width: 650px) 80vw, (max-width: 1200px) 54vw, 600px" preload />
-					<figcaption><Link href="/patch-bay" aria-label="Open the hidden patch bay game">Some assembly required.</Link></figcaption>
+					<figcaption><Link href="/patch-bay" prefetch={false} aria-label="Open the hidden patch bay game">Some assembly required.</Link></figcaption>
 				</figure>
 				<div className={styles.intro}>
 					<p>Software engineer.<br />Into deep techno, making things, and questioning how we make them.</p>
@@ -69,14 +69,14 @@ export default function Home() {
 						<p>In case you needed to hear it today.</p>
 					</article>
 					<article>
-						<Link href="/right-on-track" className={`${styles.cover} ${styles.railway}`}>
+						<Link href="/right-on-track" prefetch={false} className={`${styles.cover} ${styles.railway}`}>
 							<h3>Right on<br />track.</h3>
 							<div className={styles.coverBottom}><span>03 / A train game</span><span>All aboard <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>Keep it rolling in this little game.</p>
 					</article>
 					<article>
-						<Link href="/breakout" className={`${styles.cover} ${styles.breakout}`}>
+						<Link href="/breakout" prefetch={false} className={`${styles.cover} ${styles.breakout}`}>
 							<h3>Break<br />out.</h3>
 							<div className={styles.breakoutWall} aria-hidden="true">
 								{Array.from({ length: 15 }, (_, index) => <i key={index} />)}
@@ -86,7 +86,7 @@ export default function Home() {
 						<p>My spin on a classic.</p>
 					</article>
 					<article>
-						<Link href="/whitechapel" className={`${styles.cover} ${styles.whitechapel}`}>
+						<Link href="/whitechapel" prefetch={false} className={`${styles.cover} ${styles.whitechapel}`}>
 							<h3>The<br />casebook.</h3>
 							<div className={styles.casebookMap} aria-hidden="true"><i>64</i><i>82</i><i>90</i></div>
 							<div className={styles.coverBottom}><span>05 / An investigator’s companion</span><span>Investigate <span aria-hidden="true">↗</span></span></div>
@@ -94,7 +94,7 @@ export default function Home() {
 						<p>A small companion for Letters from Whitechapel.</p>
 					</article>
 					<article>
-						<Link href="/phase-10" className={`${styles.cover} ${styles.phaseTen}`}>
+						<Link href="/phase-10" prefetch={false} className={`${styles.cover} ${styles.phaseTen}`}>
 							<h3>Phase<br />10.</h3>
 							<div className={styles.phaseTenCards} aria-hidden="true"><i>1</i><i>3</i><i>7</i><i>10</i></div>
 							<div className={styles.coverBottom}><span>06 / Scorekeeper</span><span>Keep score <span aria-hidden="true">↗</span></span></div>
