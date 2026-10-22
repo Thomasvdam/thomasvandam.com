@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowLeft, ArrowRight, Download, FileUp, RotateCcw, ZoomIn, ZoomOut, X } from "lucide-react";
 import map from "./map-data.json";
-import { type Case, type Kind, kinds, newCase, parseCase, visibleEvents } from "./model";
+import { type Case, type Kind, kinds, newCase, parseCase, visibleEvents, groupEvidence } from "./model";
 import { officerColors, officerPositions, type Officer } from "./positions";
 import { dragChoice, pinchView, HOLD_MS, MOVE_TOLERANCE, ROW_HEIGHT } from "./gestures";
 import styles from "./investigation.module.css";
@@ -40,7 +40,7 @@ export function InvestigationBoard() {
 function Casebook() {
 	const [initial] = useState(restoreCase);
 	const [caseFile, setCaseFile] = useState<Case>(initial.data);
-	const latest = [...initial.data.events, ...initial.data.placements].sort((a, b) => b.night - a.night || b.turn - a.turn)[0];
+	const [latest] = useState(() => [...initial.data.events, ...initial.data.placements].sort((a, b) => b.night - a.night || b.turn - a.turn)[0]);
 	const [night, setNight] = useState(latest?.night ?? 1);
 	const [turn, setTurn] = useState(latest?.turn ?? 0);
 	const [allNights, setAllNights] = useState(false);
@@ -92,10 +92,8 @@ function Casebook() {
 		try { localStorage.setItem(storageKey, JSON.stringify(next)); setStatus("Saved on this device"); }
 		catch { setStatus("Storage unavailable. Export to keep your case."); }
 	}
-	const visible = visibleEvents(caseFile.events, night, turn, allNights);
-	const evidence = new Map<number, typeof visible>();
-	for (const event of visible) if (event.location !== null && event.kind !== "note" && event.kind !== "escape") evidence.set(event.location, [...(evidence.get(event.location) ?? []), event]);
-	const positions = officerPositions(caseFile.placements, night, turn);
+	const evidence = useMemo(() => groupEvidence(visibleEvents(caseFile.events, night, turn, allNights)), [caseFile.events, night, turn, allNights]);
+	const positions = useMemo(() => officerPositions(caseFile.placements, night, turn), [caseFile.placements, night, turn]);
 
 	function apply(target: Target, action: string) {
 		closeMenu(); setError("");

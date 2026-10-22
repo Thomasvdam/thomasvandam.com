@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { newCase, parseCase, visibleEvents } from "./model.ts";
+import { newCase, parseCase, visibleEvents, groupEvidence } from "./model.ts";
 import map from "./map-data.json";
 
 const event = (id, night, turn, kind = "clue") => ({ id, night, turn, kind, location: 90, officer: "Blue", text: "" });
@@ -79,4 +79,21 @@ test("hold choices stay neutral without movement and follow visible menu rows", 
 	expect(dragChoice(300, 447, 7, 174)).toBe(6);
 	expect(dragChoice(40, 300, 7, 88)).toBe(5); // Menu clamped below the screen edge.
 	expect(dragChoice(300, 1000, 7, 174)).toBe(6);
+});
+
+test("evidence buckets preserve timeline order and omit notes and escapes without mutating history", () => {
+	const events = [event("late", 1, 7), event("note", 1, 1, "note"), event("escape", 1, 8, "escape"), { ...event("unplaced", 1, 1, "note"), location: null }, { ...event("other", 1, 2), location: 64 }, event("early", 1, 3, "clear")];
+	const before = globalThis.structuredClone(events);
+	const grouped = groupEvidence(visibleEvents(events, 1, 8, false));
+	expect([...grouped.keys()]).toEqual([64, 90]);
+	expect(grouped.get(90).map(event => event.id)).toEqual(["early", "late"]);
+	expect(events).toEqual(before);
+});
+
+test("a full case history can share one evidence location", () => {
+	const events = Array.from({ length: 5000 }, (_, index) => event(String(index), 1, index % 31));
+	const grouped = groupEvidence(events);
+	expect(grouped.size).toBe(1);
+	expect(grouped.get(90)).toEqual(events);
+	expect(grouped.get(90)).not.toBe(events);
 });

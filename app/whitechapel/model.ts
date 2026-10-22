@@ -19,6 +19,17 @@ export function visibleEvents(events: Observation[], night: number, turn: number
 	return events.filter(event => event.night === night ? event.turn <= turn : allNights && event.night < night)
 		.sort((a, b) => a.night - b.night || a.turn - b.turn);
 }
+// Append to each bucket once; copying growing buckets makes large histories quadratic.
+export function groupEvidence(events: Observation[]): Map<number, Observation[]> {
+	const evidence = new Map<number, Observation[]>();
+	for (const event of events) {
+		if (event.location === null || event.kind === "note" || event.kind === "escape") continue;
+		let bucket = evidence.get(event.location);
+		if (!bucket) { bucket = []; evidence.set(event.location, bucket); }
+		bucket.push(event);
+	}
+	return evidence;
+}
 export function parseCase(raw: string): Case {
 	const value = JSON.parse(raw);
 	if (!value || value.version !== 1 || typeof value.name !== "string" || value.name.length > 120 || typeof value.notes !== "string" || value.notes.length > 20000 || !Array.isArray(value.events) || value.events.length > 5000 || !value.suspicions || typeof value.suspicions !== "object" || Array.isArray(value.suspicions)) throw new Error("This is not a supported Whitechapel case file.");
