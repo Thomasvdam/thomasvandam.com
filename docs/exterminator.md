@@ -210,7 +210,15 @@ the camera follows independently on axes that do not fit, and centers axes that
 do. Resizing never changes simulation bounds.
 
 Firm ground, mud (puddles), and rubble (angular stones) form traversable 80-unit
-tiles. Layout randomness is separate from combat randomness. Bugs move normally
+tiles for movement lookup. Painting blends the surface colours along warped,
+soft boundaries and scatters stones, puddle marks and grit across world space;
+there are no alternating tile shades or repeated per-tile decorations. The
+runtime bakes this into its existing single background canvas once per layout,
+lighting variation or pixel-density change, then reuses one image each frame.
+No additional textures, canvases or live filters are needed. Shared-browser
+background rebuild samples were approximately 25–75 ms on the host, paid only
+when that cache rebuilds. Terrain handling and job forecasts retain the existing
+layout. Layout randomness is separate from combat randomness. Bugs move normally
 on all surfaces. These provisional multipliers apply after part speed upgrades:
 
 | Undercarriage | Firm | Mud | Rubble |
