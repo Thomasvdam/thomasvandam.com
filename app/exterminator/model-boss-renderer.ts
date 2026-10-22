@@ -21,10 +21,12 @@ export function modelBossPose(boss: Boss, time: number) {
 		} else if (boss.phase === "sweep") head = "headSweep";
 		else if (boss.phase === "lift") head = "headLift";
 		else if (boss.phase === "charge") head = "headCharge";
-		else if (boss.phase === "stuck" || boss.phase === "dazed") { row = "brace2"; head = "headCharge"; }
-		else if (boss.phase === "rising") {
+		else if (boss.phase === "stuck" || boss.phase === "dazed") {
+			const duration = boss.phase === "stuck" ? RHINO_TIMING.stuck : RHINO_TIMING.dazed;
+			row = `open${Math.min(2, Math.floor(Math.max(0, duration - boss.remaining) / .08))}`; head = "headCharge";
+		} else if (boss.phase === "rising") {
 			const rise = Math.max(0, Math.min(1, 1 - boss.remaining / RHINO_TIMING.rising));
-			row = `brace${2 - Math.min(2, Math.floor(rise * 3))}`; head = `sweepTell${Math.min(3, Math.floor(rise * 4))}`;
+			row = `open${2 - Math.min(2, Math.floor(rise * 3))}`; head = `sweepTell${Math.min(3, Math.floor(rise * 4))}`;
 		}
 	} else if (boss.phase === "chargeWindup") row = `dashTell${Math.min(2, Math.floor(progress * 3))}`;
 	const active = activeClaw(boss);

@@ -113,3 +113,13 @@ test("pause freezes hazards; death cancels them; replacement and cleanup discard
 	clearCombat(g); expect(g.boss).toBeNull();
 	g.debug = { queue: [], total: 0, lightSensitivePercent: 0 }; g.hive = { id: "test" }; spawnDebugBoss(g, "rhinoceros"); rock(g); spawnDebugBoss(g, "rhinoceros"); expect(g.boss.rhino.rocks).toHaveLength(0); rock(g); spawnDebugWave(g, defaultComposition()); expect(g.boss).toBeNull();
 });
+
+test("the get-up animation is the only sweep warning; the short-lived cone deals damage on its first simulation tick", async () => {
+	const { bossCone, BOSS_ATTACKS } = await import("./boss-patterns");
+	const g = scene(), b = g.boss; b.phase = "rising"; b.remaining = .5; g.player.x = 350; g.player.invulnerable = 0;
+	expect(bossCone(b)).toBeNull(); advance(g, .45); expect(g.player.health).toBe(100); expect(bossCone(b)).toBeNull();
+	for (let i = 0; i < 10 && b.phase === "rising"; i++) step(g, idle, 1 / 120);
+	expect(b.phase).toBe("sweep"); expect(bossCone(b)).not.toBeNull(); expect(g.player.health).toBe(75);
+	expect(BOSS_ATTACKS.sweep.active).toBeLessThanOrEqual(.08);
+	advance(g, .1); expect(bossCone(b)).toBeNull();
+});

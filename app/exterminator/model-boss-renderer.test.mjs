@@ -13,7 +13,7 @@ test("directional model sheets include every pose and valid cropped frames for a
 			expect(file.subarray(1, 4).toString()).toBe("PNG"); expect(file.readUInt32BE(16)).toBe(sheet.width); expect(file.readUInt32BE(20)).toBe(sheet.height);
 		}
 		expect(sheet.directions).toBe(16);
-		expect(Object.keys(sheet.frames)).toHaveLength(variant === "rhinoceros" ? 23 : 25);
+		expect(Object.keys(sheet.frames)).toHaveLength(variant === "rhinoceros" ? 26 : 25);
 		for (const frames of Object.values(sheet.frames)) {
 			expect(frames).toHaveLength(16);
 			for (const frame of frames) {

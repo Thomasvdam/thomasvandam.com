@@ -55,7 +55,7 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 		}
 		ctx.restore();
 	}
-	if (alive && bossExposed(boss) && !(boss.variant === "millipede" && boss.phase === "crossingWindup")) {
+	if (alive && boss.variant !== "rhinoceros" && bossExposed(boss) && !(boss.variant === "millipede" && boss.phase === "crossingWindup")) {
 		ctx.save(); ctx.strokeStyle = boss.variant === "millipede" ? "#a8f1bd99" : "#a8f1bd"; ctx.lineWidth = boss.variant === "millipede" ? 1.5 : 3;
 		for (const point of bossWeakPoints(boss)) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point.radius + (boss.variant === "millipede" ? -3 : 6), 0, Math.PI * 2); ctx.stroke(); }
 		ctx.restore();
