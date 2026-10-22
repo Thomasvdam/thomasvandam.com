@@ -1,3 +1,5 @@
+import { drawTerrain } from "./terrain-renderer";
+export { drawTerrain } from "./terrain-renderer";
 import { bugHitSprites } from "./bug-hit-sprites";
 import { drawRhinoRocks } from "./rhino-rocks-renderer";
 import { prepareMillipedeSprites } from "./millipede-art";
@@ -16,7 +18,7 @@ import { EGG_HATCH_TIME, QUEEN_LAY_INTERVAL, SLIME_LIFETIME, SLIME_RADIUS } from
 import { ACID_WINDUP } from "./acid";
 import { BEETLE_BLAST_RADIUS, BEETLE_FLIGHT_TIME, BEETLE_ROLL_TIME, BUG_SPECS, LUNGE_DISTANCE, LUNGE_WINDUP, ARMOUR_HALF_ANGLE, type BugVariant } from "./bug-types";
 import { weaponStats } from "./weapons";
-import { TILE_SIZE, TERRAIN_COLUMNS, TERRAIN_ROWS, type Terrain } from "./terrain";
+import type { Terrain } from "./terrain";
 import { cameraFor, type Camera } from "./camera";
 import { clamp } from "./math";
 import { FIELD, FLAME_HALF_ANGLE, SPAWN_WARNING_TIME, upgradeLevels, type Game } from "./game";
@@ -39,29 +41,6 @@ export function loadSprites(): Promise<Sprites> {
 	}).catch(error => { spriteLoad = undefined; throw error; });
 }
 
-
-export function drawTerrain(ctx: CanvasRenderingContext2D, tiles: Terrain[], variation: number) {
-	// Every surface uses a distinct texture as well as color.
-	for (let row = 0; row < TERRAIN_ROWS; row++) for (let column = 0; column < TERRAIN_COLUMNS; column++) {
-		const x = column * TILE_SIZE, y = row * TILE_SIZE, terrain = tiles[row * TERRAIN_COLUMNS + column];
-		const shade = (row + column + variation) % 2;
-		ctx.fillStyle = terrain === "mud" ? (shade ? "#483e2d" : "#433929") : terrain === "rubble" ? (shade ? "#40473e" : "#3a4239") : (shade ? "#2d3328" : "#293026");
-		ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-		for (let i = 0; i < 9; i++) {
-			const px = x + (i * 23 + row * 11) % 70 + 4, py = y + (i * 37 + column * 7) % 70 + 4;
-			if (terrain === "mud") {
-				ctx.fillStyle = "#292e24"; ctx.beginPath(); ctx.ellipse(px, py, 10, 3, -.2, 0, Math.PI * 2); ctx.fill();
-				ctx.fillStyle = "#675738"; ctx.fillRect(px - 5, py - 3, 8, 1);
-			} else if (terrain === "rubble") {
-				ctx.fillStyle = "#252d27"; ctx.fillRect(px, py, 10, 7);
-				ctx.fillStyle = "#68705b"; ctx.fillRect(px, py - 1, 7, 4);
-				ctx.fillStyle = "#85866a"; ctx.fillRect(px + 1, py - 1, 4, 1);
-			} else {
-				ctx.fillStyle = "#454b35"; ctx.fillRect(px, py, 3, 2);
-			}
-		}
-	}
-}
 
 // A runtime owns one bounded background cache. Terrain arrays are immutable during a job.
 export function createRenderer(makeCanvas = () => document.createElement("canvas")) {
