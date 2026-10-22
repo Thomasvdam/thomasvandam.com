@@ -1,7 +1,7 @@
 import { clamp } from "./math";
 import { TILE_SIZE, TERRAIN_COLUMNS, TERRAIN_ROWS, type Terrain } from "./terrain";
 
-const COLORS = { firm: [43, 50, 39], mud: [69, 57, 40], rubble: [61, 68, 57] } as const;
+const COLORS = { firm: [43, 50, 39], mud: [87, 61, 37], rubble: [61, 68, 57] } as const;
 const WIDTH = TILE_SIZE * TERRAIN_COLUMNS, HEIGHT = TILE_SIZE * TERRAIN_ROWS;
 const SAMPLE = 8;
 function surface(tiles: Terrain[], column: number, row: number) {
@@ -33,8 +33,9 @@ export function drawTerrain(ctx: CanvasRenderingContext2D, tiles: Terrain[], var
 		const x = random() * WIDTH, y = random() * HEIGHT, size = 2 + random() * 7, angle = random() * Math.PI;
 		const { a, b, c, d, fx, fy } = sample(tiles, x, y, variation), terrain = fy < .5 ? fx < .5 ? a : b : fx < .5 ? c : d;
 		if (terrain === "mud") {
-			ctx.fillStyle = "#292e2455"; ctx.beginPath(); ctx.ellipse(x, y, size * 1.8, size * .5, angle * .2, 0, Math.PI * 2); ctx.fill();
-			ctx.fillStyle = "#77604444"; ctx.beginPath(); ctx.ellipse(x - 1, y - 1, size, size * .18, angle * .2, 0, Math.PI * 2); ctx.fill();
+			ctx.fillStyle = "#a17a4d88"; ctx.beginPath(); ctx.ellipse(x, y, size * 2.5, size * .85, angle * .2, 0, Math.PI * 2); ctx.fill();
+			ctx.fillStyle = "#211c17dd"; ctx.beginPath(); ctx.ellipse(x, y + 1, size * 2.2, size * .65, angle * .2, 0, Math.PI * 2); ctx.fill();
+			ctx.fillStyle = i % 3 ? "#99866c88" : "#bec0aa99"; ctx.beginPath(); ctx.ellipse(x - 2, y - 1, size * 1.25, size * .16, angle * .2, 0, Math.PI * 2); ctx.fill();
 		} else if (terrain === "rubble") {
 			ctx.fillStyle = "#252d2788"; ctx.beginPath(); ctx.ellipse(x + 1, y + 2, size * .9, size * .6, angle, 0, Math.PI * 2); ctx.fill();
 			ctx.fillStyle = i % 3 ? "#69705b" : "#81836b"; ctx.beginPath(); ctx.moveTo(x - size, y); ctx.lineTo(x - size * .3, y - size * .6); ctx.lineTo(x + size * .65, y - size * .35); ctx.lineTo(x + size, y + size * .3); ctx.lineTo(x - size * .4, y + size * .5); ctx.closePath(); ctx.fill();
