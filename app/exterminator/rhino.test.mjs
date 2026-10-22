@@ -6,6 +6,7 @@ import { dropRhinoRocks, RHINO_ROCK, resolveRockBarriers, firstRockHit } from ".
 import { RHINO_TIMING } from "./rhino";
 import { modelBossPose } from "./model-boss-renderer";
 import { spawnDebugBoss, spawnDebugWave, defaultComposition } from "./debug";
+const rear = boss => ({ x: boss.x - Math.cos(boss.angle) * 100, y: boss.y - Math.sin(boss.angle) * 100 });
 const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
 function scene() {
 	const g = newGame(47); g.mode = "playing"; g.toSpawn = 1; g.spawnTimer = 1000; g.terrain.fill("firm"); g.hivesCleared = 10;
@@ -35,7 +36,7 @@ test("charging hits the nearest solid rock along the swept path, smashes only it
 	step(g, idle, 1 / 120); until(g, "dazed");
 	expect(b.x).toBeCloseTo(450 - RHINO_ROCK.radius - 42); expect(near.health).toBe(0); expect(far.health).toBe(RHINO_ROCK.health); expect(falling.health).toBe(RHINO_ROCK.health);
 	expect(b.remaining).toBe(RHINO_TIMING.dazed); expect(b.remaining).toBeGreaterThan(RHINO_TIMING.stuck);
-	const before = b.health; damageBoss(b, 4, g.time, "flank"); expect(before - b.health).toBe(12);
+	const before = b.health; damageBoss(b, 4, g.time, "flank", rear(b)); expect(before - b.health).toBe(12);
 });
 
 test("falling rock warns, deals scaled armoured AoE once, then persists as a non-damaging obstruction", () => {
@@ -82,28 +83,28 @@ test("recovery visibly gets up, stays vulnerable until standing, then sweeps imm
 	for (const phase of ["stuck", "dazed"]) for (const escape of [false, true]) {
 		const g = scene(), b = g.boss; b.phase = phase; b.remaining = 0; g.player.x = b.x + 100; g.player.invulnerable = 0;
 		step(g, idle, 1 / 120); expect(b.phase).toBe("rising"); expect(bossExposed(b)).toBe(true); expect(g.player.health).toBe(100);
-		const poses = new Set(); for (const t of [1, .6, .3, .01]) { b.remaining = t; poses.add(JSON.stringify(modelBossPose(b, g.time))); } expect(poses.size).toBeGreaterThan(2);
+		const poses = new Set(); for (const t of [.4, .24, .12, .01]) { b.remaining = t; poses.add(JSON.stringify(modelBossPose(b, g.time))); } expect(poses.size).toBeGreaterThan(2);
 		b.remaining = .01; if (escape) g.player.x += 300;
 		step(g, idle, 1 / 60); expect(bossExposed(b)).toBe(false);
 		if (escape) { expect(b.phase).toBe("chargeWindup"); expect(g.player.health).toBe(100); }
 		else { expect(b.phase).toBe("sweep"); expect(g.player.health).toBe(75); }
-		const health = b.health; damageBoss(b, 4, g.time, "flank"); expect(health - b.health).toBeCloseTo(.4);
+		const health = b.health; damageBoss(b, 4, g.time, "flank", rear(b)); expect(health - b.health).toBeCloseTo(.4);
 	}
 });
 
 test("moving away during get-up evades the immediate sweep, while remaining in its reach is punished", () => {
 	for (const escape of [false, true]) {
 		const g = scene(); g.boss.phase = "stuck"; g.boss.remaining = 0; g.player.x = 350; g.player.invulnerable = 0;
-		step(g, idle, 1 / 120); advance(g, .2);
-		advance(g, .85, escape ? { ...idle, move: { x: 1, y: 0 } } : idle);
+		step(g, idle, 1 / 120); advance(g, .05);
+		advance(g, .42, escape ? { ...idle, move: { x: 1, y: 0 } } : idle);
 		expect(g.player.health).toBe(escape ? 100 : 75);
 	}
 });
 
-test("vulnerable flanks remain actual hittable geometry during daze and rising", () => {
+test("vulnerable rear remains actual hittable geometry during daze and rising", () => {
 	const g = scene(), b = g.boss;
 	for (const phase of ["stuck", "dazed", "rising"]) {
-		b.phase = phase; const hit = firstBossHit(b, { x: b.x - 12, y: b.y + 150 }, { x: b.x - 12, y: b.y }); expect(hit.circle.part).toBe("flank");
+		b.phase = phase; const hit = firstBossHit(b, { x: b.x - 150, y: b.y }, { x: b.x, y: b.y }); expect(hit.circle.part).toBe("flank");
 	}
 });
 
@@ -122,4 +123,52 @@ test("the get-up animation is the only sweep warning; the short-lived cone deals
 	expect(b.phase).toBe("sweep"); expect(bossCone(b)).not.toBeNull(); expect(g.player.health).toBe(75);
 	expect(BOSS_ATTACKS.sweep.active).toBeLessThanOrEqual(.08);
 	advance(g, .1); expect(bossCone(b)).toBeNull();
+});
+
+test("every weapon earns the vulnerability bonus only from the rear, for rotated beetles as well", () => {
+	for (const heading of [0, Math.PI / 2, Math.PI]) for (const weapon of ["cannon", "shotgun", "rpg", "flamethrower"]) {
+		const damages = [];
+		for (const bearing of [0, Math.PI / 2, -Math.PI / 2, Math.PI]) {
+			const g = scene(), b = g.boss; b.x = 560; b.y = 360; b.angle = heading; b.phase = "stuck"; b.remaining = 10; g.weapon = weapon;
+			g.player.x = b.x + Math.cos(heading + bearing) * 120; g.player.y = b.y + Math.sin(heading + bearing) * 120;
+			const health = b.health; advance(g, .45, { ...idle, aim: { x: b.x - g.player.x, y: b.y - g.player.y }, fire: true }); damages.push(health - b.health);
+		}
+		expect(damages[3], `${heading}/${weapon}: rear`).toBeGreaterThan(Math.max(...damages.slice(0, 3)) * 5);
+	}
+});
+
+test("vulnerable front/side blasts and flames cannot wrap around armour for a bonus, and unknown hit directions get no bonus", async () => {
+	const { blastBoss, flameBoss } = await import("./bosses");
+	for (const phase of ["approach", "stuck", "dazed", "rising"]) for (const bearing of [0, Math.PI / 2, Math.PI]) {
+		const g = scene(), b = g.boss; b.phase = phase; const source = { x: b.x + Math.cos(bearing) * 80, y: b.y + Math.sin(bearing) * 80 };
+		const expected = phase !== "approach" && bearing === Math.PI ? 12 : .4;
+		let health = b.health; blastBoss(g, source, 160, 4); expect(health - b.health).toBeCloseTo(expected);
+		health = b.health; flameBoss(g, source, bearing + Math.PI, 250, Math.PI / 3, 4); expect(health - b.health).toBeCloseTo(expected);
+		health = b.health; damageBoss(b, 4, 0, "flank"); expect(health - b.health).toBeCloseTo(.4);
+	}
+});
+
+test("projectile direction determines a rear hit even if the player moves around the beetle after firing", () => {
+	for (const behind of [false, true]) {
+		const g = scene(), b = g.boss; b.phase = "stuck"; b.remaining = 10; g.player.x = b.x + (behind ? -120 : 120);
+		const health = b.health; step(g, { ...idle, aim: { x: behind ? 1 : -1, y: 0 }, fire: true }, 1 / 120);
+		g.player.x = b.x + (behind ? 120 : -120); advance(g, .3);
+		expect(health - b.health).toBeCloseTo(behind ? 3 : .1);
+	}
+});
+
+test("stars disappearing starts a short get-up with no turning or damage; turning belongs to the immediate sweep", async () => {
+	const { rhinoRenderAngle } = await import("./rhino");
+	const g = scene(), b = g.boss; b.phase = "dazed"; b.remaining = 0; g.player.x = b.x - 100; g.player.invulnerable = 0;
+	step(g, idle, 1 / 120); expect(b.phase).toBe("rising"); expect(b.remaining).toBe(.4);
+	advance(g, .3); expect(b.angle).toBe(0); expect(rhinoRenderAngle(b)).toBe(0); expect(g.player.health).toBe(100);
+	until(g, "sweep", .2); expect(b.angle).toBeCloseTo(Math.PI); expect(g.player.health).toBe(75);
+	expect(rhinoRenderAngle(b)).toBeGreaterThan(0); expect(rhinoRenderAngle(b)).toBeLessThan(Math.PI);
+	advance(g, .05); expect(rhinoRenderAngle(b)).toBeCloseTo(Math.PI);
+});
+
+test("a close rear shot still hits the open abdomen when its muzzle overlaps the body", () => {
+	const g = scene(), b = g.boss; b.phase = "stuck"; b.remaining = 10; g.player.x = b.x - 30;
+	const health = b.health; advance(g, .05, { ...idle, fire: true }); expect(health - b.health).toBeCloseTo(3);
+	expect(firstBossHit(b, { x: -1000, y: -1000 }, { x: -900, y: -900 }).circle).toBeNull();
 });

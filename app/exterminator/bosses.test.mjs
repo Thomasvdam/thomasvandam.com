@@ -8,6 +8,7 @@ import { recordVisibleEncounters, createEncounterProgress } from "./encounters";
 import { setDebug, spawnDebugBoss, spawnDebugWave, defaultComposition } from "./debug";
 import { viewFromGame } from "./runtime";
 import { activeClaw } from "./boss-patterns";
+const rear = boss => ({ x: boss.x - Math.cos(boss.angle) * 100, y: boss.y - Math.sin(boss.angle) * 100 });
 const idle = { move: { x: 0, y: 0 }, aim: { x: 1, y: 0 }, fire: false };
 function setup(cleared = 4, seed = 47) { const game = newGame(seed); game.hivesCleared = cleared; game.hives = createHives(seed, cleared); start(game); chooseHive(game, game.hives[0].id); game.toSpawn = 0; game.spawns = []; game.enemies = []; game.player.invulnerable = 1000; return game; }
 function advance(game, seconds, input = idle) { for (let i = 0; i < Math.round(seconds * 120); i++) step(game, input, 1 / 120); }
@@ -54,7 +55,7 @@ test("rhino locks a wall-length charge and exposes its flanks only after impact"
 	until(game, "charge"); expect(boss.angle).toBe(angle); expect(boss.target).toEqual(target);
 	const shielded = boss.health; damageBoss(boss, 4, game.time); expect(shielded - boss.health).toBeCloseTo(.4);
 	until(game, "stuck"); expect(boss.x).toBeCloseTo(FIELD.width - 42); expect(boss.rhino.rocks.length).toBeGreaterThan(0);
-	const exposed = boss.health; damageBoss(boss, 4, game.time, "flank"); expect(exposed - boss.health).toBe(12);
+	const exposed = boss.health; damageBoss(boss, 4, game.time, "flank", rear(boss)); expect(exposed - boss.health).toBe(12);
 });
 
 test("scorpion claws have independent hitboxes and health, removed claws cannot sweep, sting can be dodged", () => {
@@ -206,16 +207,16 @@ test("a far sting punishes running straight; reading its locked prediction and r
 	}
 });
 
-test("all weapons can punish the rhino flank and embedded stinger through actual hit detection", () => {
+test("all weapons can punish the rhino rear and embedded stinger through actual hit detection", () => {
 	for (const variant of ["rhinoceros", "scorpion"]) for (const weapon of ["cannon", "shotgun", "rpg", "flamethrower"]) {
 		const game = fight(variant), boss = game.boss; game.weapon = weapon;
 		boss.phase = variant === "rhinoceros" ? "stuck" : "embedded"; boss.remaining = 5;
 		boss.target = { x: 650, y: 360 };
-		game.player.x = variant === "rhinoceros" ? boss.x - 12 : boss.target.x;
-		game.player.y = variant === "rhinoceros" ? boss.y + 130 : boss.target.y + 100;
-		const hit = firstBossHit(boss, game.player, { x: game.player.x, y: 360 });
+		game.player.x = variant === "rhinoceros" ? boss.x - 130 : boss.target.x;
+		game.player.y = variant === "rhinoceros" ? boss.y : boss.target.y + 100;
+		const hit = firstBossHit(boss, game.player, variant === "rhinoceros" ? boss : { x: game.player.x, y: 360 });
 		expect(hit.circle.part).toBe(variant === "rhinoceros" ? "flank" : "stinger");
-		const health = boss.health; advance(game, .4, { ...idle, aim: { x: 0, y: -1 }, fire: true });
+		const health = boss.health; advance(game, .4, { ...idle, aim: variant === "rhinoceros" ? { x: 1, y: 0 } : { x: 0, y: -1 }, fire: true });
 		expect(health - boss.health, `${variant}/${weapon}`).toBeGreaterThan(1);
 	}
 });
@@ -224,9 +225,9 @@ test("armoured hits do chip damage; correct recovery targets deal thirty times a
 	for (const [variant, phase, part] of [["rhinoceros", "stuck", "flank"], ["scorpion", "embedded", "stinger"]]) {
 		const boss = createBoss(variant, 4, { x: 560, y: 360 }); boss.phase = "approach";
 		let health = boss.health; damageBoss(boss, 4, 0); const chip = health - boss.health;
-		boss.phase = phase; health = boss.health; damageBoss(boss, 4, 0, part);
+		boss.phase = phase; health = boss.health; damageBoss(boss, 4, 0, part, rear(boss));
 		expect((health - boss.health) / chip).toBeCloseTo(30);
-		health = boss.health; damageBoss(boss, 4, 0, "body"); expect(health - boss.health).toBeCloseTo(.8);
+		health = boss.health; damageBoss(boss, 4, 0, "body"); expect(health - boss.health).toBeCloseTo(variant === "rhinoceros" ? .4 : .8);
 	}
 	const game = fight("scorpion"), boss = game.boss; boss.phase = "embedded"; boss.remaining = 1;
 	boss.target = { ...game.player }; game.player.invulnerable = 0; stepBoss(game, 1 / 120, game.player);

@@ -83,7 +83,9 @@ This is a fixed asset cost rather than per-boss/per-frame allocation. No model g
 
 The rhino wing cases and their ribs are hinged groups. Opening them exposes
 fleshy flank panels; three baked body rows animate opening and closing during
-stuck, dazed and get-up phases. Gameplay still draws two cropped images for the
+stuck, dazed and get-up phases. Stars mark both stunned phases; the 0.4-second
+get-up holds its heading, then the body turns through baked headings during the
+active sweep. Gameplay still draws two cropped images for the
 beetle. Re-bake only this boss with
 `python3 tools/save-exterminator-boss-sheets.py --variant rhinoceros`, followed by
 `await window.bossModelPreview.bake("rhinoceros")`; the receiver preserves the

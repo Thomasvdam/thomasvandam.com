@@ -1,4 +1,4 @@
-import { RHINO_TIMING } from "./rhino";
+import { RHINO_TIMING, rhinoRenderAngle } from "./rhino";
 import { drawMillipede, type MillipedeVisible } from "./millipede-art";
 import { activeClaw as bossActiveClaw, bossWindupProgress } from "./boss-patterns";
 import { drawModelBoss } from "./model-boss-renderer";
@@ -65,7 +65,7 @@ function stride(distance: number, time: number, offset: number, speed = 1) {
 }
 
 function rhinoPose(boss: Boss, time: number): Pose {
-	const pose: Record<string, Transform> = { root: { angle: boss.angle }, body: { y: Math.abs(stride(boss.walkDistance, time, 0)) * .7 }, shell: { y: Math.abs(stride(boss.walkDistance, time, 0)) * .7 } };
+	const pose: Record<string, Transform> = { root: { angle: rhinoRenderAngle(boss) }, body: { y: Math.abs(stride(boss.walkDistance, time, 0)) * .7 }, shell: { y: Math.abs(stride(boss.walkDistance, time, 0)) * .7 } };
 	const charge = boss.phase === "charge" ? 1 : boss.phase === "chargeWindup" ? .45 : 0;
 	for (let side = 0; side < 2; side++) for (let row = 0; row < 3; row++) {
 		const step = stride(boss.walkDistance, time, (side + row) * Math.PI, charge ? 2.2 : 1);
@@ -73,7 +73,7 @@ function rhinoPose(boss: Boss, time: number): Pose {
 	}
 	const progress = boss.phase === "rising" ? Math.max(0, 1 - boss.remaining / RHINO_TIMING.rising) : bossWindupProgress(boss);
 	const down = boss.phase === "stuck" || boss.phase === "dazed" ? 1 : boss.phase === "rising" ? 1 - progress : 0;
-	pose.root = { angle: boss.angle, scaleY: 1 - down * .22, y: down * 2 };
+	pose.root = { angle: rhinoRenderAngle(boss), scaleY: 1 - down * .22, y: down * 2 };
 	const sweep = boss.phase === "sweepWindup" || boss.phase === "rising" ? -.4 * progress : boss.phase === "sweep" ? .2 : 0;
 	const lift = boss.phase === "liftWindup" ? -.3 * progress : boss.phase === "lift" ? .15 : 0;
 	pose.head = { y: sweep * 14 + lift * 5, angle: sweep + lift };

@@ -6,7 +6,7 @@ import { hurtPlayer } from "./player-damage";
 import { inFlame } from "./remains";
 import { dropRhinoRocks, firstRockHit, stepRhinoRocks } from "./rhino-rocks";
 
-export const RHINO_TIMING = { stuck: 2.4, dazed: 3.2, rising: 1, afterSweep: .35 } as const;
+export const RHINO_TIMING = { stuck: 2.4, dazed: 3.2, rising: .4, afterSweep: .35 } as const;
 function phase(boss: Boss, name: Boss["phase"], seconds: number) { boss.phase = name; boss.remaining = seconds; }
 function aim(boss: Boss, target: Vector) { boss.angle = Math.atan2(target.y - boss.y, target.x - boss.x); }
 function charge(game: Game, boss: Boss) {
@@ -21,6 +21,8 @@ function charge(game: Game, boss: Boss) {
 	phase(boss, "chargeWindup", BOSS_ATTACKS.charge.windup);
 }
 function sweep(game: Game, boss: Boss) {
+	boss.rhino!.sweepFrom = boss.angle;
+	if (boss.phase === "rising") boss.angle = boss.rhino!.riseAngle;
 	phase(boss, "sweep", BOSS_ATTACKS.sweep.active);
 	const cone = bossCone(boss)!;
 	if (inFlame(game.player, PLAYER_RADIUS, boss, cone.angle, cone.range, cone.halfAngle)) hurtPlayer(game, cone.damage);
@@ -46,9 +48,8 @@ export function stepRhino(game: Game, boss: Boss, dt: number) {
 		boss.rhino.riseAngle = Math.atan2(game.player.y - boss.y, game.player.x - boss.x);
 		boss.target = { ...game.player }; phase(boss, "rising", RHINO_TIMING.rising);
 	} else if (boss.phase === "rising") {
-		// Turn visibly while getting up. The final half-second holds a committed
-		// sweep direction; moving behind it beats the attack without extra delay.
-		boss.angle += clamp(angleDifference(boss.rhino.riseAngle, boss.angle), -dt * Math.PI * 4, dt * Math.PI * 4);
+		// Stars disappear at the start of this short get-up. Hold the impact
+		// heading until the damaging sweep turns the beetle around.
 		if (!boss.remaining) {
 			if (Math.hypot(game.player.x - boss.x, game.player.y - boss.y) <= BOSS_ATTACKS.sweep.range + PLAYER_RADIUS) sweep(game, boss);
 			else charge(game, boss);
@@ -59,4 +60,12 @@ export function stepRhino(game: Game, boss: Boss, dt: number) {
 		if (inFlame(game.player, PLAYER_RADIUS, boss, cone.angle, cone.range, cone.halfAngle)) hurtPlayer(game, cone.damage);
 		if (!boss.remaining) phase(boss, "recover", RHINO_TIMING.afterSweep);
 	}
+}
+
+// The strike immediately owns its damaging cone. Its body turns through the
+// baked headings during the first 40ms, instead of turning during the warning.
+export function rhinoRenderAngle(boss: Boss) {
+	if (boss.variant !== "rhinoceros" || boss.phase !== "sweep" || boss.rhino?.sweepFrom === undefined) return boss.angle;
+	const t = clamp(1.5 - boss.remaining / BOSS_ATTACKS.sweep.active, 0, 1);
+	return boss.rhino.sweepFrom + angleDifference(boss.angle, boss.rhino.sweepFrom) * t;
 }

@@ -16,7 +16,7 @@ test("rhino vulnerability uses opening shell poses without green-circle overlays
 	game.player.angle = 0;
 	for (const phase of ["stuck", "dazed", "rising"]) {
 		game.boss.phase = phase; const pose = modelBossPose(game.boss, 1); expect(pose.row.startsWith("open")).toBe(true);
-		const r = recorder(); drawBossFight(r.ctx, game, sprites); expect(r.arcs).toHaveLength(0);
+		const r = recorder(); drawBossFight(r.ctx, game, sprites); expect(r.arcs).toHaveLength(0); expect(r.lines).toHaveLength(phase === "rising" ? 0 : 6);
 	}
 	game.boss.phase = "sweep"; const r = recorder(); drawBossFight(r.ctx, game, sprites); expect(r.arcs.some(v => v[2] === 150)).toBe(true);
 });
