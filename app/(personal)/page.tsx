@@ -97,7 +97,7 @@ export default function Home() {
 						<Link href="/phase-10" className={`${styles.cover} ${styles.phaseTen}`}>
 							<h3>Phase<br />10.</h3>
 							<div className={styles.phaseTenCards} aria-hidden="true"><i>1</i><i>3</i><i>7</i><i>10</i></div>
-							<div className={styles.coverBottom}><span>06 / A game night scorekeeper</span><span>Keep score <span aria-hidden="true">↗</span></span></div>
+							<div className={styles.coverBottom}><span>06 / Scorekeeper</span><span>Keep score <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>Phases, points, and who starts next. Just add cards.</p>
 					</article>

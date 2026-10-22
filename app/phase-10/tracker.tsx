@@ -101,7 +101,7 @@ function Tracker() {
 			<div className={styles.container}>
 				<header className={styles.header}>
 					<a href="/" className={styles.homeLink}>← Thomas van Dam</a>
-					<a href="/phase-10" className={styles.brand} aria-label="Phase 10 scorekeeper"><span className={styles.logo}>10</span><span><span className={styles.brandName}>PHASE 10</span><span className={styles.brandSub}>YOUR GAME NIGHT SCOREKEEPER</span></span></a>
+					<a href="/phase-10" className={styles.brand} aria-label="Phase 10 scorekeeper"><span className={styles.logo}>10</span><span><span className={styles.brandName}>PHASE 10</span><span className={styles.brandSub}>scorekeeper</span></span></a>
 					<span className={styles.edition}>JUST ADD CARDS.</span>
 				</header>
 
@@ -140,7 +140,7 @@ function Tracker() {
 
 						{finishers.length ? <section className={styles.winner} aria-live="polite"><Trophy size={32} /><div><div className={styles.eyebrow}>{winner === null ? "ONE LAST SHOWDOWN" : "ALL TEN. WELL PLAYED."}</div><h2>{winner === null ? "It’s a tie!" : `${game.names[winner]} wins!`}</h2><p>{winner === null ? "Tied players replay phase 10. The first to go out wins; tap their name below." : `${players[winner].score} total points · 10 phases completed`}</p>{winner === null && <div className={styles.actions}>{finishers.map(index => <Button key={index} className={styles.secondary} onClick={() => setGame({ ...game, tieWinner: index })}>{game.names[index]} won the tie-break</Button>)}</div>}</div></section> : <div className={styles.starter}><div className={styles.starterIcon}><Flag size={22} /></div><div><span>FIRST TO PLAY</span><strong>{game.names[starter]}</strong></div><p>Next round<br /><b>{game.names[(starter + 1) % game.names.length]}</b></p></div>}
 
-						<div className={styles.tableLabel}><span>{scoring ? "THIS ROUND’S LEFTOVER CARDS" : "AROUND THE TABLE"}</span><span>{scoring ? "TAP TO ADD POINTS" : "LOWER POINTS IS BETTER"}</span></div>
+						{scoring && <div className={styles.tableLabel}><span>THIS ROUND’S LEFTOVER CARDS</span><span>TAP TO ADD POINTS</span></div>}
 						<div className={styles.players}>
 							{players.map((player, index) => <section key={index} className={cn(styles.player, styles[`color${index}`], game.draft[index].completed && styles.completed)} aria-label={`${player.name}, player ${index + 1}`}>
 								<div className={styles.playerTop}><div className={styles.playerName}><span className={styles.dot} /><h2>{player.name}</h2>{!finishers.length && index === starter && <span className={styles.firstBadge}>STARTS</span>}</div><div className={styles.total}><strong>{player.score}</strong><span>PTS</span></div></div>
@@ -150,7 +150,7 @@ function Tracker() {
 							</section>)}
 						</div>
 
-						{!finishers.length && <div className={styles.roundAction}><p>{scoring ? "Count cards still in hand. The player who went out scores 0." : "Mark each completed phase. Add points when someone goes out."}</p>{error && <p role="alert" className={styles.error}>{error}</p>}<Button className={styles.primary} onClick={() => scoring ? finishRound() : setScoring(true)}>{scoring ? "Save round & move on" : "Score this round"}<ArrowRight /></Button>{scoring && <Button variant="ghost" className={styles.quietButton} onClick={() => { setScoring(false); setError(""); }}>Back to the table</Button>}</div>}
+						{!finishers.length && <div className={styles.roundAction}>{scoring && <p>Count cards still in hand. The player who went out scores 0.</p>}{error && <p role="alert" className={styles.error}>{error}</p>}<Button className={styles.primary} onClick={() => scoring ? finishRound() : setScoring(true)}>{scoring ? "Save round & move on" : "Score this round"}<ArrowRight /></Button>{scoring && <Button variant="ghost" className={styles.quietButton} onClick={() => { setScoring(false); setError(""); }}>Back to the table</Button>}</div>}
 
 						<div className={styles.utilities}><Button variant="ghost" className={styles.quietButton} disabled={!game.rounds.length} onClick={() => { setGame(undoRound(game)); setScoring(true); setError(""); setNotice("Last round reopened. Adjust the scores, then save it again."); }}><RotateCcw /> Undo last round</Button><Button variant="ghost" aria-pressed={awake} className={styles.quietButton} onClick={() => { setAwake(!awake); setNotice(""); }}><span className={cn(styles.awakeDot, awake && styles.awakeActive)} />{awake ? "Screen stays on" : "Keep screen on"}</Button></div>
 
@@ -160,7 +160,7 @@ function Tracker() {
 				{storageNotice && <p role="alert" className={styles.error}>{storageNotice}</p>}
 				<p role="status" className={styles.notice}>{notice}</p>
 				<details className={styles.reference}><summary>A little rules refresher <ChevronDown size={18} /></summary><div className={styles.rules}><p>Complete your phase to move on next round. Didn’t make it? Try the same phase again. Points come from cards left in your hand.</p><div className={styles.scoringGuide}>{VALUES.map(value => <span key={value.points}>{value.label}<b>{value.points} pts</b></span>)}</div><ol>{PHASES.map((phase, i) => <li key={phase}><span>{i + 1}</span>{phase}</li>)}</ol><p>The first to finish phase 10 wins. If several finish in the same round, lowest total score wins. Equal scores? Those players replay phase 10; first out wins.</p><a href="https://service.mattel.com/instruction_sheets/w6792-0920.pdf" target="_blank" rel="noreferrer">Mattel’s full rules ↗</a></div></details>
-				<footer className={styles.footer}><span>MADE FOR GAME NIGHT.</span><span>Unofficial Phase 10 companion</span></footer>
+				<footer className={styles.footer}><span>Unofficial Phase 10 companion</span></footer>
 			</div>
 		</div>
 	);
