@@ -4,11 +4,11 @@ import { isMillipedeWeak, type Boss, type BossCircle } from "./boss-types";
 // Simulation, warning footprints and animation share these attack dimensions.
 export const BOSS_ATTACKS = {
 	charge: { windup: 1.1, speed: 620, radius: 42 },
-	dash: { windup: .9, speed: 560, radius: 38, distance: 320 },
+	dash: { windup: .75, speed: 780, radius: 38, distance: 650 },
 	sweep: { windup: .9, active: .08, range: 150, halfAngle: 1.15, damage: 25 },
 	lift: { windup: .85, active: .18, range: 125, halfAngle: .65, damage: 30 },
 	claw: { windup: .8, active: .18, range: 165, halfAngle: .7, damage: 25 },
-	sting: { windup: 1.15, active: .2, radius: 48, damage: 35, recovery: 2.6 },
+	sting: { windup: 1.15, lockTime: .55, reach: 280, active: .2, radius: 48, damage: 35, recovery: 1.6 },
 	millipedeSwipe: { windup: .55, active: .16, range: 175, halfAngle: 1.1, damage: 25 },
 	crossing: { windup: 2.2, speed: 1200, radius: 24 },
 } as const;
@@ -34,9 +34,7 @@ export function bossDamageMultiplier(boss: Boss, part: BossCircle["part"], sourc
 		const pending = Math.min(4, Math.floor((1 - boss.health / boss.maxHealth + .000001) * 5)) > (boss.millipede?.rampages ?? 0);
 		return bossExposed(boss) && !pending && (part === "head" || part === "joint") ? 1 : 0;
 	}
-	if (!bossExposed(boss)) return .1;
-	if (boss.variant === "scorpion" && part === "stinger") return 3;
-	return .2;
+	return bossExposed(boss) && part === "stinger" ? 3 : 0;
 }
 
 // Hitboxes and visible opening markers use the same world-space locations.

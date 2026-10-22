@@ -67,3 +67,15 @@ test("millipede rampages have no vulnerability rings; the close swipe footprint 
 	game.lightCover.front = 4; game.lightCover.rearLeft = 4; game.lightCover.rearRight = 4;
 	const hidden = ctx(); drawBossFight(hidden.context, game, sprites); expect(hidden.calls.arcs).toBe(0);
 });
+
+test("sting target changes from dashed amber tracking to solid red commitment", () => {
+	const game = newGame(); game.player.angle = 0; game.boss = createBoss("scorpion", 4, game.player);
+	Object.assign(game.boss, { x: game.player.x + 100, y: game.player.y, phase: "stingWindup" });
+	for (const [remaining, dash, color] of [[1, [6, 6], "#f0b471"], [.4, [], "#ff775e"]]) {
+		game.boss.remaining = remaining;
+		const lines = [], strokes = [];
+		const context = new Proxy({ globalAlpha: 1, setLineDash: pattern => lines.push(pattern), stroke() { strokes.push(this.strokeStyle); } }, { get: (target, key) => key in target ? target[key] : () => {} });
+		drawBossFight(context, game, sprites);
+		expect(lines[0]).toEqual(dash); expect(strokes[0]).toBe(color); expect(lines.at(-1)).toEqual([]);
+	}
+});
