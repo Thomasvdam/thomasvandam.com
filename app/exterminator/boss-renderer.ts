@@ -27,7 +27,12 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 		} else if (cone) {
 			ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.arc(boss.x, boss.y, cone.range, cone.angle - cone.halfAngle, cone.angle + cone.halfAngle); ctx.closePath(); ctx.fill(); ctx.stroke();
 		} else if (boss.phase === "stingWindup" || boss.phase === "sting") {
+			const tracking = boss.phase === "stingWindup" && boss.remaining > BOSS_ATTACKS.sting.lockTime;
+			ctx.strokeStyle = tracking ? "#f0b471" : "#ff775e";
+			ctx.fillStyle = tracking ? "#e89b4e22" : "#ff775e55";
+			ctx.setLineDash(tracking ? [6, 6] : []);
 			ctx.beginPath(); ctx.arc(boss.target.x, boss.target.y, BOSS_ATTACKS.sting.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+			ctx.setLineDash([]);
 			ctx.beginPath(); ctx.moveTo(boss.target.x - 12, boss.target.y); ctx.lineTo(boss.target.x + 12, boss.target.y); ctx.moveTo(boss.target.x, boss.target.y - 12); ctx.lineTo(boss.target.x, boss.target.y + 12); ctx.stroke();
 		}
 		if (boss.variant === "scorpion") for (const index of [0, 1]) if (boss.claws[index] > 0) {

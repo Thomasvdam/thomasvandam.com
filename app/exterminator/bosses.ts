@@ -62,7 +62,7 @@ export function damageBoss(boss: Boss, damage: number, time: number, part: BossC
 	if (part === "leftClaw" || part === "rightClaw") {
 		const index = part === "leftClaw" ? 0 : 1, taken = Math.min(boss.claws[index], damage); boss.claws[index] = Math.max(0, boss.claws[index] - damage); damage = taken * .25;
 	}
-	// Armour makes positioning for the punish window worthwhile without making any weapon useless.
+	// Shared-health damage depends on the struck part and current opening.
 	const multiplier = bossDamageMultiplier(boss, part, source);
 	if (!multiplier) return;
 	// A threshold interrupts the current volley even if several bullets land in one step.
@@ -107,25 +107,37 @@ function windup(boss: Boss, player: Vector, name: Boss["phase"], duration: numbe
 }
 function playerDistance(game: Game, boss: Boss) { return Math.hypot(game.player.x - boss.x, game.player.y - boss.y); }
 function leadPlayer(game: Game, previous: Vector, dt: number, seconds: number) {
-	// Sample movement only when choosing the attack. Changing direction beats the prediction.
+	// Predict from this simulation step; committed attacks stop resampling.
 	const lead = seconds / Math.max(dt, 1 / 240);
 	return { x: clamp(game.player.x + (game.player.x - previous.x) * lead, PLAYER_RADIUS, FIELD.width - PLAYER_RADIUS), y: clamp(game.player.y + (game.player.y - previous.y) * lead, PLAYER_RADIUS, FIELD.height - PLAYER_RADIUS) };
 }
+function scorpionStingTarget(game: Game, boss: Boss, previous: Vector, dt: number) {
+	const predicted = leadPlayer(game, previous, dt, BOSS_ATTACKS.sting.lockTime);
+	const dx = predicted.x - boss.x, dy = predicted.y - boss.y;
+	const scale = Math.min(1, BOSS_ATTACKS.sting.reach / (Math.hypot(dx, dy) || 1));
+	boss.target = { x: boss.x + dx * scale, y: boss.y + dy * scale };
+	boss.angle = Math.atan2(dy, dx);
+}
 function scorpionSting(game: Game, boss: Boss, previous: Vector, dt: number) {
-	windup(boss, playerDistance(game, boss) > 280 ? leadPlayer(game, previous, dt, .95) : game.player, "stingWindup", BOSS_ATTACKS.sting.windup);
+	// The tail cannot grant a safe damage window across the arena.
+	if (playerDistance(game, boss) > BOSS_ATTACKS.sting.reach) { scorpionDash(game, boss, previous, dt); return; }
+	scorpionStingTarget(game, boss, previous, dt);
+	phase(boss, "stingWindup", BOSS_ATTACKS.sting.windup);
 }
 function scorpionClaw(game: Game, boss: Boss, index: number, previous: Vector, dt: number) {
-	// Retreating out of claw reach invites the tail, rather than two harmless swipes.
 	if (playerDistance(game, boss) > 200) { scorpionSting(game, boss, previous, dt); return; }
 	boss.comboStep = index;
 	if (boss.claws[index] > 0) windup(boss, game.player, "clawWindup", BOSS_ATTACKS.claw.windup);
 	else if (index === 0) scorpionClaw(game, boss, 1, previous, dt);
 	else scorpionSting(game, boss, previous, dt);
 }
-function scorpionDash(game: Game, boss: Boss) {
-	aim(boss, game.player);
-	const reach = Math.min(BOSS_ATTACKS.dash.distance, Math.max(0, playerDistance(game, boss) - 100));
+function scorpionDash(game: Game, boss: Boss, previous: Vector, dt: number) {
+	const travel = Math.min(BOSS_ATTACKS.dash.distance, playerDistance(game, boss)) / BOSS_ATTACKS.dash.speed;
+	aim(boss, leadPlayer(game, previous, dt, BOSS_ATTACKS.dash.windup + travel));
+	const reach = Math.min(BOSS_ATTACKS.dash.distance, Math.hypot(boss.target.x - boss.x, boss.target.y - boss.y) + 80);
 	boss.target = { x: clamp(boss.x + Math.cos(boss.angle) * reach, 38, FIELD.width - 38), y: clamp(boss.y + Math.sin(boss.angle) * reach, 38, FIELD.height - 38) };
+	// Clamping at an arena edge must not bend the visible lane away from travel.
+	boss.angle = Math.atan2(boss.target.y - boss.y, boss.target.x - boss.x);
 	phase(boss, "chargeWindup", BOSS_ATTACKS.dash.windup);
 }
 function stepScorpion(game: Game, boss: Boss, dt: number, previous: Vector) {
@@ -135,8 +147,8 @@ function stepScorpion(game: Game, boss: Boss, dt: number, previous: Vector) {
 		if (boss.remaining > 0) return;
 		boss.attackIndex++; boss.sequenceAttacks = 0;
 		const distance = playerDistance(game, boss);
-		if (distance > 320) scorpionSting(game, boss, previous, dt);
-		else if (distance > 200) scorpionDash(game, boss);
+		if (distance > BOSS_ATTACKS.sting.reach) scorpionDash(game, boss, previous, dt);
+		else if (distance > 200) scorpionSting(game, boss, previous, dt);
 		else scorpionClaw(game, boss, 0, previous, dt);
 	} else if (boss.phase === "chargeWindup" && !boss.remaining) phase(boss, "charge", 1);
 	else if (boss.phase === "charge") {
@@ -160,7 +172,10 @@ function stepScorpion(game: Game, boss: Boss, dt: number, previous: Vector) {
 			if (index === 0 && (boss.sequenceAttacks ?? 0) < 3) scorpionClaw(game, boss, 1, previous, dt);
 			else scorpionSting(game, boss, previous, dt);
 		}
-	} else if (boss.phase === "stingWindup" && !boss.remaining) {
+	} else if (boss.phase === "stingWindup") {
+		// Track during the first part of the tell, then commit for a full dodge beat.
+		if (boss.remaining + dt > BOSS_ATTACKS.sting.lockTime) scorpionStingTarget(game, boss, previous, dt);
+		if (boss.remaining > 0) return;
 		if (Math.hypot(game.player.x - boss.target.x, game.player.y - boss.target.y) <= BOSS_ATTACKS.sting.radius + PLAYER_RADIUS) hurtPlayer(game, BOSS_ATTACKS.sting.damage);
 		phase(boss, "sting", BOSS_ATTACKS.sting.active);
 	} else if (boss.phase === "sting" && !boss.remaining) {
