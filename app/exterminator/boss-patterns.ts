@@ -8,7 +8,7 @@ export const BOSS_ATTACKS = {
 	sweep: { windup: .9, active: .08, range: 150, halfAngle: 1.15, damage: 25 },
 	lift: { windup: .85, active: .18, range: 125, halfAngle: .65, damage: 30 },
 	claw: { windup: .8, active: .18, range: 165, halfAngle: .7, damage: 25 },
-	sting: { windup: 1.15, active: .2, radius: 48, damage: 35 },
+	sting: { windup: 1.15, active: .2, radius: 48, damage: 35, recovery: 2.6 },
 	millipedeSwipe: { windup: .55, active: .16, range: 175, halfAngle: 1.1, damage: 25 },
 	crossing: { windup: 2.2, speed: 1200, radius: 24 },
 } as const;
@@ -47,7 +47,7 @@ export function bossWeakPoints(boss: Boss): BossCircle[] {
 		x: boss.x - Math.cos(boss.angle) * 26,
 		y: boss.y - Math.sin(boss.angle) * 26, radius: 24, part: "flank",
 	}];
-	if (boss.variant === "scorpion") return [{ ...boss.target, radius: 18, part: "stinger" }];
+	if (boss.variant === "scorpion") return [{ ...boss.target, radius: 24, part: "stinger" }];
 	return [...(boss.millipede?.headHidden ? [] : [{ x: boss.x, y: boss.y, radius: 24, part: "head" as const }]), ...boss.segments.flatMap((point, index): BossCircle[] => !point.hidden && isMillipedeWeak(index) ? [{ x: point.x, y: point.y, radius: 18, part: "joint" }] : [])];
 }
 
