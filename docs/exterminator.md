@@ -81,7 +81,8 @@ warnings beyond the beams. Actual attacks, projectiles, cords, bug vision,
 target selection, and damage are unchanged by lighting.
 
 The workshop sells four independent corner floodlights for $30 each. Each lights
-its quarter of the map with a narrow shadow seam between quarters. Purchases
+a rounded pool from its corner with a soft elliptical falloff. Four installed
+lights leave a pitch-black pocket around the centre unless the mech lights reach it. Purchases
 persist across waves, hive changes, and refits for the current run, and reset on
 death/restart like other purchases. Corner lights have 60 health; light attackers can destroy them. Destroyed
 lights immediately stop illuminating and become available to repurchase for $30. Mech light
@@ -91,7 +92,7 @@ mech rank and installed corners. Controller selection scrolls the longer shop
 menu to keep the selected card visible.
 
 `lighting.ts` defines the shared falloff/visibility model; `lighting-renderer.ts`
-caches beam and quarter masks, then composites a half-resolution world-space
+caches beam and rounded corner masks, then composites a half-resolution world-space
 mask. Moving, aiming, and changing viewport reuse these shapes; rank changes
 rebuild only mech beam shapes. No per-frame pixel readbacks are used.
 

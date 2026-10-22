@@ -36,10 +36,13 @@ export function beamStrength(beam: LightBeam, x: number, y: number) {
 }
 
 export function cornerStrength(corner: typeof CORNER_LIGHTS[number], x: number, y: number) {
-	const dx = corner.right ? x - FIELD.width / 2 - 10 : FIELD.width / 2 - 10 - x;
-	const dy = corner.bottom ? y - FIELD.height / 2 - 10 : FIELD.height / 2 - 10 - y;
-	const edge = Math.min(dx, dy);
-	return .18 * clamp((edge + 32) / 32, 0, 1) + .72 * clamp(edge / 28, 0, 1);
+	// Each fixture casts a rounded pool into the arena. The ellipse follows the
+	// arena proportions, leaving a dark central pocket instead of square seams.
+	const dx = x - (corner.right ? FIELD.width - 16 : 16);
+	const dy = y - (corner.bottom ? FIELD.height - 16 : 16);
+	const radius = Math.hypot(dx / (FIELD.width * .54), dy / (FIELD.height * .54));
+	const edge = clamp((1 - radius) / .24, 0, 1);
+	return .9 * edge * edge * (3 - 2 * edge);
 }
 
 export function lightAt(game: Game, x: number, y: number) {

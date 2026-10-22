@@ -48,7 +48,7 @@ export function workshopServices(game: Game) {
 	if (game.parts.armour < MAX_ARMOUR_RANK) choices.push({ id: "armour", name: "Upgrade armour", description: `Reduce all incoming damage by ${Math.round(armourReduction(game.parts.armour + 1) * 100)}% · rank ${game.parts.armour + 1} / ${MAX_ARMOUR_RANK}`, cost: upgradeCost(game.parts.armour), key: "A", kind: "service" });
 	if (game.parts.sensor < MAX_SENSOR_RANK) choices.push({ id: "sensor", name: "Upgrade hive sensor", description: game.parts.sensor === 0 ? "Reveal hive difficulty." : game.parts.sensor === 1 ? "Reveal the second most prevalent terrain." : "Reveal the hive’s enemy mix.", cost: upgradeCost(game.parts.sensor, 150), key: "5", kind: "service" });
 	if (game.parts.lights < MAX_LIGHT_RANK) choices.push({ id: "lights", name: "Upgrade mech lights", description: `Stronger rear lights and +8% beam reach per rank · rank ${game.parts.lights + 1} / ${MAX_LIGHT_RANK}`, cost: upgradeCost(game.parts.lights, 200), key: "7", kind: "service" });
-	for (const corner of CORNER_LIGHTS) if (!game.parts.cornerLights[corner.id]) choices.push({ id: corner.id, name: corner.name, description: "Illuminate this quarter of every hive. Stays installed for the run.", cost: CORNER_LIGHT_COST, key: corner.key, kind: "service" });
+	for (const corner of CORNER_LIGHTS) if (!game.parts.cornerLights[corner.id]) choices.push({ id: corner.id, name: corner.name, description: "Light this corner with a rounded floodlight. Stays installed for the run.", cost: CORNER_LIGHT_COST, key: corner.key, kind: "service" });
 	return choices;
 }
 export type Input = { move: Vector; aim: Vector; fire: boolean };
