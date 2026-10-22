@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { chooseHive, clearCombat, FIELD, newGame, openWorkshop, openShop, purchaseService, start, step, workshopServices } from "./game";
-import { CORNER_LIGHTS, lightAt, LIT_THRESHOLD, warningLit } from "./lighting";
+import { CORNER_LIGHTS, cornerStrength, lightAt, LIT_THRESHOLD, warningLit } from "./lighting";
 import { createBug } from "./bugs";
 import { viewFromGame } from "./runtime";
 import { render } from "./renderer";
@@ -26,7 +26,7 @@ test("aim controls the floodlight; rear lights are weaker/shorter, shadow fades 
 	source.x = 1000; expect(warningLit(game, source)).toBe(false);
 });
 
-test("each permanent corner lights its own quarter; four corners retain narrow shadow seams", () => {
+test("each permanent corner casts a rounded pool; four corners leave the centre dark", () => {
 	const game = newGame(); game.player.x = 20; game.player.y = 20; game.player.angle = Math.PI;
 	const samples = [[200, 160], [920, 160], [200, 560], [920, 560]];
 	for (let i = 0; i < CORNER_LIGHTS.length; i++) {
@@ -35,8 +35,16 @@ test("each permanent corner lights its own quarter; four corners retain narrow s
 		for (let j = 0; j < samples.length; j++) expect(warningLit(game, { x: samples[j][0], y: samples[j][1] })).toBe(i === j);
 	}
 	for (const corner of CORNER_LIGHTS) game.parts.cornerLights[corner.id] = true;
-	for (const point of [[560, 100], [560, 360], [100, 360]]) { const light = lightAt(game, ...point); expect(light).toBeGreaterThan(.1); expect(light).toBeLessThan(LIT_THRESHOLD); }
-	for (const point of [[510, 310], [610, 410]]) expect(lightAt(game, ...point)).toBeGreaterThan(.8);
+	for (const point of [[510, 310], [560, 360], [610, 410]]) expect(lightAt(game, ...point)).toBe(0);
+	for (const corner of CORNER_LIGHTS) {
+		const x = corner.right ? FIELD.width - 16 : 16, y = corner.bottom ? FIELD.height - 16 : 16;
+		const sx = corner.right ? -1 : 1, sy = corner.bottom ? -1 : 1;
+		// Equal elliptical radii share a smooth edge along the axes and diagonal.
+		const strength = t => cornerStrength(corner, x + sx * FIELD.width * .54 * t, y);
+		expect(strength(.75)).toBeCloseTo(.9); expect(strength(1)).toBe(0);
+		expect(strength(.85)).toBeGreaterThan(strength(.95));
+		expect(cornerStrength(corner, x + sx * FIELD.width * .54 * .9 / Math.SQRT2, y + sy * FIELD.height * .54 * .9 / Math.SQRT2)).toBeCloseTo(strength(.9));
+	}
 });
 
 test("light purchases enforce funds, rank caps, one purchase per corner, and distinct menu shortcuts", () => {
