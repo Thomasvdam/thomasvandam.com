@@ -18,7 +18,6 @@ export type SafeZone = { x: number; y: number; width: number; height: number };
 export type MillipedeState = {
 	rampages: number; pattern: MillipedePattern; safe: SafeZone; elapsed: number; acidTime: number;
 	shotTimer: number; bombTimer: number; swipeTimer: number; headHidden: boolean; poolTick: number;
-	returnFrom?: Vector;
 	bombs: { from: Vector; target: Vector; age: number }[];
 	pools: (Vector & { bornAt: number })[];
 };

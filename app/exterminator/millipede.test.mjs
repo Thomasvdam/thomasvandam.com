@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { createBoss, stepBoss, bossCircles, damageBoss, blastBoss, flameBoss } from "./bosses";
 import { newGame, FIELD, start, chooseHive, step, clearCombat } from "./game";
 import { MILLIPEDE_SEGMENT_COUNT, MILLIPEDE_SPACING } from "./boss-types";
-import { resolveMillipedeBarrier, positionMillipede, rampageSafeZone, insideSafeZone, MILLIPEDE_PATTERNS, ACID_POOL_LIFETIME, ACID_POOL_TICK, ACID_BOMB_FLIGHT } from "./millipede";
+import { resolveMillipedeBarrier, positionMillipede, rampageSafeZone, insideSafeZone, MILLIPEDE_PATTERNS, ACID_POOL_LIFETIME, ACID_POOL_TICK, ACID_BOMB_FLIGHT, MILLIPEDE_RETURN_TIME, MILLIPEDE_DRAIN_TIME, millipedeReturningPoint, millipedePaintIndex } from "./millipede";
 const idle = { move: { x: 0, y: 0 }, aim: { x: 0, y: -1 }, fire: false };
 function game() {
 	const g = newGame(47); start(g); chooseHive(g, g.hives[0].id); g.toSpawn = 1; g.spawnTimer = 10000; g.spawns = []; g.enemies = []; g.terrain.fill("firm");
@@ -137,7 +137,7 @@ test("a threshold immediately absorbs excess damage and interrupts acid; every r
 	b.phase = "acid"; damageBoss(b, 1, g.time, "head"); expect(b.health).toBeCloseTo(b.maxHealth * .8 - 1);
 });
 
-test("the head builds each pattern at speed; sections appear in travel order and withdraw in reverse order", () => {
+test("the head builds each pattern at speed; tails drain beyond the arena before the coil returns", () => {
 	for (const pattern of MILLIPEDE_PATTERNS) {
 		const g = game(), b = g.boss, s = b.millipede; s.pattern = pattern; s.safe = { x: -1000, y: -1000, width: 1, height: 1 }; b.phase = "crossing";
 		let previous = 0;
@@ -148,17 +148,17 @@ test("the head builds each pattern at speed; sections appear in travel order and
 		expect(previous).toBe(336);
 		s.elapsed = .5; positionMillipede(b); const from = { x: b.x, y: b.y }; s.elapsed += 1 / 120; positionMillipede(b);
 		expect(Math.hypot(b.x - from.x, b.y - from.y) * 120).toBeGreaterThan(1100);
-		b.phase = "return"; s.returnFrom = { x: -168, y: 600 }; previous = 337;
-		for (const elapsed of [0, .4, .8, 1.2, 1.8, 2.4]) {
-			s.elapsed = elapsed; positionMillipede(b); const count = b.segments.filter(p => !p.hidden).length;
-			expect(count).toBeLessThan(previous); expect(b.segments.slice(count).every(p => p.hidden)).toBe(true); previous = count;
+		b.phase = "return"; previous = 337;
+		for (const elapsed of [0, .4, .8, 1.2, 1.8, MILLIPEDE_RETURN_TIME]) {
+			s.elapsed = elapsed; positionMillipede(b); const count = b.segments.filter(p => !p.hidden && p.x >= -40 && p.x <= FIELD.width + 40 && p.y >= -40 && p.y <= FIELD.height + 40).length;
+			expect(count).toBeLessThanOrEqual(previous); previous = count;
 		}
 		expect(previous).toBe(0); expect(b.x).toBe(FIELD.width / 2); expect(b.y).toBe(185);
 	}
 });
 
 test("each completed coil opens with one wide acid fan, then resumes ordinary volleys", () => {
-	const g = game(), b = g.boss, s = b.millipede; b.phase = "return"; b.remaining = .001; s.elapsed = 2.39; g.acid = [];
+	const g = game(), b = g.boss, s = b.millipede; b.phase = "return"; b.remaining = .001; s.elapsed = MILLIPEDE_RETURN_TIME - .01; g.acid = [];
 	stepBoss(g, .01, g.player); expect(b.phase).toBe("acid"); expect(g.acid).toHaveLength(11);
 	const angles = g.acid.map(p => Math.atan2(p.vy, p.vx)); expect(Math.max(...angles) - Math.min(...angles)).toBeCloseTo(2.2);
 	stepBoss(g, .01, g.player); expect(g.acid).toHaveLength(11);
@@ -172,5 +172,61 @@ test("a close player gets a committed recoil warning before the front-leg sweep;
 		advance(g, .2); expect(b.phase).toBe("sweepWindup"); expect(g.player.health).toBe(100);
 		advance(g, .6, evade ? { ...idle, move: { x: 0, y: 1 } } : idle);
 		expect(g.player.health).toBe(evade ? 100 : 87);
+	}
+});
+
+test("every visible rampage section travels straight at full speed; wrapping never skips across the arena", () => {
+	for (const pattern of MILLIPEDE_PATTERNS) {
+		const g = game(), b = g.boss, s = b.millipede; b.phase = "crossing"; s.pattern = pattern; s.safe = rampageSafeZone(pattern, g.player);
+		let previous = [];
+		const inside = p => !p.hidden && p.x >= 0 && p.x <= FIELD.width && p.y >= 0 && p.y <= FIELD.height;
+		let observations = 0;
+		for (let frame = 0; frame <= 8 * 60; frame++) {
+			s.elapsed = frame / 60; positionMillipede(b);
+			for (let i = 0; i < b.segments.length; i++) {
+				const p = b.segments[i], old = previous[i];
+				if (!old || !inside(old) || !inside(p)) continue;
+				const dx = p.x - old.x, dy = p.y - old.y;
+				expect(Math.hypot(dx, dy)).toBeCloseTo(1200 / 60, 7);
+				expect(dx * Math.sin(p.angle) - dy * Math.cos(p.angle)).toBeCloseTo(0, 7);
+				expect(p.angle).toBe(old.angle); observations++;
+			}
+			previous = b.segments.map(p => ({ ...p }));
+		}
+		expect(observations).toBeGreaterThan(10000);
+	}
+});
+
+test("returning tails leave through their exit edge and the recoiling body follows its head in from the north", () => {
+	const g = game(), b = g.boss, s = b.millipede; b.phase = "return"; s.elapsed = 0; positionMillipede(b);
+	const previous = b.segments.map(p => ({ ...p })); s.elapsed = .1; positionMillipede(b);
+	for (let i = 0; i < b.segments.length; i++) {
+		const p = b.segments[i]; expect(p.hidden).toBe(false);
+		expect(Math.hypot(p.x - previous[i].x, p.y - previous[i].y)).toBeCloseTo(120);
+	}
+	s.elapsed = MILLIPEDE_DRAIN_TIME; positionMillipede(b); expect(s.headHidden).toBe(true);
+	for (const p of b.segments) expect(p.x < -40 || p.x > FIELD.width + 40 || p.y < -40 || p.y > FIELD.height + 40).toBe(true);
+	const entry = millipedeReturningPoint(b, -1); expect(entry.y).toBeLessThan(-100);
+	s.elapsed = MILLIPEDE_RETURN_TIME; const head = millipedeReturningPoint(b, -1); positionMillipede(b);
+	expect(head.x).toBe(FIELD.width / 2); expect(head.y).toBe(185);
+	b.phase = "acid"; positionMillipede(b);
+	for (let index = 0; index < 76; index++) expect(millipedeReturningPoint(b, index)).toMatchObject({ x: b.segments[index].x, y: b.segments[index].y });
+});
+
+
+test("detached pass paint order stays tail-to-front without an exposed array seam in the arena", () => {
+	const g = game(), b = g.boss, s = b.millipede;
+	for (const pattern of MILLIPEDE_PATTERNS) for (const phase of ["crossing", "return"]) for (const elapsed of [1.7, 3.8, 7.6]) {
+		s.pattern = pattern; b.phase = phase; s.elapsed = elapsed; positionMillipede(b);
+		for (let pass = 0; pass < 6; pass++) {
+			let previous = -Infinity; const indices = new Set();
+			for (let order = 55; order >= 0; order--) {
+				const index = millipedePaintIndex(b, pass * 56 + order), p = b.segments[index]; indices.add(index);
+				if (p.hidden) continue;
+				const along = p.x * Math.cos(p.angle) + p.y * Math.sin(p.angle);
+				expect(along).toBeGreaterThan(previous); previous = along;
+			}
+			expect(indices.size).toBe(56);
+		}
 	}
 });
