@@ -348,7 +348,7 @@ export function step(game: Game, input: Input, dt: number) {
 		if (bossHit.circle && bossHit.time <= Math.min(hitTime, sacTime)) {
 			bullet.x = previous.x + (bullet.x - previous.x) * bossHit.time; bullet.y = previous.y + (bullet.y - previous.y) * bossHit.time;
 			if (bullet.weapon === "rpg") explode(game, bullet, pulls.spiders);
-			else if (game.boss) damageBoss(game.boss, bullet.damage, game.time, bossHit.circle.part);
+			else if (game.boss) damageBoss(game.boss, bullet.damage, game.time, bossHit.circle.part, { x: game.boss.x - bullet.vx, y: game.boss.y - bullet.vy });
 			return false;
 		}
 		if (sac && sacTime < hitTime) {

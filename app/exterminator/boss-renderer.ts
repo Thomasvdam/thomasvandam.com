@@ -47,7 +47,7 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 	}
 	const art = game.time - boss.hitAt < .08 ? bossHitSprites(sprites) : sprites;
 	drawBoss(ctx, art, boss, boss.diedAt ?? game.time, false, visible); ctx.restore();
-	if (alive && lit && boss.variant === "rhinoceros" && boss.phase === "dazed") {
+	if (alive && lit && boss.variant === "rhinoceros" && (boss.phase === "dazed" || boss.phase === "stuck")) {
 		ctx.save(); ctx.strokeStyle = "#f2d790"; ctx.lineWidth = 2;
 		for (let i = 0; i < 3; i++) {
 			const angle = game.time * 3 + i * Math.PI * 2 / 3, x = boss.x + Math.cos(angle) * 28, y = boss.y - 36 + Math.sin(angle) * 8;

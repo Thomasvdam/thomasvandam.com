@@ -1,3 +1,4 @@
+import type { Vector } from "./math";
 import { isMillipedeWeak, type Boss, type BossCircle } from "./boss-types";
 
 // Simulation, warning footprints and animation share these attack dimensions.
@@ -20,23 +21,30 @@ export function bossCone(boss: Boss) {
 	return null;
 }
 
-export function bossDamageMultiplier(boss: Boss, part: BossCircle["part"]) {
+export function bossDamageMultiplier(boss: Boss, part: BossCircle["part"], source?: Vector) {
+	if (boss.variant === "rhinoceros") {
+		if (!bossExposed(boss) || part !== "flank" || !source) return .1;
+		// A rear 120-degree arc excludes glancing side hits and barrel offsets.
+		const dx = source.x - boss.x, dy = source.y - boss.y;
+		return dx * Math.cos(boss.angle) + dy * Math.sin(boss.angle) < -.5 * Math.hypot(dx, dy) ? 3 : .1;
+	}
 	if (boss.variant === "millipede") {
 		if (boss.phase === "acid" || boss.phase === "bombWindup") return part === "head" ? 1 : .1;
 		return bossExposed(boss) && (part === "head" || part === "joint") ? 3 : .1;
 	}
 	if (!bossExposed(boss)) return .1;
-	if ((boss.variant === "rhinoceros" && part === "flank") || (boss.variant === "scorpion" && part === "stinger")) return 3;
+	if (boss.variant === "scorpion" && part === "stinger") return 3;
 	return .2;
 }
 
 // Hitboxes and visible opening markers use the same world-space locations.
 export function bossWeakPoints(boss: Boss): BossCircle[] {
 	if (!bossExposed(boss)) return [];
-	if (boss.variant === "rhinoceros") return [-1, 1].map(side => ({
-		x: boss.x - Math.cos(boss.angle) * 12 - Math.sin(boss.angle) * side * 25,
-		y: boss.y - Math.sin(boss.angle) * 12 + Math.cos(boss.angle) * side * 25, radius: 18, part: "flank",
-	}));
+	if (boss.variant === "rhinoceros") return [{
+		// The opened rear abdomen is reachable by a straight shot from behind.
+		x: boss.x - Math.cos(boss.angle) * 26,
+		y: boss.y - Math.sin(boss.angle) * 26, radius: 24, part: "flank",
+	}];
 	if (boss.variant === "scorpion") return [{ ...boss.target, radius: 18, part: "stinger" }];
 	return [...(boss.millipede?.headHidden ? [] : [{ x: boss.x, y: boss.y, radius: 24, part: "head" as const }]), ...boss.segments.flatMap((point, index): BossCircle[] => !point.hidden && isMillipedeWeak(index) ? [{ x: point.x, y: point.y, radius: 18, part: "joint" }] : [])];
 }

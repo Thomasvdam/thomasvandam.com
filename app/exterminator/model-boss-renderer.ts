@@ -1,4 +1,4 @@
-import { RHINO_TIMING } from "./rhino";
+import { RHINO_TIMING, rhinoRenderAngle } from "./rhino";
 import { activeClaw, bossWindupProgress } from "./boss-patterns";
 import sheets from "./boss-sheets.json";
 import type { Boss } from "./boss-types";
@@ -10,7 +10,7 @@ type Frame = { x: number; y: number; w: number; h: number; dx: number; dy: numbe
 type Sheet = { unit: number; directions: number; frames: Record<string, Frame[]>; tailNodes: Vector[][]; clawAnchors: Vector[][] };
 
 export function modelBossPose(boss: Boss, time: number) {
-	const direction = ((Math.round(boss.angle / (Math.PI * 2) * 16) % 16) + 16) % 16;
+	const direction = ((Math.round(rhinoRenderAngle(boss) / (Math.PI * 2) * 16) % 16) + 16) % 16;
 	const walk = ((Math.floor((boss.walkDistance / 22 + (boss.phase === "approach" || boss.phase === "charge" ? time : 0)) * 2 / Math.PI) % 4) + 4) % 4;
 	const progress = bossWindupProgress(boss), tell = Math.min(3, Math.floor(progress * 4));
 	let row = `walk${walk}`, head = "headRest";

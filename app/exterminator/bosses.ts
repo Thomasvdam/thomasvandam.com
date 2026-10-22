@@ -48,16 +48,21 @@ export function firstBossHit(boss: Boss | null, from: Vector, to: Vector, radius
 			if (t < time) { time = t; winner = point; winnerRadius = r; part = i < 0 ? "head" : isMillipedeWeak(i) ? "joint" : "body"; }
 		}
 		if (winner) circle = { x: winner.x, y: winner.y, radius: winnerRadius, part };
-	} else if (boss) for (const candidate of bossCircles(boss)) { const t = circleHitTime(to, candidate, candidate.radius, from, radius); if (t < time) { time = t; circle = candidate; } }
+	} else if (boss) for (const candidate of bossCircles(boss)) {
+		const t = circleHitTime(to, candidate, candidate.radius, from, radius);
+		// A muzzle inside overlapping hitboxes can still hit the exposed rear;
+		// damage checks its approach separately. A complete miss stays a miss.
+		if (t < time || boss.variant === "rhinoceros" && t < Infinity && t === time && candidate.part === "flank") { time = t; circle = candidate; }
+	}
 	return { time, circle };
 }
-export function damageBoss(boss: Boss, damage: number, time: number, part: BossCircle["part"] = "body") {
+export function damageBoss(boss: Boss, damage: number, time: number, part: BossCircle["part"] = "body", source?: Vector) {
 	if (boss.health <= 0) return;
 	if (part === "leftClaw" || part === "rightClaw") {
 		const index = part === "leftClaw" ? 0 : 1, taken = Math.min(boss.claws[index], damage); boss.claws[index] = Math.max(0, boss.claws[index] - damage); damage = taken * .25;
 	}
 	// Armour makes positioning for the punish window worthwhile without making any weapon useless.
-	const multiplier = bossDamageMultiplier(boss, part);
+	const multiplier = bossDamageMultiplier(boss, part, source);
 	boss.health = Math.max(0, boss.health - damage * multiplier); boss.hitAt = time;
 }
 export function blastBoss(game: Game, center: Vector, radius: number, damage: number) {
@@ -65,15 +70,15 @@ export function blastBoss(game: Game, center: Vector, radius: number, damage: nu
 	const circles = bossCircles(boss).filter(c => Math.hypot(c.x - center.x, c.y - center.y) <= radius + c.radius);
 	if (!circles.length) return;
 	// One body hit per explosion, rather than multiplying damage by the segment count.
-	damageBoss(boss, damage, game.time, circles.find(c => c.part === "flank" || c.part === "stinger" || c.part === "joint" || c.part === "head")?.part ?? "body");
+	damageBoss(boss, damage, game.time, circles.find(c => c.part === "flank" || c.part === "stinger" || c.part === "joint" || c.part === "head")?.part ?? "body", center);
 	for (const c of circles) if (c.part === "leftClaw" || c.part === "rightClaw") { const i = c.part === "leftClaw" ? 0 : 1; boss.claws[i] = Math.max(0, boss.claws[i] - damage); }
 }
 export function flameBoss(game: Game, origin: Vector, angle: number, range: number, halfAngle: number, damage: number) {
 	const boss = game.boss; if (!boss || boss.health <= 0) return;
 	const circles = bossCircles(boss).filter(c => inFlame(c, c.radius, origin, angle, range, halfAngle));
 	if (!circles.length) return;
-	const body = circles.reduce((best, circle) => bossDamageMultiplier(boss, circle.part) > bossDamageMultiplier(boss, best.part) ? circle : best);
-	damageBoss(boss, damage, game.time, body.part);
+	const body = circles.reduce((best, circle) => bossDamageMultiplier(boss, circle.part, origin) > bossDamageMultiplier(boss, best.part, origin) ? circle : best);
+	damageBoss(boss, damage, game.time, body.part, origin);
 	for (const c of circles) if ((c.part === "leftClaw" || c.part === "rightClaw") && c !== body) { const i = c.part === "leftClaw" ? 0 : 1; boss.claws[i] = Math.max(0, boss.claws[i] - damage); }
 }
 function phase(boss: Boss, name: Boss["phase"], time: number) { boss.phase = name; boss.remaining = time; }

@@ -6,7 +6,7 @@ import { inFlame } from "./remains";
 
 export const RHINO_ROCK = { radius: 30, blast: 54, health: 6, warning: 1.5, damage: 25 } as const;
 export type RhinoRock = Vector & { id: number; remaining: number; health: number; hitAt: number; landedAt: number };
-export type RhinoState = { rocks: RhinoRock[]; riseAngle: number };
+export type RhinoState = { rocks: RhinoRock[]; riseAngle: number; sweepFrom?: number };
 export function rhinoRocks(boss: Boss | null) { return boss?.variant === "rhinoceros" && boss.health > 0 ? boss.rhino?.rocks ?? [] : []; }
 export const solidRock = (rock: RhinoRock) => rock.health > 0 && rock.remaining === 0;
 
