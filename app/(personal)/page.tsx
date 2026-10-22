@@ -101,7 +101,7 @@ export default function Home() {
 						</Link>
 						<p>Phases, points, and who starts next. Just add cards.</p>
 					</article>
-					<article>
+					<article hidden>
 						<Link href="/exterminator" prefetch={false} className={`${styles.cover} ${styles.exterminator}`}>
 							<h3>Extermi<br />nator.</h3>
 							<div className={styles.exterminatorField} aria-hidden="true"><i /><i /><i /></div>
