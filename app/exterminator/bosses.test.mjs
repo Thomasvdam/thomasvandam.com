@@ -95,9 +95,9 @@ test("bosses enter bugpedia only when their illuminated body is on screen and pe
 
 
 test("area attacks hit shared millipede health once and the nearest boss blocks shots to bugs behind it", () => {
-	const game = fight("millipede"), boss = game.boss; boss.phase = "crossing"; boss.segments = Array.from({ length: 8 }, () => ({ x: boss.x - 30, y: boss.y }));
-	const before = boss.health; blastBoss(game, boss, 200, 4); expect(before - boss.health).toBe(12);
-	const after = boss.health; flameBoss(game, { x: boss.x - 90, y: boss.y }, 0, 250, Math.PI / 4, 2); expect(after - boss.health).toBe(6);
+	const game = fight("millipede"), boss = game.boss; boss.phase = "acid"; boss.segments = Array.from({ length: 8 }, () => ({ x: boss.x - 30, y: boss.y }));
+	const before = boss.health; blastBoss(game, boss, 200, 4); expect(before - boss.health).toBe(4);
+	const after = boss.health; flameBoss(game, { x: boss.x - 90, y: boss.y }, 0, 250, Math.PI / 4, 2); expect(after - boss.health).toBe(2);
 	const blocked = fight("rhinoceros"); blocked.boss.x = blocked.player.x + 80; blocked.boss.phase = "recover"; blocked.boss.remaining = 100;
 	const bug = createBug({ variant: "burrower", id: 99, position: { x: blocked.player.x + 180, y: blocked.player.y }, player: blocked.player, time: 0, threat: 1, wave: 1, bounds: FIELD }); bug.speed = 0; blocked.enemies.push(bug);
 	blocked.bullets.push({ id: 100, x: blocked.player.x + 25, y: blocked.player.y, vx: 12000, vy: 0, life: 1, weapon: "cannon", damage: 1, blastRadius: 0 });

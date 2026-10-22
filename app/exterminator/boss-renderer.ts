@@ -37,7 +37,7 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 	}
 	if (alive && boss.phase === "emerge") {
 		ctx.save(); ctx.strokeStyle = "#e5be7e"; ctx.lineWidth = 1;
-		for (const point of [boss, ...boss.segments]) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, 22, 0, Math.PI * 2); ctx.stroke(); }
+		for (const point of [boss, ...boss.segments]) if (!("hidden" in point && point.hidden) && warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, 22, 0, Math.PI * 2); ctx.stroke(); }
 		ctx.restore();
 	}
 	ctx.save();
@@ -55,9 +55,9 @@ export function drawBossFight(ctx: CanvasRenderingContext2D, game: Game, sprites
 		}
 		ctx.restore();
 	}
-	if (alive && boss.variant !== "rhinoceros" && bossExposed(boss) && !(boss.variant === "millipede" && boss.phase === "crossingWindup")) {
-		ctx.save(); ctx.strokeStyle = boss.variant === "millipede" ? "#a8f1bd99" : "#a8f1bd"; ctx.lineWidth = boss.variant === "millipede" ? 1.5 : 3;
-		for (const point of bossWeakPoints(boss)) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point.radius + (boss.variant === "millipede" ? -3 : 6), 0, Math.PI * 2); ctx.stroke(); }
+	if (alive && boss.variant === "scorpion" && bossExposed(boss)) {
+		ctx.save(); ctx.strokeStyle = "#a8f1bd"; ctx.lineWidth = 3;
+		for (const point of bossWeakPoints(boss)) if (warningLit(game, point)) { ctx.beginPath(); ctx.arc(point.x, point.y, point.radius + 6, 0, Math.PI * 2); ctx.stroke(); }
 		ctx.restore();
 	}
 }

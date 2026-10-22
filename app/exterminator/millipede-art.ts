@@ -1,6 +1,7 @@
 import type { Boss } from "./boss-types";
 import { isMillipedeWeak } from "./boss-types";
 import { bossWindupProgress } from "./boss-patterns";
+import { MILLIPEDE_RETURN_TIME, MILLIPEDE_SWIPE, millipedeCoilPoint, millipedeNormalPhase } from "./millipede";
 import type { Sprites } from "./renderer";
 import { SPRITE_PARTS, type SpritePart } from "./sprite-parts";
 
@@ -32,26 +33,41 @@ export function drawMillipede(ctx: CanvasRenderingContext2D, sprites: Sprites, b
 	const moving = boss.phase !== "crossingWindup", gait = Math.floor(boss.walkDistance / 10) % 4;
 	const preview = boss.phase === "crossingWindup";
 	ctx.save();
-	if (preview) ctx.globalAlpha *= .18 + bossWindupProgress(boss) * .32;
-	if (boss.phase === "return") ctx.globalAlpha *= Math.max(.1, boss.remaining / 1.2);
+	// The coil grows while the outgoing tail is collected; no whole-body fade.
+	if (boss.phase === "return") {
+		const count = Math.floor(76 * Math.min(1, (boss.millipede?.elapsed ?? 0) / MILLIPEDE_RETURN_TIME));
+		for (let i = count - 1; i >= 0; i--) {
+			const point = millipedeCoilPoint(i); if (!visible(point.x, point.y, 45)) continue;
+			ctx.save(); ctx.translate(point.x, point.y); ctx.rotate(point.angle ?? 0);
+			if (cached) ctx.drawImage(cached[i < 6 ? 6 : i % 6][gait], -25, -25, 50, 50);
+			else { ctx.scale(1.25, 1.25); segment(ctx, sprites, i < 6 ? 6 : i % 6, gait); } ctx.restore();
+		}
+	}
 	for (let index = boss.segments.length - 1; index >= 0; index--) {
 		const point = boss.segments[index]; if (point.hidden || !visible(point.x, point.y, 45)) continue;
 		const leader = index === 0 ? boss : boss.segments[index - 1];
 		const angle = point.angle ?? Math.atan2(leader.y - point.y, leader.x - point.x);
-		const shell = isMillipedeWeak(index) ? 6 : index % 6, frame = moving ? (gait + index) % 4 : 0;
+		const shell = millipedeNormalPhase(boss) && isMillipedeWeak(index) ? 6 : index % 6, frame = moving ? (gait + index) % 4 : 0;
 		ctx.save(); ctx.translate(point.x, point.y); ctx.rotate(angle);
-		if (cached) ctx.drawImage(cached[shell][frame], -25, -25, 50, 50);
-		else { ctx.scale(1.25, 1.25); segment(ctx, sprites, shell, frame); }
+		const size = boss.phase === "crossing" || boss.phase === "return" ? 80 : 50;
+		if (cached) ctx.drawImage(cached[shell][frame], -size / 2, -size / 2, size, size);
+		else { ctx.scale(size / 40, size / 40); segment(ctx, sprites, shell, frame); }
 		ctx.restore();
 	}
 	if (!boss.millipede?.headHidden && visible(boss.x, boss.y, 60)) {
 		ctx.save(); ctx.translate(boss.x, boss.y); ctx.rotate(boss.angle);
-		const tell = boss.phase === "bombWindup" ? Math.max(0, 1 - boss.remaining / .75) : preview ? bossWindupProgress(boss) : 0;
+		const swipe = boss.phase === "sweepWindup" ? Math.max(0, 1 - boss.remaining / MILLIPEDE_SWIPE.windup) : 0;
+		const tell = boss.phase === "bombWindup" ? Math.max(0, 1 - boss.remaining / .75) : preview ? bossWindupProgress(boss) : swipe;
+		if (swipe) { ctx.translate(-12 * swipe, 0); ctx.rotate(-.35 * swipe); }
+		if (boss.phase === "sweep") ctx.rotate(-.8 + 1.6 * (1 - boss.remaining / MILLIPEDE_SWIPE.active));
 		// Mouth swells before a bomb; the head rears and cocks sideways for each
-		// distinct rampage. The body preview leaves the upcoming safe zone empty.
+		// distinct rampage. Only the raised head and six neck sections are vulnerable.
 		if (preview) ctx.rotate(boss.millipede?.pattern === "zigzag" ? -.25 * tell : boss.millipede?.pattern === "diagonal" ? .3 * tell : 0);
 		if (!preview && boss.phase !== "crossing") { ctx.save(); ctx.translate(-22, 0); ctx.scale(1.25, 1.25); part(ctx, sprites, "bossMillipedeNeckBody"); part(ctx, sprites, "bossMillipedeNeckShell"); ctx.restore(); }
-		ctx.scale(1.6 + tell * .25, 1.6 - tell * .12); part(ctx, sprites, "bossMillipedeHead");
+		// Extended front legs recoil with the head before sweeping out.
+		for (const side of [-1, 1]) { ctx.save(); ctx.translate(-7, side * 16); ctx.rotate(side * (.6 - swipe * .6 + (boss.phase === "sweep" ? .9 : 0))); if (side < 0) ctx.scale(1, -1); ctx.scale(1.8, 1.8); part(ctx, sprites, "bossMillipedeLeg"); ctx.restore(); }
+		const headScale = boss.phase === "crossing" ? 2.4 : 1.6;
+		ctx.scale(headScale + tell * .25, headScale - tell * .12); part(ctx, sprites, "bossMillipedeHead");
 		if (boss.phase === "bombWindup") { ctx.fillStyle = "#abd96a"; ctx.beginPath(); ctx.ellipse(13, 0, 3 + tell * 4, 4 + tell * 3, 0, 0, Math.PI * 2); ctx.fill(); }
 		ctx.restore();
 	}

@@ -1,7 +1,7 @@
 import { stepRhino } from "./rhino";
 import { activeClaw, BOSS_ATTACKS, bossCone, bossDamageMultiplier, bossWeakPoints } from "./boss-patterns";
 import { stepMillipede, initMillipede, resolveMillipedeBarrier } from "./millipede";
-import { BOSS_SPECS, isMillipedeWeak, type Boss, type BossCircle, type BossVariant } from "./boss-types";
+import { BOSS_SPECS, isMillipedeWeak, millipedeSectionRadius, type Boss, type BossCircle, type BossVariant } from "./boss-types";
 import { FIELD, PLAYER_RADIUS, type Game } from "./game";
 import { angleDifference, clamp, circleHitTime, distanceToSegment, type Vector } from "./math";
 import { hurtPlayer } from "./player-damage";
@@ -25,8 +25,9 @@ export function bossCircles(boss: Boss): BossCircle[] {
 	const circles: BossCircle[] = [{ x: boss.x, y: boss.y, radius: boss.variant === "rhinoceros" ? 32 : BOSS_SPECS[boss.variant].radius, part: boss.variant === "millipede" ? "head" : "body" }];
 	if (boss.variant === "scorpion") for (const index of [0, 1]) if (boss.claws[index] > 0) circles.push({ ...clawPosition(boss, index), radius: 20, part: index === 0 ? "leftClaw" : "rightClaw" });
 	if (boss.variant === "millipede") {
+		const radius = millipedeSectionRadius(boss);
 		if (boss.millipede?.headHidden || boss.x < -24 || boss.x > FIELD.width + 24 || boss.y < -24 || boss.y > FIELD.height + 24) circles.length = 0;
-		for (let index = 0; index < boss.segments.length; index++) { const point = boss.segments[index]; if (!point.hidden && point.x >= -18 && point.x <= FIELD.width + 18 && point.y >= -18 && point.y <= FIELD.height + 18) circles.push({ x: point.x, y: point.y, radius: 18, part: isMillipedeWeak(index) ? "joint" : "body" }); }
+		for (let index = 0; index < boss.segments.length; index++) { const point = boss.segments[index]; if (!point.hidden && point.x >= -radius && point.x <= FIELD.width + radius && point.y >= -radius && point.y <= FIELD.height + radius) circles.push({ x: point.x, y: point.y, radius, part: isMillipedeWeak(index) ? "joint" : "body" }); }
 	}
 	if (boss.variant !== "millipede") circles.push(...bossWeakPoints(boss));
 	return circles;
@@ -40,7 +41,7 @@ export function firstBossHit(boss: Boss | null, from: Vector, to: Vector, radius
 		const minY = Math.min(from.y, to.y) - radius, maxY = Math.max(from.y, to.y) + radius;
 		let winner: Vector | null = null, winnerRadius = 0, part: BossCircle["part"] = "body";
 		for (let i = -1; i < boss.segments.length; i++) {
-			const point = i < 0 ? boss : boss.segments[i], r = i < 0 ? 24 : 18;
+			const point = i < 0 ? boss : boss.segments[i], r = i < 0 ? 24 : millipedeSectionRadius(boss);
 			if (i < 0 ? boss.millipede?.headHidden : boss.segments[i].hidden) continue;
 			if (point.x < -r || point.x > FIELD.width + r || point.y < -r || point.y > FIELD.height + r) continue;
 			if (point.x < minX - r || point.x > maxX + r || point.y < minY - r || point.y > maxY + r) continue;
@@ -63,7 +64,10 @@ export function damageBoss(boss: Boss, damage: number, time: number, part: BossC
 	}
 	// Armour makes positioning for the punish window worthwhile without making any weapon useless.
 	const multiplier = bossDamageMultiplier(boss, part, source);
-	boss.health = Math.max(0, boss.health - damage * multiplier); boss.hitAt = time;
+	if (!multiplier) return;
+	// A threshold interrupts the current volley even if several bullets land in one step.
+	const floor = boss.variant === "millipede" && boss.millipede && boss.millipede.rampages < 4 ? boss.maxHealth * (4 - boss.millipede.rampages) / 5 : 0;
+	boss.health = Math.max(floor, boss.health - damage * multiplier); boss.hitAt = time;
 }
 export function blastBoss(game: Game, center: Vector, radius: number, damage: number) {
 	const boss = game.boss; if (!boss || boss.health <= 0) return;
