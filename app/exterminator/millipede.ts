@@ -105,9 +105,27 @@ export function millipedePaintIndex(boss: Boss, paint: number) {
 	const local = distance < PASS_LENGTH ? PER_PASS - 1 - order : ((Math.floor((distance % PASS_LENGTH) / MILLIPEDE_SPACING) - order) % PER_PASS + PER_PASS) % PER_PASS;
 	return pass * PER_PASS + local;
 }
+type PassGeometry = { x: number; y: number; angle: number; ux: number; uy: number };
+const passCache = new WeakMap<NonNullable<Boss["millipede"]>, { key: string; passes: PassGeometry[] }>();
+function cachedPasses(state: NonNullable<Boss["millipede"]>) {
+	const safe = state.safe, key = `${state.pattern}:${safe.x}:${safe.y}:${safe.width}:${safe.height}`;
+	let cached = passCache.get(state);
+	if (!cached || cached.key !== key) {
+		cached = { key, passes: Array.from({ length: 6 }, (_, pass) => {
+			const point = millipedePathPoint(state.pattern, pass, 0, undefined, safe), angle = point.angle!;
+			return { x: point.x, y: point.y, angle, ux: Math.cos(angle), uy: Math.sin(angle) };
+		}) }; passCache.set(state, cached);
+	}
+	return cached.passes;
+}
+function placeOnPass(point: BossSegment, pass: PassGeometry, along: number) {
+	point.x = pass.x + pass.ux * along; point.y = pass.y + pass.uy * along; point.angle = pass.angle;
+}
 export function positionMillipede(boss: Boss) {
 	const state = boss.millipede; if (!state) return;
 	const crossing = boss.phase === "crossing", returning = boss.phase === "return";
+	const passes = crossing || returning ? cachedPasses(state) : null;
+	let previousAlong = 0;
 	for (let index = 0; index < boss.segments.length; index++) {
 		const point = boss.segments[index];
 		if (!crossing && !returning && index >= 76) { point.hidden = true; point.breakBefore = true; continue; }
@@ -120,17 +138,18 @@ export function positionMillipede(boss: Boss) {
 			// section travels continuously through the complete visible pass.
 			if (distance >= PASS_LENGTH) along = ((along % PASS_LENGTH) + PASS_LENGTH) % PASS_LENGTH;
 			if (returning) along += state.elapsed * BOSS_ATTACKS.crossing.speed;
-			millipedePathPoint(state.pattern, pass, along, point, state.safe);
+			placeOnPass(point, passes![pass], along);
 			point.hidden = distance < 0 || along < 0;
 			const previous = boss.segments[index - 1];
-			point.breakBefore = local === 0 || point.hidden || previous.hidden || Math.hypot(point.x - previous.x, point.y - previous.y) > MILLIPEDE_SPACING * 2;
+			point.breakBefore = local === 0 || point.hidden || previous.hidden || Math.abs(along - previousAlong) > MILLIPEDE_SPACING * 2;
+			previousAlong = along;
 		} else {
 			millipedeCoilPoint(index, point); point.hidden = false; point.breakBefore = index === 6;
 		}
 	}
 	if (crossing) {
 		const front = state.elapsed * BOSS_ATTACKS.crossing.speed, pass = Math.min(5, Math.floor(front / PASS_LENGTH));
-		millipedePathPoint(state.pattern, pass, front - pass * PASS_LENGTH, boss, state.safe);
+		placeOnPass(boss, passes![pass], front - pass * PASS_LENGTH);
 		state.headHidden = front >= PATH_LENGTH;
 	} else if (returning) {
 		millipedeReturningPoint(boss, -1, boss); state.headHidden = state.elapsed <= MILLIPEDE_DRAIN_TIME;

@@ -710,3 +710,15 @@ compares this against the exhaustive reference: warmed batches of 3,000 rays
 measured about 53–57 ms versus 18–20 ms, with the same 1,387 hits. Seeded tests
 also compare complete hit geometry/order across hidden and off-arena sections,
 variable projectile sizes and boss death.
+
+### Delivery assets and frame work
+
+`bun tools/pack-exterminator-assets.ts` packs the 361 small PNG parts into one lossless WebP atlas and converts the four directional boss sheets into lossless WebP delivery files. Authored PNGs remain the source of truth. The packer verifies every visible RGB pixel and every alpha value before writing `sprite-atlas.json`; separate source hashes let the test suite detect stale packed art after a sprite bake. Regenerate these files after changing any registered PNG. Sharp is an explicit development dependency for this tool and asset validation.
+
+The shared field/portrait loader now decodes five source images, crops registered parts once with `createImageBitmap` (or a canvas fallback), and retains existing hit/gait caches. Source artwork totals 11,731,434 bytes; delivery files total 8,438,292 bytes, 28.1% less, with 365 image requests reduced to five. Content hashes in delivery filenames allow year-long immutable caching under `/images/exterminator/optimized/`. The homepage Exterminator card disables route prefetching so scrolling the homepage does not fetch this game's route in advance. Standalone shop thumbnails can still use their small authored PNG URLs.
+
+Compression reduces transfer bytes and requests; the decoded boss-sheet dimensions and memory budget remain unchanged. The shared-browser network trace confirmed all five delivery images. Eight before/after canvas comparisons (100 mixed enemies, rhino, scorpion and millipede, normal/hit) were pixel-identical after warming the same caches on each side.
+
+Combat HUD/menu snapshot construction is scheduled at 10 Hz, with immediate explicit actions, controller/menu selection and automatic mode transitions. Static menus skip repeated snapshot work. Simulation remains at 120 Hz and rendering remains paced by animation frames. Disposal flushes newly discovered/persistent progress without calling React. Tests exercise 30/60/120 Hz displays and immediate publication; browser verification covered starting, deployment, keyboard movement, pause and death.
+
+Millipede straight-pass origins/directions are cached per pattern/safe opening, and collision seam checks compare path distances instead of recomputing a square root for every section. `bun tools/benchmark-exterminator-passes.ts` measures 10,000 updates per pattern. Warmed samples on this host went from roughly 270–300 ms to 183–189 ms for horizontal passes, 297–312 ms to 177–219 ms for lattice, and 446–497 ms to 178–184 ms for diagonals. Sampled-position checksums were unchanged. A complete millipede simulation sample changed from 0.306 to 0.288 ms median; these host diagnostics are not device FPS or page-load guarantees.

@@ -1,3 +1,4 @@
+import { createFramePublisher } from "./frame-publisher";
 import { armourReduction } from "./player-damage";
 import { createEncounterProgress, recordVisibleEncounters } from "./encounters";
 import { encounterName, bossForHive, BOSS_NAMES, type EncounterVariant, type BossVariant } from "./boss-types";
@@ -81,14 +82,18 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	const playing = () => game.mode === "playing";
 	const moveStick = bindJoystick(options.movePad, options.moveThumb, playing);
 	const aimStick = bindJoystick(options.aimPad, options.aimThumb, playing);
-	const publish = () => {
+	const saveProgress = () => {
 		const discovered = JSON.stringify(game.encounters);
 		if (savedEncounters !== discovered) { encounters.remember(game.encounters); savedEncounters = discovered; }
 		const recovered = JSON.stringify(game.schematics);
 		if (savedSchematics !== recovered) { progress.remember(game.schematics); savedSchematics = recovered; }
+	};
+	const publish = () => {
+		saveProgress();
 		const view = { ...viewFromGame(game, controller, selection, progress.persistent), bugpediaEntry, encountersSaved: encounters.persistent }, key = JSON.stringify(view);
 		if (key !== viewKey) { viewKey = key; needsDraw = true; onViewChange(view); }
 	};
+	const publishFrame = createFramePublisher(publish);
 	const clearInput = () => {
 		keys.clear(); mouse = null; moveStick.reset(); aimStick.reset(); accumulator = 0; controllerBlocked = true;
 	};
@@ -250,6 +255,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 		loaded = true; resize(); onLoaded(); publish();
 		const tick = (now: number) => {
 			if (disposed) return;
+			const oldSelection = selection, oldController = controller;
 			const pad = pollController(), before = game.mode;
 			recordVisibleEncounters(game, width, height);
 			const elapsed = lastTime ? Math.min((now - lastTime) / 1000, .1) : 0; lastTime = now;
@@ -259,7 +265,8 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 			} else accumulator = 0;
 			recordVisibleEncounters(game, width, height);
 			if (game.mode !== before) { selection = 0; clearInput(); }
-			publish();
+			const immediate = game.mode !== before || selection !== oldSelection || controller !== oldController;
+			if (game.mode === "playing" || immediate || needsDraw) publishFrame(now, immediate);
 			if (game.mode === "playing" || needsDraw) { render(ctx, game, sprites, width, height, pixelRatio); needsDraw = false; }
 			frame = requestAnimationFrame(tick);
 		};
@@ -268,6 +275,7 @@ export function createExterminatorRuntime(options: RuntimeOptions) {
 	return {
 		action, browseBug, upgrade, purchase, equip, equipWeapon, deploy, debugWave, debugBoss, enableSchematics, giveFunds,
 		dispose: () => {
+			saveProgress();
 			disposed = true; cancelAnimationFrame(frame); observer.disconnect(); moveStick.dispose(); aimStick.dispose();
 			window.removeEventListener("hashchange", hashchange);
 			window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup);
