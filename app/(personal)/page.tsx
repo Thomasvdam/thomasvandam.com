@@ -6,6 +6,7 @@ import { Sequencer } from "@/app/(personal)/sequencer";
 import { StudioPowerSwitch } from "@/app/(personal)/studio-power-switch";
 import { PolarBearPawTrail } from "@/app/(personal)/polar-bear-paw-trail";
 import { VegetableEasterEgg } from "@/app/(personal)/vegetable-easter-egg";
+import { DungeonHero } from "@/app/munchkin/dungeon-hero";
 import { JakeQuote } from "@/app/(personal)/jake-quote";
 
 export const metadata: Metadata = {
@@ -108,6 +109,14 @@ export default function Home() {
 							<div className={styles.coverBottom}><span>07 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>See how long you can keep going.</p>
+					</article>
+					<article>
+						<Link href="/munchkin" prefetch={false} className={`${styles.cover} ${styles.munchkin}`}>
+							<h3>Munch<br />kin.</h3>
+							<DungeonHero className={styles.munchkinHero} />
+							<div className={styles.coverBottom}><span>08 / Level counter</span><span>Level up <span aria-hidden="true">↗</span></span></div>
+						</Link>
+						<p>Kick down doors. Grab treasure. Count on us.</p>
 					</article>
 				</div>
 			</section>
