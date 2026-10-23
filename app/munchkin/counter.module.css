@@ -1,0 +1,107 @@
+.shell { --ink: #302318; --paper: #f3e5c3; --red: #a83024; min-height: 100svh; background: radial-gradient(ellipse at 25% 10%, #fff6dc66, transparent 60%), repeating-linear-gradient(15deg, #6d441906 0 1px, transparent 1px 5px), #e3cda0; color: var(--ink); font-family: var(--font-experiment-body), sans-serif; color-scheme: light; padding: 0 16px; }
+.container { max-width: 900px; margin: 0 auto; }
+.header { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 2px solid var(--ink); }
+.home, .textButton { font-size: 12px; font-weight: 700; text-decoration: none; }
+.brand { display: flex; align-items: center; gap: 8px; font: 900 23px/.9 var(--font-experiment-display), sans-serif; letter-spacing: -.5px; color: var(--red); }
+.brand small { display: block; margin-top: 5px; font: 700 9px/1 var(--font-experiment-body), sans-serif; letter-spacing: 2px; text-transform: uppercase; color: var(--ink); }
+.headerNote { font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+.shell button { cursor: pointer; touch-action: manipulation; }
+.shell button:disabled { opacity: .3; cursor: default; }
+.shell :is(button, a, input):focus-visible { outline: 3px solid #235e76; outline-offset: 4px; }
+.textButton { padding: 12px 0 12px 8px; text-decoration: underline; text-underline-offset: 4px; }
+.setup { padding: 24px 0 18px; }
+.intro { text-align: center; position: relative; }
+.hero { width: 140px; height: 126px; margin: 0 auto 8px; transform: rotate(-5deg); }
+.eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 2px; }
+.intro h1 { font: 900 clamp(48px, 10vw, 76px)/.92 var(--font-experiment-display), sans-serif; letter-spacing: -1.5px; margin: 10px 0 14px; text-transform: uppercase; }
+.intro h1 em { color: var(--red); font-style: normal; }
+.intro > p:last-child { font-size: 14px; line-height: 1.6; }
+.setupPanel { max-width: 460px; margin: 24px auto 0; border: 2px solid var(--ink); border-radius: 5px 9px 4px 7px; padding: 20px; background: var(--paper); box-shadow: 4px 5px 0 var(--ink); }
+.panelTitle { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panelTitle h2 { font: 800 27px/1 var(--font-experiment-display), sans-serif; }
+.panelTitle > span { font-size: 10px; font-weight: 800; color: #775d3c; white-space: nowrap; }
+.countRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 0; margin-bottom: 14px; border-bottom: 1px dashed #8a7353; font-size: 12px; font-weight: 700; }
+.stepper { display: flex; align-items: center; gap: 10px; }
+.stepper button { display: grid; place-items: center; width: 44px; height: 44px; border: 2px solid var(--ink); border-radius: 4px; background: #fff5da; }
+.stepper output { font-size: 21px; font-weight: 800; min-width: 18px; text-align: center; }
+.nameGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.nameField { display: block; min-width: 0; }
+.nameField span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+.nameField input { width: 100%; min-height: 44px; min-width: 0; border: 1.5px solid #8a7353; border-radius: 3px; background: #fff7e2; color: var(--ink); padding: 8px 10px; font-size: 16px; }
+.nameField input::placeholder { color: #836e50; }
+.primary { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 22px; background: var(--red); color: #fff3d6; padding: 14px 16px; border: 2px solid var(--ink); border-radius: 4px; box-shadow: 2px 3px 0 var(--ink); font-weight: 800; font-size: 15px; }
+.cancel { display: block; padding: 14px 0 0; margin: auto; font-size: 12px; text-decoration: underline; }
+.resetNote { font-size: 12px; margin-top: 16px; }
+.localNote { text-align: center; margin: 20px 0 0; font-size: 10px; color: #6c5539; }
+.tableHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; }
+.tableHeading h1 { font: 900 45px/.95 var(--font-experiment-display), sans-serif; letter-spacing: -1px; text-transform: uppercase; margin-top: 6px; }
+.tableHeading h1 span { color: var(--red); }
+.tableHeading h1:focus { outline: none; }
+.goal { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.goal b { font-size: 18px; }
+.players { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.player { --accent: #a83024; background: var(--paper); min-width: 0; border: 2px solid var(--ink); border-radius: 6px 10px 5px 8px; box-shadow: 3px 4px 0 #302318; padding: 12px; display: flex; flex-direction: column; }
+.color1 { --accent: #346574; }.color2 { --accent: #657044; }.color3 { --accent: #805480; }.color4 { --accent: #99621d; }.color5 { --accent: #4e618b; }.color6 { --accent: #8c4b60; }.color7 { --accent: #487966; }
+.playerTop { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.seat { font: 800 12px/1 var(--font-experiment-display), sans-serif; color: var(--accent); flex-shrink: 0; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+.player h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 800; }
+.crown { color: var(--red); flex-shrink: 0; margin-left: auto; }
+.levelControls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 3px; align-items: center; flex: 1; margin: 8px 0; }
+.levelControls button { height: 46px; width: 44px; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 5px; background: #fff4d6; box-shadow: 0 2px 0 var(--ink); }
+.levelControls button:last-child { background: var(--accent); color: #fff7e0; }
+.levelControls button:active:not(:disabled), .primary:active { transform: translateY(2px); box-shadow: none; }
+.level { text-align: center; }
+.level > span { display: block; font-size: 8px; letter-spacing: 1px; font-weight: 800; }
+.level output { display: block; font: 900 52px/.95 var(--font-experiment-display), sans-serif; font-variant-numeric: tabular-nums; }
+.progress { display: flex; gap: 3px; margin-top: 3px; }
+.progress i { height: 4px; flex: 1; background: #d4c29e; border-radius: 1px; }
+.progress .filled { background: var(--accent); }
+.winner { background: #f9e4a0; }
+.footer { display: flex; justify-content: space-between; gap: 10px; padding: 20px 0; font-size: 9px; color: #6c5539; }
+.notice { background: #fff1c7; border: 1px solid var(--red); padding: 10px; margin-top: 12px; font-size: 12px; }
+.playing .container { min-height: 100svh; display: flex; flex-direction: column; }
+.playing .players { flex: 1; grid-auto-rows: minmax(130px, 1fr); }
+.playing .footer { margin-top: auto; }
+@media (min-width: 700px) {
+	.shell { padding: 0 32px; }
+	.setup { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 28px; padding: 65px 0 35px; }
+	.hero { width: 200px; height: 180px; }
+	.setupPanel { width: 100%; margin: 0; }
+	.localNote { grid-column: 1 / -1; }
+	.players { grid-template-columns: repeat(3, 1fr); gap: 18px; }
+	.playing .players { flex: 0; grid-auto-rows: minmax(210px, 1fr); }
+	.player { padding: 18px; }
+	.player h2 { font-size: 18px; }
+	.level output { font-size: 80px; }
+	.tableHeading { padding: 28px 0; }
+	.tableHeading h1 { font-size: 64px; }
+}
+@media (max-width: 400px) {
+	.shell { padding: 0 12px; }
+	.header { min-height: 66px; }
+	.brand { font-size: 20px; }
+	.headerNote { display: none; }
+	.player { padding: 10px 8px; }
+	.players { gap: 10px; }
+	.levelControls { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+	.level output { font-size: 45px; }
+	.footer span { display: none; }
+}
+@media (max-height: 700px) and (max-width: 699px) {
+	.tableHeading { padding: 12px 0; }
+	.tableHeading h1 { font-size: 36px; }
+	.playing .players { grid-auto-rows: minmax(118px, 1fr); }
+	.player { padding-top: 8px; padding-bottom: 8px; }
+	.levelControls { margin: 4px 0; }
+	.footer { padding: 12px 0; }
+}
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 600px) {
+	.players { grid-template-columns: repeat(3, 1fr); }
+	.playing .players { grid-auto-rows: minmax(118px, 1fr); }
+	.tableHeading { padding: 8px 0; }
+	.tableHeading h1 { font-size: 30px; }
+	.level output { font-size: 40px; }
+	.player { padding: 8px; }
+	.levelControls { margin: 4px 0; }
+	.footer { padding: 10px 0; }
+}

@@ -358,3 +358,8 @@
 .exterminatorField i:nth-child(1) { left: 65px; top: 55px; background-image: url('/images/exterminator/player.png'); transform: rotate(-35deg); }
 .exterminatorField i:nth-child(2) { right: 15px; top: 15px; }
 .exterminatorField i:nth-child(3) { left: 15px; bottom: 15px; background-image: url('/images/exterminator/flyer.png'); }
+
+.munchkin { background: #e3cda0; color: #a83024; border: 2px solid #302318; }
+.munchkin h3 { text-shadow: 2px 2px 0 #f8ebc9; }
+.munchkin .coverBottom { color: #302318; }
+.munchkinHero { position: absolute; width: 190px; height: 171px; right: 8px; bottom: 42px; transform: rotate(8deg); }
