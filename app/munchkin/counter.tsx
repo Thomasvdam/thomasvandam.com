@@ -60,7 +60,7 @@ function Counter() {
 						<DungeonHero className={styles.hero} />
 						<p className={styles.eyebrow}>KICK DOWN THE DOOR.</p>
 						<h1 id="setup-heading">Small heroes.<br /><em>Big egos.</em></h1>
-						<p>You grab the treasure.<br />We’ll keep track of the levels.</p>
+						<p>You grab the treasure.</p>
 					</div>
 					<form className={styles.setupPanel} onSubmit={event => { event.preventDefault(); save(Array.from({ length: count }, (_, i) => ({ name: names[i]?.trim() || `Player ${i + 1}`, level: 1 }))); setSetup(false); window.scrollTo({ top: 0 }); requestAnimationFrame(() => heading.current?.focus()); }}>
 						<div className={styles.panelTitle}><h2>Assemble your party</h2><span>01 — 10</span></div>
@@ -72,7 +72,7 @@ function Counter() {
 					</form>
 					<p className={styles.localNote}>2–8 players · Saved in this browser · No accounts</p>
 				</section> : <>
-					<div className={styles.tableHeading}><div><p className={styles.eyebrow}>LOOT. BETRAY. REPEAT.</p><h1 tabIndex={-1} ref={heading}>The party<span>.</span></h1></div><div className={styles.goal}><Crown size={20} /><span>Race to <b>10</b></span></div></div>
+					<div className={styles.tableHeading}><div><h1 tabIndex={-1} ref={heading}>The party<span>.</span></h1></div><div className={styles.goal}><Crown size={20} /><span>Race to <b>10</b></span></div></div>
 					<div className={styles.players}>
 						{players!.map((player, i) => <section className={cn(styles.player, styles[`color${i}`], player.level === 10 && styles.winner)} key={i} aria-label={`${player.name}, player ${i + 1}`}>
 							<div className={styles.playerTop}><span className={styles.seat}>{String(i + 1).padStart(2, "0")}</span><h2 title={player.name}>{player.name}</h2>{player.level === 10 && <Crown className={styles.crown} size={19} aria-label="Level 10 reached" />}</div>
