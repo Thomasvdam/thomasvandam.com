@@ -97,7 +97,7 @@ function Tracker() {
 	}
 
 	return (
-		<div className={styles.shell}>
+		<div className={cn(styles.shell, game?.names.length === 2 && !finishers.length && styles.twoPlayer)}>
 			<div className={styles.container}>
 				<header className={styles.header}>
 					<a href="/" className={styles.homeLink}>← Thomas van Dam</a>
