@@ -165,6 +165,49 @@
 	.roundAction { position: sticky; bottom: max(8px, env(safe-area-inset-bottom)); z-index: 5; border: 1px solid #4a6090; border-radius: 14px; padding: 12px; background: #08162ef5; box-shadow: 0 -8px 24px #020b2066; }
 	.roundAction > p { font-size: 11px; margin-bottom: 10px; }
 	.roundAction .quietButton { min-height: 44px; }
+	/* Keep both players and the round action in view, including while scoring. */
+	.twoPlayer .header { padding: 10px 0; }
+	.twoPlayer .homeLink { position: static; min-height: 28px; }
+	.twoPlayer .brand { order: -1; gap: 10px; }
+	.twoPlayer .logo { width: 25px; height: 32px; font-size: 21px; border-width: 2px; box-shadow: 2px 2px 0 #080f25, 4px 4px 0 var(--yellow); }
+	.twoPlayer .brandName { font-size: 26px; }
+	.twoPlayer .brandSub, .twoPlayer .edition { display: none; }
+	.twoPlayer .roundHeader { margin: 10px 0; }
+	.twoPlayer .roundHeader h1 { font-size: 34px; }
+	.twoPlayer .eyebrow { font-size: 8px; margin-bottom: 4px; }
+	.twoPlayer .starter { padding: 8px 10px; gap: 10px; margin-bottom: 10px; }
+	.twoPlayer .starterIcon { width: 32px; height: 32px; }
+	.twoPlayer .starter strong { font-size: 18px; }
+	.twoPlayer .players { gap: 10px; }
+	.twoPlayer .player { display: grid; grid-template-columns: minmax(0, 1fr) 110px; column-gap: 10px; padding: 10px; border-top-width: 5px; }
+	.twoPlayer .playerTop { grid-column: 1 / -1; gap: 8px; }
+	.twoPlayer .playerName { gap: 6px; }
+	.twoPlayer .playerName h2 { font-size: 16px; }
+	.twoPlayer .total strong { font-size: 28px; }
+	.twoPlayer .phaseRow { grid-column: 1; grid-row: 2; gap: 10px; margin: 6px 0 0; }
+	.twoPlayer .phaseNumber { width: 38px; height: 48px; border-radius: 5px; }
+	.twoPlayer .phaseNumber::before { inset: 6px; }
+	.twoPlayer .phaseNumber > span { font-size: 6px; top: 2px; left: 2px; }
+	.twoPlayer .phaseNumber strong { font-size: 30px; }
+	.twoPlayer .phaseGoal p { font-size: 12px; }
+	.twoPlayer .progress { margin-top: 6px; gap: 2px; }
+	.twoPlayer .progress > span { height: 4px; }
+	.twoPlayer .phaseToggle { grid-column: 2; grid-row: 2; align-self: center; min-height: 44px; padding: 6px; margin-top: 6px; font-size: 11px; gap: 5px; }
+	.twoPlayer .phaseToggle svg { width: 16px; height: 16px; flex-shrink: 0; }
+	.twoPlayer .scorer { grid-column: 1 / -1; display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 8px; padding-top: 6px; }
+	.twoPlayer .roundScore { gap: 0; }
+	.twoPlayer .roundScore > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+	.twoPlayer .roundScore output { min-width: 44px; font-size: 21px; }
+	.twoPlayer .iconButton { height: 44px; width: 44px; padding: 10px; }
+	.twoPlayer .pointButtons { margin-top: 0; gap: 4px; }
+	.twoPlayer .pointButton { height: 46px; padding: 2px; }
+	.twoPlayer .pointButton strong { font-size: 17px; }
+	.twoPlayer .pointButton > span { font-size: 9px; }
+	.twoPlayer .tableLabel { margin-bottom: 6px; }
+	.twoPlayer .roundAction { position: static; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; padding: 8px; }
+	.twoPlayer .roundAction > p { flex-basis: 100%; font-size: 10px; margin-bottom: 0; }
+	.twoPlayer .roundAction .primary { flex: 1; width: auto; }
+	.twoPlayer .roundAction .primary { min-height: 48px; padding: 10px 14px; font-size: 15px; }
 }
 @media (prefers-reduced-motion: reduce) {
 	.shell *, .shell *::before, .shell *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
