@@ -5,7 +5,7 @@ import { DungeonHero } from "@/app/munchkin/dungeon-hero";
 
 export const metadata: Metadata = {
 	title: "Boardgame tools — Thomas van Dam",
-	description: "A little help for game night: a Letters from Whitechapel companion, Phase 10 scorekeeper, and Munchkin level counter.",
+	description: "A little help for game night: a Letters from Whitechapel companion, Phase 10 scorekeeper, Munchkin level counter, and 1000 bommen en granaten scorekeeper.",
 };
 
 export default function BoardgameTools() {
@@ -40,6 +40,13 @@ export default function BoardgameTools() {
 						<div className={styles.coverBottom}><span>03 / Level counter</span><span>Level up <span aria-hidden="true">↗</span></span></div>
 					</Link>
 					<p>Kick down doors. Grab treasure. Count on us.</p>
+				</article>
+				<article>
+					<Link href="/1000-bommen-en-granaten" prefetch={false} className={`${styles.cover} ${styles.bommen}`}>
+						<h3>1000 bommen<br />en granaten.</h3>
+						<div className={styles.coverBottom}><span>04 / Scorekeeper</span><span>Keep score <span aria-hidden="true">↗</span></span></div>
+					</Link>
+					<p>You roll. You count the turn. We keep the score.</p>
 				</article>
 			</div>
 		</main>
