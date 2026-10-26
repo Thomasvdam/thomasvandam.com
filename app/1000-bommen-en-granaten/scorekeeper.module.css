@@ -69,3 +69,17 @@
 	.panel { padding: 22px; }
 	.footer { flex-direction: column; gap: 8px; }
 }
+
+.islandButton { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 3px; margin-top: 20px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.islandActive { color: #ffd1b0; background: #592e28; border-color: #d78b6b; }
+.wheelControl { text-align: center; margin-top: 18px; }
+.wheelRow { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.adjustPoints { flex-shrink: 0; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; background: #102e30; }
+.wheel { width: min(190px, 48vw); aspect-ratio: 1; flex-shrink: 1; color: var(--gold); cursor: grab; touch-action: none; user-select: none; border-radius: 50%; }
+.wheel:active { cursor: grabbing; }
+.wheel:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+.wheelIcon { width: 100%; height: 100%; pointer-events: none; }
+.wheelValue { display: block; font: 800 54px/1.1 var(--font-experiment-display), sans-serif; font-variant-numeric: tabular-nums; margin: 8px 0; overflow-wrap: anywhere; }
+.wheelCaption { display: block; color: var(--gold); font-size: 9px; letter-spacing: 1.5px; }
+.skullControl .wheel, .skullControl .wheelCaption { color: #f2b496; }
+.islandNote { border-left: 2px solid #d78b6b; padding-left: 12px; margin-top: 16px; color: #ffd1b0; font-size: 12px; line-height: 1.6; }
