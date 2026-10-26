@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "@/app/(personal)/personal.module.css";
+import { pirateDisplay } from "@/app/1000-bommen-en-granaten/fonts";
 import { DungeonHero } from "@/app/munchkin/dungeon-hero";
 
 export const metadata: Metadata = {
@@ -42,8 +43,8 @@ export default function BoardgameTools() {
 					<p>Kick down doors. Grab treasure. Count on us.</p>
 				</article>
 				<article>
-					<Link href="/1000-bommen-en-granaten" prefetch={false} className={`${styles.cover} ${styles.bommen}`}>
-						<h3>1000 bommen<br />en granaten.</h3>
+					<Link href="/1000-bommen-en-granaten" prefetch={false} className={`${styles.cover} ${styles.bommen} ${pirateDisplay.variable}`}>
+						<h3>1000 bommen<br />&amp; granaten!</h3>
 						<div className={styles.coverBottom}><span>04 / Scorekeeper</span><span>Keep score <span aria-hidden="true">↗</span></span></div>
 					</Link>
 					<p>You roll. You count the turn. We keep the score.</p>

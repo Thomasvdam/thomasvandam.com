@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { experimentBody, experimentDisplay } from "@/app/experiment-fonts";
+import { pirateDisplay } from "./fonts";
 import { Scorekeeper } from "./scorekeeper";
 
 export const metadata: Metadata = {
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function BommenEnGranatenPage() {
-	return <main className={`${experimentBody.variable} ${experimentDisplay.variable}`}><Scorekeeper /></main>;
+	return <main className={`${experimentBody.variable} ${experimentDisplay.variable} ${pirateDisplay.variable}`}><Scorekeeper /></main>;
 }

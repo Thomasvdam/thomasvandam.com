@@ -66,7 +66,7 @@ function Counter() {
 			{!setup ? <button onClick={() => { setNames(game!.names); setCount(game!.names.length); setSetup(true); }}>New game</button> : <span className={styles.headerNote}>KEEP YOUR EYES ON THE LOOT.</span>}
 		</header>
 		{setup ? <section className={styles.setup} aria-labelledby="setup-title">
-			<div className={styles.intro}><Anchor className={styles.anchor} strokeWidth={1} aria-hidden="true" /><p className={styles.eyebrow}>YOUR GAME NIGHT, SHIPSHAPE.</p><h1 id="setup-title">1000 bommen<br /><em>en granaten.</em></h1><p>You roll. You count the turn.<br />We keep the score.</p></div>
+			<div className={styles.intro}><p className={styles.eyebrow}>YOUR GAME NIGHT, SHIPSHAPE.</p><h1 id="setup-title"><span className={styles.thousand}>1000</span> bommen<br /><em>&amp; granaten!</em></h1><p>You roll. You count the turn.<br />We keep the score.</p></div>
 			<form className={styles.panel} onSubmit={event => {
 				event.preventDefault();
 				save({ version: 1, names: Array.from({ length: count }, (_, i) => names[i]?.trim() || `Player ${i + 1}`), turns: [] });
@@ -81,7 +81,7 @@ function Counter() {
 				{game && <button type="button" className={styles.cancel} onClick={() => setSetup(false)}>Back to current game</button>}
 			</form>
 		</section> : game && <>
-			<div className={styles.tableHeading}><p className={styles.eyebrow}>1000 BOMMEN EN GRANATEN</p><h1 ref={heading} tabIndex={-1}>The score log<span>.</span></h1><p>Enter the points. Back to the adventure.</p></div>
+			<div className={styles.tableHeading}><p className={styles.eyebrow}>THE CAPTAIN’S SCORE LOG</p><h1 ref={heading} tabIndex={-1}>1000 bommen<br /><span>&amp; granaten!</span></h1><p>Enter the points. Back to the adventure.</p></div>
 			<div className={styles.players}>{game.names.map((name, i) => <button key={i} className={cn(styles.player, i === player && styles.selected)} aria-pressed={i === player} aria-label={`Enter points for ${name}, player ${i + 1}`} onClick={() => { setPlayer(i); setPoints(100); setSkull(false); setError(""); }}><span className={styles.seat}>PLAYER {String(i + 1).padStart(2, "0")}</span><span className={styles.playerName}>{name}</span><span className={styles.total}>{format(scores[i])}</span><span className={styles.seat}>{i === player ? "ENTERING POINTS" : "POINTS"}</span></button>)}</div>
 			<div className={styles.logGrid}>
 				<form className={styles.panel} onSubmit={recordTurn}>
