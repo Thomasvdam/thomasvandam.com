@@ -6,7 +6,6 @@ import { Sequencer } from "@/app/(personal)/sequencer";
 import { StudioPowerSwitch } from "@/app/(personal)/studio-power-switch";
 import { PolarBearPawTrail } from "@/app/(personal)/polar-bear-paw-trail";
 import { VegetableEasterEgg } from "@/app/(personal)/vegetable-easter-egg";
-import { DungeonHero } from "@/app/munchkin/dungeon-hero";
 import { JakeQuote } from "@/app/(personal)/jake-quote";
 
 export const metadata: Metadata = {
@@ -87,36 +86,20 @@ export default function Home() {
 						<p>My spin on a classic.</p>
 					</article>
 					<article>
-						<Link href="/whitechapel" prefetch={false} className={`${styles.cover} ${styles.whitechapel}`}>
-							<h3>The<br />casebook.</h3>
-							<div className={styles.casebookMap} aria-hidden="true"><i>64</i><i>82</i><i>90</i></div>
-							<div className={styles.coverBottom}><span>05 / An investigator’s companion</span><span>Investigate <span aria-hidden="true">↗</span></span></div>
-						</Link>
-						<p>A small companion for Letters from Whitechapel.</p>
-					</article>
-					<article>
-						<Link href="/phase-10" prefetch={false} className={`${styles.cover} ${styles.phaseTen}`}>
-							<h3>Phase<br />10.</h3>
+						<Link href="/boardgame-tools" prefetch={false} className={`${styles.cover} ${styles.boardgameTools}`}>
+							<h3>Boardgame<br />tools.</h3>
 							<div className={styles.phaseTenCards} aria-hidden="true"><i>1</i><i>3</i><i>7</i><i>10</i></div>
-							<div className={styles.coverBottom}><span>06 / Scorekeeper</span><span>Keep score <span aria-hidden="true">↗</span></span></div>
+							<div className={styles.coverBottom}><span>05 / Game night companions</span><span>Pick a tool <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>Phases, points, and who starts next. Just add cards.</p>
+						<p>Scorekeepers, counters, and a little help with the investigation.</p>
 					</article>
 					<article hidden>
 						<Link href="/exterminator" prefetch={false} className={`${styles.cover} ${styles.exterminator}`}>
 							<h3>Extermi<br />nator.</h3>
 							<div className={styles.exterminatorField} aria-hidden="true"><i /><i /><i /></div>
-							<div className={styles.coverBottom}><span>07 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
+							<div className={styles.coverBottom}><span>06 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>See how long you can keep going.</p>
-					</article>
-					<article>
-						<Link href="/munchkin" prefetch={false} className={`${styles.cover} ${styles.munchkin}`}>
-							<h3>Munch<br />kin.</h3>
-							<DungeonHero className={styles.munchkinHero} />
-							<div className={styles.coverBottom}><span>08 / Level counter</span><span>Level up <span aria-hidden="true">↗</span></span></div>
-						</Link>
-						<p>Kick down doors. Grab treasure. Count on us.</p>
 					</article>
 				</div>
 			</section>
