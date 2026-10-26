@@ -363,3 +363,7 @@
 .munchkin h3 { text-shadow: 2px 2px 0 #f8ebc9; }
 .munchkin .coverBottom { color: #302318; }
 .munchkinHero { position: absolute; width: 190px; height: 171px; right: 8px; bottom: 42px; transform: rotate(8deg); }
+
+.toolsPage { padding: 36px 0 65px; }
+.toolsTitle { font: 800 clamp(48px, 7vw, 80px)/.95 var(--font-display), sans-serif; text-transform: uppercase; letter-spacing: -1px; }
+.boardgameTools { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
