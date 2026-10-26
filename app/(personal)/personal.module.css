@@ -368,6 +368,6 @@
 .toolsTitle { font: 800 clamp(48px, 7vw, 80px)/.95 var(--font-display), sans-serif; text-transform: uppercase; letter-spacing: -1px; }
 .boardgameTools { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 
-.bommen { background: #173a3c; color: #e9b85f; border: 1px solid #3b5957; }
-.bommen h3 { font-size: clamp(34px, 4vw, 48px); }
-.bommen .coverBottom { color: #f2e7ce; }
+.bommen { background: linear-gradient(90deg, #102b4bce, #102b4b00), url("/images/bommen-en-granaten/pirate-seas.webp") 65% center / cover; color: #ffe3a0; border: 2px solid #b99a63; }
+.bommen h3 { font-family: var(--font-pirate-display), Georgia, serif; font-weight: 400; text-transform: none; font-size: clamp(29px, 3.5vw, 42px); text-shadow: 2px 3px 0 #29190d, 0 0 10px #102b4b; }
+.bommen .coverBottom { color: #fff1d2; text-shadow: 0 1px 4px #102b4b; }
