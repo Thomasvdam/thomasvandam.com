@@ -39,7 +39,7 @@ export function StudioPowerSwitch() {
 			{scene !== null && createPortal(
 				<div key={scene} className={styles.scene} role="status" aria-label="Studio after hours: modular synthesizer lights are blinking">
 					<div className={styles.sceneContent}>
-						<p className={styles.kicker}>Studio after hours</p>
+						<p className={styles.kicker}>Studio after hours / Signal on</p>
 						<div className={styles.photo}>
 							<Image src="/images/modular-synth.jpg" alt="" fill sizes="(max-width: 900px) 90vw, 900px" priority className={styles.image} />
 							<div className={styles.photoShade} aria-hidden="true" />
@@ -52,6 +52,7 @@ export function StudioPowerSwitch() {
 								/>
 							))}
 						</div>
+						<p className={styles.caption}>The machines are still awake.</p>
 					</div>
 				</div>,
 				document.body,

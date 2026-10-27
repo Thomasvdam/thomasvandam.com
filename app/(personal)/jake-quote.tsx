@@ -17,6 +17,7 @@ export function JakeQuote() {
 
 	return (
 		<div className={styles.quoteBand}>
+			<p className={styles.label}>A useful reminder</p>
 			<figure>
 				<blockquote>
 					<button

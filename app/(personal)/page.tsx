@@ -9,35 +9,41 @@ import { VegetableEasterEgg } from "@/app/(personal)/vegetable-easter-egg";
 import { JakeQuote } from "@/app/(personal)/jake-quote";
 
 export const metadata: Metadata = {
-	title: "Thomas van Dam — Software engineer",
-	description: "Software engineer. Into deep techno, making things, and questioning how we make them.",
+	title: "Thomas van Dam — Software, sounds & side quests",
+	description: "Software engineer. Into deep techno, making things, and questioning how we make them. A home for small experiments and loosely held opinions.",
 };
 
 export default function Home() {
 	return (
 		<main id="main">
 			<section className={styles.hero} aria-labelledby="name">
+				<div className={styles.eyebrow}>
+					<span>Software / sounds / side quests</span>
+					<span>A personal work in progress</span>
+				</div>
 				<h1 id="name" className={styles.name} aria-label="Thomas van Dam.">
 					<span>Thomas</span><span>van Dam<StudioPowerSwitch /></span>
 				</h1>
 				<figure className={styles.gear}>
-					<Image src="/images/modular-synth.jpg" alt="My modular synthesizer with patch cables" width={1280} height={720} sizes="(max-width: 650px) 80vw, (max-width: 1200px) 54vw, 600px" preload />
-					<figcaption><Link href="/patch-bay" prefetch={false} aria-label="Open the hidden patch bay game">Patch bay</Link></figcaption>
+					<Image src="/images/modular-synth.jpg" alt="My modular synthesizer, full of patch cables and possibilities" width={1280} height={720} sizes="(max-width: 650px) 80vw, (max-width: 1200px) 54vw, 600px" preload />
+					<figcaption><Link href="/patch-bay" prefetch={false} aria-label="Open the hidden patch bay game">Some assembly required.</Link></figcaption>
 				</figure>
 				<div className={styles.intro}>
 					<p>Software engineer.<br />Into deep techno, making things, and questioning how we make them.</p>
 					<p className={styles.current}>Currently building at <a href="https://www.seda.xyz">SEDA</a>.</p>
 				</div>
+				<p className={styles.scrollHint}>↓ Keep going. There are things to click.</p>
 			</section>
 
-			<section className={styles.opinion} aria-label="Sequencer">
-				<p>16-step sequencer.</p>
+			<section className={styles.opinion} aria-label="A loosely held opinion">
+				<p>Strong opinions.<br /><em>Loosely held.</em></p>
 				<Sequencer />
 			</section>
 
 			<section id="experiments" className={styles.section} aria-labelledby="experiments-heading">
 				<div className={styles.sectionHeading}>
-					<h2 id="experiments-heading">Experiments.</h2>
+					<h2 id="experiments-heading">Things to<br />mess with.</h2>
+					<p>Small experiments.</p>
 				</div>
 				<div className={styles.experiments}>
 					<article>
@@ -51,7 +57,7 @@ export default function Home() {
 									</span>
 								))}
 							</div>
-							<div className={styles.coverBottom}><span>01 / A riddle</span><span aria-hidden="true">↗</span></div>
+							<div className={styles.coverBottom}><span>01 / A riddle</span><span>Try it <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>A little game I like to annoy people with.</p>
 					</article>
@@ -60,14 +66,14 @@ export default function Home() {
 							<h3>You<br />got this.</h3>
 							<div className={styles.coverBottom}><span>02 / A little encouragement</span><span aria-hidden="true">↗</span></div>
 						</Link>
-						<p>Randomly generated encouragement.</p>
+						<p>In case you needed to hear it today.</p>
 					</article>
 					<article>
 						<Link href="/right-on-track" prefetch={false} className={`${styles.cover} ${styles.railway}`}>
 							<h3>Right on<br />track.</h3>
-							<div className={styles.coverBottom}><span>03 / A train game</span><span aria-hidden="true">↗</span></div>
+							<div className={styles.coverBottom}><span>03 / A train game</span><span>All aboard <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>Lay missing rails in time to keep the train moving.</p>
+						<p>Keep it rolling in this little game.</p>
 					</article>
 					<article>
 						<Link href="/breakout" prefetch={false} className={`${styles.cover} ${styles.breakout}`}>
@@ -75,25 +81,25 @@ export default function Home() {
 							<div className={styles.breakoutWall} aria-hidden="true">
 								{Array.from({ length: 15 }, (_, index) => <i key={index} />)}
 							</div>
-							<div className={styles.coverBottom}><span>04 / A brick breaker</span><span aria-hidden="true">↗</span></div>
+							<div className={styles.coverBottom}><span>04 / A brick breaker</span><span>Play it <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>Break bricks around a rotating cylinder.</p>
+						<p>My spin on a classic.</p>
 					</article>
 					<article>
 						<Link href="/boardgame-tools" prefetch={false} className={`${styles.cover} ${styles.boardgameTools}`}>
 							<h3>Boardgame<br />tools.</h3>
 							<div className={styles.phaseTenCards} aria-hidden="true"><i>1</i><i>3</i><i>7</i><i>10</i></div>
-							<div className={styles.coverBottom}><span>05 / Boardgame tools</span><span aria-hidden="true">↗</span></div>
+							<div className={styles.coverBottom}><span>05 / Game night companions</span><span>Pick a tool <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>Scorekeepers, level counters, and a Whitechapel map.</p>
+						<p>Scorekeepers, counters, and a little help with the investigation.</p>
 					</article>
 					<article hidden>
 						<Link href="/exterminator" prefetch={false} className={`${styles.cover} ${styles.exterminator}`}>
 							<h3>Extermi<br />nator.</h3>
 							<div className={styles.exterminatorField} aria-hidden="true"><i /><i /><i /></div>
-							<div className={styles.coverBottom}><span>06 / A survival game</span><span aria-hidden="true">↗</span></div>
+							<div className={styles.coverBottom}><span>06 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>Fight bugs and upgrade your mech.</p>
+						<p>See how long you can keep going.</p>
 					</article>
 				</div>
 			</section>
