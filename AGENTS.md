@@ -18,6 +18,7 @@ Use the `@/` alias for imports from the repository root.
 - Reuse theme variables and existing responsive Tailwind patterns. The root layout forces dark mode.
 - Follow the formatting already present in the file you touch; the repository does not currently enforce a separate formatter.
 - Keep unrelated playground routes independent unless a shared primitive genuinely belongs in `components/` or `lib/`.
+- This is a personal site. Keep UI copy to useful labels and necessary feedback. Avoid marketing taglines, feature triplets, decorative microcopy, and instructions for obvious controls.
 
 ## Commands and validation
 

@@ -5,7 +5,7 @@ import { Scorekeeper } from "./scorekeeper";
 
 export const metadata: Metadata = {
 	title: "1000 bommen en granaten scorekeeper — Thomas van Dam",
-	description: "A simple scorekeeper for 1000 bommen en granaten. Enter your points, keep the totals, and get back to the game.",
+	description: "Scorekeeper for 1000 bommen & granaten.",
 };
 
 export default function BommenEnGranatenPage() {

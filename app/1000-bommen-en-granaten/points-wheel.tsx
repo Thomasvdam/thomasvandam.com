@@ -123,7 +123,7 @@ export function PointsWheel({ value, skull, onChange }: Props) {
 	return <div className={cn(styles.wheelControl, skull && styles.skullControl)}>
 		<div className={styles.wheelRow}>
 			<button type="button" className={styles.adjustPoints} aria-label="Decrease points by 100" disabled={value === minimum} onClick={() => setPoints(motion.current.points - 100)}><Minus size={20} /></button>
-			<div className={styles.wheel} role="slider" tabIndex={0} aria-label={skull ? "Skull Island points" : "Turn points"} aria-valuemin={minimum} aria-valuemax={MAX_POINTS} aria-valuenow={value} aria-valuetext={`${value} points${skull ? " deducted from each other player" : ""}`} aria-describedby="wheel-hint"
+			<div className={styles.wheel} role="slider" tabIndex={0} aria-label={skull ? "Skull Island points" : "Turn points"} aria-valuemin={minimum} aria-valuemax={MAX_POINTS} aria-valuenow={value} aria-valuetext={`${value} points${skull ? " deducted from each other player" : ""}`}
 				onBlur={cancelGesture}
 				onPointerDown={event => {
 					if (!event.isPrimary || event.button !== 0) return;
@@ -150,7 +150,5 @@ export function PointsWheel({ value, skull, onChange }: Props) {
 			<button type="button" className={styles.adjustPoints} aria-label="Increase points by 100" disabled={value === MAX_POINTS} onClick={() => setPoints(motion.current.points + 100)}><Plus size={20} /></button>
 		</div>
 		<output className={styles.wheelValue} aria-live="polite" aria-label="Selected points">{value.toLocaleString("en-GB")}</output>
-		<span className={styles.wheelCaption}>{skull ? "FROM EACH OTHER PLAYER" : "POINTS THIS TURN"}</span>
-		<p id="wheel-hint" className={styles.hint}>Turn {skull ? "the skull" : "the wheel"} or give it a spin. Buttons and arrow keys work too. 100 points per step.</p>
 	</div>;
 }
