@@ -52,7 +52,7 @@ export function ExterminatorGame() {
 	return <div className={styles.page}>
 		<header className={styles.header}>
 			<Link href="/" className={styles.back} aria-label="Back to Thomas van Dam"><ArrowLeft size={15} /><span>Thomas van Dam</span></Link>
-			<div className={styles.title}><h1>EXTERMINATOR<span>.</span></h1><span className={styles.eyebrow}>Mech / bugs / survival</span></div>
+			<div className={styles.title}><h1>EXTERMINATOR<span>.</span></h1></div>
 			<span className={styles.prototype}>Work in progress</span>
 		</header>
 		<section className={styles.game} aria-label="Exterminator survival game">
@@ -135,7 +135,7 @@ export function ExterminatorGame() {
 						</> : view.mode === "dead" ? <>
 							<p className={styles.eyebrow}>Run complete</p><h2>Mech destroyed</h2><p>{view.hivesCleared} hives eradicated · {view.kills} kills · {clock} survived</p><button className={styles.primary} onClick={() => runtime.current?.action("restart")}>Play again <RotateCcw size={16} /></button>
 						</> : <>
-							<p className={styles.eyebrow}>Exterminator</p><h2>Clear the hive.</h2><p>Kill bugs. Get paid. Upgrade your mech.</p>
+							<p className={styles.eyebrow}>Exterminator</p><h2>Clear the hive.</h2><p>Clear hives to earn money for mech upgrades.</p>
 							<details className={styles.controls}><summary>Controls</summary><div className={styles.instructions}><span><b>Keyboard + mouse</b>WASD / arrows to move · mouse to aim</span><span><b>Touch</b>Left joystick to move · right joystick to aim</span><span><b>Controller</b>Left stick to move · right stick to aim</span></div></details>
 							<p className={styles.hint}>Weapons fire automatically while you aim.</p><button className={styles.primary} onClick={() => runtime.current?.action("start")}>Start game <ArrowUpRight size={18} /></button>
 						</>}

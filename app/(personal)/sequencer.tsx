@@ -85,10 +85,9 @@ export function Sequencer() {
 			<div className={styles.sequencerPanel}>
 				<div className={styles.sequencerHeading}>
 					<div>
-						<span className={styles.sequencerKicker}>Patch // 01</span>
-						<h2>Make some<br /><em>noise.</em></h2>
+						<h2>Sequencer.</h2>
 					</div>
-					<p>Simple sequencer.<br />Sixteen steps.</p>
+					<p>16-step sequencer.</p>
 				</div>
 
 				<div className={styles.machine}>
@@ -122,7 +121,7 @@ export function Sequencer() {
 						))}
 					</div>
 				</div>
-				<p className={styles.sequencerNote}>Headphones recommended.</p>
+				<p className={styles.sequencerNote}>Swipe for steps 9–16.</p>
 			</div>
 		</details>
 	);

@@ -98,11 +98,11 @@ export function LostSignal() {
 
 	return (
 		<main id="main" className={styles.page}>
-			<p className={styles.overline}>Error / 404 / No signal</p>
+			<p className={styles.overline}>404</p>
 			<h1>Lost<br /><span>signal.</span></h1>
-			<p className={styles.description}>This page seems to have slipped out of the patch.</p>
+			<p className={styles.description}>This page could not be found.</p>
 			<p className={styles.instruction} id="cable-instruction">
-				{connected ? "Signal found / Route restored" : "Drag either cable end until they touch. Arrow keys work too."}
+				{connected ? "Cables connected." : "Drag either cable end until they touch. Arrow keys work too."}
 			</p>
 			<div className={`${styles.cable} ${connected ? styles.connected : ""}`} aria-describedby="cable-instruction">
 				<svg className={styles.cableArt} viewBox="0 0 1000 190" preserveAspectRatio="none" aria-hidden="true">

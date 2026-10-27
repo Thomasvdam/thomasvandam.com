@@ -37,7 +37,7 @@ export function TrackGame() {
 			<button data-utility type="button" onClick={toggleSound} aria-label={muted ? "Unmute sound" : "Mute sound"} aria-pressed={muted}>{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}<span>{muted ? "Sound off" : "Sound on"}</span></button>
 		</header>
 		<section className={styles.intro}>
-			<div><p className={styles.overline}>Lay the rails to keep it rolling.</p><h1>Right on <span>track.</span></h1></div>
+			<div><h1>Right on <span>track.</span></h1></div>
 			<p>Lay the missing track just in time.<br />Miss a gap or place track twice and you’ll derail.</p>
 		</section>
 		<section className={styles.game} aria-label="One-button railway game">
@@ -62,7 +62,7 @@ export function TrackGame() {
 				<p>{view.practiceWaiting ? "The gap is at the front platform. Tap to lay track." : "Watch the orange gap approach. The train will wait for you."}</p>
 				<button data-utility type="button" disabled={!loaded || unavailable} onClick={skipTutorial}>Skip practice ↗</button>
 			</div>}
-			{!reading && (!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Taking a breather." : counting ? String(Math.max(1, -Math.floor(view.phase))) : "All aboard."}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid · another run?` : counting ? "Get ready. The train is pulling away." : "One button. An open stretch of track."}</p></div>}
+			{!reading && (!running || counting) && <div className={styles.overlay} aria-hidden="true"><span>{unavailable ? "Railway unavailable" : !loaded ? "Preparing the railway" : view.mode === "crashed" ? "Derailed." : view.mode === "paused" ? "Paused" : counting ? String(Math.max(1, -Math.floor(view.phase))) : "Ready"}</span><p>{view.mode === "crashed" ? `${view.score} pieces laid` : counting ? "Starting…" : "Lay track as each gap reaches the front platform."}</p></div>}
 		</section>
 		<div className={styles.controls}>
 			<div><p role="status" className={styles.status}>{reading && loaded && !unavailable ? "Read the tip, then continue or skip to play." : practicing && running ? view.practiceWaiting ? "Your turn. Space, click, or tap to lay track." : "Watch the gap. We’ll stop the train when it’s time." : status}</p><p className={styles.help}>Space, click, or tap the scene. Hold won’t repeat. Esc pauses.{audioUnavailable && " Audio unavailable; visual timing still works."}</p></div>
@@ -72,6 +72,5 @@ export function TrackGame() {
 			</div>
 		</div>
 		{debugOpen && <DebugMenu onTrigger={id => triggerPreview(id)} onClose={() => toggleDebug()} preview={previewLabel} upgrades={view.upgrades} onUpgrade={level => previewUpgrades(level)} />}
-		<footer className={styles.footer}><span>New sights. Faster train.</span><span>Endless railway / no destination</span></footer>
 	</div>;
 }

@@ -33,7 +33,6 @@ export function VegetableEasterEgg() {
 			</figure>
 			<div>
 				<div aria-live="polite">
-					<p className={styles.label}>{vegetable ? "The vegetable attached to the person" : "The person attached to the opinions"}</p>
 					<h2 id="about-heading" aria-label={vegetable ? "A little about the vegetable" : undefined}>A little<br />about {vegetable ? <><s>me</s> <span className={styles.vegetableMe}>me.</span></> : "me."}</h2>
 					{vegetable ? <>
 						<p>I’m interested in plenty of sunlight, fresh water, and just hanging about.</p>

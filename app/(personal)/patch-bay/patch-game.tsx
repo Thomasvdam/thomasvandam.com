@@ -46,7 +46,7 @@ export function PatchGame() {
 	const targets = level.tiles.filter((tile) => tile?.type === "target");
 	const gapPosition = `row ${Math.floor(gap / level.size) + 1}, column ${gap % level.size + 1}`;
 	const status = notice ?? (pulse.won
-		? levelIndex === levels.length - 1 ? "All speakers are singing. Your prize awaits." : "All speakers lit. Puzzle complete!"
+		? levelIndex === levels.length - 1 ? "All puzzles complete." : "All speakers lit. Puzzle complete!"
 		: pulse.wrong.length ? `Wrong color at ${pulse.wrong.join(" and ")}. Slide a tile to change the route.`
 			: `${pulse.reached.length} of ${targets.length} speakers lit. Empty slot: ${gapPosition}.`);
 
@@ -71,16 +71,14 @@ export function PatchGame() {
 	}
 
 	return <div className={styles.page}>
-		<div className={styles.topline}><span>Hidden experiment / 03</span><span>Patch bay v.03</span></div>
 		{finished ? <section className={styles.reward} aria-live="polite">
 			<span className={styles.rewardIcon} aria-hidden="true">♛</span>
-			<p className={styles.overline}>Well done!</p>
 			<h1>sorry, but the princess is on another website</h1>
 			<button type="button" onClick={() => { setFinished(false); startLevel(0); }}>Play again ↗</button>
 		</section> : <>
 			<header className={styles.intro}>
-				<div><p className={styles.overline}>A small game about finding a way through a</p><h1>Patch<span>bay.</span></h1></div>
-				<p>Slide the tiles. Help the signal find its way to every speaker.</p>
+				<div><h1>Patch<span>bay.</span></h1></div>
+				<p>Route the signal to every speaker.</p>
 			</header>
 			<div className={styles.progress} role="group" aria-label={`Level ${levelIndex + 1} of ${levels.length}`}>
 				{levels.map((item, index) => <span key={item.title} className={index === levelIndex ? styles.current : index < levelIndex ? styles.done : ""}>{String(index + 1).padStart(2, "0")} / {item.difficulty}</span>)}
@@ -117,7 +115,7 @@ export function PatchGame() {
 				</div>
 				<div className={styles.controls}>
 					<div><p className={styles.status} role="status">{status}</p>{showHint && <p className={styles.hint}>{level.hint}</p>}</div>
-					<div className={styles.actions}><button type="button" onClick={() => setShowHint((value) => !value)}>{showHint ? "Hide hint" : "Hint"}</button><button type="button" onClick={() => startLevel(levelIndex)}>Reset</button>{pulse.won && <button type="button" className={styles.primary} onClick={() => levelIndex === levels.length - 1 ? setFinished(true) : startLevel(levelIndex + 1)}>{levelIndex === levels.length - 1 ? "Claim reward ↗" : "Next level ↗"}</button>}</div>
+					<div className={styles.actions}><button type="button" onClick={() => setShowHint((value) => !value)}>{showHint ? "Hide hint" : "Hint"}</button><button type="button" onClick={() => startLevel(levelIndex)}>Reset</button>{pulse.won && <button type="button" className={styles.primary} onClick={() => levelIndex === levels.length - 1 ? setFinished(true) : startLevel(levelIndex + 1)}>{levelIndex === levels.length - 1 ? "Finish ↗" : "Next level ↗"}</button>}</div>
 				</div>
 			</section>
 		</>}

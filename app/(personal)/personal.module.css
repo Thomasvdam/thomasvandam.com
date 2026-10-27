@@ -69,7 +69,7 @@
 .lane .activeStep { background: hsl(var(--background)); }
 .lane .activeStep::after { content: ""; position: absolute; inset: 26%; background: hsl(var(--paper)); transform: rotate(45deg); }
 .lane .currentStep { outline: 3px solid hsl(var(--primary)); outline-offset: 1px; }
-.sequencerNote { margin: 18px 0 2px; text-align: right; }
+.sequencerNote { display: none; margin: 18px 0 2px; text-align: right; }
 .section, .personal, .site main { scroll-margin-top: 105px; }
 .sectionHeading { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 50px 0 24px; }
 .site h2 { font: 800 clamp(48px, 7vw, 80px)/.95 var(--font-display), sans-serif; text-transform: uppercase; letter-spacing: -1px; }
@@ -262,7 +262,7 @@
 	.lane > span { font-size: 8px; letter-spacing: 0; }
 	.lane button { min-height: 28px; border-width: 1px; }
 	.lane button:is(:nth-of-type(4), :nth-of-type(8), :nth-of-type(12)) { margin-right: 2px; }
-	.sequencerNote::before { content: "Swipe for steps 9–16 / "; }
+	.sequencerNote { display: block; }
 	.sectionHeading { align-items: flex-start; padding-top: 36px; }
 	.sectionHeading > p { max-width: 108px; text-align: right; letter-spacing: .5px; }
 	.site h2 { font-size: 48px; }

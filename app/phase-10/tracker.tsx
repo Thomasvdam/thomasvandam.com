@@ -102,14 +102,11 @@ function Tracker() {
 				<header className={styles.header}>
 					<a href="/" className={styles.homeLink}>← Thomas van Dam</a>
 					<a href="/phase-10" className={styles.brand} aria-label="Phase 10 scorekeeper"><span className={styles.logo}>10</span><span><span className={styles.brandName}>PHASE 10</span><span className={styles.brandSub}>scorekeeper</span></span></a>
-					<span className={styles.edition}>JUST ADD CARDS.</span>
 				</header>
 
 				{!game ? (
 					<section className={styles.setup} aria-labelledby="setup-heading">
-						<div className={styles.eyebrow}>SHUFFLE. DEAL. PLAY.</div>
-						<h1 id="setup-heading">Ten phases.<br /><span>We’ll keep score.</span></h1>
-						<p className={styles.intro}>Your phases, points, and who starts next.<br />A little less counting. A lot more playing.</p>
+						<h1 id="setup-heading">Phase 10<br /><span>scorekeeper.</span></h1>
 						<form onSubmit={event => { event.preventDefault(); try { setGame(newGame(names, firstStarter)); setError(""); setNotice(""); window.scrollTo({ top: 0 }); } catch (cause) { setError((cause as Error).message); } }} className={styles.setupPanel}>
 							<div className={styles.panelHeading}><h2>Who’s playing?</h2><span>{names.length} / 6</span></div>
 							<p className={styles.hint}>Add 2–6 players clockwise around the table.</p>
@@ -124,23 +121,23 @@ function Tracker() {
 							{names.length < 6 && <Button type="button" variant="outline" className={styles.addPlayer} onClick={() => setNames([...names, ""])}><Plus /> Add player</Button>}
 							<label className={styles.selectLabel} htmlFor="first-starter">Who takes the first turn?</label>
 							<select id="first-starter" value={firstStarter} onChange={event => setFirstStarter(Number(event.target.value))}>{names.map((name, index) => <option key={index} value={index}>{name.trim() || `Player ${index + 1}`}</option>)}</select>
-							<Button type="submit" className={styles.primary}>Let’s play <ArrowRight /></Button>
+							<Button type="submit" className={styles.primary}>Start game <ArrowRight /></Button>
 							{error && <p role="alert" className={styles.error}>{error}</p>}
 						</form>
-						<p className={styles.localNote}>No accounts. No fuss. Saved in this browser.</p>
+						<p className={styles.localNote}>Your game is saved in this browser.</p>
 					</section>
 				) : (
 					<>
 						<section className={styles.roundHeader} aria-labelledby="round-heading">
-							<div><div className={styles.eyebrow}>{finishers.length ? "THAT’S A WRAP" : scoring ? "COUNT IT UP" : "LET THE CARDS FALL"}</div><h1 id="round-heading" tabIndex={-1} ref={roundHeading}>{finishers.length ? "Good game." : `Round ${game.rounds.length + 1}`}<span className={styles.period}>{finishers.length ? "" : "."}</span></h1></div>
+							<div><h1 id="round-heading" tabIndex={-1} ref={roundHeading}>{finishers.length ? "Game complete" : `Round ${game.rounds.length + 1}`}<span className={styles.period}>{finishers.length ? "" : "."}</span></h1></div>
 							<Button variant="ghost" className={styles.quietButton} onClick={() => setConfirmNew(true)}>New game</Button>
 						</section>
 
-						{confirmNew && <section className={styles.confirm} aria-label="New game confirmation"><h2>Clear the table?</h2><p>This replaces your current game and round history.</p><div className={styles.actions}><Button variant="outline" className={styles.secondary} onClick={() => setConfirmNew(false)}>Keep playing</Button><Button className={styles.primary} onClick={() => { setNames(game.names); setFirstStarter(0); setGame(null); setConfirmNew(false); setScoring(false); setError(""); setNotice(""); }}>Set up new game</Button></div></section>}
+						{confirmNew && <section className={styles.confirm} aria-label="New game confirmation"><h2>Start a new game?</h2><p>This replaces your current game and round history.</p><div className={styles.actions}><Button variant="outline" className={styles.secondary} onClick={() => setConfirmNew(false)}>Keep playing</Button><Button className={styles.primary} onClick={() => { setNames(game.names); setFirstStarter(0); setGame(null); setConfirmNew(false); setScoring(false); setError(""); setNotice(""); }}>Set up new game</Button></div></section>}
 
-						{finishers.length ? <section className={styles.winner} aria-live="polite"><Trophy size={32} /><div><div className={styles.eyebrow}>{winner === null ? "ONE LAST SHOWDOWN" : "ALL TEN. WELL PLAYED."}</div><h2>{winner === null ? "It’s a tie!" : `${game.names[winner]} wins!`}</h2><p>{winner === null ? "Tied players replay phase 10. The first to go out wins; tap their name below." : `${players[winner].score} total points · 10 phases completed`}</p>{winner === null && <div className={styles.actions}>{finishers.map(index => <Button key={index} className={styles.secondary} onClick={() => setGame({ ...game, tieWinner: index })}>{game.names[index]} won the tie-break</Button>)}</div>}</div></section> : <div className={styles.starter}><div className={styles.starterIcon}><Flag size={22} /></div><div><span>FIRST TO PLAY</span><strong>{game.names[starter]}</strong></div><p>Next round<br /><b>{game.names[(starter + 1) % game.names.length]}</b></p></div>}
+						{finishers.length ? <section className={styles.winner} aria-live="polite"><Trophy size={32} /><div><h2>{winner === null ? "It’s a tie!" : `${game.names[winner]} wins!`}</h2><p>{winner === null ? "Tied players replay phase 10. The first to go out wins; tap their name below." : `${players[winner].score} total points · 10 phases completed`}</p>{winner === null && <div className={styles.actions}>{finishers.map(index => <Button key={index} className={styles.secondary} onClick={() => setGame({ ...game, tieWinner: index })}>{game.names[index]} won the tie-break</Button>)}</div>}</div></section> : <div className={styles.starter}><div className={styles.starterIcon}><Flag size={22} /></div><div><span>FIRST TO PLAY</span><strong>{game.names[starter]}</strong></div><p>Next round<br /><b>{game.names[(starter + 1) % game.names.length]}</b></p></div>}
 
-						{scoring && <div className={styles.tableLabel}><span>THIS ROUND’S LEFTOVER CARDS</span><span>TAP TO ADD POINTS</span></div>}
+						{scoring && <div className={styles.tableLabel}><span>THIS ROUND’S LEFTOVER CARDS</span></div>}
 						<div className={styles.players}>
 							{players.map((player, index) => <section key={index} className={cn(styles.player, styles[`color${index}`], game.draft[index].completed && styles.completed)} aria-label={`${player.name}, player ${index + 1}`}>
 								<div className={styles.playerTop}><div className={styles.playerName}><span className={styles.dot} /><h2>{player.name}</h2>{!finishers.length && index === starter && <span className={styles.firstBadge}>STARTS</span>}</div><div className={styles.total}><strong>{player.score}</strong><span>PTS</span></div></div>
@@ -159,7 +156,7 @@ function Tracker() {
 				)}
 				{storageNotice && <p role="alert" className={styles.error}>{storageNotice}</p>}
 				<p role="status" className={styles.notice}>{notice}</p>
-				<details className={styles.reference}><summary>A little rules refresher <ChevronDown size={18} /></summary><div className={styles.rules}><p>Complete your phase to move on next round. Didn’t make it? Try the same phase again. Points come from cards left in your hand.</p><div className={styles.scoringGuide}>{VALUES.map(value => <span key={value.points}>{value.label}<b>{value.points} pts</b></span>)}</div><ol>{PHASES.map((phase, i) => <li key={phase}><span>{i + 1}</span>{phase}</li>)}</ol><p>The first to finish phase 10 wins. If several finish in the same round, lowest total score wins. Equal scores? Those players replay phase 10; first out wins.</p><a href="https://service.mattel.com/instruction_sheets/w6792-0920.pdf" target="_blank" rel="noreferrer">Mattel’s full rules ↗</a></div></details>
+				<details className={styles.reference}><summary>Rules <ChevronDown size={18} /></summary><div className={styles.rules}><p>Complete your phase to move on next round. Didn’t make it? Try the same phase again. Points come from cards left in your hand.</p><div className={styles.scoringGuide}>{VALUES.map(value => <span key={value.points}>{value.label}<b>{value.points} pts</b></span>)}</div><ol>{PHASES.map((phase, i) => <li key={phase}><span>{i + 1}</span>{phase}</li>)}</ol><p>The first to finish phase 10 wins. If several finish in the same round, lowest total score wins. Equal scores? Those players replay phase 10; first out wins.</p><a href="https://service.mattel.com/instruction_sheets/w6792-0920.pdf" target="_blank" rel="noreferrer">Mattel’s full rules ↗</a></div></details>
 				<footer className={styles.footer}><span>Unofficial Phase 10 companion</span></footer>
 			</div>
 		</div>
