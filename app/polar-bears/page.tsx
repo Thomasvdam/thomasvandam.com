@@ -77,8 +77,6 @@ export default function PolarBears() {
             Ice holes <span>&amp;</span><br />polar bears.
           </h1>
           <p className={styles.intro}>
-            Today&apos;s view of the Arctic is rather pretty don&apos;t you think?
-            <br />
             How many ice holes and polar bears do you see?
           </p>
           <div className={styles.dice}>
@@ -93,9 +91,9 @@ export default function PolarBears() {
 
           <Expander
             title="What is this about?"
-            preview={"This is a simple game or riddle"}
+            preview={"A dice riddle"}
             fullText={
-              "This is a simple game or riddle where you guess the number of ice holes and polar bears present in a throw of the dice. While this is certainly more fun to do in person and with actual dice, I figured this would be a socially distant substitue. To inflate game length a new roll is available every hour."
+              "Guess how many ice holes and polar bears the dice represent. A new roll is available every hour."
             }
           />
         </main>
@@ -106,7 +104,7 @@ export default function PolarBears() {
 
 export const metadata: Metadata = {
   title: "Ice Holes and Polar Bears",
-  description: "How many do you see?",
+  description: "A dice riddle: how many ice holes and polar bears do you see?",
 };
 
 export const revalidate = 3600; // revalidate every hour (3600 seconds)

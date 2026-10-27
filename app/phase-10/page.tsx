@@ -4,7 +4,7 @@ import { PhaseTracker } from "./tracker";
 
 export const metadata: Metadata = {
 	title: "Phase 10 scorekeeper — Thomas van Dam",
-	description: "Less bookkeeping, more playing. A table-friendly Phase 10 score, phase, and starting-player tracker.",
+	description: "Track scores, phases, and the starting player in Phase 10.",
 };
 
 export default function Phase10Page() {

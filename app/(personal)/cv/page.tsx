@@ -10,12 +10,12 @@ export const metadata: Metadata = {
 export default function CV() {
 	return (
 		<main id="main" className={styles.cv}>
-			<p className={styles.label}>The professional side</p>
+			<p className={styles.label}>CV</p>
 			<h1>Thomas van Dam<span>Software engineer.</span></h1>
 			<p className={styles.cvIntro}>I care about code that communicates intent, clear error messages, and how teams build software together. My experience spans frontend and backend engineering, video streaming, and jointly managing an engineering team.</p>
 			<div className={styles.links}>
 				<a href="https://github.com/thomasvdam">GitHub <span aria-hidden="true">↗</span></a>
-				<Link href="/">The less serious introduction <span aria-hidden="true">↗</span></Link>
+				<Link href="/">About me <span aria-hidden="true">↗</span></Link>
 			</div>
 			<section aria-labelledby="experience-heading" className={styles.experience}>
 				<h2 id="experience-heading">Experience</h2>

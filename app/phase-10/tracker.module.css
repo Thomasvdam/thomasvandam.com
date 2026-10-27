@@ -26,6 +26,7 @@
 .eyebrow { color: var(--yellow); margin-bottom: 10px; }
 .setup { max-width: 510px; margin: 40px auto 0; }
 .shell h1 { font-family: var(--font-experiment-display), sans-serif; font-size: clamp(54px, 9vw, 76px); font-weight: 900; line-height: .98; letter-spacing: -.02em; text-shadow: 2px 3px 0 #030c2380; }
+.setup h1 { margin-bottom: 28px; }
 .setup h1 span { color: var(--yellow); }
 .intro { color: var(--soft); line-height: 1.65; margin: 22px 0 28px; font-size: 15px; }
 .setupPanel { --soft: #566077; --line: #d4dbe5; padding: 24px; color: var(--ink); background: var(--surface); border: 4px solid #fff; border-radius: 18px; box-shadow: 0 6px 0 #020b20, 0 14px 30px #020b2040; }
