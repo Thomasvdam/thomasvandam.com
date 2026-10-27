@@ -66,7 +66,7 @@
 .wheel { width: min(180px, 46vw); aspect-ratio: 1; flex-shrink: 1; color: #865023; cursor: grab; touch-action: none; user-select: none; border-radius: 50%; background: radial-gradient(circle, #e1b77366 0 23%, transparent 24% 49%, #c09a5c33 50% 56%, transparent 57%); }
 .wheel:active { cursor: grabbing; }
 .wheel:focus-visible { outline: 3px solid #a33123; outline-offset: 4px; }
-.wheelIcon { width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 2px 0 #fff2c4) drop-shadow(0 -1px 0 #563216); }
+.wheelIcon { width: 100%; height: 100%; pointer-events: none; will-change: transform; filter: drop-shadow(0 2px 0 #fff2c4) drop-shadow(0 -1px 0 #563216); }
 .wheelValue { display: block; font: 800 52px/1.1 var(--font-experiment-display), sans-serif; color: #6f351e; font-variant-numeric: tabular-nums; margin: 6px 0; overflow-wrap: anywhere; }
 .wheelCaption { display: block; color: #765327; font-size: 9px; font-weight: 800; letter-spacing: 1.5px; }
 .skullControl .wheel, .skullControl .wheelValue, .skullControl .wheelCaption { color: #8c2e24; }
