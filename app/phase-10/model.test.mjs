@@ -1,10 +1,20 @@
 import { describe, expect, test } from "bun:test";
-import { blankRound, finalists, newGame, parseGame, saveRound, standings, undoRound } from "./model.ts";
+import { blankRound, finalists, newGame, nextGameStarter, parseGame, saveRound, standings, undoRound } from "./model.ts";
 
 const round = (game, entries) => saveRound({ ...game, draft: entries });
 const entry = (points, completed) => ({ points, completed });
 
 describe("Phase 10 scorekeeping", () => {
+	test("the loser starts the next two-player game once the winner is decided", () => {
+		let game = newGame(["A", "B"], 0);
+		expect(nextGameStarter(game)).toBe(0);
+		for (let i = 0; i < 10; i++) game = round(game, [entry(0, true), entry(0, true)]);
+		expect(nextGameStarter(game)).toBe(0);
+		expect(nextGameStarter({ ...game, tieWinner: 0 })).toBe(1);
+		expect(nextGameStarter({ ...game, tieWinner: 1 })).toBe(0);
+		const decisive = { ...game, rounds: game.rounds.map((entries, i) => i === 0 ? [entries[0], entry(5, true)] : entries) };
+		expect(nextGameStarter(decisive)).toBe(1);
+	});
 	test("only completed phases advance; scores accumulate and seats stay in order", () => {
 		let game = newGame(["A", "B", "C"], 2);
 		game = round(game, [entry(0, true), entry(35, false), entry(10, true)]);
