@@ -36,6 +36,12 @@ export function finalists(game: Game): number[] {
 	return players.flatMap((player, index) => player.completed === 10 && player.score === lowest ? [index] : []);
 }
 
+export function nextGameStarter(game: Game): number {
+	const finishers = finalists(game);
+	const winner = game.tieWinner ?? (finishers.length === 1 ? finishers[0] : null);
+	return game.names.length === 2 && winner !== null ? 1 - winner : 0;
+}
+
 export function roundError(entries: Entry[]): string | null {
 	if (entries.some(entry => !Number.isInteger(entry.points) || entry.points < 0 || entry.points > 250 || entry.points % 5 !== 0 || typeof entry.completed !== "boolean")) return "Scores must be 0–250 in steps of 5.";
 	if (!entries.some(entry => entry.completed && entry.points === 0)) return "Someone must go out: mark their phase complete and leave their round score at 0.";

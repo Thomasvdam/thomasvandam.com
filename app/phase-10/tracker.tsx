@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowRight, Check, ChevronDown, Flag, Minus, Plus, RotateCcw, Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { PHASES, finalists, newGame, parseGame, saveRound, standings, undoRound, type Game } from "./model";
+import { PHASES, finalists, newGame, nextGameStarter, parseGame, saveRound, standings, undoRound, type Game } from "./model";
 import styles from "./tracker.module.css";
 
 const STORAGE_KEY = "phase-10-game-v1";
@@ -133,7 +133,7 @@ function Tracker() {
 							<Button variant="ghost" className={styles.quietButton} onClick={() => setConfirmNew(true)}>New game</Button>
 						</section>
 
-						{confirmNew && <section className={styles.confirm} aria-label="New game confirmation"><h2>Start a new game?</h2><p>This replaces your current game and round history.</p><div className={styles.actions}><Button variant="outline" className={styles.secondary} onClick={() => setConfirmNew(false)}>Keep playing</Button><Button className={styles.primary} onClick={() => { setNames(game.names); setFirstStarter(0); setGame(null); setConfirmNew(false); setScoring(false); setError(""); setNotice(""); }}>Set up new game</Button></div></section>}
+						{confirmNew && <section className={styles.confirm} aria-label="New game confirmation"><h2>Start a new game?</h2><p>This replaces your current game and round history.</p><div className={styles.actions}><Button variant="outline" className={styles.secondary} onClick={() => setConfirmNew(false)}>Keep playing</Button><Button className={styles.primary} onClick={() => { setNames(game.names); setFirstStarter(nextGameStarter(game)); setGame(null); setConfirmNew(false); setScoring(false); setError(""); setNotice(""); }}>Set up new game</Button></div></section>}
 
 						{finishers.length ? <section className={styles.winner} aria-live="polite"><Trophy size={32} /><div><h2>{winner === null ? "It’s a tie!" : `${game.names[winner]} wins!`}</h2><p>{winner === null ? "Tied players replay phase 10. The first to go out wins; tap their name below." : `${players[winner].score} total points · 10 phases completed`}</p>{winner === null && <div className={styles.actions}>{finishers.map(index => <Button key={index} className={styles.secondary} onClick={() => setGame({ ...game, tieWinner: index })}>{game.names[index]} won the tie-break</Button>)}</div>}</div></section> : <div className={styles.starter}><div className={styles.starterIcon}><Flag size={22} /></div><div><span>FIRST TO PLAY</span><strong>{game.names[starter]}</strong></div><p>Next round<br /><b>{game.names[(starter + 1) % game.names.length]}</b></p></div>}
 
