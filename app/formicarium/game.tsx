@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Bug, CloudRain, FastForward, HelpCircle, Leaf, Pause, Play, RotateCcw, Shield, Shovel, Snowflake, Sprout, X, ZoomIn, ZoomOut } from "lucide-react";
 import Link from "next/link";
-import { assignRoom, capacity, COLS, createColony, dayOf, Job, neighbors, queueDig, rainy, Room, seasonOf, spider, step, workforce } from "./simulation";
+import { Build, capacity, constructionLabor, createColony, dayOf, Job, rainy, Room, seasonOf, spider, step, workforce } from "./simulation";
 import styles from "./game.module.css";
 import NestView from "./nest-view";
 
@@ -20,7 +20,7 @@ export default function Game() {
   const [colony, setColony] = useState(() => createColony());
   const [speed, setSpeed] = useState(0);
   const [zoom, setZoom] = useState(false);
-  const [selected, setSelected] = useState(38);
+  const [selected, setSelected] = useState(3);
   const [help, setHelp] = useState(true);
   const [confirmReset, setConfirmReset] = useState(false);
   useEffect(() => {
@@ -30,12 +30,12 @@ export default function Game() {
   }, [speed, help, confirmReset, colony.result]);
   const jobs = workforce(colony);
   const day = dayOf(colony);
-  const tile = colony.tiles[selected];
-  const frontier = !tile.room && neighbors(selected).some(n => colony.tiles[n].room);
+  const chamber = colony.nest.find(n => n.id === selected) ?? colony.nest[3];
+  const labor = constructionLabor(colony);
   const ended = colony.result !== "alive";
   const wet = rainy(colony);
   const selectTile = (i: number) => { setSelected(i); };
-  const reset = () => { setColony(createColony()); setZoom(false); setSpeed(0); setSelected(38); setConfirmReset(false); setHelp(true); };
+  const reset = () => { setColony(createColony()); setZoom(false); setSpeed(0); setSelected(3); setConfirmReset(false); setHelp(true); };
 
   return <div className={styles.game}><div inert={help || ended || confirmReset}>
     <header className={styles.header}>
@@ -55,10 +55,10 @@ export default function Game() {
         <div className={styles.worldHeader}><div><span className={styles.live}/><span>NEST CROSS-SECTION</span></div><span>{wet ? "RAIN" : day > 90 ? "FROST" : "CLEAR"} · {day > 90 ? "2" : wet ? "14" : "21"}°C</span></div>
         <div className={styles.world}>
           <NestView colony={colony} selected={selected} onSelect={selectTile} running={!!speed && !help && !confirmReset && !ended} speed={speed} zoom={zoom}/>
-          <button className={styles.worldZoom} aria-label={zoom ? "Show whole nest" : "Zoom in on selected tile"} title={zoom ? "Show whole nest" : "Zoom in on selected tile"} onClick={() => setZoom(!zoom)}>{zoom ? <ZoomOut size={16}/> : <ZoomIn size={16}/>}</button>
+          <button className={styles.worldZoom} aria-label={zoom ? "Show whole nest" : "Zoom in on selected chamber"} title={zoom ? "Show whole nest" : "Zoom in on selected chamber"} onClick={() => setZoom(!zoom)}>{zoom ? <ZoomOut size={16}/> : <ZoomIn size={16}/>}</button>
           {!speed && !help && !ended && <span className={styles.paused}>PAUSED</span>}
         </div>
-        <div className={styles.worldFooter}><span><i style={{ background: colors.queen }}/>Queen</span><span><i style={{ background: colors.food }}/>Food</span><span><i style={{ background: colors.nursery }}/>Brood</span><span><i style={{ background: colors.waste }}/>Refuse</span><span className={styles.hint}>Select a tile to manage</span></div>
+        <div className={styles.worldFooter}><span><i style={{ background: colors.queen }}/>Queen</span><span><i style={{ background: colors.food }}/>Food</span><span><i style={{ background: colors.nursery }}/>Brood</span><span><i style={{ background: colors.waste }}/>Refuse</span><span className={styles.hint}>Select a chamber to inspect</span></div>
         <div className={styles.timebar}>
           <div><span className={styles.eyebrow}>YEAR 01</span><strong>{seasonOf(colony)} <span>/ Day {Math.min(day, 120)}</span></strong></div>
           <div className={styles.seasons} aria-label={`${Math.min(day, 120)} of 120 days`}><div><span style={{ width: `${Math.min(100, day / 120 * 100)}%` }}/></div><section><span>SPRING</span><span>SUMMER</span><span>AUTUMN</span><span>WINTER</span></section></div>
@@ -67,16 +67,37 @@ export default function Game() {
       </section>
 
       <aside className={styles.sidebar}>
-        <section className={styles.panel}><div className={styles.panelTitle}><h2>Workforce</h2><span>{colony.workers} ANTS</span></div>
-          {jobInfo.map(({ key, label, icon: Icon, description }) => <div className={styles.job} key={key}><label htmlFor={key}><Icon size={16}/>{label}<strong>{jobs[key]}</strong></label><input id={key} type="range" min="0" max="5" value={colony.jobs[key]} disabled={ended} onChange={e => setColony(s => ({ ...s, jobs: { ...s.jobs, [key]: Number(e.target.value) } }))}/><small>{description} · priority {colony.jobs[key]}</small></div>)}
-          <label className={styles.toggle}><input type="checkbox" checked={colony.laying} disabled={ended} onChange={e => setColony(s => ({ ...s, laying: e.target.checked }))}/>Raise new brood <span>{colony.brood}/{capacity(colony, "nursery")}</span></label>
+        <section className={styles.panel}>
+          <div className={styles.panelTitle}><h2>Construction</h2><Shovel size={16}/></div>
+          <p className={styles.laborSummary}>{labor.building.toFixed(1)} digging · {labor.maintenance.toFixed(1)} maintaining</p>
+          <div className={styles.constructionJobs}>{([
+            ["expansion", "Expansion", "Branch into new ground"],
+            ["food", "Food storage", "Enlarge stores, then add chambers"],
+            ["nursery", "Nurseries", "Make room for future workers"],
+            ["waste", "Refuse", "Isolate waste from the queen"],
+          ] as [Build, string, string][]).map(([key, label, description]) => {
+            const project = colony.projects[key]; const priority = colony.construction[key];
+            return <div className={styles.job} key={key}>
+              <label htmlFor={`build-${key}`}>{label}<strong>{labor.total ? Number((priority / labor.total * 100).toFixed(1)) : 0}%</strong></label>
+              <input id={`build-${key}`} type="range" min="0" max="5" value={priority} disabled={ended} onChange={e => setColony(s => ({ ...s, construction: { ...s.construction, [key]: Number(e.target.value) } }))}/>
+              <small>{description} · priority {priority}</small>
+              {!project && priority > 0 && colony.tick > 0 && jobs.diggers > 0 && <small className={styles.waitingForSpace}>{key === "expansion" ? "No safe route to extend" : "No safe chamber site · increase expansion"}</small>}
+              {project && <div className={styles.projectProgress}><progress max="1" value={project.progress} aria-label={`${label} construction progress`}/><span>{priority && jobs.diggers ? project.upgrade ? "Enlarging" : "Excavating" : "Paused"} {Math.floor(project.progress * 100)}%</span></div>}
+            </div>;
+          })}</div>
+          <label className={styles.roomSelect}>Growth depth<select aria-label="Growth depth" value={colony.depth} disabled={ended} onChange={e => setColony(s => ({ ...s, depth: e.target.value as typeof s.depth }))}><option value="shallow">Shallow</option><option value="balanced">Balanced</option><option value="deep">Deep</option></select></label>
+          <p>Lower construction priorities leave more digger time for drainage and cleaning. Deep soil is harder to dig and more prone to flooding.</p>
         </section>
         <section className={styles.panel}><div className={styles.panelTitle}><h2>Foraging grounds</h2>{spider(colony) && <Bug size={16} className={styles.danger}/>}</div><div className={styles.segment}>{(["near", "far"] as const).map(range => <button key={range} disabled={ended} aria-pressed={colony.range === range} onClick={() => setColony(s => ({ ...s, range }))}>{range === "near" ? "Nearby seeds" : "Distant insects"}</button>)}</div><p>{day > 90 ? "Frozen ground. No food can be gathered until spring." : colony.range === "far" ? "Larger hauls. Greater exposure to predators." : "Smaller hauls. Safer routes close to the nest."}</p></section>
-        <section className={styles.panel}><div className={styles.panelTitle}><h2>{tile.room ? roomNames[tile.room] : "Undug soil"}</h2><span>{selected % COLS + 1} · {Math.floor(selected / COLS) + 1}</span></div>
-          {tile.room ? <><p>{tile.room === "queen" ? "The heart of the colony. Keep her fed and the nest clean." : `Water level ${Math.round(tile.water * 100)}%. ${tile.water >= .6 ? "Flooded: this chamber has no usable capacity." : "Chamber is usable."}`}</p>{tile.room !== "queen" && selected !== 7 && <label className={styles.roomSelect}>Chamber use<select value={tile.room} disabled={ended} onChange={e => setColony(s => assignRoom(s, selected, e.target.value as Room))}>{(["tunnel", "food", "nursery", "waste"] as Room[]).map(r => <option key={r} value={r}>{roomNames[r]}</option>)}</select></label>}</> : <><p>{frontier ? "Diggers can extend the nest here. Once excavated, choose a chamber use." : "Excavation must connect to an existing tunnel."}</p><button className={styles.action} disabled={!frontier || ended} onClick={() => setColony(s => queueDig(s, selected))}><Shovel size={15}/>{tile.queued ? "Cancel excavation" : "Queue excavation"}</button></>}
+        <section className={styles.panel}><div className={styles.panelTitle}><h2>{roomNames[chamber.room]}</h2><span>{Math.round((chamber.y - 180) / 6)} CM DEEP</span></div>
+          <p>{chamber.room === "queen" ? "The heart of the colony. Keep her fed and the nest clean." : `Water level ${Math.round(chamber.water * 100)}%. ${chamber.water >= .6 ? "Flooded: this chamber has no usable capacity." : "Chamber is usable."}`}</p>
         </section>
       </aside>
     </div>
+    <section className={`${styles.panel} ${styles.workforcePanel}`}><div className={styles.panelTitle}><h2>Workforce</h2><span>{colony.workers} ANTS</span></div>
+          <div className={styles.workforceJobs}>{jobInfo.map(({ key, label, icon: Icon, description }) => <div className={styles.job} key={key}><label htmlFor={key}><Icon size={16}/>{label}<strong>{jobs[key]}</strong></label><input id={key} type="range" min="0" max="5" value={colony.jobs[key]} disabled={ended} onChange={e => setColony(s => ({ ...s, jobs: { ...s.jobs, [key]: Number(e.target.value) } }))}/><small>{description} · priority {colony.jobs[key]}</small></div>)}
+          </div><label className={styles.toggle}><input type="checkbox" checked={colony.laying} disabled={ended} onChange={e => setColony(s => ({ ...s, laying: e.target.checked }))}/>Raise new brood <span>{colony.brood}/{capacity(colony, "nursery")}</span></label>
+        </section>
     <section className={styles.bottom}><div className={styles.objective}><Snowflake size={23}/><div><span className={styles.eyebrow}>OBJECTIVE</span><strong>Survive the first winter</strong><p>{Math.max(0, 91 - day)} days until frost · survive through day 120</p></div></div><div className={styles.journal}><div className={styles.panelTitle}><h2>Colony journal</h2>{wet && <CloudRain size={15}/>}</div><div role="log" aria-live="polite" aria-relevant="additions">{colony.log.slice(0, 3).map((entry, i) => <p key={`${entry.day}-${entry.text}-${i}`}><span>DAY {entry.day.toString().padStart(2, "0")}</span>{entry.text}</p>)}</div></div></section>
 
     </div>
@@ -89,7 +110,7 @@ export default function Game() {
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
     }}>
-      {help && !ended && !confirmReset ? <><span className={styles.eyebrow}>A COLONY SURVIVAL SIMULATION</span><h2 id="dialog-title">Before the frost.</h2><p>A queen. Twenty-four workers. One season to build a colony that can survive winter.</p><ul><li><strong>Feed the colony.</strong> Set worker priorities and choose nearby seeds or riskier distant insects.</li><li><strong>Build the nest.</strong> Select soil beside a tunnel, queue digging, then assign food stores, nurseries, or refuse chambers.</li><li><strong>Prepare for winter.</strong> Food gathering stops on day 91. Expand storage, manage population, and stockpile enough to reach day 120.</li></ul><p className={styles.note}>Diggers also clear waste into refuse chambers and drain flooded rooms. Nurses turn brood into workers. Guards reduce spider losses.</p><button className={styles.action} autoFocus onClick={() => { setHelp(false); if (!speed) setSpeed(1); }}>Enter the colony <FastForward size={16}/></button></> : confirmReset ? <><h2 id="dialog-title">Start a new colony?</h2><p>Your current colony will be lost.</p><button className={styles.action} autoFocus onClick={reset}>Start again</button><button className={styles.cancel} onClick={() => setConfirmReset(false)}>Keep playing</button></> : <><span className={styles.eyebrow}>{colony.result === "won" ? "SPRING HAS RETURNED" : "COLONY LOST"}</span><h2 id="dialog-title">{colony.result === "won" ? "Life beneath the frost." : "The nest falls silent."}</h2><p>{colony.result === "won" ? `${colony.workers} workers and a living queen made it through winter.` : `Your colony survived ${day - 1} days. ${colony.health <= 0 ? "The queen succumbed to starvation or poor nest conditions." : "The last workers were lost."}`}</p><button className={styles.action} autoFocus onClick={reset}>Start a new colony</button></>}
+      {help && !ended && !confirmReset ? <><span className={styles.eyebrow}>A COLONY SURVIVAL SIMULATION</span><h2 id="dialog-title">Before the frost.</h2><p>A queen. Twenty-four workers. One season to build a colony that can survive winter.</p><ul><li><strong>Feed the colony.</strong> Set worker priorities and choose nearby seeds or riskier distant insects.</li><li><strong>Build the nest.</strong> Set construction priorities for expansion, food stores, nurseries, and refuse. Ants choose where to dig and enlarge chambers over time.</li><li><strong>Prepare for winter.</strong> Food gathering stops on day 91. Expand storage, manage population, and stockpile enough to reach day 120.</li></ul><p className={styles.note}>Construction competes with drainage and cleaning for digger time. Lower its priorities when maintenance needs attention. Nurses turn brood into workers. Guards reduce spider losses.</p><button className={styles.action} autoFocus onClick={() => { setHelp(false); if (!speed) setSpeed(1); }}>Enter the colony <FastForward size={16}/></button></> : confirmReset ? <><h2 id="dialog-title">Start a new colony?</h2><p>Your current colony will be lost.</p><button className={styles.action} autoFocus onClick={reset}>Start again</button><button className={styles.cancel} onClick={() => setConfirmReset(false)}>Keep playing</button></> : <><span className={styles.eyebrow}>{colony.result === "won" ? "SPRING HAS RETURNED" : "COLONY LOST"}</span><h2 id="dialog-title">{colony.result === "won" ? "Life beneath the frost." : "The nest falls silent."}</h2><p>{colony.result === "won" ? `${colony.workers} workers and a living queen made it through winter.` : `Your colony survived ${day - 1} days. ${colony.health <= 0 ? "The queen succumbed to starvation or poor nest conditions." : "The last workers were lost."}`}</p><button className={styles.action} autoFocus onClick={reset}>Start a new colony</button></>}
       {help && !ended && !confirmReset && <button className={styles.close} aria-label="Close instructions" onClick={() => setHelp(false)}><X size={20}/></button>}
     </section></div>}
   </div>;

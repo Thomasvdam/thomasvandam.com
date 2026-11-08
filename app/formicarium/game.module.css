@@ -27,8 +27,8 @@
 .live { width: 5px; height: 5px; border-radius: 50%; background: #b8cb91; }
 .world { position: relative; background: #30291f; }
 .world svg { display: block; width: 100%; height: auto; }
-.tile { cursor: pointer; outline: none; }
-.tile:hover .tileTarget, .tile:focus-visible .tileTarget { stroke: #f0cf8f; stroke-opacity: .9; stroke-width: 2; }
+.chamberHotspot { cursor: pointer; outline: none; }
+.chamberHotspot:hover .chamberTarget, .chamberHotspot:focus-visible .chamberTarget { stroke: #f0cf8f; stroke-opacity: .9; stroke-width: 2; }
 .paused { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); background: #17211ac9; border: 1px solid #8b9a79; padding: 7px 16px; color: #e0ddc4; font-size: 10px; letter-spacing: 3px; pointer-events: none; }
 .worldFooter { display: flex; flex-wrap: wrap; gap: 18px; padding: 15px 20px; font-size: 10px; color: var(--muted); border-bottom: 1px solid var(--line); }
 .worldFooter > span { display: flex; align-items: center; gap: 6px; }
@@ -107,7 +107,7 @@
 .world { isolation: isolate; border-top: 1px solid #a3af741a; border-bottom: 1px solid #bea57033; }
 .nestArt { background: #343c2e; }
 .selection { filter: drop-shadow(0 0 4px #e9b96177); }
-.tile:hover .tileTarget, .tile:focus-visible .tileTarget { fill: #e4c8960b; stroke: #eed49b; stroke-opacity: .5; stroke-width: 1; stroke-dasharray: 2 4; }
+.chamberHotspot:hover .chamberTarget, .chamberHotspot:focus-visible .chamberTarget { fill: #e4c8960b; stroke: #eed49b; stroke-opacity: .5; stroke-width: 1; stroke-dasharray: 2 4; }
 .paused { top: 6%; padding: 6px 13px; border-color: #e7ddb933; border-radius: 20px; background: #182b2299; backdrop-filter: blur(6px); font-size: 8px; letter-spacing: 2.5px; }
 .worldFooter { background: #1c2a22; border-bottom-color: #c3c48c13; }
 .worldFooter i { box-shadow: 0 0 7px #e5d8a822; }
@@ -134,3 +134,21 @@
 .worldZoom:hover { background: #384b35; }
 .worldZoom svg { width: 16px; height: 16px; }
 .world .nestArt { aspect-ratio: 16 / 11; }
+.laborSummary { margin: -5px 0 20px !important; color: var(--accent) !important; font-variant-numeric: tabular-nums; }
+.projectProgress { display: flex; align-items: center; gap: 9px; margin-top: 8px; }
+.projectProgress progress { appearance: none; width: 65px; height: 2px; border: 0; background: #62725344; }
+.projectProgress progress::-webkit-progress-bar { background: #62725344; }
+.projectProgress progress::-webkit-progress-value { background: var(--accent); }
+.projectProgress progress::-moz-progress-bar { background: var(--accent); }
+.projectProgress span { font-size: 9px; color: var(--accent); }
+.workforcePanel { margin-top: 22px; }
+.workforceJobs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 30px; }
+.workforcePanel .toggle { justify-content: start; }
+.workforcePanel .toggle span { margin-left: 8px; }
+@media (max-width: 760px) { .sidebar > section:first-child { grid-row: span 2; }.workforceJobs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 25px; } }
+.waitingForSpace { color: var(--accent) !important; margin-top: 7px; }
+@media (max-width: 760px) {
+  .sidebar { align-items: start; }
+  .sidebar > section:first-child { grid-column: 1 / -1; grid-row: auto; }
+  .constructionJobs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 22px; }
+}
