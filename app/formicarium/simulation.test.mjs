@@ -69,7 +69,7 @@ describe("colony construction", () => {
   test("growth is deterministic, connected, irregular, and respects reserved space", () => {
     let s = createColony();
     for (let tick = 0; tick < 320; tick++) {
-      const before = structuredClone(s);
+      const before = globalThis.structuredClone(s);
       const next = step(s);
       expect(s).toEqual(before); // Rendering and previews can safely retain prior state.
       s = next;
@@ -96,7 +96,7 @@ describe("colony survival", () => {
     let flooded = createColony(); flooded.tick = 43; flooded.construction = { ...stopped };
     flooded.nest.find(n => n.room === "food").y = 520;
     flooded.jobs = { foragers: 5, nurses: 0, diggers: 0, guards: 0 };
-    let drained = structuredClone(flooded); drained.jobs = { foragers: 5, nurses: 0, diggers: 5, guards: 0 };
+    let drained = globalThis.structuredClone(flooded); drained.jobs = { foragers: 5, nurses: 0, diggers: 5, guards: 0 };
     flooded = advance(flooded, 12); drained = advance(drained, 12);
     expect(flooded.nest[4].water).toBeGreaterThanOrEqual(.6);
     expect(drained.nest[4].water).toBeLessThan(.6);
@@ -126,7 +126,7 @@ describe("colony survival", () => {
   test("guards reduce predator losses across reproducible encounters", () => {
     const exposed = createColony(); exposed.tick = 52; exposed.range = "far";
     exposed.jobs = { foragers: 5, nurses: 0, diggers: 0, guards: 0 };
-    const protectedColony = structuredClone(exposed); protectedColony.jobs.guards = 5;
+    const protectedColony = globalThis.structuredClone(exposed); protectedColony.jobs.guards = 5;
     expect(advance(protectedColony, 16).workers).toBeGreaterThan(advance(exposed, 16).workers);
   });
 });
