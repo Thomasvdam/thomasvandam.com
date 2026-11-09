@@ -1,132 +1,171 @@
 import { describe, expect, test } from "bun:test";
-import { capacity, constructionLabor, createColony, dayOf, planProject, step, workforce } from "./simulation";
-import { canPlace, distance, radius } from "./nest";
+import { createColony, DT, fieldIndex, newAnt, step, storedFood } from "./simulation";
+import { distance } from "./nest";
 
-const stopped = { expansion: 0, food: 0, nursery: 0, waste: 0 };
 function advance(s, ticks) { for (let i = 0; i < ticks; i++) s = step(s); return s; }
+function isolated(role = "forager", node = 6) {
+  const s = createColony(); s.brood = []; s.eggClock = 10000;
+  s.ants = [newAnt(0, role, s.nest[node])]; s.ants[0].rest = 0; s.ants[0].hunger = 0;
+  return s;
+}
+const trailMass = s => s.trail.reduce((sum, v) => sum + v, 0);
+const waterMass = s => s.nest.reduce((sum, n) => sum + n.water, 0) + s.ants.reduce((sum, a) => sum + (a.cargo?.kind === "water" ? a.cargo.amount : 0), 0) + s.totals.water;
+const foodMass = s => storedFood(s) + s.sources.reduce((sum, f) => sum + f.amount, 0) + s.ants.reduce((sum, a) => sum + (a.cargo?.kind === "food" ? a.cargo.amount : 0), 0) + s.totals.eaten + s.totals.fed;
 
-describe("colony construction", () => {
-  test("priorities distribute whole workers without creating ants", () => {
-    const s = createColony();
-    expect(Object.values(workforce(s)).reduce((a, b) => a + b, 0)).toBe(s.workers);
-    s.jobs = { foragers: 0, nurses: 0, diggers: 0, guards: 0 };
-    expect(Object.values(workforce(s))).toEqual([0, 0, 0, 0]);
-    s.jobs.guards = 5;
-    expect(workforce(s).guards).toBe(24);
+describe("local foraging and transport", () => {
+  test("nest chemical information propagates through adjacent passages over time", () => {
+    const s = isolated(); s.ants[0].rest = 100;
+    const first = step(s);
+    expect(first.nest[0].scent.home).toBeGreaterThan(0);
+    expect(first.nest[1].scent.home).toBe(0);
+    expect(first.nest[2].scent.home).toBe(0);
+    const second = step(first);
+    expect(second.nest[1].scent.home).toBeGreaterThan(0);
+    expect(second.nest[2].scent.home).toBe(0);
+    expect(step(second).nest[2].scent.home).toBeGreaterThan(0);
   });
-  test("priorities express intent; only diggers and elapsed time create capacity", () => {
-    let s = createColony(); s.construction = { ...stopped, food: 5 };
-    s.jobs = { foragers: 5, nurses: 0, diggers: 0, guards: 0 };
-    const originalCapacity = capacity(s, "food");
-    s = advance(s, 10);
-    expect(capacity(s, "food")).toBe(originalCapacity);
-    expect(s.projects.food).toBeUndefined();
-    s.jobs.diggers = 5;
+  test("distant, unseen food does not change an ant's decisions", () => {
+    const a = isolated(); a.ants[0] = newAnt(0, "forager", { x: 450, y: 145 }, "surface"); a.ants[0].rest = 0;
+    const b = globalThis.structuredClone(a);
+    a.sources = [{ id: 0, x: 50, y: 145, amount: 10, initial: 10 }];
+    b.sources = [{ id: 0, x: 900, y: 145, amount: 10, initial: 10 }];
+    expect(step(a).ants).toEqual(step(b).ants);
+  });
+  test("pickup requires proximity; storage grows only after a physical delivery", () => {
+    let s = isolated(); s.nest[4].food = 0;
+    s.sources = [{ id: 0, x: 438, y: 165, amount: 1, initial: 1 }];
+    s.ants[0] = newAnt(0, "forager", { x: 438, y: 165 }, "surface"); s.ants[0].rest = 0;
+    const initial = foodMass(s);
     s = step(s);
-    expect(s.projects.food.upgrade).toBe(true);
-    expect(s.projects.food.progress).toBeGreaterThan(0);
-    expect(capacity(s, "food")).toBe(originalCapacity);
-    for (let i = 0; i < 30 && capacity(s, "food") === originalCapacity; i++) s = step(s);
-    expect(capacity(s, "food")).toBeGreaterThan(originalCapacity);
-    expect(s.nest.length).toBe(7); // Enlarges the existing store first.
-  });
-  test("zero priority preserves unfinished work and releases maintenance time", () => {
-    let s = step(createColony());
-    const progress = s.projects.food.progress;
-    const working = constructionLabor(s);
-    s.construction = { ...stopped };
-    const paused = constructionLabor(s);
-    expect(paused.building).toBe(0);
-    expect(paused.maintenance).toBeGreaterThan(working.maintenance);
-    s = advance(s, 8);
-    expect(s.projects.food.progress).toBe(progress);
-    s.construction.food = 5;
-    s = step(s);
-    expect(s.projects.food.progress).toBeGreaterThan(progress);
-    expect(paused.maintenance).toBe(workforce(s).diggers);
-  });
-  test("a higher relative priority receives more digging effort", () => {
-    let s = createColony(); s.construction = { expansion: 1, food: 1, nursery: 3, waste: 0 };
-    s = step(s);
-    expect(s.projects.nursery.progress).toBeCloseTo(s.projects.food.progress * 3);
-    expect(capacity(s, "waste")).toBe(0);
-    expect(s.projects.waste).toBeUndefined();
-  });
-  test("busy corridors widen over time while unused branches stay narrow", () => {
-    const s = createColony(); s.construction = { ...stopped };
-    const grown = advance(s, 8);
-    expect(grown.nest.find(n => n.id === 1).traffic).toBeGreaterThan(0);
-    expect(grown.nest.find(n => n.id === 6).traffic).toBe(0);
-    expect(s.nest.every(n => n.traffic === 0)).toBe(true);
-  });
-  test("depth guidance changes future routes without moving existing chambers", () => {
-    const shallow = createColony(); shallow.depth = "shallow";
-    const deep = createColony(); deep.depth = "deep";
-    expect(planProject(deep, "expansion").node.y).toBeGreaterThan(planProject(shallow, "expansion").node.y + 100);
-    expect(shallow.nest).toEqual(deep.nest);
-    expect(planProject(deep, "expansion").hardness).toBeGreaterThan(planProject(shallow, "expansion").hardness);
-  });
-  test("growth is deterministic, connected, irregular, and respects reserved space", () => {
-    let s = createColony();
-    for (let tick = 0; tick < 320; tick++) {
-      const before = globalThis.structuredClone(s);
-      const next = step(s);
-      expect(s).toEqual(before); // Rendering and previews can safely retain prior state.
-      s = next;
-      const pending = Object.values(s.projects).filter(p => !p.upgrade).map(p => p.node);
-      const occupied = [...s.nest.map(n => Object.values(s.projects).find(p => p.upgrade && p.node.id === n.id)?.node ?? n), ...pending];
-      for (const node of pending) expect(canPlace(occupied.filter(n => n.id !== node.id), node)).toBe(true);
-      for (const node of s.nest.slice(7)) {
-        expect(s.nest.some(parent => parent.id === node.parent)).toBe(true);
-        expect(node.x).toBeGreaterThanOrEqual(55); expect(node.x).toBeLessThanOrEqual(905);
-        expect(node.y).toBeGreaterThanOrEqual(235); expect(node.y).toBeLessThanOrEqual(600);
-      }
-      for (let i = 0; i < s.nest.length; i++) for (let j = i + 1; j < s.nest.length; j++) {
-        expect(distance(s.nest[i], s.nest[j])).toBeGreaterThan(radius(s.nest[i]) + radius(s.nest[j]) + 10);
-      }
+    expect(s.sources[0].amount).toBe(0); expect(s.ants[0].cargo?.kind).toBe("food");
+    expect(storedFood(s)).toBe(0); expect(s.totals.delivered).toBe(0);
+    for (let i = 0; i < 1000 && s.totals.delivered === 0; i++) {
+      const previous = s.ants[0]; s = step(s);
+      expect(distance(previous, s.ants[0])).toBeLessThan(3);
+      expect(foodMass(s)).toBeCloseTo(initial, 7);
     }
-    expect(s.nest.length).toBeGreaterThan(10);
-    expect(new Set(s.nest.map(n => n.y)).size).toBeGreaterThan(s.nest.length * .8);
-    expect(advance(createColony(), 320)).toEqual(s);
+    expect(s.totals.delivered).toBe(1); expect(storedFood(s)).toBe(1);
+    expect(s.ants[0].zone).toBe("nest"); expect(s.ants[0].node).toBe(4);
+  });
+  test("only food carriers reinforce the surface trail; empty followers let it fade", () => {
+    let s = isolated(); s.sources = [];
+    s.ants[0] = newAnt(0, "forager", { x: 600, y: 150 }, "surface"); s.ants[0].rest = 0;
+    const empty = step(s);
+    expect(trailMass(empty)).toBe(0);
+    s.ants[0].cargo = { kind: "food", amount: 1 }; s.ants[0].returning = true;
+    s = step(s);
+    expect(trailMass(s)).toBeGreaterThan(0);
+    s.ants[0].cargo = null; s.ants[0].returning = false;
+    const mass = trailMass(s); const snapshot = s.trail.slice();
+    s = advance(s, 220);
+    expect(trailMass(s)).toBeCloseTo(mass * Math.exp(-220 * DT / 22), 5);
+    expect(snapshot[fieldIndex(600, 150)]).toBeGreaterThan(0);
+  });
+  test("a locally sensed food trail changes exploration heading", () => {
+    const s = isolated(); s.sources = [];
+    s.ants[0] = newAnt(0, "forager", { x: 450, y: 145 }, "surface"); s.ants[0].rest = 0; s.ants[0].angle = 0;
+    const plain = step(s);
+    s.trail[fieldIndex(450 + Math.cos(.65) * 13, 145 + Math.sin(.65) * 13)] = 2;
+    const attracted = step(s);
+    expect(attracted.ants[0].angle).not.toBe(plain.ants[0].angle);
+    expect(attracted.ants[0].action).toContain("Following a food pheromone");
   });
 });
 
-describe("colony survival", () => {
-  test("rain floods deep storage; pausing construction improves drainage", () => {
-    let flooded = createColony(); flooded.tick = 43; flooded.construction = { ...stopped };
-    flooded.nest.find(n => n.room === "food").y = 520;
-    flooded.jobs = { foragers: 5, nurses: 0, diggers: 0, guards: 0 };
-    let drained = globalThis.structuredClone(flooded); drained.jobs = { foragers: 5, nurses: 0, diggers: 5, guards: 0 };
-    flooded = advance(flooded, 12); drained = advance(drained, 12);
-    expect(flooded.nest[4].water).toBeGreaterThanOrEqual(.6);
-    expect(drained.nest[4].water).toBeLessThan(.6);
-    expect(capacity(flooded, "food")).toBeLessThan(capacity(drained, "food"));
+describe("brood and fixed adult roles", () => {
+  test("hatch choice applies to new eggs without changing existing ants or larvae", () => {
+    const s = createColony(); s.eggClock = 0; s.nextRole = "cleaner";
+    const next = step(s);
+    expect(next.brood.at(-1).role).toBe("cleaner"); expect(next.brood.at(-1).node).toBe(3);
+    expect(next.ants.map(a => a.role)).toEqual(s.ants.map(a => a.role));
+    expect(next.brood.slice(0, s.brood.length).map(b => b.role)).toEqual(s.brood.map(b => b.role));
+    next.nextRole = "digger";
+    expect(step(next).brood.at(-1).role).toBe("cleaner");
   });
-  test("neglecting refuse causes disease and loss", () => {
-    const s = createColony(); s.construction = { ...stopped };
-    const lost = advance(s, 480);
-    expect(lost.result).toBe("lost"); expect(lost.waste).toBeGreaterThan(25);
-    expect(step(lost)).toBe(lost);
+  test("a nurse physically carries a queen's egg to nursery space", () => {
+    let s = isolated("nurse", 3);
+    s.brood = [{ id: 0, role: "digger", node: 3, carrier: null, x: s.nest[3].x, y: s.nest[3].y, fed: 0, care: 0, age: 0, neglect: 0 }];
+    s = step(s);
+    expect(s.ants[0].cargo?.kind).toBe("brood"); expect(s.brood[0].carrier).toBe(0);
+    for (let i = 0; i < 1200 && s.brood[0].carrier !== null; i++) s = step(s);
+    expect(s.brood[0].carrier).toBeNull(); expect(s.brood[0].node).toBe(5);
+    expect(distance(s.ants[0], s.brood[0])).toBeLessThan(1);
   });
-  test("a managed colony can survive winter with autonomous construction", () => {
-    let s = createColony();
-    for (let i = 0; i < 480; i++) {
-      if (dayOf(s) > 90) { s.construction = { ...stopped }; s.jobs = { foragers: 0, nurses: 1, diggers: 2, guards: 0 }; }
-      s = step(s);
-      expect(s.food).toBeGreaterThanOrEqual(0); expect(s.food).toBeLessThanOrEqual(capacity(s, "food"));
-    }
-    expect(s.result).toBe("won"); expect(s.health).toBeGreaterThan(0);
-    expect(s.nest.some(n => n.room === "waste")).toBe(true);
+  test("brood cannot hatch without nurse visits, even when already fed", () => {
+    const s = isolated(); s.ants[0].rest = 100;
+    s.brood = [{ id: 0, role: "cleaner", node: 5, carrier: null, x: s.nest[5].x, y: s.nest[5].y, fed: 3, care: 14, age: 50, neglect: 0 }];
+    expect(advance(s, 100).totals.hatched).toBe(0);
+    s.ants[0] = newAnt(0, "nurse", s.nest[5]); s.ants[0].rest = 0;
+    const hatched = step(s);
+    expect(hatched.totals.hatched).toBe(1); expect(hatched.ants.at(-1).role).toBe("cleaner");
+    expect(hatched.ants.at(-1).x).toBe(s.brood[0].x);
   });
-  test("winter stops foraging regardless of worker priorities", () => {
-    const s = createColony(); s.tick = 360; s.food = 50;
-    s.jobs = { foragers: 5, nurses: 0, diggers: 0, guards: 0 };
-    expect(step(s).food).toBeLessThan(50);
+});
+
+describe("physical excavation and maintenance", () => {
+  test("the first tunnel segment also requires a digger to reach and bite the wall", () => {
+    let s = isolated("digger", 6); s.nest[6].scent.crowd = 2;
+    for (let i = 1; i <= 5; i++) { const a = newAnt(i, "nurse", s.nest[6]); a.rest = 100; s.ants.push(a); }
+    s = step(s);
+    expect(s.nest.length).toBe(7); expect(s.ants[0].probe).toBeDefined();
+    for (let i = 0; i < 100 && s.nest.length === 7; i++) s = step(s);
+    expect(s.nest.length).toBe(8); expect(s.ants[0].cargo?.kind).toBe("soil");
+    expect(s.nest.at(-1).excavation.dug).toBe(1);
+    expect(distance(s.ants[0], s.nest.at(-1))).toBeCloseTo(1.5);
+    expect(s.totals.soil).toBe(0);
   });
-  test("guards reduce predator losses across reproducible encounters", () => {
-    const exposed = createColony(); exposed.tick = 52; exposed.range = "far";
-    exposed.jobs = { foragers: 5, nurses: 0, diggers: 0, guards: 0 };
-    const protectedColony = globalThis.structuredClone(exposed); protectedColony.jobs.guards = 5;
-    expect(advance(protectedColony, 16).workers).toBeGreaterThan(advance(exposed, 16).workers);
+  test("a tunnel advances only when a digger reaches the face and picks up soil", () => {
+    let s = isolated("digger");
+    s.nest[6].excavation = { angle: .4, remaining: 30, dug: 0 };
+    const before = globalThis.structuredClone(s.nest[6]);
+    s = step(s);
+    expect(s.ants[0].cargo?.kind).toBe("soil"); expect(distance(before, s.nest[6])).toBeCloseTo(1.5);
+    expect(s.totals.soil).toBe(0); // Not counted outside while in transit.
+    const geometry = globalThis.structuredClone(s.nest);
+    s = advance(s, 10);
+    expect(s.nest.map(n => [n.x, n.y, n.size])).toEqual(geometry.map(n => [n.x, n.y, n.size]));
+    for (let i = 0; i < 1200 && s.totals.soil === 0; i++) s = step(s);
+    expect(s.totals.soil).toBeGreaterThan(0);
   });
+  test("congestion alone cannot excavate when no digger is present", () => {
+    const s = isolated(); s.ants[0].rest = 100;
+    s.nest[2].scent.crowd = 2; s.nest[6].excavation = { angle: .4, remaining: 30, dug: 0 };
+    const next = advance(s, 100);
+    expect(next.nest.map(n => [n.x, n.y, n.size])).toEqual(s.nest.map(n => [n.x, n.y, n.size]));
+    expect(next.totals.soil).toBe(0);
+  });
+  test("water and refuse stay until handled; a cleaner carries water outside", () => {
+    let s = isolated("cleaner"); s.nest[6].water = .2; s.nest[6].waste = .1;
+    const idle = globalThis.structuredClone(s); idle.ants[0].rest = 100;
+    const untouched = advance(idle, 100);
+    expect(waterMass(untouched)).toBeCloseTo(.2); expect(untouched.nest[6].waste).toBe(.1);
+    s = step(s);
+    expect(s.ants[0].cargo?.kind).toBe("water"); expect(s.totals.water).toBe(0);
+    expect(waterMass(s)).toBeCloseTo(.2);
+    for (let i = 0; i < 1200 && s.totals.water === 0; i++) s = step(s);
+    expect(s.totals.water).toBeGreaterThan(0); expect(waterMass(s)).toBeCloseTo(.2, 7);
+  });
+  test("rain and gravity conserve water instead of deleting it", () => {
+    let s = isolated(); s.tick = 3600; s.ants[0].rest = 100;
+    s = advance(s, 100);
+    expect(s.totals.rain).toBeGreaterThan(0);
+    expect(waterMass(s)).toBeCloseTo(s.totals.rain, 7);
+    expect(s.nest.some(n => n.id !== 0 && n.water > 0)).toBe(true);
+  });
+});
+
+test("a live colony delivers food, raises brood, and removes soil through its ants", () => {
+  const original = createColony();
+  const snapshot = globalThis.structuredClone(original);
+  let s = original;
+  for (let i = 0; i < 1200; i++) {
+    const previous = new Map(s.ants.map(a => [a.id, a]));
+    s = step(s);
+    for (const a of s.ants) if (previous.has(a.id)) expect(distance(previous.get(a.id), a)).toBeLessThanOrEqual(a.speed * DT + .00001);
+  }
+  expect(original).toEqual(snapshot);
+  expect(s.totals.delivered).toBeGreaterThan(5); expect(s.totals.hatched).toBeGreaterThan(0); expect(s.totals.soil).toBeGreaterThan(0);
+  expect(s.ants.length).toBe(original.ants.length + s.totals.hatched);
+  expect(foodMass(s)).toBeCloseTo(foodMass(original), 6);
+  expect(s.ants.every(a => Number.isFinite(a.x) && Number.isFinite(a.y))).toBe(true);
 });
