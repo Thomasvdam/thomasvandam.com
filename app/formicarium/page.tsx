@@ -4,7 +4,7 @@ import Game from "./game";
 
 export const metadata: Metadata = {
   title: "Formicarium — An ant colony survival game",
-  description: "Grow an ant colony, excavate a nest, and survive the first winter.",
+  description: "Choose new brood and watch individual ants forage, follow pheromones, tend larvae, and excavate a living colony.",
 };
 
 export default function Page() {
