@@ -352,6 +352,9 @@
 	.phaseTen .coverBottom { font-size: 9px; letter-spacing: 0; }
 }
 
+.formicarium { background: #203329; color: #ede1c4; }
+.formicariumNest { position: absolute; right: -10px; bottom: 45px; width: 225px; height: 169px; transform: rotate(-12deg); }
+
 .exterminator { background: #1c2824; color: #e5e8d7; }
 .exterminatorField { position: absolute; right: -14px; top: 95px; width: 200px; height: 150px; transform: rotate(-15deg); border: 1px solid #547186; background: linear-gradient(#a6e9ed14 1px, transparent 1px), linear-gradient(90deg, #a6e9ed14 1px, transparent 1px); background-size: 30px 30px; }
 .exterminatorField i { position: absolute; width: 36px; height: 36px; background: url('/images/exterminator/enemy.png') center / contain no-repeat; image-rendering: pixelated; }
