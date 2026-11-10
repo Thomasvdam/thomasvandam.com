@@ -1,6 +1,6 @@
 export type Scent = "home" | "store" | "food" | "brood" | "nursery" | "work" | "clean" | "crowd";
 export type Room = "tunnel" | "queen" | "food" | "nursery";
-export type NestNode = { id: number; parent: number | null; x: number; y: number; room: Room; size: number; water: number; traffic: number; food: number; waste: number; scent: Record<Scent, number>; excavation?: { angle: number; remaining: number; dug: number } };
+export type NestNode = { id: number; parent: number | null; x: number; y: number; room: Room; size: number; water: number; traffic: number; food: number; waste: number; scent: Record<Scent, number>; blocked?: number; playerFlood?: boolean; spoil?: number; excavation?: { angle: number; remaining: number; dug: number } };
 export type Point = { x: number; y: number };
 export const noise = (i: number) => {
   let n = Math.imul(i + 1, 0x45d9f3b);

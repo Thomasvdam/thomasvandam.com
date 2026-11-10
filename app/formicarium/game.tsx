@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Bug, ChevronRight, Eye, HelpCircle, Leaf, Pause, Play, RotateCcw, Shovel, Sparkles, Sprout, Waves, X, ZoomIn, ZoomOut } from "lucide-react";
 import Link from "next/link";
-import { counts, createColony, DT, elapsed, rainy, Role, ROLES, step, storedFood } from "./simulation";
+import { BATCH_FOOD, BATCH_SECONDS, BATCH_SIZE, batchStatus, counts, createColony, DT, elapsed, rainy, Role, ROLES, step, storedFood } from "./simulation";
 import styles from "./game.module.css";
 import NestView from "./nest-view";
+import { batchProblem, intervene, prepareBatch, Tool } from "./sandbox";
+import { Point, tunnelPoint } from "./nest";
 
 const roleInfo: Record<Role, { label: string; color: string; icon: typeof Leaf; description: string }> = {
   forager: { label: "Foragers", color: "#bfcc80", icon: Leaf, description: "Explore, follow trails, and carry food home." },
@@ -19,6 +21,8 @@ export default function Game() {
   const [colony, setColony] = useState(() => createColony());
   const [speed, setSpeed] = useState(0);
   const [zoom, setZoom] = useState(false);
+  const [tool, setTool] = useState<Tool>("observe");
+  const [target, setTarget] = useState("");
   const [selected, setSelected] = useState(0);
   const [signals, setSignals] = useState(true);
   const [help, setHelp] = useState(true);
@@ -38,7 +42,24 @@ export default function Game() {
   const ant = colony.ants.find(a => a.id === selected) ?? colony.ants[0];
   const wet = rainy(colony);
   const food = storedFood(colony);
-  const reset = () => { setColony(createColony()); setZoom(false); setSpeed(0); setSelected(0); setConfirmReset(false); setHelp(true); };
+  const batch = batchStatus(colony);
+  const problem = batchProblem(colony);
+  const toolInfo: Record<Tool, { label: string; icon: typeof Eye; hint: string }> = {
+    observe: { label: "Observe", icon: Eye, hint: "Select an ant to follow its work." },
+    food: { label: "Food", icon: Leaf, hint: "Tap the forest floor to add 60 seeds, or a food store to add up to 30 food." },
+    water: { label: "Water", icon: Waves, hint: "Tap a dry chamber to flood it. Tap a flooded chamber to drain it." },
+    passage: { label: "Passages", icon: Shovel, hint: "Tap a passage to block it with rubble. Tap again to reopen it." },
+  };
+  const targets: { key: string; label: string; point: Point }[] = tool === "food" ? [
+    { key: "left", label: "Left clearing", point: { x: 300, y: 150 } },
+    { key: "right", label: "Right clearing", point: { x: 650, y: 150 } },
+    ...colony.nest.filter(n => n.room === "food").map(n => ({ key: `food-${n.id}`, label: `Food store ${n.id}`, point: n })),
+  ] : tool === "water" ? colony.nest.filter(n => n.room !== "tunnel").map(n => ({ key: `room-${n.id}`, label: `${n.room === "queen" ? "Queen’s chamber" : n.room === "nursery" ? "Nursery" : "Food store"} ${n.id}`, point: n }))
+    : tool === "passage" ? colony.nest.filter(n => n.parent !== null && !n.excavation).map(n => ({ key: `passage-${n.id}`, label: `${n.blocked ? "Blocked: " : ""}${n.room === "tunnel" ? "Tunnel" : n.room === "queen" ? "Queen passage" : n.room === "nursery" ? "Nursery passage" : "Store passage"} ${n.id}`, point: tunnelPoint(colony.nest.find(p => p.id === n.parent)!, n, n.id, .5) })) : [];
+  const selectedTarget = targets.find(t => t.key === target) ?? targets[0];
+  const applyTool = (point: Point) => setColony(s => intervene(s, tool, point));
+  const selectTool = (next: Tool) => { setTool(next); setTarget(""); setZoom(false); setColony(s => ({ ...s, notice: null })); };
+  const reset = () => { setColony(createColony()); setZoom(false); setTool("observe"); setTarget(""); setSpeed(0); setSelected(0); setConfirmReset(false); setHelp(true); };
   const followNext = () => {
     const peers = colony.ants.filter(a => a.role === ant?.role);
     const index = peers.findIndex(a => a.id === selected);
@@ -49,7 +70,7 @@ export default function Game() {
 
   return <div className={styles.game}><div inert={help || ended || confirmReset}>
     <header className={styles.header}>
-      <div className={styles.brand}><Link href="/" aria-label="Back to homepage"><ArrowLeft size={17}/></Link><Bug size={27}/><h1>FORMICARIUM</h1><span>COLONY 01</span></div>
+      <div className={styles.brand}><Link href="/" aria-label="Back to homepage"><ArrowLeft size={17}/></Link><Bug size={27}/><h1>FORMICARIUM</h1><span>SANDBOX</span></div>
       <div className={styles.headerActions}><button onClick={() => setHelp(true)} aria-label="How to play"><HelpCircle size={18}/></button><button onClick={() => setConfirmReset(true)} aria-label="Restart colony"><RotateCcw size={17}/></button></div>
     </header>
     <section className={styles.status} aria-label="Colony status">
@@ -61,12 +82,21 @@ export default function Game() {
     <div className={styles.layout}>
       <section className={styles.observation} aria-label="Live ant colony">
         <div className={styles.worldHeader}><div><span className={styles.live}/><span>FOREST FLOOR / NEST CUTAWAY</span></div><span>{wet ? "RAIN" : "CLEAR"}</span></div>
+        <div className={styles.sandboxTools} aria-label="Sandbox tools">
+          <div className={styles.toolButtons}>{(Object.keys(toolInfo) as Tool[]).map(key => {
+            const Icon = toolInfo[key].icon;
+            return <button key={key} aria-label={`${toolInfo[key].label} tool`} aria-pressed={tool === key} onClick={() => selectTool(key)}><Icon size={15}/>{toolInfo[key].label}</button>;
+          })}</div>
+          <p>{toolInfo[tool].hint}</p>
+          {tool !== "observe" && selectedTarget && <div className={styles.targetPicker}><label>Target<select aria-label="Intervention target" value={selectedTarget.key} onChange={e => setTarget(e.target.value)}>{targets.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}</select></label><button onClick={() => applyTool(selectedTarget.point)}>Apply</button></div>}
+        </div>
         <div className={styles.world}>
-          <NestView colony={colony} selected={ant?.id ?? -1} onSelect={setSelected} zoom={zoom} signals={signals}/>
+          <NestView colony={colony} selected={ant?.id ?? -1} onSelect={setSelected} zoom={zoom} signals={signals} tool={tool} onInteract={applyTool}/>
           <button className={styles.worldZoom} aria-label={zoom ? "Show whole colony" : "Follow this ant close up"} onClick={() => setZoom(!zoom)}>{zoom ? <ZoomOut size={16}/> : <ZoomIn size={16}/>}</button>
           {!speed && !help && !ended && <span className={styles.paused}>PAUSED</span>}
         </div>
-        <div className={styles.worldFooter}>{ROLES.map(role => <span key={role}><i style={{ background: roleInfo[role].color }}/>{roleInfo[role].label}</span>)}<span className={styles.hint}>Select an ant to follow</span></div>
+        {colony.notice && <p role="status" className={styles.sandboxNotice}>{colony.notice.text}{!speed && " Simulation paused."}</p>}
+        <div className={styles.worldFooter}>{ROLES.map(role => <span key={role}><i style={{ background: roleInfo[role].color }}/>{roleInfo[role].label}</span>)}<span className={styles.hint}>{tool === "observe" ? "Select an ant to follow" : "Tap the habitat to interact"}</span></div>
         <div className={styles.timebar}>
           <div><span className={styles.eyebrow}>COLONY AGE</span><strong>{clock(elapsed(colony))}</strong></div>
           <label className={styles.signalToggle}><input type="checkbox" checked={signals} onChange={e => setSignals(e.target.checked)}/><Sparkles size={14}/>Pheromones</label>
@@ -75,15 +105,17 @@ export default function Game() {
       </section>
       <aside className={styles.sidebar}>
         <section className={styles.panel}>
-          <div className={styles.panelTitle}><h2>New brood</h2><Sprout size={17}/></div>
-          <p>Choose the role of newly laid eggs. Existing ants and developing brood keep their roles.</p>
+          <div className={styles.panelTitle}><h2>Raise a batch</h2><Sprout size={17}/></div>
+          <p>Choose a caste for 12 new workers. Preparing fed brood costs 12 stored food; nurses finish their care.</p>
           <div className={styles.casteChoices}>{ROLES.map(role => {
             const { label, icon: Icon, color, description } = roleInfo[role];
             return <button key={role} aria-pressed={colony.nextRole === role} disabled={ended} onClick={() => setColony(s => ({ ...s, nextRole: role }))}>
               <div><Icon size={17} style={{ color }}/><strong>{label}</strong><span>{population[role]}</span></div><small>{description}</small>
             </button>;
           })}</div>
-          <p className={styles.nextEgg}>Next egg: <strong>{colony.nextRole}</strong> · {Math.max(0, Math.ceil(colony.eggClock))}s</p>
+          <button className={styles.action} disabled={!!problem} onClick={() => setColony(s => prepareBatch(s, s.nextRole))}>{batch?.remaining ? "Batch incubating" : `Raise ${BATCH_SIZE} ${colony.nextRole}s · ${BATCH_FOOD} food`}</button>
+          {batch && <div className={styles.batchProgress} aria-label="Brood batch status"><strong>{batch.hatched} / {batch.total} {batch.role}s hatched</strong><progress aria-label="Batch hatching progress" max={batch.total} value={batch.hatched}/>{batch.remaining > 0 && <><span>Nurse care: {batch.cared + batch.hatched} / {batch.total}</span><span>{batch.wet ? "Nursery flooded — cleaners or the water tool can help." : batch.seconds > 0 ? `Incubation: ${Math.ceil(batch.seconds)}s minimum remaining` : "Waiting for nurse visits or nursery space"}</span></>}{!batch.remaining && batch.hatched < batch.total && <span>Batch ended: {batch.total - batch.hatched} brood did not survive.</span>}</div>}
+          <p className={styles.batchHint}>{batch?.remaining ? (!speed ? "Paused — press play to incubate." : "Nurses must visit every larva. Add nurses if care is slow.") : problem ?? `About ${BATCH_SECONDS}s with nurses. Existing ants keep their roles.`}</p>
         </section>
         <section className={styles.panel} aria-label="Ant inspector">
           <div className={styles.panelTitle}><h2>Under observation</h2><Eye size={16}/></div>
@@ -110,7 +142,7 @@ export default function Game() {
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
     }}>
-      {help && !ended && !confirmReset ? <><span className={styles.eyebrow}>AN INDIVIDUAL ANT SIMULATION</span><h2 id="dialog-title">Follow the colony.</h2><p>200 ants, each reacting to what it can sense nearby. Choose what new brood will hatch into, then watch the colony adapt.</p><ul><li><strong>Foragers discover food.</strong> Loaded ants leave a trail on the way home. Empty ants follow it without reinforcing it; exhausted patches lose their attraction.</li><li><strong>Brood needs nurses.</strong> Eggs are carried to nurseries, fed, and tended before they hatch. New roles take time to join the workforce.</li><li><strong>Work needs workers.</strong> Digging starts around congestion. Soil, refuse, and water must be carried outside.</li></ul><p className={styles.note}>Turn on pheromones to see food trails in green, congestion in amber, brood signals in pink, and cleaning signals in blue. Select an ant to see what it is doing.</p><button className={styles.action} autoFocus onClick={() => { setHelp(false); setSpeed(1); }}>Watch the colony <Play size={16}/></button><button className={styles.close} aria-label="Close instructions" onClick={() => setHelp(false)}><X size={20}/></button></> : confirmReset ? <><h2 id="dialog-title">Start a new colony?</h2><p>Your current colony will be lost.</p><button className={styles.action} autoFocus onClick={reset}>Start again</button><button className={styles.cancel} onClick={() => setConfirmReset(false)}>Keep playing</button></> : <><span className={styles.eyebrow}>COLONY LOST</span><h2 id="dialog-title">The nest falls silent.</h2><p>The colony lasted {clock(elapsed(colony))}. Watch food deliveries and nurse care, and choose new brood to address the shortages.</p><button className={styles.action} autoFocus onClick={reset}>Start a new colony</button></>}
+      {help && !ended && !confirmReset ? <><span className={styles.eyebrow}>AN ANT COLONY SANDBOX</span><h2 id="dialog-title">Help it thrive.</h2><p>Raise workers, change their environment, and watch the colony respond. Every ant still senses and works for itself.</p><ul><li><strong>Raise a batch.</strong> Prepare 12 fed brood for 12 food. They can hatch in about 12 seconds with nurse care; existing adults keep their roles.</li><li><strong>Help or challenge the hive.</strong> Add food, flood a chamber, or block a passage. Water and passage tools can also undo your intervention.</li><li><strong>Watch the response.</strong> Foragers follow fading trails, nurses tend brood, diggers clear rubble, and cleaners carry water outside.</li></ul><p className={styles.note}>Turn on pheromones to see food trails in green, congestion in amber, brood signals in pink, and cleaning signals in blue. Select an ant to see what it is doing.</p><button className={styles.action} autoFocus onClick={() => { setHelp(false); setSpeed(1); }}>Start sandbox <Play size={16}/></button><button className={styles.close} aria-label="Close instructions" onClick={() => setHelp(false)}><X size={20}/></button></> : confirmReset ? <><h2 id="dialog-title">Start a new colony?</h2><p>Your current colony will be lost.</p><button className={styles.action} autoFocus onClick={reset}>Start again</button><button className={styles.cancel} onClick={() => setConfirmReset(false)}>Keep playing</button></> : <><span className={styles.eyebrow}>COLONY LOST</span><h2 id="dialog-title">The nest falls silent.</h2><p>The colony lasted {clock(elapsed(colony))}. Watch food deliveries and nurse care, and choose new brood to address the shortages.</p><button className={styles.action} autoFocus onClick={reset}>Start a new colony</button></>}
     </section></div>}
   </div>;
 }

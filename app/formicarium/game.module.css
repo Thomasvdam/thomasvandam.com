@@ -137,3 +137,22 @@
 .antCanvas:focus-visible { outline: 1px solid #e5c991; outline-offset: -4px; }
 .observeRole { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 10px; color: var(--muted); margin-bottom: 15px; }
 .observeRole select { background: #25372a; border: 1px solid #73826555; color: var(--ink); border-radius: 4px; font-size: 11px; padding: 5px 7px; }
+.sandboxTools { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 14px 18px; background: #1a2a21; }
+.toolButtons { display: flex; flex-wrap: wrap; gap: 6px; }
+.toolButtons button { display: flex; align-items: center; justify-content: center; gap: 7px; flex: 1; border: 1px solid #6f7b5c66; border-radius: 4px; padding: 9px 10px; color: var(--muted); background: #17251e; font-size: 11px; }
+.toolButtons button[aria-pressed="true"] { color: #f1dfb7; background: #475037; border-color: #c0ab75; }
+.sandboxTools > p { margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+.targetPicker { display: flex; align-items: end; gap: 10px; margin-top: 10px; }
+.targetPicker label { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--muted); flex: 1; }
+.targetPicker select { width: 100%; min-width: 0; padding: 7px 8px; background: #24362a; color: var(--ink); border: 1px solid #6f7b5c66; border-radius: 4px; font-size: 11px; }
+.targetPicker button { padding: 7px 18px; background: #cbb17a; color: #20281e; border: 1px solid #e1c58d; border-radius: 4px; font-size: 11px; }
+.sandboxNotice { padding: 12px 18px; background: #48523850; color: #ead5a7; font-size: 12px; line-height: 1.6; border-bottom: 1px solid var(--line); }
+.batchProgress { display: grid; gap: 9px; margin-top: 17px; color: var(--ink); font-size: 11px; }
+.batchProgress strong { font-weight: 500; color: var(--accent); }
+.batchProgress > span { color: var(--muted); line-height: 1.5; }
+.batchProgress progress { width: 100%; height: 5px; appearance: none; background: #64745244; border: 0; }
+.batchProgress progress::-webkit-progress-bar { background: #64745244; }
+.batchProgress progress::-webkit-progress-value { background: #d5bb80; }
+.batchProgress progress::-moz-progress-bar { background: #d5bb80; }
+.panel .batchHint { font-size: 10px; }
+@media (max-width: 760px) { .sandboxTools { padding: 12px; }.toolButtons { gap: 5px; }.toolButtons button { gap: 5px; padding: 8px 5px; font-size: 10px; }.sandboxNotice { padding: 12px; } }

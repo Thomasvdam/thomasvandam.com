@@ -1,9 +1,33 @@
 # Formicarium
 
-`/formicarium` is an open-ended cutaway ant-colony prototype. The player chooses
-the caste of eggs the queen lays next. Adults never change roles, and an egg's
-caste stays fixed. Population starts at 200; reproduction is bounded at 400 ants
-and developing brood combined.
+`/formicarium` is an ant-colony sandbox. Start with 96 workers and use food,
+water, and passage tools to help the colony or create challenges. Reproduction
+is bounded at 400 ants and developing brood combined.
+
+## Sandbox controls
+
+- **Raise a batch:** choose a caste and spend 12 stored food to prepare 12 fed
+  brood in a dry nursery. Nurses must still physically tend each larva. A tended
+  batch hatches in about 12 simulation seconds; a neglected or flooded batch
+  stalls and can die. Only one batch incubates at a time. Existing adults and
+  committed brood keep their roles; ordinary queen-laid eggs also continue.
+  The fed tray is an explicit player intervention, accounted separately from
+  meals delivered by ants. This acceleration is deliberately game-like.
+- **Food:** place/refill a surface patch of 60 seeds, or supply up to 30 food
+  directly to a store (without exceeding its capacity). Surface seeds still
+  need discovery and transport. Player aid is separate from worker deliveries.
+- **Water:** tap a chamber to add water. Tap it again while flooded to drain it
+  yourself. Manual draining is separate from water carried out by cleaners.
+  Wet nurseries prevent hatching and trigger nurses to try relocating brood.
+- **Passages:** block a passage with 12 rubble loads, then watch workers turn
+  back and diggers reopen it. Tap the blockage to remove it yourself. Blocks
+  stop ant traversal, chemical propagation, and gravity flow. Diggers can work
+  from either side and temporarily cache spoil when their exit is blocked.
+
+Use the highlighted map targets or the target picker/Apply button (including
+with a keyboard). Tools work while paused; ants react when play resumes. The
+inspector distinguishes waiting for space, isolation by rubble, and idle rest.
+Blocked experiments can fail; player tools can also undo their interventions.
 
 ## Behavioral model
 
@@ -23,8 +47,12 @@ Inside the nest, environmental and worker signals diffuse between adjacent
 passages. Food, hungry brood, nursery space, damp/refuse, and disturbed soil emit
 local cues. Congestion reflects nearby ants with a short chemical memory. Ants
 choose neighboring passages probabilistically from these cues and their last
-passage; they never run a global route finder or select a remote food source.
+passage history; they never run a global route finder or select a remote food source.
 
+- Full-store queues periodically try another passage. Workers with strong local
+  carrying cues follow them more directly; unproductive stationary behavior
+  triggers a local reassessment. Idle cleaners rest and wake to nearby signals.
+  A nurse with spare food can cache it before providing missing larval care.
 - Nurses physically move eggs from the queen to nursery space, carry stored food
   to brood/the queen, and visit fed larvae to provide care. Age alone cannot hatch
   brood. Unattended brood eventually dies.
@@ -53,7 +81,12 @@ trail deposition/evaporation, fixed hatch roles, brood carrying/care, physical
 soil removal, and water conservation/transport. `./scripts/check` remains the
 repository validation entry point.
 
-In a browser, verify 1×/3×/8× play and pause, role selection without immediate
-adult changes, hatch progress, food depletion and fading trails, colored loads
+The sandbox tests also cover batch timing/cost/care gates, intervention resource
+accounting, flow/signals across blockages, physical turnbacks and rubble removal,
+and the nursing/full-store recovery cases.
+
+In a browser, verify 1×/3×/8× play and pause, batches without adult reassignment,
+map clicks and keyboard targets for food/water/passages, reversible challenges,
+hatch progress, food depletion and fading trails, colored loads
 passing through the nest, congestion-driven digging, rain/cleaner behavior,
 pheromone visibility, ant selection/role observation, close-up and mobile layout.

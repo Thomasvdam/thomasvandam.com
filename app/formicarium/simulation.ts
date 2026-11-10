@@ -2,6 +2,9 @@ import { distance, NestNode, noise, Point, radius, Scent, segmentDistance, tunne
 export type Role = "forager" | "nurse" | "digger" | "cleaner";
 export const ROLES: Role[] = ["forager", "nurse", "digger", "cleaner"];
 export const DT = .05;
+export const BATCH_SIZE = 12;
+export const BATCH_FOOD = 12;
+export const BATCH_SECONDS = 12;
 export const FIELD_COLS = 96;
 export const FIELD_ROWS = 18;
 export const ENTRANCE: Point = { x: 450, y: 175 };
@@ -12,15 +15,18 @@ export type Ant = Point & {
   edge: { from: number; to: number; t: number } | null; local: Point | null;
   cargo: Cargo | null; memory: Point[]; returning: boolean; explored: number;
   probe?: Point & { angle: number; anchor: number };
-  hunger: number; rest: number; action: string; speed: number;
+  bornAt?: number;
+  hunger: number; rest: number; stationary: number; waiting: number; recovery: number; recent: number[]; action: string; speed: number;
 };
-export type Brood = Point & { id: number; role: Role; node: number; carrier: number | null; fed: number; care: number; age: number; neglect: number };
+export type Brood = Point & { id: number; role: Role; node: number; carrier: number | null; fed: number; care: number; age: number; neglect: number; batch?: number };
 export type FoodSource = Point & { id: number; amount: number; initial: number };
 export type Colony = {
   tick: number; seed: number; nest: NestNode[]; ants: Ant[]; brood: Brood[]; sources: FoodSource[];
   trail: Float32Array; nextRole: Role; nextAnt: number; nextBrood: number; nextNode: number;
+  nextBatch: number; batch: { id: number; role: Role; total: number; hatched: number; started: number } | null;
+  notice: { text: string; point: Point | null } | null;
   eggClock: number; queenHealth: number; queenHunger: number; result: "alive" | "lost";
-  totals: { delivered: number; eaten: number; fed: number; hatched: number; soil: number; waste: number; water: number; rain: number };
+  totals: { delivered: number; eaten: number; fed: number; hatched: number; soil: number; waste: number; water: number; rain: number; addedFood: number; addedWater: number; drained: number; preparedFood: number };
   log: { time: number; text: string }[];
 };
 const SCENTS: Scent[] = ["home", "store", "food", "brood", "nursery", "work", "clean", "crowd"];
@@ -36,7 +42,7 @@ const nodeAt = (s: Colony, id: number): Point => id === -1 ? ENTRANCE : s.nest.f
 export function newAnt(id: number, role: Role, n: Point & { id?: number }, zone: Ant["zone"] = "nest"): Ant {
   return { id, role, x: n.x, y: n.y, angle: noise(id + 31) * Math.PI * 2, zone, node: n.id ?? 0, previous: -2,
     edge: null, local: null, cargo: null, memory: zone === "surface" ? [{ ...ENTRANCE }] : [], returning: false, explored: 0,
-    hunger: noise(id + 71) * .5, rest: noise(id + 51), action: role === "forager" ? "Exploring" : "Sensing nearby signals", speed: 27 + noise(id + 13) * 10 };
+    hunger: noise(id + 71) * .5, rest: noise(id + 51), stationary: 0, waiting: 0, recovery: 0, recent: [], action: role === "forager" ? "Exploring" : "Sensing nearby signals", speed: 27 + noise(id + 13) * 10 };
 }
 export function createColony(seed = 731): Colony {
   const nest: NestNode[] = [
@@ -49,7 +55,7 @@ export function createColony(seed = 731): Colony {
     { id: 6, parent: 2, x: 396, y: 469, room: "tunnel", size: 1 },
   ].map(n => ({ ...n, room: n.room as NestNode["room"], water: 0, traffic: 0, food: n.id === 4 ? 90 : 0, waste: 0, scent: emptyScents() }));
   const ants: Ant[] = [];
-  const initial: [Role, number][] = [["forager", 100], ["nurse", 32], ["digger", 40], ["cleaner", 28]];
+  const initial: [Role, number][] = [["forager", 40], ["nurse", 16], ["digger", 24], ["cleaner", 16]];
   for (const [role, amount] of initial) for (let i = 0; i < amount; i++) {
     const id = ants.length;
     if (role === "forager" && i < 40) {
@@ -60,19 +66,19 @@ export function createColony(seed = 731): Colony {
       const a = newAnt(id, role, n); a.local = { x: n.x + (noise(id) - .5) * radius(n), y: n.y + (noise(id + 3) - .5) * radius(n) * .8 }; ants.push(a);
     }
   }
-  const brood: Brood[] = Array.from({ length: 8 }, (_, id) => ({ id, role: ROLES[id % 4], node: 5, carrier: null, x: 498 + id % 4 * 8, y: 426 + Math.floor(id / 4) * 11, fed: 0, care: 0, age: 20 + id * 3, neglect: 0 }));
+  const brood: Brood[] = Array.from({ length: 4 }, (_, id) => ({ id, role: ROLES[id % 4], node: 5, carrier: null, x: 487.5 + id % 6 * 9, y: 420 + Math.floor(id / 6) * 8, fed: 0, care: 0, age: 20 + id * 3, neglect: 0 }));
   return { tick: 0, seed, nest, ants, brood, sources: [
     { id: 0, x: 220, y: 145, amount: 180, initial: 180 }, { id: 1, x: 740, y: 128, amount: 240, initial: 240 },
     { id: 2, x: 65, y: 115, amount: 300, initial: 300 }, { id: 3, x: 895, y: 158, amount: 200, initial: 200 },
-  ], trail: new Float32Array(FIELD_COLS * FIELD_ROWS), nextRole: "forager", nextAnt: ants.length, nextBrood: 8, nextNode: 7,
-    eggClock: 8, queenHealth: 100, queenHunger: 0, result: "alive", totals: { delivered: 0, eaten: 0, fed: 0, hatched: 0, soil: 0, waste: 0, water: 0, rain: 0 },
-    log: [{ time: 0, text: "200 ants. Each explores, carries, feeds, and digs for itself. Choose what the next brood will become." }] };
+  ], trail: new Float32Array(FIELD_COLS * FIELD_ROWS), nextRole: "forager", nextAnt: ants.length, nextBrood: 4, nextNode: 7, nextBatch: 1, batch: null, notice: null,
+    eggClock: 8, queenHealth: 100, queenHunger: 0, result: "alive", totals: { delivered: 0, eaten: 0, fed: 0, hatched: 0, soil: 0, waste: 0, water: 0, rain: 0, addedFood: 0, addedWater: 0, drained: 0, preparedFood: 0 },
+    log: [{ time: 0, text: "Add food, raise a batch, or test the colony with water and rubble. Workers react for themselves." }] };
 }
 function walk(a: Ant, p: Point, dt: number) {
   const d = distance(a, p); const move = a.speed * dt;
   if (d > .00001) a.angle = Math.atan2(p.y - a.y, p.x - a.x);
   if (d <= move) { a.x = p.x; a.y = p.y; return true; }
- a.x += (p.x - a.x) / d * move; a.y += (p.y - a.y) / d * move; return false;
+  a.x += (p.x - a.x) / d * move; a.y += (p.y - a.y) / d * move; return false;
 }
 function surface(s: Colony, a: Ant) {
   if (a.role !== "forager") {
@@ -125,26 +131,55 @@ function surface(s: Colony, a: Ant) {
   if (a.explored > 55 || a.memory.length >= 250) a.returning = true;
 }
 function enterNest(a: Ant) { a.zone = "nest"; a.node = -1; a.edge = { from: -1, to: 0, t: 0 }; a.local = null; }
-function neighbors(s: Colony, n: NestNode) { return s.nest.filter(other => other.parent === n.id || other.id === n.parent); }
+function adjacent(s: Colony, n: NestNode) { return s.nest.filter(other => other.parent === n.id || other.id === n.parent); }
+function blockedBetween(a: NestNode, b: NestNode) { return (a.parent === b.id ? a.blocked : b.blocked) ?? 0; }
+function neighbors(s: Colony, n: NestNode) { return adjacent(s, n).filter(other => !blockedBetween(n, other)); }
+export const nurserySlots = (n: NestNode) => Math.floor(n.size * 12);
+export const foodNeeded = (b: Brood) => b.batch === undefined ? 3 : 1;
+export const careNeeded = (b: Brood) => b.batch === undefined ? 16 : 2;
+export const hatchAge = (b: Brood) => b.batch === undefined ? 45 : BATCH_SECONDS;
+export function batchStatus(s: Colony) {
+  if (!s.batch) return null;
+  const brood = s.brood.filter(b => b.batch === s.batch!.id);
+  return { ...s.batch, remaining: brood.length, cared: brood.filter(b => b.care >= careNeeded(b)).length, wet: brood.filter(b => (s.nest.find(n => n.id === b.node)?.water ?? 0) > .3).length, seconds: Math.max(0, BATCH_SECONDS - (elapsed(s) - s.batch.started)) };
+}
 function moveEdge(s: Colony, a: Ant) {
   const edge = a.edge!; const from = nodeAt(s, edge.from); const to = nodeAt(s, edge.to);
   if (edge.t === 0 && distance(a, from) > .00001) { walk(a, from, DT); return; }
   const nextT = Math.min(1, edge.t + a.speed * DT / Math.max(1, distance(from, to) * 1.15));
   const reverse = edge.from !== -1 && edge.to !== -1 && (from as NestNode).parent === edge.to;
   const child = reverse ? edge.from : edge.to;
+  const barrier = s.nest.find(n => n.id === child);
+  const stop = Math.max(.05, .5 - 8 / Math.max(1, distance(from, to)));
+  if (barrier?.blocked && edge.t < .5 && nextT >= stop) {
+    if (a.role === "digger" && !a.cargo) {
+      barrier.blocked = Math.max(0, barrier.blocked - 1); a.cargo = { kind: "soil", amount: 1 }; a.rest = .35;
+      a.action = "Removing rubble from a blocked passage";
+      if (!barrier.blocked) {
+        const text = "Diggers cleared a blocked passage. Traffic can flow again.";
+        journal(s, text); s.notice = { text, point: tunnelPoint(from, to, child, .5, reverse) };
+      }
+    } else a.action = "Passage blocked · turning back";
+    a.edge = { from: edge.to, to: edge.from, t: 1 - edge.t }; a.local = null; a.previous = -2; a.recovery = 3;
+    return;
+  }
   const p = edge.from === -1 || edge.to === -1 ? { x: from.x + (to.x - from.x) * nextT, y: from.y + (to.y - from.y) * nextT } : tunnelPoint(from, to, child, nextT, reverse);
   if (!walk(a, p, DT)) return;
   edge.t = nextT;
   if (edge.t >= 1) {
-    a.previous = edge.from; a.node = edge.to; a.edge = null;
+    a.previous = edge.from; a.node = edge.to; a.edge = null; a.recent = [...a.recent.slice(-5), a.node];
     if (a.node === -1) { a.zone = "surface"; a.memory = [{ ...ENTRANCE }]; a.explored = 0; a.returning = false; a.angle = random(s) < .5 ? -.5 : Math.PI + .5; }
   }
 }
 function chooseNeighbor(s: Colony, a: Ant, n: NestNode, cue: Scent) {
   const options: { id: number; scent: number }[] = neighbors(s, n).map(p => ({ id: p.id, scent: p.scent[cue] }));
   if (n.id === 0 && cue === "home") options.push({ id: -1, scent: 2 });
-  if (!options.length) return;
-  const weights = options.map(p => (Math.max(.006, p.scent - n.scent[cue] * .55) * (p.id === a.previous ? .15 : 1) + .008) * (random(s) > .07 ? 1 : 4));
+  if (!options.length) { a.action = "Isolated by rubble · needs a digger or an open passage"; a.rest = .8; return; }
+  const strongest = options.reduce((best, p) => p.scent > best.scent ? p : best);
+  if (a.cargo && a.recovery <= 0 && strongest.scent > n.scent[cue] * 1.05 + .01 && random(s) < .95) {
+    a.edge = { from: n.id, to: strongest.id, t: 0 }; a.local = null; return;
+  }
+  const weights = options.map(p => a.recovery > 0 ? (p.id === a.previous ? .2 : 1) : (Math.max(.006, p.scent - n.scent[cue] * .55) * (p.id === a.previous ? .25 : 1) / (1 + a.recent.filter(id => id === p.id).length * .8) + .012) * (random(s) > .07 ? 1 : 4));
   let choice = random(s) * weights.reduce((sum, w) => sum + w, 0);
   let target = options[options.length - 1].id;
   for (let i = 0; i < options.length; i++) { choice -= weights[i]; if (choice <= 0) { target = options[i].id; break; } }
@@ -152,23 +187,23 @@ function chooseNeighbor(s: Colony, a: Ant, n: NestNode, cue: Scent) {
 }
 function broodSlot(s: Colony, n: NestNode): Point {
   const count = s.brood.filter(b => b.node === n.id && b.carrier === null).length;
-  return { x: n.x - 14 + count % 4 * 9, y: n.y - 8 + Math.floor(count / 4) % 3 * 10 };
+  return { x: n.x - 22.5 + count % 6 * 9, y: n.y - 12 + Math.floor(count / 6) % 4 * 8 };
 }
 function interactBrood(s: Colony, a: Ant, n: NestNode) {
   if (a.cargo?.kind === "brood") {
     const b = s.brood.find(b => b.id === a.cargo!.brood)!;
-    if (n.room === "nursery" && s.brood.filter(other => other.node === n.id && other.carrier === null).length < 12) {
+    if (n.room === "nursery" && n.water <= .3 && s.brood.filter(other => other.node === n.id && other.carrier === null).length < nurserySlots(n)) {
       const slot = broodSlot(s, n); if (!walk(a, slot, DT)) return true;
       b.carrier = null; b.node = n.id; b.x = slot.x; b.y = slot.y; a.cargo = null; a.rest = .7; a.action = "Settling brood in a nursery"; return true;
     }
     return false;
   }
   const local = s.brood.filter(b => b.node === n.id && b.carrier === null);
-  if (!a.cargo && n.room === "queen") {
+  if (!a.cargo && (n.room === "queen" || n.water > .3)) {
     const egg = local[0];
     if (egg) { if (!walk(a, egg, DT)) return true; a.cargo = { kind: "brood", amount: 1, brood: egg.id }; egg.carrier = a.id; a.action = "Carrying brood to a nursery"; return true; }
   }
-  const hungry = local.find(b => b.fed < 3);
+  const hungry = local.find(b => b.fed < foodNeeded(b));
   if (a.cargo?.kind === "food" && hungry) {
     a.action = "Delivering food to hungry brood";
     if (!walk(a, hungry, DT)) return true;
@@ -177,10 +212,15 @@ function interactBrood(s: Colony, a: Ant, n: NestNode) {
   if (a.cargo?.kind === "food" && n.room === "queen" && s.queenHunger > .25) {
     a.action = "Feeding the queen";
     if (!walk(a, n, DT)) return true;
-    s.queenHunger = Math.max(0, s.queenHunger - .5); a.cargo = null; s.totals.fed++; a.rest = 1; return true;
+    s.queenHunger = Math.max(0, s.queenHunger - .5); s.queenHealth = Math.min(100, s.queenHealth + 4); a.cargo = null; s.totals.fed++; a.rest = 1; return true;
   }
-  const needsCare = local.find(b => b.fed === 3 && b.care < 16);
-  if (!a.cargo && n.room === "nursery" && needsCare) {
+  const needsCare = local.find(b => b.fed >= foodNeeded(b) && b.care < careNeeded(b));
+  if (a.cargo?.kind === "food" && !hungry && needsCare && n.water <= .3) {
+    a.action = "Caching a spare meal before tending brood";
+    if (!walk(a, n, DT)) return true;
+    n.food += a.cargo.amount; a.cargo = null; return true;
+  }
+  if (!a.cargo && n.room === "nursery" && n.water <= .3 && needsCare) {
     a.action = "Tending a larva"; if (!walk(a, needsCare, DT)) return true;
     needsCare.care += 2; needsCare.neglect = 0; a.rest = 1.5;
     return true;
@@ -233,7 +273,7 @@ function dig(s: Colony, a: Ant, n: NestNode) {
     const wall = { x: n.x + Math.cos(angle) * radius(n) * .85, y: n.y + Math.sin(angle) * radius(n) * .55 };
     a.action = "Enlarging a crowded chamber";
     if (!walk(a, wall, DT)) return true;
-    const size = Math.min(4, n.size + .012);
+    const size = Math.min(4, n.size + .04);
     if (s.nest.some(other => other.id !== n.id && distance(other, n) < radius(other) + 25 * Math.sqrt(size) + 5)) return false;
     n.size = size; a.cargo = { kind: "soil", amount: 1 }; a.rest = .7;
     return true;
@@ -284,7 +324,8 @@ function nestBehavior(s: Colony, a: Ant) {
       if (neighbors(s, n).some(p => p.scent.store > n.scent.store * 1.15 + .01)) {
         a.action = "Following scent toward another food store"; chooseNeighbor(s, a, n, "store"); return;
       }
-      a.action = "Waiting for space in a full food store";
+      if (a.waiting > 5) { a.waiting = 0; a.recovery = 4; a.action = "Store full · trying another passage"; chooseNeighbor(s, a, n, "store"); return; }
+      a.action = "Store full · waiting for space or a digger";
       const angle = noise(a.id + 118) * Math.PI * 2;
       if (walk(a, { x: n.x + Math.cos(angle) * radius(n) * .7, y: n.y + Math.sin(angle) * radius(n) * .4 }, DT)) a.rest = 1;
       return;
@@ -298,6 +339,18 @@ function nestBehavior(s: Colony, a: Ant) {
     a.action = a.cargo?.kind === "brood" ? "Following nursery scent with brood" : a.cargo ? "Following hungry brood scent" : "Looking for food or brood to tend";
     chooseNeighbor(s, a, n, a.cargo?.kind === "brood" ? "nursery" : a.cargo ? "brood" : "food"); return;
   }
+  const rubble = adjacent(s, n).find(p => blockedBetween(n, p) > 0);
+  if (a.role === "digger" && rubble && a.cargo?.kind === "soil") {
+    if (!walk(a, n, DT)) return;
+    n.spoil = (n.spoil ?? 0) + a.cargo.amount; a.cargo = null; a.action = "Putting soil down to clear a blocked route"; a.rest = .3; return;
+  }
+  if (a.role === "digger" && rubble && !a.cargo) {
+    a.action = "Approaching rubble to reopen a passage"; a.edge = { from: n.id, to: rubble.id, t: 0 }; return;
+  }
+  if (!a.cargo && (n.spoil ?? 0) > 0) {
+    if (!walk(a, n, DT)) return;
+    n.spoil = (n.spoil ?? 0) - 1; a.cargo = { kind: "soil", amount: 1 }; a.action = "Collecting loose soil"; a.rest = .3; return;
+  }
   if (a.cargo) { a.action = `Carrying ${a.cargo.kind} to the surface`; chooseNeighbor(s, a, n, "home"); return; }
   if (a.role === "cleaner") {
     if (n.water > .025 || n.waste > .01) {
@@ -306,6 +359,10 @@ function nestBehavior(s: Colony, a: Ant) {
       if (n.water > .025) { const amount = Math.min(.04, n.water); n.water -= amount; a.cargo = { kind: "water", amount }; }
       else { const amount = Math.min(.04, n.waste); n.waste -= amount; a.cargo = { kind: "waste", amount }; }
       a.rest = .5; return;
+    }
+    if (n.room !== "tunnel" && n.scent.clean < .015 && neighbors(s, n).every(p => p.scent.clean < .015)) {
+      a.action = "Resting · no cleaning needed nearby"; a.rest = 2;
+      a.local = { x: n.x + (noise(a.id) - .5) * radius(n), y: n.y + radius(n) * .3 }; return;
     }
     a.action = "Following damp or refuse scent"; chooseNeighbor(s, a, n, "clean"); return;
   }
@@ -323,13 +380,13 @@ function signals(s: Colony) {
     const density = nearby / (n.room === "tunnel" ? 4 : n.size * 14);
     const emission: Record<Scent, number> = {
       home: n.id === 0 ? 1 : 0, store: n.room === "food" ? Math.max(0, 1 - n.food / (n.size * 55)) : 0,
-      food: Math.min(1, n.food / 12), brood: Math.min(1.5, localBrood.filter(b => b.fed < 3 || b.care < 16).length * .3 + (n.room === "queen" ? s.queenHunger : 0)),
-      nursery: n.room === "nursery" ? Math.max(0, 1 - localBrood.length / 12) : 0,
-      work: n.excavation ? 1 : 0, clean: Math.min(1, n.waste * 3 + n.water * 4), crowd: Math.min(2, density),
+      food: Math.min(1, n.food / 12), brood: Math.min(1.5, localBrood.filter(b => b.fed < foodNeeded(b) || b.care < careNeeded(b)).length * .3 + (n.room === "queen" ? s.queenHunger : 0)),
+      nursery: n.room === "nursery" && n.water <= .3 ? Math.max(0, 1 - localBrood.length / nurserySlots(n)) : 0,
+      work: n.excavation || adjacent(s, n).some(p => blockedBetween(n, p)) ? 1 : 0, clean: Math.min(1, n.waste * 3 + n.water * 4), crowd: Math.min(2, density),
     };
-    const adjacent = s.nest.flatMap((p, j) => p.parent === n.id || p.id === n.parent ? [j] : []);
+    const adjacentIndices = s.nest.flatMap((p, j) => (p.parent === n.id || p.id === n.parent) && !blockedBetween(n, p) ? [j] : []);
     for (const cue of SCENTS) {
-      const neighbor = Math.max(0, ...adjacent.map(j => previous[j][cue])) * .82;
+      const neighbor = Math.max(0, ...adjacentIndices.map(j => previous[j][cue])) * .82;
       const target = Math.max(emission[cue], neighbor);
       n.scent[cue] += (target - n.scent[cue]) * DT * (cue === "crowd" ? .6 : 1.6);
     }
@@ -342,7 +399,7 @@ function water(s: Colony) {
   const transfers = s.nest.map(() => 0);
   for (let i = 0; i < s.nest.length; i++) {
     const n = s.nest[i]; if (levels[i] <= .01) continue;
-    const downhill = s.nest.map((p, j) => ({ p, j })).filter(({ p }) => (p.parent === n.id || p.id === n.parent) && p.y > n.y + 4);
+    const downhill = s.nest.map((p, j) => ({ p, j })).filter(({ p }) => (p.parent === n.id || p.id === n.parent) && !blockedBetween(n, p) && p.y > n.y + 4);
     if (!downhill.length) continue;
     const amount = Math.min(levels[i], DT * .03);
     transfers[i] -= amount;
@@ -353,10 +410,10 @@ function water(s: Colony) {
 export function step(previous: Colony): Colony {
   if (previous.result !== "alive") return previous;
   const s: Colony = { ...previous, tick: previous.tick + 1,
-    ants: previous.ants.map(a => ({ ...a, cargo: a.cargo ? { ...a.cargo } : null, edge: a.edge ? { ...a.edge } : null, memory: [...a.memory] })),
+    ants: previous.ants.map(a => ({ ...a, cargo: a.cargo ? { ...a.cargo } : null, edge: a.edge ? { ...a.edge } : null, memory: [...a.memory], recent: [...a.recent], probe: a.probe ? { ...a.probe } : undefined })),
     brood: previous.brood.map(b => ({ ...b })), sources: previous.sources.map(f => ({ ...f })),
     nest: previous.nest.map(n => ({ ...n, scent: { ...n.scent }, excavation: n.excavation ? { ...n.excavation } : undefined })),
-    trail: previous.trail.slice(), totals: { ...previous.totals }, log: [...previous.log],
+    batch: previous.batch ? { ...previous.batch } : null, trail: previous.trail.slice(), totals: { ...previous.totals }, log: [...previous.log],
   };
   const evaporation = Math.exp(-DT / 22);
   for (let i = 0; i < s.trail.length; i++) s.trail[i] *= evaporation;
@@ -369,20 +426,40 @@ export function step(previous: Colony): Colony {
     if (a.hunger > .85 && a.cargo?.kind === "food") {
       a.cargo = null; a.hunger = Math.max(0, a.hunger - .6); s.totals.eaten++; a.rest = 1; a.action = "Eating a carried seed";
     }
+    a.waiting = a.action === "Store full · waiting for space or a digger" ? a.waiting + DT : 0;
+    a.recovery = Math.max(0, a.recovery - DT);
     if (a.rest > 0) { a.rest -= DT; continue; }
+    const before = { x: a.x, y: a.y };
     if (a.zone === "surface") surface(s, a); else nestBehavior(s, a);
+    a.stationary = distance(before, a) < .05 ? a.stationary + DT : 0;
+    if (a.stationary > 4 && !a.action.includes("Isolated") && !a.action.includes("Store full") && !a.action.startsWith("Resting")) {
+      a.local = null; a.probe = undefined; a.recovery = 5; a.stationary = 0; a.previous = -2;
+      a.action = "No progress · exploring another approach";
+      if (a.zone === "nest" && !a.edge) chooseNeighbor(s, a, s.nest.find(n => n.id === a.node)!, a.cargo ? "home" : "crowd");
+    }
   }
   for (const b of s.brood) {
-    b.age += DT; b.neglect += DT;
+    b.age += DT; b.neglect += DT * ((s.nest.find(n => n.id === b.node)?.water ?? 0) > .4 ? 3 : 1);
     if (b.carrier !== null) { const carrier = s.ants.find(a => a.id === b.carrier); if (carrier) { b.x = carrier.x; b.y = carrier.y; } }
   }
-  for (const b of [...s.brood]) if (b.carrier === null && b.node !== 3 && b.fed >= 3 && b.care >= 16 && b.age >= 45) {
+  for (const b of [...s.brood]) if (b.carrier === null && b.node !== 3 && b.fed >= foodNeeded(b) && b.care >= careNeeded(b) && b.age >= hatchAge(b) && (s.nest.find(n => n.id === b.node)?.water ?? 0) <= .3) {
     const ant = newAnt(s.nextAnt++, b.role, { id: b.node, x: b.x, y: b.y });
-    s.ants.push(ant); s.brood = s.brood.filter(other => other.id !== b.id); s.totals.hatched++;
-    journal(s, `A ${b.role} hatched where a nurse fed and tended its brood.`);
+    ant.bornAt = elapsed(s); s.ants.push(ant); s.brood = s.brood.filter(other => other.id !== b.id); s.totals.hatched++;
+    if (b.batch !== undefined && s.batch?.id === b.batch) {
+      s.batch.hatched++;
+      if (s.batch.hatched === s.batch.total) {
+        const text = `Batch ready: ${s.batch.total} new ${s.batch.role}s joined the colony.`;
+        journal(s, text); s.notice = { text, point: { x: b.x, y: b.y } };
+      }
+    } else journal(s, `A ${b.role} hatched where a nurse fed and tended its brood.`);
   }
   const neglected = s.brood.filter(b => b.neglect > 150 && b.carrier === null);
-  if (neglected.length) { s.brood = s.brood.filter(b => !neglected.includes(b)); journal(s, "Neglected brood died without enough nurse visits."); }
+  if (neglected.length) {
+    s.brood = s.brood.filter(b => !neglected.includes(b)); journal(s, "Neglected brood died without enough nurse visits.");
+    if (s.batch && neglected.some(b => b.batch === s.batch!.id) && !s.brood.some(b => b.batch === s.batch!.id)) {
+      s.notice = { text: `Batch ended: ${s.batch.hatched} of ${s.batch.total} survived. Add nurses or keep the nursery dry next time.`, point: null };
+    }
+  }
   s.queenHunger += DT * .0015;
   const queen = s.nest.find(n => n.room === "queen")!;
   if (s.queenHunger > 1 || queen.waste > .6 || queen.water > .6) s.queenHealth = Math.max(0, s.queenHealth - DT * .35);
@@ -394,6 +471,11 @@ export function step(previous: Colony): Colony {
       s.brood.push({ id, role: s.nextRole, node: queen.id, carrier: null, x: queen.x - 10 + id % 3 * 8, y: queen.y + 10, fed: 0, care: 0, age: 0, neglect: 0 });
     }
     s.eggClock = 12;
+  }
+  for (const n of s.nest) if (n.playerFlood && n.water <= .3) {
+    n.playerFlood = false;
+    const text = "Flood subsided. This chamber is usable again.";
+    journal(s, text); s.notice = { text, point: { x: n.x, y: n.y } };
   }
   const dying = s.ants.filter(a => a.hunger > 1.5);
   for (const a of dying) {
