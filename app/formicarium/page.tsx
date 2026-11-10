@@ -3,8 +3,8 @@ import { experimentBody, experimentDisplay } from "@/app/experiment-fonts";
 import Game from "./game";
 
 export const metadata: Metadata = {
-  title: "Formicarium — An ant colony survival game",
-  description: "Choose new brood and watch individual ants forage, follow pheromones, tend larvae, and excavate a living colony.",
+  title: "Formicarium — An ant colony sandbox",
+  description: "Raise batches of workers, place food, and test an ant colony with floods and blocked passages.",
 };
 
 export default function Page() {

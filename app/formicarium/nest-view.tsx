@@ -3,7 +3,8 @@
 import { Colony, rainy } from "./simulation";
 import { memo } from "react";
 import AntLayer from "./ant-layer";
-import { chamberPath, noise, radius, tunnelPath } from "./nest";
+import type { Tool } from "./sandbox";
+import { chamberPath, noise, Point, radius, tunnelPath, tunnelPoint } from "./nest";
 import styles from "./game.module.css";
 
 const tones = { tunnel: "#aa805a", queen: "#edb86b", food: "#b5bf76", nursery: "#ddd5b5" };
@@ -84,8 +85,8 @@ const Habitat = memo(function Habitat({ wet }: { wet: boolean }) {
   </>;
 });
 
-export default function NestView({ colony, selected, onSelect, zoom, signals }: {
-  colony: Colony; selected: number; onSelect: (id: number) => void; zoom: boolean; signals: boolean;
+export default function NestView({ colony, selected, onSelect, zoom, signals, tool, onInteract }: {
+  colony: Colony; selected: number; onSelect: (id: number) => void; zoom: boolean; signals: boolean; tool: Tool; onInteract: (point: Point) => void;
 }) {
   const wet = rainy(colony);
   const nodes = colony.nest;
@@ -114,6 +115,11 @@ export default function NestView({ colony, selected, onSelect, zoom, signals }: 
       {n.room === "queen" && <g transform={`translate(${n.x} ${n.y}) rotate(-12)`}><Ant queen/></g>}
     </g>)}</g>
     <g pointerEvents="none">{nodes.filter(n => n.water > .01).map(n => <g key={n.id} transform={`translate(${n.x} ${n.y})`}><ellipse cy="5" rx={Math.max(6, radius(n) * .8)} ry={Math.min(radius(n) * .5, n.water * 35)} fill="url(#water)" opacity=".8"/></g>)}</g>
+    <g pointerEvents="none">{nodes.filter(n => n.blocked && n.parent !== null).map(n => {
+      const p = tunnelPoint(nodes.find(parent => parent.id === n.parent)!, n, n.id, .5);
+      return <g key={n.id} data-blocked-passage={n.id} transform={`translate(${p.x} ${p.y})`}><path d="M-11 -4l5 -8 9 2 8 6 -1 10 -8 5 -12 -4Z" fill="#a98a66" stroke="#e1c29b" strokeWidth="1"/><path d="M-8 1l7 -7 7 6m-7 -6l1 12" stroke="#705b42" strokeWidth="1.5" fill="none"/><text y="-17" fontSize="10" textAnchor="middle" fill="#f1d39c">{Math.ceil(n.blocked!)} rubble</text></g>;
+    })}</g>
+    <g pointerEvents="none">{nodes.filter(n => (n.spoil ?? 0) > 0).map(n => <g key={n.id}>{Array.from({ length: Math.min(10, n.spoil ?? 0) }, (_, i) => <ellipse key={i} cx={n.x - 8 + i % 4 * 5} cy={n.y + 7 + Math.floor(i / 4) * 3} rx="3" ry="2" fill="#b19a72"/>)}</g>)}</g>
     <g pointerEvents="none">{colony.sources.map(source => <g key={source.id} transform={`translate(${source.x} ${source.y})`}>
       <ellipse cy="4" rx="18" ry="8" fill="#151e13" opacity=".4"/>
       {Array.from({ length: Math.min(20, Math.ceil(source.amount / 12)) }, (_, k) => <ellipse key={k} cx={(noise(k) - .5) * 27} cy={(noise(k + 11) - .5) * 13} rx="3.4" ry="2" fill="url(#seed)" transform={`rotate(${k * 27} ${(noise(k) - .5) * 27} ${(noise(k + 11) - .5) * 13})`}/>)}
@@ -125,5 +131,9 @@ export default function NestView({ colony, selected, onSelect, zoom, signals }: 
     <rect width="960" height="660" fill="url(#vignette)" pointerEvents="none"/>
     <g fill="#decda8" opacity=".65" fontSize="8" letterSpacing="2" pointerEvents="none"><text x="24" y="636">80 CM DEPTH</text><path d="M854 631h80m-80 -3v6m80 -6v6" stroke="#decda8" strokeWidth=".7"/><text x="894" y="621" textAnchor="middle">10 CM</text></g>
 
-  </svg><AntLayer colony={colony} selected={selected} onSelect={onSelect} signals={signals} view={view}/></div>;
+    {tool === "food" && <g pointerEvents="none"><rect x="5" y="108" width="950" height="66" rx="8" fill="#c0d486" fillOpacity=".1" stroke="#ccdd9b" strokeWidth="1" strokeDasharray="5 7"/>{nodes.filter(n => n.room === "food").map(n => <path key={n.id} d={chamberPath(n)} fill="#c0d48622" stroke="#ccdd9b" strokeWidth="2"/>)}</g>}
+    {tool === "water" && <g pointerEvents="none">{nodes.filter(n => n.room !== "tunnel").map(n => <path key={n.id} d={chamberPath(n)} fill="#93ccdc22" stroke="#a4dce4" strokeWidth="2" strokeDasharray="4 5"/>)}</g>}
+    {tool === "passage" && <g pointerEvents="none">{edges.map(edge => <path key={edge.id} d={edge.path} stroke="#e0bc83" strokeWidth="3" strokeDasharray="4 5" fill="none"/>)}</g>}
+    {colony.notice?.point && <circle pointerEvents="none" cx={colony.notice.point.x} cy={colony.notice.point.y} r="21" fill="none" stroke="#e5d3a2" strokeWidth="1" strokeDasharray="2 5" opacity=".75"/>}
+  </svg><AntLayer colony={colony} selected={selected} onSelect={onSelect} signals={signals} view={view} tool={tool} onInteract={onInteract}/></div>;
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { Ant, Colony, FIELD_COLS, Role, ROLES } from "./simulation";
+import { Ant, Colony, FIELD_COLS, Role, ROLES, elapsed } from "./simulation";
+import { Point } from "./nest";
+import type { Tool } from "./sandbox";
 import styles from "./game.module.css";
 
 const colors: Record<Role, string> = { forager: "#bfcc80", nurse: "#dbc6b4", digger: "#dda365", cleaner: "#88bcb7" };
@@ -38,8 +40,8 @@ function glow() {
   ctx.fillStyle = g; ctx.fillRect(0, 0, 32, 32); return canvas;
 }
 
-export default function AntLayer({ colony, selected, onSelect, signals, view }: {
-  colony: Colony; selected: number; onSelect: (id: number) => void; signals: boolean; view: string;
+export default function AntLayer({ colony, selected, onSelect, signals, view, tool, onInteract }: {
+  colony: Colony; selected: number; onSelect: (id: number) => void; signals: boolean; view: string; tool: Tool; onInteract: (point: Point) => void;
 }) {
   const ready = useSyncExternalStore(subscribe, clientReady, serverReady);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -77,6 +79,7 @@ export default function AntLayer({ colony, selected, onSelect, signals, view }: 
         const before = r.previous.get(a.id) ?? a;
         const x = before.x + (a.x - before.x) * t; const y = before.y + (a.y - before.y) * t;
         if (x < vx - 20 || x > vx + vw + 20 || y < vy - 20 || y > vy + vh + 20) continue;
+        if (a.bornAt !== undefined && elapsed(r.colony) - a.bornAt < 6) { ctx.strokeStyle = colors[a.role]; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.stroke(); }
         if (a.id === r.selected) { ctx.strokeStyle = "#efdca7"; ctx.fillStyle = "#efdca711"; ctx.lineWidth = .8; ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
         const angle = Math.atan2(Math.sin(a.angle - before.angle), Math.cos(a.angle - before.angle));
         ctx.save(); ctx.translate(x, y); ctx.rotate(before.angle + angle * t); ctx.drawImage(images.get(`${a.role}-${a.cargo?.kind ?? "none"}`)!, -20, -16, 40, 32); ctx.restore();
@@ -90,12 +93,14 @@ export default function AntLayer({ colony, selected, onSelect, signals, view }: 
   const pick = (x: number, y: number) => {
     const bounds = canvas.current!.getBoundingClientRect(); const [vx, vy, vw, vh] = view.split(" ").map(Number);
     const world = { x: vx + (x - bounds.left) / bounds.width * vw, y: vy + (y - bounds.top) / bounds.height * vh };
+    if (tool !== "observe") { onInteract(world); return; }
     let closest: Ant | null = null; let best = 18;
     for (const a of colony.ants) { const d = Math.hypot(world.x - a.x, world.y - a.y); if (d < best) { closest = a; best = d; } }
     if (closest) onSelect(closest.id);
   };
   if (!ready) return null;
-  return <canvas ref={canvas} className={styles.antCanvas} tabIndex={0} role="img" aria-label={`Live colony of ${colony.ants.length} individual ants. Select an ant with the pointer or use arrow keys to follow ants.`} data-ant-count={colony.ants.length} data-selected-x={focus?.x.toFixed(2)} data-selected-y={focus?.y.toFixed(2)} data-selected-cargo={focus?.cargo?.kind ?? "none"} onClick={e => pick(e.clientX, e.clientY)} onKeyDown={e => {
+  return <canvas ref={canvas} className={styles.antCanvas} tabIndex={0} role="img" aria-label={tool === "observe" ? `Live colony of ${colony.ants.length} individual ants. Select an ant with the pointer or use arrow keys to follow ants.` : `${tool} tool active. Tap the habitat or use the intervention target control.`} data-ant-count={colony.ants.length} data-selected-x={focus?.x.toFixed(2)} data-selected-y={focus?.y.toFixed(2)} data-selected-cargo={focus?.cargo?.kind ?? "none"} onClick={e => pick(e.clientX, e.clientY)} onKeyDown={e => {
+    if (tool !== "observe") return;
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
       e.preventDefault(); const index = colony.ants.findIndex(a => a.id === selected); const direction = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
       const next = colony.ants[(index + direction + colony.ants.length) % colony.ants.length]; if (next) onSelect(next.id);
