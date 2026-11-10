@@ -5,13 +5,13 @@ import { distance, tunnelPoint } from "./nest";
 function advance(s, ticks) { for (let i = 0; i < ticks; i++) s = step(s); return s; }
 const midpoint = (s, id) => { const n = s.nest.find(n => n.id === id); return tunnelPoint(s.nest.find(p => p.id === n.parent), n, id, .5); };
 function isolated(role, id) {
-  const s = createColony(); s.brood = []; s.eggClock = 10000; s.ants = [newAnt(0, role, s.nest[id])]; s.ants[0].rest = 0; s.ants[0].hunger = 0; return s;
+  const s = createColony(731, false); s.brood = []; s.eggClock = 10000; s.ants = [newAnt(0, role, s.nest[id])]; s.ants[0].rest = 0; s.ants[0].hunger = 0; return s;
 }
 const soilMass = s => s.nest.reduce((sum, n) => sum + (n.blocked ?? 0) + (n.spoil ?? 0), 0) + s.ants.reduce((sum, a) => sum + (a.cargo?.kind === "soil" ? a.cargo.amount : 0), 0) + s.totals.soil;
 
 describe("brood batches", () => {
   test("preparing a fed batch costs food and preserves every adult role", () => {
-    const before = createColony(); const snapshot = globalThis.structuredClone(before);
+    const before = createColony(731, false); const snapshot = globalThis.structuredClone(before);
     const s = prepareBatch(before, "cleaner");
     expect(before).toEqual(snapshot); expect(s.ants).toEqual(before.ants);
     expect(storedFood(s)).toBe(storedFood(before) - BATCH_FOOD);
@@ -22,7 +22,7 @@ describe("brood batches", () => {
     expect(storedFood(denied)).toBe(storedFood(s)); expect(denied.brood).toHaveLength(s.brood.length);
   });
   test("a tended batch changes the chosen caste within a short play interval", () => {
-    let s = prepareBatch(createColony(), "cleaner"); const start = s.ants.filter(a => a.role === "cleaner").length;
+    let s = prepareBatch(createColony(731, false), "cleaner"); const start = s.ants.filter(a => a.role === "cleaner").length;
     s.nextRole = "digger";
     s = advance(s, 280);
     expect(batchStatus(s).hatched).toBe(BATCH_SIZE);
@@ -30,12 +30,12 @@ describe("brood batches", () => {
     expect(s.ants.filter(a => a.role === "forager")).toHaveLength(40);
   });
   test("elapsed time alone cannot hatch a batch without nurses", () => {
-    let s = prepareBatch(createColony(), "digger");
+    let s = prepareBatch(createColony(731, false), "digger");
     s.ants = s.ants.filter(a => a.role !== "nurse"); s = advance(s, 500);
     expect(batchStatus(s).hatched).toBe(0); expect(batchStatus(s).remaining).toBe(12);
   });
   test("raising diggers resolves a blockage that a colony without diggers cannot clear", () => {
-    let s = createColony(); s.ants = s.ants.filter(a => a.role !== "digger"); s.brood = []; s.eggClock = 10000;
+    let s = createColony(731, false); s.ants = s.ants.filter(a => a.role !== "digger"); s.brood = []; s.eggClock = 10000;
     s = intervene(s, "passage", midpoint(s, 1)); s = advance(s, 600);
     expect(s.nest[1].blocked).toBe(12);
     s = prepareBatch(s, "digger"); s = advance(s, 1000);
@@ -44,9 +44,9 @@ describe("brood batches", () => {
     expect(s.notice.text).toContain("cleared a blocked passage");
   });
   test("food and dry nursery capacity are required, and flooding delays ready brood", () => {
-    let s = createColony(); s.nest[4].food = 0;
+    let s = createColony(731, false); s.nest[4].food = 0;
     expect(batchProblem(s)).toContain("stored food");
-    s = createColony(); s = intervene(s, "water", s.nest[5]);
+    s = createColony(731, false); s = intervene(s, "water", s.nest[5]);
     expect(batchProblem(s)).toContain("dry nursery");
     s = intervene(s, "water", s.nest[5]); s = prepareBatch(s, "cleaner");
     s.ants = s.ants.filter(a => a.role === "forager"); s.ants.forEach(a => { a.rest = 100; });
@@ -60,7 +60,7 @@ describe("brood batches", () => {
 
 describe("sandbox interventions", () => {
   test("food patches merge locally, manual store aid is capped, and deliveries get no fake credit", () => {
-    const start = createColony();
+    const start = createColony(731, false);
     const added = intervene(start, "food", { x: 300, y: 145 });
     expect(added.sources).toHaveLength(start.sources.length + 1); expect(start.sources).toHaveLength(4);
     expect(added.totals.addedFood).toBe(60); expect(added.totals.delivered).toBe(0);
@@ -72,7 +72,7 @@ describe("sandbox interventions", () => {
     expect(intervene(start, "food", { x: 500, y: 600 }).notice.text).toContain("forest floor");
   });
   test("manual flooding and draining account separately from cleaner work", () => {
-    const start = createColony(); const flooded = intervene(start, "water", start.nest[4]);
+    const start = createColony(731, false); const flooded = intervene(start, "water", start.nest[4]);
     expect(start.nest[4].water).toBe(0); expect(flooded.nest[4].water).toBe(.8);
     expect(flooded.totals.addedWater).toBe(.8); expect(flooded.totals.water).toBe(0);
     const drained = intervene(flooded, "water", flooded.nest[4]);

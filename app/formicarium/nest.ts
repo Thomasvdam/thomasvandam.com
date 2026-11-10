@@ -1,4 +1,4 @@
-export type Scent = "home" | "store" | "food" | "brood" | "nursery" | "work" | "clean" | "crowd";
+export type Scent = "home" | "store" | "food" | "brood" | "nursery" | "work" | "clean" | "crowd" | "alarm";
 export type Room = "tunnel" | "queen" | "food" | "nursery";
 export type NestNode = { id: number; parent: number | null; x: number; y: number; room: Room; size: number; water: number; traffic: number; food: number; waste: number; scent: Record<Scent, number>; blocked?: number; playerFlood?: boolean; spoil?: number; excavation?: { angle: number; remaining: number; dug: number } };
 export type Point = { x: number; y: number };

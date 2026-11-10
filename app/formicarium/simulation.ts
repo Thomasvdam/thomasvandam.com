@@ -1,6 +1,7 @@
+import { Stone, surfaceMove } from "./surface";
 import { distance, NestNode, noise, Point, radius, Scent, segmentDistance, tunnelPoint } from "./nest";
-export type Role = "forager" | "nurse" | "digger" | "cleaner";
-export const ROLES: Role[] = ["forager", "nurse", "digger", "cleaner"];
+export type Role = "forager" | "nurse" | "digger" | "cleaner" | "soldier";
+export const ROLES: Role[] = ["forager", "nurse", "digger", "cleaner", "soldier"];
 export const DT = .05;
 export const BATCH_SIZE = 12;
 export const BATCH_FOOD = 12;
@@ -8,10 +9,11 @@ export const BATCH_SECONDS = 12;
 export const FIELD_COLS = 96;
 export const FIELD_ROWS = 18;
 export const ENTRANCE: Point = { x: 450, y: 175 };
+export const RIVAL_HOME: Point = { x: 890, y: 175 };
 export const DUMP: Point = { x: 365, y: 170 };
 export type Cargo = { kind: "food" | "soil" | "water" | "waste" | "brood"; amount: number; brood?: number };
 export type Ant = Point & {
-  id: number; role: Role; angle: number; zone: "nest" | "surface"; node: number; previous: number;
+  id: number; role: Role; team: "home" | "rival"; health: number; fighting: boolean; reportNest: boolean; raid: boolean; angle: number; zone: "nest" | "surface"; node: number; previous: number;
   edge: { from: number; to: number; t: number } | null; local: Point | null;
   cargo: Cargo | null; memory: Point[]; returning: boolean; explored: number;
   probe?: Point & { angle: number; anchor: number };
@@ -19,18 +21,22 @@ export type Ant = Point & {
   hunger: number; rest: number; stationary: number; waiting: number; recovery: number; recent: number[]; action: string; speed: number;
 };
 export type Brood = Point & { id: number; role: Role; node: number; carrier: number | null; fed: number; care: number; age: number; neglect: number; batch?: number };
-export type FoodSource = Point & { id: number; amount: number; initial: number };
+export type FoodSource = Point & { id: number; amount: number; initial: number; lifted?: boolean };
 export type Colony = {
   tick: number; seed: number; nest: NestNode[]; ants: Ant[]; brood: Brood[]; sources: FoodSource[];
+  alarm: Float32Array; stones: Stone[]; held: { kind: "food" | "stone"; id: number } | null;
+  effects: (Point & { kind: "wash" | "strike"; until: number })[];
+  fallen: (Point & { team: "home" | "rival"; until: number })[];
+  rival: { enabled: boolean; ants: Ant[]; trail: Float32Array; raidTrail: Float32Array; stored: number; delivered: number; eaten: number; broodFood: number; alert: number; nestDiscovered: boolean; nextAnt: number; broodClock: number; defeated: number; stolen: number };
   trail: Float32Array; nextRole: Role; nextAnt: number; nextBrood: number; nextNode: number;
   nextBatch: number; batch: { id: number; role: Role; total: number; hatched: number; started: number } | null;
   notice: { text: string; point: Point | null } | null;
   eggClock: number; queenHealth: number; queenHunger: number; result: "alive" | "lost";
-  totals: { delivered: number; eaten: number; fed: number; hatched: number; soil: number; waste: number; water: number; rain: number; addedFood: number; addedWater: number; drained: number; preparedFood: number };
+  totals: { delivered: number; eaten: number; fed: number; hatched: number; soil: number; waste: number; water: number; rain: number; addedFood: number; addedWater: number; drained: number; preparedFood: number; casualties: number; strikes: number };
   log: { time: number; text: string }[];
 };
-const SCENTS: Scent[] = ["home", "store", "food", "brood", "nursery", "work", "clean", "crowd"];
-export const emptyScents = (): Record<Scent, number> => ({ home: 0, store: 0, food: 0, brood: 0, nursery: 0, work: 0, clean: 0, crowd: 0 });
+const SCENTS: Scent[] = ["home", "store", "food", "brood", "nursery", "work", "clean", "crowd", "alarm"];
+export const emptyScents = (): Record<Scent, number> => ({ home: 0, store: 0, food: 0, brood: 0, nursery: 0, work: 0, clean: 0, crowd: 0, alarm: 0 });
 export const elapsed = (s: Colony) => s.tick * DT;
 export const rainy = (s: Colony) => elapsed(s) >= 150 && elapsed(s) % 180 < 28;
 export const storedFood = (s: Colony) => s.nest.reduce((sum, n) => sum + n.food, 0);
@@ -40,11 +46,146 @@ const random = (s: Colony) => { s.seed = (Math.imul(s.seed, 1664525) + 101390422
 const journal = (s: Colony, text: string) => { s.log = [{ time: elapsed(s), text }, ...s.log].slice(0, 16); };
 const nodeAt = (s: Colony, id: number): Point => id === -1 ? ENTRANCE : s.nest.find(n => n.id === id)!;
 export function newAnt(id: number, role: Role, n: Point & { id?: number }, zone: Ant["zone"] = "nest"): Ant {
-  return { id, role, x: n.x, y: n.y, angle: noise(id + 31) * Math.PI * 2, zone, node: n.id ?? 0, previous: -2,
+  return { id, role, team: "home", health: role === "soldier" ? 3.2 : 1.2, fighting: false, reportNest: false, raid: false, x: n.x, y: n.y, angle: noise(id + 31) * Math.PI * 2, zone, node: n.id ?? 0, previous: -2,
     edge: null, local: null, cargo: null, memory: zone === "surface" ? [{ ...ENTRANCE }] : [], returning: false, explored: 0,
     hunger: noise(id + 71) * .5, rest: noise(id + 51), stationary: 0, waiting: 0, recovery: 0, recent: [], action: role === "forager" ? "Exploring" : "Sensing nearby signals", speed: 27 + noise(id + 13) * 10 };
 }
-export function createColony(seed = 731): Colony {
+function cloneAnt(a: Ant): Ant {
+  return { ...a, edge: a.edge ? { ...a.edge } : null, local: a.local ? { ...a.local } : null, cargo: a.cargo ? { ...a.cargo } : null, memory: [...a.memory], probe: a.probe ? { ...a.probe } : undefined, recent: [...a.recent] };
+}
+export function newRival(id: number, role: Role, point: Point = RIVAL_HOME): Ant {
+  const a = newAnt(id, role, point, "surface");
+  a.team = "rival"; a.angle = Math.PI; a.memory = [{ ...RIVAL_HOME }]; a.action = "Scouting for the rival colony";
+  return a;
+}
+function returnTarget(s: Colony, a: Ant, home: Point) {
+  // A stone can cover an old breadcrumb. Skip only waypoints obstructed by a
+  // stone the ant can currently sense, so a moved obstacle cannot trap its memory.
+  while (a.memory.length > 1 && s.stones.some(o => !o.lifted && distance(a, o) < o.radius + 40 && distance(a.memory.at(-1)!, o) < o.radius + 3)) a.memory.pop();
+  return a.memory.at(-1) ?? home;
+}
+function rivalSurface(s: Colony, a: Ant) {
+  if (a.cargo || a.returning || a.reportNest) {
+    a.action = a.reportNest ? "Carrying a nest-discovery trail home" : a.cargo ? "Carrying a seed to the rival nest" : "Returning to the rival nest";
+    const k = fieldIndex(a.x, a.y);
+    if (a.cargo?.kind === "food") s.rival.trail[k] = Math.min(6, s.rival.trail[k] + DT * 1.5);
+    if (a.reportNest) s.rival.raidTrail[k] = Math.min(6, s.rival.raidTrail[k] + DT * 3);
+    const target = returnTarget(s, a, RIVAL_HOME);
+    if (!surfaceMove(a, target, s.stones, DT)) return;
+    if (a.memory.length) { a.memory.pop(); return; }
+    if (a.reportNest) {
+      s.rival.alert = 1; s.rival.nestDiscovered = true;
+      journal(s, "A scout reached the rival nest with your entrance's scent. Raiders can now follow its trail.");
+    }
+    if (a.cargo?.kind === "food") { s.rival.stored += a.cargo.amount; s.rival.delivered += a.cargo.amount; a.cargo = null; }
+    if (a.hunger > .5 && s.rival.stored >= 1) { s.rival.stored--; s.rival.eaten++; a.hunger = Math.max(0, a.hunger - .6); }
+    a.reportNest = false; a.returning = false; a.explored = 0; a.memory = [{ ...RIVAL_HOME }]; a.angle = Math.PI; a.rest = .6;
+    a.raid = s.rival.alert > .1 && (a.role === "soldier" || noise(a.id) > .6);
+    return;
+  }
+  // Recruitment happens at the rival entrance, after a scout has physically returned.
+  if (distance(a, RIVAL_HOME) < 22 && s.rival.alert > .1 && (a.role === "soldier" || noise(a.id) > .6)) a.raid = true;
+  // The entrance odor is local: raiders approach the doorway only inside its plume.
+  if (distance(a, ENTRANCE) < 65) {
+    if (a.raid) { a.action = "Entering your colony's tunnels"; if (surfaceMove(a, ENTRANCE, s.stones, DT)) { a.reportNest = true; enterNest(a); } }
+    else { a.reportNest = true; a.returning = true; a.action = "Discovered an unfamiliar nest · returning to report"; }
+    return;
+  }
+  if (!a.raid && a.role === "forager") {
+    const food = s.sources.find(f => !f.lifted && f.amount > 0 && distance(a, f) < 14);
+    if (food) { food.amount--; a.cargo = { kind: "food", amount: 1 }; a.returning = true; return; }
+  }
+  if (a.hunger > .8) a.returning = true;
+  exploreSurface(s, a, a.raid ? s.rival.raidTrail : s.rival.trail);
+  if (a.raid) a.action = "Searching along the scout's invasion trail";
+  else if (a.role === "soldier") a.action = "Scouting the rival territory";
+}
+function guardSurface(s: Colony, a: Ant) {
+  if (distance(a, ENTRANCE) < 28 && s.nest[0].scent.alarm > .08) {
+    a.action = "Entering the nest after sensing an alarm at its doorway"; if (surfaceMove(a, ENTRANCE, s.stones, DT)) enterNest(a); return;
+  }
+  let strongest = .025; let target: Point | null = null;
+  // A soldier samples only the alarm within its own sensory radius.
+  for (let dx = -30; dx <= 30; dx += 10) for (let dy = -20; dy <= 20; dy += 10) {
+    const p = { x: a.x + dx, y: Math.max(108, Math.min(175, a.y + dy)) };
+    const value = s.alarm[fieldIndex(p.x, p.y)] / (1 + Math.hypot(dx, dy) / 45);
+    if (value > strongest) { strongest = value; target = p; }
+  }
+  if (target && distance(a, target) > 3) { a.action = "Following a nearby alarm pheromone"; surfaceMove(a, target, s.stones, DT); return; }
+  const patrol = { x: ENTRANCE.x + Math.cos(elapsed(s) * .16 + a.id * 2) * 65, y: 145 + Math.sin(elapsed(s) * .23 + a.id) * 17 };
+  a.action = "Patrolling around the nest entrance"; surfaceMove(a, patrol, s.stones, DT);
+}
+function canMeet(a: Ant, b: Ant) {
+  if (a.zone !== b.zone) return false;
+  if (a.zone === "surface") return true;
+  if (!a.edge && !b.edge) return a.node === b.node;
+  if (a.edge && b.edge) return (a.edge.from === b.edge.from && a.edge.to === b.edge.to) || (a.edge.from === b.edge.to && a.edge.to === b.edge.from);
+  const edge = (a.edge ?? b.edge)!; const other = a.edge ? b : a;
+  return edge.from === other.node || edge.to === other.node;
+}
+function raiseAlarm(s: Colony, a: Ant) {
+  if (a.zone === "surface") s.alarm[fieldIndex(a.x, a.y)] = Math.min(6, s.alarm[fieldIndex(a.x, a.y)] + DT * 6);
+  else {
+    const n = s.nest.find(n => n.id === (a.edge ? a.edge.t < .5 ? a.edge.from : a.edge.to : a.node));
+    if (n) n.scent.alarm = Math.min(4, n.scent.alarm + DT * 6);
+  }
+}
+function combat(s: Colony) {
+  const busy = new Set<number>(); const damage = new Map<number, number>();
+  const all = [...s.ants, ...s.rival.ants];
+  for (const a of all) a.fighting = false;
+  for (const a of all) {
+    if (a.health <= 0) continue;
+    const enemies = a.team === "home" ? s.rival.ants : s.ants;
+    let foe: Ant | undefined; let nearest = a.team === "home" ? a.role === "soldier" ? 42 : 24 : a.reportNest || a.cargo ? 24 : 9;
+    for (const b of enemies) if (b.health > 0 && canMeet(a, b)) {
+      const d = distance(a, b); if (d < nearest && !(a.zone === "surface" && s.stones.some(o => !o.lifted && segmentDistance(o, a, b) < o.radius))) { nearest = d; foe = b; }
+    }
+    if (!foe) continue;
+    if (a.team === "home") raiseAlarm(s, a);
+    if (nearest < 9) {
+      a.fighting = true; a.rest = 0; a.action = a.team === "home" ? "Biting an invader · releasing alarm" : "Fighting the defending colony";
+      a.angle = Math.atan2(foe.y - a.y, foe.x - a.x); busy.add(a.id);
+      damage.set(foe.id, (damage.get(foe.id) ?? 0) + DT * (a.role === "soldier" ? 1.1 : .12));
+    } else if (a.zone === "surface") {
+      if (a.role === "soldier" || (a.team === "rival" && a.raid && !a.cargo)) { surfaceMove(a, foe, s.stones, DT); a.action = "Approaching a nearby enemy"; }
+      else { surfaceMove(a, { x: a.x + (a.x - foe.x) * 2, y: a.y + (a.y - foe.y) * 2 }, s.stones, DT); a.action = "Retreating from an enemy · leaving alarm"; }
+      busy.add(a.id);
+    }
+  }
+  for (const a of all) { a.health = Math.max(0, a.health - (damage.get(a.id) ?? 0)); if (busy.has(a.id)) a.hunger += DT * (a.role === "soldier" ? .004 : .002); }
+  return busy;
+}
+function rivalBrood(s: Colony) {
+  if (!s.rival.enabled || !s.rival.ants.some(a => a.health > 0 && a.hunger <= 1.5)) return;
+  s.rival.broodClock -= DT;
+  if (s.rival.broodClock > 0) return;
+  if (s.rival.stored >= 8 && s.rival.ants.length < 48) {
+    s.rival.stored -= 8; s.rival.broodFood += 8;
+    for (const role of ["forager", "soldier"] as Role[]) if (s.rival.ants.length < 48) s.rival.ants.push(newRival(s.rival.nextAnt++, role));
+  }
+  s.rival.broodClock = 16;
+}
+export function dropCargo(s: Colony, a: Ant) {
+  if (!a.cargo) return;
+  const cargo = a.cargo;
+  const n = s.nest.find(n => n.id === (a.edge ? a.edge.t < .5 ? a.edge.from : a.edge.to : a.node)) ?? s.nest[0];
+  if (cargo.kind === "brood") {
+    const b = s.brood.find(b => b.id === cargo.brood);
+    if (b) { b.carrier = null; b.node = n.id; b.x = a.x; b.y = a.y; }
+  } else if (a.zone === "nest") {
+    if (cargo.kind === "food") n.food += cargo.amount;
+    else if (cargo.kind === "soil") n.spoil = (n.spoil ?? 0) + cargo.amount;
+    else n[cargo.kind === "water" ? "water" : "waste"] += cargo.amount;
+  } else if (cargo.kind === "food") {
+    const source = s.sources.find(f => !f.lifted && distance(a, f) < 15);
+    if (source) { source.amount += cargo.amount; source.initial += cargo.amount; }
+    else s.sources.push({ id: Math.max(-1, ...s.sources.map(f => f.id)) + 1, x: a.x, y: a.y, amount: cargo.amount, initial: cargo.amount });
+  } else if (cargo.kind === "soil" || cargo.kind === "water" || cargo.kind === "waste") s.totals[cargo.kind] += cargo.amount;
+  a.cargo = null;
+}
+
+export function createColony(seed = 731, rivals = true): Colony {
   const nest: NestNode[] = [
     { id: 0, parent: null, x: 450, y: 198, room: "tunnel", size: 1 },
     { id: 1, parent: 0, x: 464, y: 266, room: "tunnel", size: 1 },
@@ -55,10 +196,12 @@ export function createColony(seed = 731): Colony {
     { id: 6, parent: 2, x: 396, y: 469, room: "tunnel", size: 1 },
   ].map(n => ({ ...n, room: n.room as NestNode["room"], water: 0, traffic: 0, food: n.id === 4 ? 90 : 0, waste: 0, scent: emptyScents() }));
   const ants: Ant[] = [];
-  const initial: [Role, number][] = [["forager", 40], ["nurse", 16], ["digger", 24], ["cleaner", 16]];
+  const initial: [Role, number][] = [["forager", 40], ["nurse", 16], ["digger", 24], ["cleaner", 16], ["soldier", 2]];
   for (const [role, amount] of initial) for (let i = 0; i < amount; i++) {
     const id = ants.length;
-    if (role === "forager" && i < 40) {
+    if (role === "soldier" && i < 2) {
+      const a = newAnt(id, role, { x: 425 + i * 50, y: 164 }, "surface"); a.action = "Guarding the entrance"; ants.push(a);
+    } else if (role === "forager" && i < 40) {
       const a = newAnt(id, role, { x: 300 + noise(id + 21) * 300, y: 125 + noise(id + 9) * 47 }, "surface");
       a.angle = i % 2 ? 0 : Math.PI; ants.push(a);
     } else {
@@ -67,12 +210,15 @@ export function createColony(seed = 731): Colony {
     }
   }
   const brood: Brood[] = Array.from({ length: 4 }, (_, id) => ({ id, role: ROLES[id % 4], node: 5, carrier: null, x: 487.5 + id % 6 * 9, y: 420 + Math.floor(id / 6) * 8, fed: 0, care: 0, age: 20 + id * 3, neglect: 0 }));
-  return { tick: 0, seed, nest, ants, brood, sources: [
+  const rivalAnts = rivals ? Array.from({ length: 12 }, (_, i) => newRival(10000 + i, i < 8 ? "forager" : "soldier", { x: i === 0 ? 620 : 790 + i * 8, y: 140 + i % 3 * 10 })) : [];
+  return { tick: 0, seed, nest, ants, brood,
+    alarm: new Float32Array(FIELD_COLS * FIELD_ROWS), stones: [], held: null, effects: [], fallen: [],
+    rival: { enabled: rivals, ants: rivalAnts, trail: new Float32Array(FIELD_COLS * FIELD_ROWS), raidTrail: new Float32Array(FIELD_COLS * FIELD_ROWS), stored: 12, delivered: 0, eaten: 0, broodFood: 0, alert: 0, nestDiscovered: false, nextAnt: 10012, broodClock: 16, defeated: 0, stolen: 0 }, sources: [
     { id: 0, x: 220, y: 145, amount: 180, initial: 180 }, { id: 1, x: 740, y: 128, amount: 240, initial: 240 },
     { id: 2, x: 65, y: 115, amount: 300, initial: 300 }, { id: 3, x: 895, y: 158, amount: 200, initial: 200 },
   ], trail: new Float32Array(FIELD_COLS * FIELD_ROWS), nextRole: "forager", nextAnt: ants.length, nextBrood: 4, nextNode: 7, nextBatch: 1, batch: null, notice: null,
-    eggClock: 8, queenHealth: 100, queenHunger: 0, result: "alive", totals: { delivered: 0, eaten: 0, fed: 0, hatched: 0, soil: 0, waste: 0, water: 0, rain: 0, addedFood: 0, addedWater: 0, drained: 0, preparedFood: 0 },
-    log: [{ time: 0, text: "Add food, raise a batch, or test the colony with water and rubble. Workers react for themselves." }] };
+    eggClock: 8, queenHealth: 100, queenHunger: 0, result: "alive", totals: { delivered: 0, eaten: 0, fed: 0, hatched: 0, soil: 0, waste: 0, water: 0, rain: 0, addedFood: 0, addedWater: 0, drained: 0, preparedFood: 0, casualties: 0, strikes: 0 },
+    log: [{ time: 0, text: "A rival nest is exploring the forest floor. Protect your colony, reshape the terrain, or let the ants respond." }] };
 }
 function walk(a: Ant, p: Point, dt: number) {
   const d = distance(a, p); const move = a.speed * dt;
@@ -81,15 +227,17 @@ function walk(a: Ant, p: Point, dt: number) {
   a.x += (p.x - a.x) / d * move; a.y += (p.y - a.y) / d * move; return false;
 }
 function surface(s: Colony, a: Ant) {
+  if (a.team === "rival") { rivalSurface(s, a); return; }
+  if (a.role === "soldier" && !a.cargo && a.hunger <= .8) { guardSurface(s, a); return; }
   if (a.role !== "forager") {
     if (a.cargo) {
       a.action = `Carrying ${a.cargo.kind} outside`;
-      if (walk(a, DUMP, DT)) {
+      if (surfaceMove(a, DUMP, s.stones, DT)) {
         const kind = a.cargo.kind;
         if (kind === "soil" || kind === "waste" || kind === "water") s.totals[kind] += a.cargo.amount;
         a.cargo = null; a.returning = true;
       }
-    } else if (walk(a, ENTRANCE, DT)) enterNest(a);
+    } else if (surfaceMove(a, ENTRANCE, s.stones, DT)) enterNest(a);
     return;
   }
   if (a.hunger > .8 && !a.cargo) a.returning = true;
@@ -99,33 +247,37 @@ function surface(s: Colony, a: Ant) {
       const k = fieldIndex(a.x, a.y);
       s.trail[k] = Math.min(6, s.trail[k] + DT * 1.5);
     }
-    const target = a.memory[a.memory.length - 1] ?? ENTRANCE;
-    if (walk(a, target, DT)) {
+    const target = returnTarget(s, a, ENTRANCE);
+    if (surfaceMove(a, target, s.stones, DT)) {
       if (a.memory.length) a.memory.pop();
       else { a.returning = false; a.explored = 0; enterNest(a); }
     }
     return;
   }
   // Only sources within an ant's short sensory range are visible to it.
-  const found = s.sources.find(food => food.amount > 0 && distance(a, food) < 14);
+  const found = s.sources.find(food => !food.lifted && food.amount > 0 && distance(a, food) < 14);
   if (found) {
     found.amount--; a.cargo = { kind: "food", amount: 1 }; a.returning = true;
     if (found.amount === 0) journal(s, "A food patch is exhausted. Its unreplenished trail will fade.");
     return;
   }
-  const sense = (angle: number) => s.trail[fieldIndex(a.x + Math.cos(angle) * 13, a.y + Math.sin(angle) * 13)];
+  exploreSurface(s, a, s.trail);
+}
+function exploreSurface(s: Colony, a: Ant, field: Float32Array) {
+  const sense = (angle: number) => field[fieldIndex(a.x + Math.cos(angle) * 13, a.y + Math.sin(angle) * 13)];
   const forward = sense(a.angle); const left = sense(a.angle - .65); const right = sense(a.angle + .65);
   const following = Math.max(left, right, forward) > .035;
   if (following && random(s) > .12) {
     if (left > forward && left > right) a.angle -= .22;
     else if (right > forward) a.angle += .22;
     a.angle += (random(s) - .5) * .12;
-  } else a.angle += (random(s) - .5) * .48;
+  } else a.angle += (random(s) - .5) * (a.team === "rival" ? .16 : .48);
   a.action = following ? "Following a food pheromone trail" : "Exploring for food";
-  a.x += Math.cos(a.angle) * a.speed * DT; a.y += Math.sin(a.angle) * a.speed * DT;
-  if (a.x < 16 || a.x > 944) { a.angle = Math.PI - a.angle; a.x = Math.max(16, Math.min(944, a.x)); }
-  if (a.y < 108 || a.y > 175) { a.angle = -a.angle; a.y = Math.max(108, Math.min(175, a.y)); }
-  const last = a.memory[a.memory.length - 1] ?? ENTRANCE;
+  const heading = a.angle;
+  surfaceMove(a, { x: a.x + Math.cos(heading) * 20, y: a.y + Math.sin(heading) * 20 }, s.stones, DT);
+  if (a.x <= 16 || a.x >= 944) a.angle = Math.PI - a.angle;
+  if (a.y <= 108 || a.y >= 175) a.angle = -a.angle;
+  const last = a.memory[a.memory.length - 1] ?? (a.team === "rival" ? RIVAL_HOME : ENTRANCE);
   if (distance(a, last) > 10) a.memory.push({ x: a.x, y: a.y });
   a.explored += DT;
   if (a.explored > 55 || a.memory.length >= 250) a.returning = true;
@@ -151,15 +303,16 @@ function moveEdge(s: Colony, a: Ant) {
   const child = reverse ? edge.from : edge.to;
   const barrier = s.nest.find(n => n.id === child);
   const stop = Math.max(.05, .5 - 8 / Math.max(1, distance(from, to)));
-  if (barrier?.blocked && edge.t < .5 && nextT >= stop) {
-    if (a.role === "digger" && !a.cargo) {
+  const entranceBlocked = (edge.from === -1 || edge.to === -1) && s.stones.some(o => !o.lifted && distance(o, ENTRANCE) < o.radius + 4);
+  if ((barrier?.blocked || entranceBlocked) && edge.t < .5 && nextT >= stop) {
+    if (barrier?.blocked && a.team === "home" && a.role === "digger" && !a.cargo) {
       barrier.blocked = Math.max(0, barrier.blocked - 1); a.cargo = { kind: "soil", amount: 1 }; a.rest = .35;
       a.action = "Removing rubble from a blocked passage";
       if (!barrier.blocked) {
         const text = "Diggers cleared a blocked passage. Traffic can flow again.";
         journal(s, text); s.notice = { text, point: tunnelPoint(from, to, child, .5, reverse) };
       }
-    } else a.action = "Passage blocked · turning back";
+    } else a.action = entranceBlocked ? "Entrance obstructed by a stone · turning back" : "Passage blocked · turning back";
     a.edge = { from: edge.to, to: edge.from, t: 1 - edge.t }; a.local = null; a.previous = -2; a.recovery = 3;
     return;
   }
@@ -168,7 +321,7 @@ function moveEdge(s: Colony, a: Ant) {
   edge.t = nextT;
   if (edge.t >= 1) {
     a.previous = edge.from; a.node = edge.to; a.edge = null; a.recent = [...a.recent.slice(-5), a.node];
-    if (a.node === -1) { a.zone = "surface"; a.memory = [{ ...ENTRANCE }]; a.explored = 0; a.returning = false; a.angle = random(s) < .5 ? -.5 : Math.PI + .5; }
+    if (a.node === -1) { a.zone = "surface"; if (a.team === "home") a.memory = [{ ...ENTRANCE }]; a.explored = 0; a.returning = a.team === "rival" && !!a.cargo; a.angle = random(s) < .5 ? -.5 : Math.PI + .5; }
   }
 }
 function chooseNeighbor(s: Colony, a: Ant, n: NestNode, cue: Scent) {
@@ -307,11 +460,18 @@ function nestBehavior(s: Colony, a: Ant) {
   const n = s.nest.find(n => n.id === a.node)!;
   if (!n) return;
   if (a.local) { if (walk(a, a.local, DT)) a.local = null; return; }
+  if (a.team === "rival") {
+    if (n.room === "queen" && !a.cargo) { a.action = "Attacking the queen"; if (walk(a, n, DT)) s.queenHealth = Math.max(0, s.queenHealth - DT * 1.4); return; }
+    if (!a.cargo && n.food >= 1) { a.action = "Stealing a seed"; if (!walk(a, n, DT)) return; n.food--; a.cargo = { kind: "food", amount: 1 }; s.rival.stolen++; return; }
+    a.action = a.cargo ? "Escaping with stolen food" : "Following brood and food odors into the nest";
+    chooseNeighbor(s, a, n, a.cargo ? "home" : n.scent.brood > n.scent.food ? "brood" : "food"); return;
+  }
   if (a.hunger > .8 && n.food >= 1 && !a.cargo) {
     if (!walk(a, n, DT)) return;
     n.food--; a.hunger = Math.max(0, a.hunger - .6); n.waste += .02; s.totals.eaten++; a.rest = 1; a.action = "Eating stored food"; return;
   }
   if (a.hunger > .8 && !a.cargo) { a.action = "Following food scent to find a meal"; chooseNeighbor(s, a, n, "food"); return; }
+  if (a.role === "soldier") { a.action = n.scent.alarm > .02 ? "Following an alarm through the nest" : "Heading out to guard the entrance"; chooseNeighbor(s, a, n, n.scent.alarm > .02 ? "alarm" : "home"); return; }
   if (a.role === "forager") {
     if (a.cargo?.kind === "food" && n.room === "food" && n.food + a.cargo.amount <= Math.floor(n.size * 55)) {
       a.action = "Depositing food in the store";
@@ -382,7 +542,7 @@ function signals(s: Colony) {
       home: n.id === 0 ? 1 : 0, store: n.room === "food" ? Math.max(0, 1 - n.food / (n.size * 55)) : 0,
       food: Math.min(1, n.food / 12), brood: Math.min(1.5, localBrood.filter(b => b.fed < foodNeeded(b) || b.care < careNeeded(b)).length * .3 + (n.room === "queen" ? s.queenHunger : 0)),
       nursery: n.room === "nursery" && n.water <= .3 ? Math.max(0, 1 - localBrood.length / nurserySlots(n)) : 0,
-      work: n.excavation || adjacent(s, n).some(p => blockedBetween(n, p)) ? 1 : 0, clean: Math.min(1, n.waste * 3 + n.water * 4), crowd: Math.min(2, density),
+      work: n.excavation || adjacent(s, n).some(p => blockedBetween(n, p)) ? 1 : 0, alarm: 0, clean: Math.min(1, n.waste * 3 + n.water * 4), crowd: Math.min(2, density),
     };
     const adjacentIndices = s.nest.flatMap((p, j) => (p.parent === n.id || p.id === n.parent) && !blockedBetween(n, p) ? [j] : []);
     for (const cue of SCENTS) {
@@ -410,19 +570,27 @@ function water(s: Colony) {
 export function step(previous: Colony): Colony {
   if (previous.result !== "alive") return previous;
   const s: Colony = { ...previous, tick: previous.tick + 1,
-    ants: previous.ants.map(a => ({ ...a, cargo: a.cargo ? { ...a.cargo } : null, edge: a.edge ? { ...a.edge } : null, memory: [...a.memory], recent: [...a.recent], probe: a.probe ? { ...a.probe } : undefined })),
+    ants: previous.ants.map(cloneAnt),
     brood: previous.brood.map(b => ({ ...b })), sources: previous.sources.map(f => ({ ...f })),
     nest: previous.nest.map(n => ({ ...n, scent: { ...n.scent }, excavation: n.excavation ? { ...n.excavation } : undefined })),
+    rival: { ...previous.rival, ants: previous.rival.ants.map(cloneAnt), trail: previous.rival.trail.slice(), raidTrail: previous.rival.raidTrail.slice() },
+    alarm: previous.alarm.slice(), stones: previous.stones.map(o => ({ ...o })), effects: previous.effects.filter(e => e.until > elapsed(previous)), fallen: previous.fallen.filter(e => e.until > elapsed(previous)),
     batch: previous.batch ? { ...previous.batch } : null, trail: previous.trail.slice(), totals: { ...previous.totals }, log: [...previous.log],
   };
   const evaporation = Math.exp(-DT / 22);
-  for (let i = 0; i < s.trail.length; i++) s.trail[i] *= evaporation;
+  for (let i = 0; i < s.trail.length; i++) { s.trail[i] *= evaporation; s.alarm[i] *= Math.exp(-DT / 9); s.rival.trail[i] *= evaporation; s.rival.raidTrail[i] *= Math.exp(-DT / 40); }
+  s.rival.alert = Math.max(0, s.rival.alert - DT / 55);
   signals(s); water(s);
+  // Alarm escapes through the physical doorway; guards cannot sense remote rooms.
+  const doorway = fieldIndex(ENTRANCE.x, ENTRANCE.y);
+  s.alarm[doorway] = Math.min(6, s.alarm[doorway] + DT * s.nest[0].scent.alarm * 2);
+  const busy = combat(s);
   // Tick order rotates to avoid permanently favoring ants with lower ids.
   const start = s.tick % Math.max(1, s.ants.length);
   for (let i = 0; i < s.ants.length; i++) {
     const a = s.ants[(i + start) % s.ants.length];
-    a.hunger += DT * .002;
+    if (busy.has(a.id) || a.health <= 0) continue;
+    a.hunger += DT * (a.role === "soldier" ? .004 : .002);
     if (a.hunger > .85 && a.cargo?.kind === "food") {
       a.cargo = null; a.hunger = Math.max(0, a.hunger - .6); s.totals.eaten++; a.rest = 1; a.action = "Eating a carried seed";
     }
@@ -438,6 +606,13 @@ export function step(previous: Colony): Colony {
       if (a.zone === "nest" && !a.edge) chooseNeighbor(s, a, s.nest.find(n => n.id === a.node)!, a.cargo ? "home" : "crowd");
     }
   }
+  for (const a of s.rival.ants) {
+    if (busy.has(a.id) || a.health <= 0) continue;
+    a.hunger += DT * (a.role === "soldier" ? .004 : .002);
+    if (a.rest > 0) { a.rest -= DT; continue; }
+    if (a.zone === "surface") rivalSurface(s, a); else nestBehavior(s, a);
+  }
+  rivalBrood(s);
   for (const b of s.brood) {
     b.age += DT; b.neglect += DT * ((s.nest.find(n => n.id === b.node)?.water ?? 0) > .4 ? 3 : 1);
     if (b.carrier !== null) { const carrier = s.ants.find(a => a.id === b.carrier); if (carrier) { b.x = carrier.x; b.y = carrier.y; } }
@@ -477,18 +652,17 @@ export function step(previous: Colony): Colony {
     const text = "Flood subsided. This chamber is usable again.";
     journal(s, text); s.notice = { text, point: { x: n.x, y: n.y } };
   }
-  const dying = s.ants.filter(a => a.hunger > 1.5);
-  for (const a of dying) {
-    if (a.cargo?.kind === "brood") { const b = s.brood.find(b => b.id === a.cargo!.brood); if (b) { b.carrier = null; b.node = a.node; } }
-    // Lost cargo remains physically present inside its room.
-    const n = s.nest.find(n => n.id === a.node);
-    if (n && a.cargo?.kind === "food") n.food += a.cargo.amount;
-    if (n && a.cargo?.kind === "water") n.water += a.cargo.amount;
-    if (!n && a.cargo && (a.cargo.kind === "water" || a.cargo.kind === "soil" || a.cargo.kind === "waste")) s.totals[a.cargo.kind] += a.cargo.amount;
-    if (n) n.waste += .04;
-  }
-  if (dying.length) journal(s, `${dying.length} ${dying.length === 1 ? "ant starved" : "ants starved"} before reaching a meal.`);
-  s.ants = s.ants.filter(a => a.hunger <= 1.5);
+  const dying = s.ants.filter(a => a.hunger > 1.5 || a.health <= 0);
+  for (const a of dying) { dropCargo(s, a); s.fallen.push({ x: a.x, y: a.y, team: "home", until: elapsed(s) + 8 }); }
+  const killed = dying.filter(a => a.health <= 0).length;
+  if (killed) { s.totals.casualties += killed; journal(s, `${killed} ${killed === 1 ? "ant fell" : "ants fell"} defending the colony.`); }
+  const starved = dying.length - killed;
+  if (starved) journal(s, `${starved} ${starved === 1 ? "ant starved" : "ants starved"} before reaching a meal.`);
+  s.ants = s.ants.filter(a => a.hunger <= 1.5 && a.health > 0);
+  const lostRivals = s.rival.ants.filter(a => a.health <= 0 || a.hunger > 1.5);
+  for (const a of lostRivals) { dropCargo(s, a); s.fallen.push({ x: a.x, y: a.y, team: "rival", until: elapsed(s) + 8 }); }
+  s.rival.defeated += lostRivals.length;
+  s.rival.ants = s.rival.ants.filter(a => a.health > 0 && a.hunger <= 1.5);
   if (s.queenHealth <= 0 || !s.ants.length) { s.result = "lost"; journal(s, "The colony has fallen."); }
   return s;
 }

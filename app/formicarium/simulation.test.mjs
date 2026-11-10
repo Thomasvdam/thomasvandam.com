@@ -4,7 +4,7 @@ import { distance } from "./nest";
 
 function advance(s, ticks) { for (let i = 0; i < ticks; i++) s = step(s); return s; }
 function isolated(role = "forager", node = 6) {
-  const s = createColony(); s.brood = []; s.eggClock = 10000;
+  const s = createColony(731, false); s.brood = []; s.eggClock = 10000;
   s.ants = [newAnt(0, role, s.nest[node])]; s.ants[0].rest = 0; s.ants[0].hunger = 0;
   return s;
 }
@@ -74,7 +74,7 @@ describe("local foraging and transport", () => {
 
 describe("brood and fixed adult roles", () => {
   test("hatch choice applies to new eggs without changing existing ants or larvae", () => {
-    const s = createColony(); s.eggClock = 0; s.nextRole = "cleaner";
+    const s = createColony(731, false); s.eggClock = 0; s.nextRole = "cleaner";
     const next = step(s);
     expect(next.brood.at(-1).role).toBe("cleaner"); expect(next.brood.at(-1).node).toBe(3);
     expect(next.ants.map(a => a.role)).toEqual(s.ants.map(a => a.role));
@@ -155,7 +155,7 @@ describe("physical excavation and maintenance", () => {
 });
 
 test("a live colony delivers food, raises brood, and removes soil through its ants", () => {
-  const original = createColony();
+  const original = createColony(731, false);
   const snapshot = globalThis.structuredClone(original);
   let s = original;
   for (let i = 0; i < 1200; i++) {
