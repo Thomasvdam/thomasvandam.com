@@ -24,6 +24,7 @@ export type Ant = Point & {
 export type Brood = Point & { id: number; role: Role; node: number; carrier: number | null; fed: number; care: number; age: number; neglect: number; batch?: number };
 export type FoodSource = Point & { id: number; amount: number; initial: number; lifted?: boolean };
 export type Colony = {
+  gardenSurface?: boolean;
   tick: number; seed: number; nest: NestNode[]; ants: Ant[]; brood: Brood[]; sources: FoodSource[];
   alarm: Float32Array; stones: Stone[]; held: { kind: "food" | "stone"; id: number } | null;
   effects: (Point & { kind: "wash" | "strike"; until: number })[];
@@ -136,7 +137,7 @@ function combat(s: Colony) {
   const all = [...s.ants, ...s.rival.ants];
   for (const a of all) a.fighting = false;
   for (const a of all) {
-    if (a.health <= 0) continue;
+    if (a.health <= 0 || (s.gardenSurface && a.zone === "surface")) continue;
     const enemies = a.team === "home" ? s.rival.ants : s.ants;
     let foe: Ant | undefined; let nearest = a.team === "home" ? a.role === "soldier" ? 42 : 24 : a.reportNest || a.cargo ? 24 : 9;
     for (const b of enemies) if (b.health > 0 && canMeet(a, b)) {
@@ -601,13 +602,13 @@ export function step(previous: Colony): Colony {
   // Alarm escapes through the physical doorway; guards cannot sense remote rooms.
   const doorway = fieldIndex(ENTRANCE.x, ENTRANCE.y);
   s.alarm[doorway] = Math.min(6, s.alarm[doorway] + DT * s.nest[0].scent.alarm * 2);
-  for (const a of [...s.ants, ...s.rival.ants]) a.hunger += DT * hungerRate(a.role);
+  for (const a of [...s.ants, ...s.rival.ants]) a.hunger += DT * hungerRate(a.role) * (s.gardenSurface ? .2 : 1);
   const busy = combat(s);
   // Tick order rotates to avoid permanently favoring ants with lower ids.
   const start = s.tick % Math.max(1, s.ants.length);
   for (let i = 0; i < s.ants.length; i++) {
     const a = s.ants[(i + start) % s.ants.length];
-    if (busy.has(a.id) || a.health <= 0) continue;
+    if (busy.has(a.id) || a.health <= 0 || (s.gardenSurface && a.zone === "surface")) continue;
     if (seekMeal(s, a)) continue;
     a.waiting = a.action === "Store full · waiting for space or a digger" ? a.waiting + DT : 0;
     a.recovery = Math.max(0, a.recovery - DT);
@@ -622,7 +623,7 @@ export function step(previous: Colony): Colony {
     }
   }
   for (const a of s.rival.ants) {
-    if (busy.has(a.id) || a.health <= 0) continue;
+    if (busy.has(a.id) || a.health <= 0 || (s.gardenSurface && a.zone === "surface")) continue;
     if (seekMeal(s, a)) continue;
     if (a.rest > 0) { a.rest -= DT; continue; }
     if (a.zone === "surface") rivalSurface(s, a); else nestBehavior(s, a);
