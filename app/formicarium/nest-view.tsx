@@ -1,5 +1,6 @@
 "use client";
 
+import { nestPassages } from "./growth";
 import { Colony, rainy } from "./simulation";
 import { memo } from "react";
 import AntLayer from "./ant-layer";
@@ -85,17 +86,19 @@ const Habitat = memo(function Habitat({ wet }: { wet: boolean }) {
   </>;
 });
 
-export default function NestView({ colony, selected, onSelect, zoom, signals, tool, onInteract, undergroundOnly = false }: {
-  colony: Colony; selected: number; onSelect: (id: number) => void; zoom: boolean; signals: boolean; tool: Tool; onInteract: (point: Point) => void; undergroundOnly?: boolean;
+export default function NestView({ colony, selected, onSelect, zoom, signals, tool, onInteract, undergroundOnly = false, viewport }: {
+  colony: Colony; selected: number; onSelect: (id: number) => void; zoom: boolean; signals: boolean; tool: Tool; onInteract: (point: Point) => void; undergroundOnly?: boolean; viewport?: string;
 }) {
   const wet = rainy(colony);
   const nodes = colony.nest;
-  const edges = nodes.filter(n => n.parent !== null && (!n.excavation || n.excavation.dug > 0)).map(n => ({ id: n.id, path: tunnelPath(nodes.find(p => p.id === n.parent)!, n, n.id), width: 12 + n.traffic * 5 }));
+  const edges = nestPassages(nodes).map(p => ({ id: p.id, path: tunnelPath(nodes.find(n => n.id === p.from)!, nodes.find(n => n.id === p.to)!, p.id), width: 12 + Math.min(2, nodes.find(n => n.id === p.to)!.traffic) * 5 }));
   const focus = [...colony.ants, ...colony.rival.ants].find(a => a.id === selected) ?? colony.ants[0] ?? nodes[3];
-  const view = undergroundOnly ? "0 180 960 480" : zoom ? `${Math.max(0, Math.min(360, focus.x - 300))} ${Math.max(0, Math.min(247.5, focus.y - 206.25))} 600 412.5` : "0 0 960 660";
+  const view = viewport ?? (undergroundOnly ? "0 180 960 480" : zoom ? `${Math.max(0, Math.min(360, focus.x - 300))} ${Math.max(0, Math.min(247.5, focus.y - 206.25))} 600 412.5` : "0 0 960 660");
 
-  return <div className={styles.scene}><svg className={styles.nestArt}  viewBox={view} style={undergroundOnly ? { aspectRatio: "2 / 1" } : undefined} role="group" aria-label="Ant colony cutaway. Select an ant to follow its activity.">
+  return <div className={styles.scene}><svg className={styles.nestArt}  viewBox={view} style={undergroundOnly ? { aspectRatio: `${view.split(" ")[2]} / ${view.split(" ")[3]}` } : undefined} role="group" aria-label="Ant colony cutaway. Select an ant to follow its activity.">
     <Habitat wet={wet}/>
+    {undergroundOnly && <g pointerEvents="none"><rect y="175" width="2200" height="1500" fill="url(#earth)"/><rect y="175" width="2200" height="1500" fill="url(#earth-grain)"/>{[300, 520, 780, 1050, 1320, 1580].map(y => <path key={y} d={`M0 ${y}Q300 ${y - 40} 600 ${y + 10}T1200 ${y}T2200 ${y + 10}`} stroke="#b8976430" strokeWidth="3" fill="none"/>)}{Array.from({ length: 160 }, (_, k) => <ellipse key={k} cx={noise(k + 70) * 2200} cy={200 + noise(k + 770) * 1400} rx={3 + noise(k + 30) * 15} ry={2 + noise(k + 300) * 5} fill={k % 2 ? "#bba27c22" : "#202e2833"}/>)}{[120, 870, 1500, 1950].map((x, i) => <path key={x} d={`M${x} 175q-40 100 10 160t-20 140m20 -140q70 20 90 90m-90 40q-70 30 -80 100`} stroke="#baa57655" strokeWidth={i % 2 ? 2 : 3} fill="none"/>)}</g>}
+
     <g strokeLinecap="round" fill="none" strokeLinejoin="round">
       <path d="M450 175Q446 188 450 198" stroke="#b18b5e" strokeWidth="20"/>
       {edges.map(edge => <path key={edge.id} d={edge.path} stroke="#a37a52" strokeWidth={edge.width + 6} opacity=".65"/>)}
@@ -114,6 +117,8 @@ export default function NestView({ colony, selected, onSelect, zoom, signals, to
       {n.waste > .02 && Array.from({ length: Math.min(10, Math.ceil(n.waste * 20)) }, (_, k) => <ellipse key={k} cx={n.x - 14 + noise(k + 1) * 28} cy={n.y + 8 + noise(k + 7) * 5} rx="3" ry="2" fill="#a09473"/>)}
       {n.room === "queen" && <g transform={`translate(${n.x} ${n.y}) rotate(-12)`}><Ant queen/></g>}
     </g>)}</g>
+    <g pointerEvents="none">{nodes.filter(n => n.excavation).map(n => <g key={n.id} data-digging-face={n.id}><circle cx={n.x} cy={n.y} r="13" fill="#d6ac6e22" stroke="#e2be7b" strokeWidth="1" strokeDasharray="2 4"/>{Array.from({ length: 4 }, (_, k) => <circle key={k} cx={n.x + Math.cos(n.excavation!.angle + (k - 1.5) * .4) * 12} cy={n.y + Math.sin(n.excavation!.angle + (k - 1.5) * .4) * 12} r="1.5" fill="#d6ac6e"/>)}</g>)}</g>
+    <g pointerEvents="none">{nodes.filter(n => n.openedAt !== undefined && colony.tick * .05 - n.openedAt < 30).map(n => <path key={n.id} d={chamberPath(n)} fill="none" stroke="#c5d595" strokeWidth="1.5" opacity=".6"/>)}</g>
     <g pointerEvents="none">{nodes.filter(n => n.water > .01).map(n => <g key={n.id} transform={`translate(${n.x} ${n.y})`}><ellipse cy="5" rx={Math.max(6, radius(n) * .8)} ry={Math.min(radius(n) * .5, n.water * 35)} fill="url(#water)" opacity=".8"/></g>)}</g>
     <g pointerEvents="none">{nodes.filter(n => n.blocked && n.parent !== null).map(n => {
       const p = tunnelPoint(nodes.find(parent => parent.id === n.parent)!, n, n.id, .5);
@@ -132,8 +137,8 @@ export default function NestView({ colony, selected, onSelect, zoom, signals, to
     <g transform="translate(365 170)" pointerEvents="none"><path d={`M${-8 - Math.min(12, colony.totals.soil / 15)} 4q10 ${-Math.min(17, colony.totals.soil / 10)} ${20 + Math.min(12, colony.totals.soil / 15)} 0Z`} fill="#a88b60"/>{colony.totals.water > 0 && <ellipse cx="22" cy="1" rx={Math.min(17, colony.totals.water * 12 + 2)} ry="2.5" fill="#80aeb2" opacity=".7"/>}{colony.totals.waste > 0 && <ellipse cx="-15" cy="1" rx={Math.min(14, colony.totals.waste * 4 + 2)} ry="3" fill="#8a8c6f"/>}</g>
     <g pointerEvents="none">{colony.brood.filter(b => b.carrier === null).map(b => <g key={b.id} transform={`translate(${b.x} ${b.y}) rotate(${b.id % 2 ? 15 : -10})`}><ellipse cy="1" rx="4" ry="5" fill="#000" opacity=".3"/><ellipse rx="3.3" ry="4.6" fill="url(#egg)"/><path d="M-2 0h4m-4 2h4" stroke="#968b74" strokeWidth=".5"/><circle cy="-5.5" r="1.2" fill={{ forager: "#bfcc80", nurse: "#dbc6b4", digger: "#dda365", cleaner: "#88bcb7", soldier: "#e4ba78" }[b.role]}/></g>)}</g>
     {wet && <g stroke="#c9dfd4" strokeWidth="1" opacity=".4" pointerEvents="none">{Array.from({ length: 35 }, (_, k) => <path key={k} d={`M${noise(k) * 980} ${noise(k + 70) * 170 - 20}l-8 21`}/>)}</g>}
-    <rect width="960" height="660" fill="url(#vignette)" pointerEvents="none"/>
-    <g fill="#decda8" opacity=".65" fontSize="8" letterSpacing="2" pointerEvents="none"><text x="24" y="636">80 CM DEPTH</text><path d="M854 631h80m-80 -3v6m80 -6v6" stroke="#decda8" strokeWidth=".7"/><text x="894" y="621" textAnchor="middle">10 CM</text></g>
+    <rect width={undergroundOnly ? 2200 : 960} height={undergroundOnly ? 1700 : 660} fill="url(#vignette)" pointerEvents="none"/>
+    {!undergroundOnly && <g fill="#decda8" opacity=".65" fontSize="8" letterSpacing="2" pointerEvents="none"><text x="24" y="636">80 CM DEPTH</text><path d="M854 631h80m-80 -3v6m80 -6v6" stroke="#decda8" strokeWidth=".7"/><text x="894" y="621" textAnchor="middle">10 CM</text></g>}
 
     {["food", "hand", "stone", "water"].includes(tool) && <g pointerEvents="none"><rect x="5" y="108" width="950" height="66" rx="8" fill="#c0d486" fillOpacity=".1" stroke="#ccdd9b" strokeWidth="1" strokeDasharray="5 7"/>{tool === "food" && nodes.filter(n => n.room === "food").map(n => <path key={n.id} d={chamberPath(n)} fill="#c0d48622" stroke="#ccdd9b" strokeWidth="2"/>)}</g>}
     {tool === "water" && <g pointerEvents="none">{nodes.filter(n => n.room !== "tunnel").map(n => <path key={n.id} d={chamberPath(n)} fill="#93ccdc22" stroke="#a4dce4" strokeWidth="2" strokeDasharray="4 5"/>)}</g>}

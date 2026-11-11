@@ -92,3 +92,13 @@
 .antReadout strong { text-transform: capitalize; }.antReadout span:last-child { color: var(--muted); }
 
 @media (max-width: 600px) { .tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.nestControls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--line); background: #233a2b; }
+.nestControls > div { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.nestControls strong { font-size: 12px; font-weight: 500; color: #e2d5ae; }
+.nestControls span { color: var(--muted); font-size: 10px; }
+.nestControls button { display: flex; align-items: center; gap: 6px; font-size: 10px; }
+.nestControls button[aria-pressed="true"] { border-color: #cbb47a; background: #6a6c3a44; }
+.nestPane { touch-action: none; overflow: hidden; }
+.nestPane canvas { touch-action: none; cursor: grab; }
+.nestLegend { display: flex; flex-wrap: wrap; gap: 10px 20px; padding: 12px 18px; font-size: 10px; color: var(--muted); }
+.nestLegend span { display: flex; align-items: center; gap: 6px; }.nestLegend i { width: 7px; height: 7px; border-radius: 50%; border: 1px dashed #e2be7b; }

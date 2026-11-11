@@ -47,6 +47,32 @@ require actual ant activity. Caste selection and optional batches are available
 inside each nest. Surface physics is local steering, not a global route planner;
 ants do not have rigid-body collision.
 
+## Nest expansion
+
+Founding nests retain seven junctions and three chambers. Garden diggers respond
+locally to stored food, brood demand, crowding, and recent passage traffic. Several
+faces can operate at once. A digger must reach a wall, pick up soil, and transport
+it before that excavation can advance; each garden load opens up to six units of
+passage. Rooms are hollowed out gradually, and busy existing chambers can enlarge.
+
+Junctions cache up to 18 soil loads. Diggers can return to a nearby face while
+cleaners carry those piles out; full caches force longer hauling trips. There is
+no automatic soil disposal or passive tunnel growth. The garden supports up to
+128 junctions per nest across a larger underground area. Earlier non-garden
+simulation behavior remains separately covered by its existing causal tests.
+
+A digger can probe a shortcut toward a busy junction remembered from its own
+recent walk. The connection becomes an actual graph edge only after excavation
+reaches it. Ant movement, scents, water, and drawing all use the completed bypass.
+New stores accept real carried food, and nurses settle brood in new nurseries.
+New chambers and bypasses appear in garden history and persist in saves, including
+ongoing excavation work and soil piles. Older garden saves remain compatible.
+
+The underground overview adapts as the nest grows. Drag or use WASD to pan;
+use wheel/+/- or zoom buttons for detail, Overview to fit the network, and Follow
+to track a selected ant. Arrow keys still select ants. Amber markers indicate
+active faces, and recently opened chambers have a temporary pale rim.
+
 ## Controls and saves
 
 Drag in Explore mode to pan, use the wheel/zoom buttons, the minimap, or keyboard
@@ -73,7 +99,8 @@ migration. Additional colonies are explicitly introduced into a prepared habitat
 irrigation connectivity (including diagonal strokes), growing conditions,
 decomposition, physical bridge crossings and nest deliveries, local discovery,
 object movement, habitat-gated founding, pollination, snapshot immutability,
-save round trips, malformed-save rejection, and exact simulation continuation.
+save round trips, malformed-save rejection, exact simulation continuation, physical excavation, soil relays, completed bypasses,
+and useful nest growth from small founding networks.
 `./scripts/check` runs repository lint, all Bun tests, production build, and diff
 checks.
 

@@ -140,6 +140,8 @@ export function stepGarden(previous: Garden): Garden {
       if (before.get(a.id) === "nest") { a.x = home.x; a.y = home.y; a.memory = [{ x: home.x, y: home.y }]; a.angle = noise(a.id + s.tick) * Math.PI * 2; a.explored = 0; a.returning = false; }
       outside(s, home, a);
     }
+    const opened = colony.nest.filter(n => n.openedAt !== undefined && !old.colony.nest.find(p => p.id === n.id)?.openedAt);
+    for (const n of opened) event(s, `${home.name} ${n.links?.length ? "opened a bypass between existing routes" : n.room === "nursery" ? "finished a new nursery" : n.room === "food" ? "opened a new food chamber" : "extended its tunnel network"}.`);
     s.colonies.push(home);
   }
   for (const bee of s.insects) {
