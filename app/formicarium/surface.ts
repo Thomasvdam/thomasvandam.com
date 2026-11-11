@@ -1,8 +1,9 @@
+import { movementSpeed } from "./nutrition";
 import { distance, Point, segmentDistance } from "./nest";
 export type Stone = Point & { id: number; radius: number; lifted?: boolean };
 // Short probes and steering only: no actor sees a global route around obstacles.
-export function surfaceMove(a: Point & { id: number; angle: number; speed: number }, target: Point, stones: Stone[], dt: number) {
-  const d = distance(a, target); const step = Math.min(d, a.speed * dt);
+export function surfaceMove(a: Point & { id: number; angle: number; speed: number; hunger?: number }, target: Point, stones: Stone[], dt: number) {
+  const d = distance(a, target); const step = Math.min(d, movementSpeed(a) * dt);
   if (d < .001) return true;
   const heading = Math.atan2(target.y - a.y, target.x - a.x); const side = a.id % 2 ? 1 : -1;
   for (const offset of [0, side * .5, -side * .5, side, -side, side * 1.6, -side * 1.6, Math.PI]) {
