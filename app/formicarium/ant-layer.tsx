@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Ant, Colony, FIELD_COLS, Role, ROLES, elapsed } from "./simulation";
+import { energy, SEEK_FOOD, WEAK_HUNGER } from "./nutrition";
 import { Point } from "./nest";
 import type { Tool } from "./sandbox";
 import styles from "./game.module.css";
@@ -86,6 +87,11 @@ export default function AntLayer({ colony, selected, onSelect, signals, view, to
         const angle = Math.atan2(Math.sin(a.angle - before.angle), Math.cos(a.angle - before.angle));
         ctx.save(); ctx.translate(x, y); ctx.rotate(before.angle + angle * t); if (a.role === "soldier") ctx.scale(1.15, 1.15); ctx.drawImage(images.get(`${a.team}-${a.role}-${a.cargo?.kind ?? "none"}`)!, -20, -16, 40, 32); ctx.restore();
         if (a.fighting) { ctx.strokeStyle = "#ffd18f"; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(x - 5, y - 9); ctx.lineTo(x + 5, y + 9); ctx.moveTo(x + 5, y - 9); ctx.lineTo(x - 5, y + 9); ctx.stroke(); }
+        if (a.hunger >= SEEK_FOOD) {
+          ctx.fillStyle = "#211c16"; ctx.fillRect(x - 7, y + 11, 14, 2.5);
+          ctx.fillStyle = a.hunger >= WEAK_HUNGER ? "#ff9b68" : "#e9c67b"; ctx.fillRect(x - 7, y + 11, 14 * energy(a.hunger) / 100, 2.5);
+          if (a.hunger >= WEAK_HUNGER) { ctx.strokeStyle = "#ff9b6877"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.stroke(); }
+        }
         const health = a.health / (a.role === "soldier" ? 3.2 : 1.2);
         if (health < .98) { ctx.fillStyle = "#201a16"; ctx.fillRect(x - 7, y - 13, 14, 2); ctx.fillStyle = a.team === "rival" ? "#ef8e98" : "#c9d68d"; ctx.fillRect(x - 7, y - 13, 14 * health, 2); }
       }

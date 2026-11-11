@@ -101,6 +101,15 @@ passage history; they never run a global route finder or select a remote food so
 - Cleaners pick up nearby refuse or water, carry it through passages, and dump
   it outside. Rain adds water; gravity redistributes it through connections.
   There is no automatic water/refuse deletion.
+- Hunger is deliberately paced for play: a worker with no meals survives about
+  100–150 simulation seconds from its starting reserves; a soldier about 50–75.
+  One seed restores 60 seconds of worker energy or 30 seconds for a soldier.
+  Ants seek food before weakness. Weak ants slow down by up to 35%, put down
+  nonfood loads, and seek meals; hungry surface ants can eat discovered seeds.
+  Hunger advances during rest and fighting too. Nutrition does not alter combat
+  health. Amber energy bars and orange weak-ant rings expose hunger in the view;
+  the inspector shows energy separately, and colony warnings count hungry/weak
+  ants and starvation deaths. Food in a distant patch must still be reached.
 - Each adult becomes hungry and seeks edible food locally. Eating and feeding
   consume actual carried/stored units. Starvation and poor conditions around
   the queen can end a colony.
