@@ -85,16 +85,16 @@ const Habitat = memo(function Habitat({ wet }: { wet: boolean }) {
   </>;
 });
 
-export default function NestView({ colony, selected, onSelect, zoom, signals, tool, onInteract }: {
-  colony: Colony; selected: number; onSelect: (id: number) => void; zoom: boolean; signals: boolean; tool: Tool; onInteract: (point: Point) => void;
+export default function NestView({ colony, selected, onSelect, zoom, signals, tool, onInteract, undergroundOnly = false }: {
+  colony: Colony; selected: number; onSelect: (id: number) => void; zoom: boolean; signals: boolean; tool: Tool; onInteract: (point: Point) => void; undergroundOnly?: boolean;
 }) {
   const wet = rainy(colony);
   const nodes = colony.nest;
   const edges = nodes.filter(n => n.parent !== null && (!n.excavation || n.excavation.dug > 0)).map(n => ({ id: n.id, path: tunnelPath(nodes.find(p => p.id === n.parent)!, n, n.id), width: 12 + n.traffic * 5 }));
   const focus = [...colony.ants, ...colony.rival.ants].find(a => a.id === selected) ?? colony.ants[0] ?? nodes[3];
-  const view = zoom ? `${Math.max(0, Math.min(360, focus.x - 300))} ${Math.max(0, Math.min(247.5, focus.y - 206.25))} 600 412.5` : "0 0 960 660";
+  const view = undergroundOnly ? "0 180 960 480" : zoom ? `${Math.max(0, Math.min(360, focus.x - 300))} ${Math.max(0, Math.min(247.5, focus.y - 206.25))} 600 412.5` : "0 0 960 660";
 
-  return <div className={styles.scene}><svg className={styles.nestArt}  viewBox={view} role="group" aria-label="Ant colony cutaway. Select an ant to follow its activity.">
+  return <div className={styles.scene}><svg className={styles.nestArt}  viewBox={view} style={undergroundOnly ? { aspectRatio: "2 / 1" } : undefined} role="group" aria-label="Ant colony cutaway. Select an ant to follow its activity.">
     <Habitat wet={wet}/>
     <g strokeLinecap="round" fill="none" strokeLinejoin="round">
       <path d="M450 175Q446 188 450 198" stroke="#b18b5e" strokeWidth="20"/>

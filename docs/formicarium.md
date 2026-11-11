@@ -1,142 +1,82 @@
-# Formicarium
+# Formicarium — a living garden
 
-`/formicarium` is an ant-colony guardian sandbox. Start with 96 workers and two
-soldiers, compete with a neighboring colony, and intervene in their shared habitat.
-Home reproduction is bounded at 400 ants and developing brood combined; the rival
-colony is capped at 48 ants. The cutaway remains the main view.
+`/formicarium` opens a persistent, pannable 24 × 15.6 m garden. Two colonies share
+its food sources and waterways. The main experiment is to bring a dry patch to
+life with connected irrigation, plants, shelter, and new foraging routes.
 
-## Sandbox controls
+## Lasting changes
 
-- **Hand:** pick up a food patch or stone, then put it down elsewhere on the
-  forest floor. Food amounts are preserved. Ants cannot harvest a held patch;
-  existing trails remain at the old location and fade. Put back or switch tools
-  to cancel without losing the object.
-- **Stone:** place an obstacle or lift an existing stone. Both colonies detour
-  around stones and skip old breadcrumbs covered by nearby obstacles. Covering your entrance blocks your own workers and invaders;
-  diggers cannot clear a stone. The hand can move it instead.
-- **Strike:** crush ants in a small area, including friendly workers caught in
-  it. Carried food and brood are dropped rather than deleted. This intervention
-  works while paused and is accounted separately from ant combat.
+- Berry bushes and flowers grow on damp, fertile ground and produce renewable
+  food after establishing. Dry or waterlogged soil stalls their growth. Roots
+  should be planted beside a channel rather than in deep water.
+- Channels connect to a stream or spring-fed pond. Water propagates along their
+  connected cells, then moisture spreads to adjacent ground. Disconnected
+  channels remain dry; hand-watering is temporary. This is a bounded moisture
+  model, not a volume-conserving fluid solver.
+- Fallen wood provides cover, retains moisture, and enriches nearby soil as it
+  decays. Fruit offers temporary food; uneaten remains also enrich the soil.
+- Bridges allow actual surface ants to cross deep-water cells within their span.
+  Rocks obstruct movement. Move/rotate/remove controls change objects without
+  resetting their food, growth, or the ants' existing trails.
+- Pollinators sense mature plants nearby, physically visit them, consume food,
+  and transfer pollen to subsequent plants, increasing food yield.
+- A new colony can be introduced only on open, damp, sheltered ground with nearby
+  food, away from existing entrances. The prototype supports four colonies and
+  300 placed objects. Colony histories, names, nests, plants, and terrain persist.
 
-- **Raise a batch:** choose a caste and spend 12 stored food to prepare 12 fed
-  brood in a dry nursery. Nurses must still physically tend each larva. A tended
-  batch hatches in about 12 simulation seconds; a neglected or flooded batch
-  stalls and can die. Only one batch incubates at a time. Existing adults and
-  committed brood keep their roles; ordinary queen-laid eggs also continue.
-  The fed tray is an explicit player intervention, accounted separately from
-  meals delivered by ants. This acceleration is deliberately game-like.
-- **Food:** place/refill a surface patch of 60 seeds, or supply up to 30 food
-  directly to a store (without exceeding its capacity). Surface seeds still
-  need discovery and transport. Player aid is separate from worker deliveries.
-- **Water:** wash surface food, alarm, and invasion trails within a local area.
-  Both colonies can lay new trails afterward. Washing near your entrance adds
-  runoff to the nest. Tap a chamber to add water. Tap it again while flooded to drain it
-  yourself. Manual draining is separate from water carried out by cleaners.
-  Wet nurseries prevent hatching and trigger nurses to try relocating brood.
-- **Passages:** block a passage with 12 rubble loads, then watch workers turn
-  back and diggers reopen it. Tap the blockage to remove it yourself. Blocks
-  stop ant traversal, chemical propagation, and gravity flow. Diggers can work
-  from either side and temporarily cache spoil when their exit is blocked.
+## Connected ants and nests
 
-Use the highlighted map targets or the target picker/Apply button (including
-with a keyboard). Tools work while paused; ants react when play resumes. The
-inspector distinguishes waiting for space, isolation by rubble, and idle rest.
-Blocked experiments can fail; player tools can also undo their interventions.
+The garden extends the existing fixed-50-ms ant simulation. Each colony uses its
+own real nest graph, brood, food stores, nurses, diggers, and cleaners. Surface
+ants run in the garden's two-dimensional coordinates. Crossing the physical
+entrance transfers the same ant and its load into the nest's cutaway coordinates.
+Returning to the surface reverses that transfer. A carried seed increases storage
+only after the forager deposits it inside a food chamber.
 
-## Rivals and defense
+Surface food and pheromones are sensed locally. Each ant remembers its own walk;
+only food carriers reinforce the food trail. Some explorers are less responsive
+to established trails. Foragers can detour around obstacles and skip nearby
+breadcrumbs covered by a new obstacle. Trail colors indicate which colony uses
+an area. Colonies compete for the same finite food but do not automatically raid
+one another in this garden prototype.
 
-Rival foragers search the same forest floor and take seeds from the same patches.
-Their food carriers mark a separate, pink trail and physically return each seed to
-their own entrance. A scout can detect an unfamiliar entrance only at close range.
-It must retrace its own journey and return home, laying an invasion trail, before
-ants at the rival entrance can be recruited. There is no timed global invasion
-trigger. Empty exploration does not mark food trails; invasion and alarm chemicals
-are separate signals.
+Hunger is slower here than in the earlier survival sandbox (one fifth of its
+rate). Suitable starting habitats sustain the colonies while the player builds.
+Food consumption, brood care, digging, hunger, and possible colony failure still
+require actual ant activity. Caste selection and optional batches are available
+inside each nest. Surface physics is local steering, not a global route planner;
+ants do not have rigid-body collision.
 
-Raiders explore along the scout's trail and can enter your actual passage graph.
-They follow local food/brood odors, pick up stored seeds, and try to escape with
-loads. A raider must reach the queen to damage her. Rubble and entrance stones
-obstruct raids. Soldiers follow nearby surface alarms and alarms diffusing through
-connected nest passages. All castes can bite at contact; soldiers have larger heads,
-more health, stronger bites, and twice the hunger rate. Workers retreat on the
-surface and emit alarms. Ants cannot attack across unrelated passages or stones.
+## Controls and saves
 
-The rival colony's internal nursery is abstracted: eight food at its nest can raise
-one forager and one soldier every 16 seconds while adults remain. This costs real
-stored food, and hunger consumes food too. Eliminating all its adults ends rival
-reproduction. The rival panel and inspector expose discoveries, raids, casualties,
-and carried loads; damaged ants show health bars and fights show a contact marker.
+Drag in Explore mode to pan, use the wheel/zoom buttons, the minimap, or keyboard
+arrows and +/−. Select ground, a colony entrance, or an object to inspect it.
+Construction supports map clicks and a coordinate/location control. Channels can
+be drawn with the pointer or built between a chosen start and destination.
+Ground overlays show moisture and fertility. Nest tabs show the same colonies
+underground.
 
-## Behavioral model
+Autosave uses browser local storage every five seconds and when hiding/leaving
+the page. Save, export, and import controls provide explicit backups. Saves
+include typed chemical fields, soil, waterways, objects, ant memories, nest
+geometry, brood, resources, and history. Restoration continues from the saved
+tick; it never advances from elapsed wall-clock time. The simulation also stops
+while the tab is hidden. An unreadable browser save is preserved, with autosaving
+paused until the user imports a backup or explicitly starts a new garden.
 
-The simulation uses fixed 50 ms steps. The UI publishes snapshots every 100 ms
-and interpolates ant positions on a canvas above the SVG habitat. Rendering and
-simulation share the same tunnel curves. The canvas draws every simulated ant
-and its current load; there are no decorative ant routes.
+This is a local prototype: there is no account/cloud sync or automatic queen
+migration. Additional colonies are explicitly introduced into a prepared habitat.
 
-Foragers have a short sensory range. They explore the forest-floor strip,
-sense food/trail strength locally, and retain breadcrumbs from their own walk.
-Only ants carrying food deposit the surface food pheromone. They retrace those
-breadcrumbs, physically enter the nest, and follow storage cues to deposit food.
-Empty followers do not reinforce trails. The field evaporates continuously, so
-an exhausted source stops receiving recruitment once its last carriers return.
+## Validation
 
-Inside the nest, environmental and worker signals diffuse between adjacent
-passages. Food, hungry brood, nursery space, damp/refuse, and disturbed soil emit
-local cues. Congestion reflects nearby ants with a short chemical memory. Ants
-choose neighboring passages probabilistically from these cues and their last
-passage history; they never run a global route finder or select a remote food source.
+`bun test app/formicarium` covers both the original ant mechanics and the garden:
+irrigation connectivity (including diagonal strokes), growing conditions,
+decomposition, physical bridge crossings and nest deliveries, local discovery,
+object movement, habitat-gated founding, pollination, snapshot immutability,
+save round trips, malformed-save rejection, and exact simulation continuation.
+`./scripts/check` runs repository lint, all Bun tests, production build, and diff
+checks.
 
-- Full-store queues periodically try another passage. Workers with strong local
-  carrying cues follow them more directly; unproductive stationary behavior
-  triggers a local reassessment. Idle cleaners rest and wake to nearby signals.
-  A nurse with spare food can cache it before providing missing larval care.
-- Nurses physically move eggs from the queen to nursery space, carry stored food
-  to brood/the queen, and visit fed larvae to provide care. Age alone cannot hatch
-  brood. Unattended brood eventually dies.
-- Diggers respond to local congestion, probe nearby soil, and work at a tunnel
-  face or crowded chamber wall. Picking up soil advances excavation; carrying
-  it to the surface completes disposal. No digger means no excavation. Finite
-  habitat bounds and physical clearance limit expansion.
-- Cleaners pick up nearby refuse or water, carry it through passages, and dump
-  it outside. Rain adds water; gravity redistributes it through connections.
-  There is no automatic water/refuse deletion.
-- Hunger is deliberately paced for play: a worker with no meals survives about
-  100–150 simulation seconds from its starting reserves; a soldier about 50–75.
-  One seed restores 60 seconds of worker energy or 30 seconds for a soldier.
-  Ants seek food before weakness. Weak ants slow down by up to 35%, put down
-  nonfood loads, and seek meals; hungry surface ants can eat discovered seeds.
-  Hunger advances during rest and fighting too. Nutrition does not alter combat
-  health. Amber energy bars and orange weak-ant rings expose hunger in the view;
-  the inspector shows energy separately, and colony warnings count hungry/weak
-  ants and starvation deaths. Food in a distant patch must still be reached.
-- Each adult becomes hungry and seeks edible food locally. Eating and feeding
-  consume actual carried/stored units. Starvation and poor conditions around
-  the queen can end a colony.
-
-The surface is a shallow top-down foraging strip above a side-on nest cutaway.
-Ants share passages without rigid-body collision. Chemicals use a spatial field
-on the surface and a passage graph underground; chemistry is a gameplay model,
-not a biological reproduction of real ant pheromones. Seasons and predators
-are deferred while the behavioral loop is developed. Reloading resets progress.
-
-## Verification
-
-Run `bun test app/formicarium` for causal tests: local information propagation,
-proximity-only discovery, physical deliveries and food conservation, loaded-only
-trail deposition/evaporation, fixed hatch roles, brood carrying/care, physical
-soil removal, and water conservation/transport. `./scripts/check` remains the
-repository validation entry point.
-
-The sandbox tests also cover batch timing/cost/care gates, intervention resource
-accounting, flow/signals across blockages, physical turnbacks and rubble removal,
-and the nursing/full-store recovery cases. Rival tests cover discovery/return/
-recruitment gates, separate transport and resource conservation, queen contact,
-physical obstruction, local combat and soldier strength, held-object conservation,
-trail washing/runoff, strike collateral, and a real opening raid.
-
-In a browser, verify 1×/3×/8× play and pause, batches without adult reassignment,
-map clicks and keyboard targets for all guardian tools, reversible challenges,
-hatch progress, food depletion and fading trails, colored loads
-passing through the nest, congestion-driven digging, rain/cleaner behavior,
-pheromone visibility, ant selection/role observation, close-up and mobile layout.
+Manual browser checks should cover construction and pan/zoom input, coordinate
+controls, nest transfers, overlays, local save/reload, import failures, export,
+mobile layout, and hidden-tab pause behavior.

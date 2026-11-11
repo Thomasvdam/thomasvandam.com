@@ -106,9 +106,9 @@ export default function Home() {
 								<g fill="#abb978"><ellipse cx="160" cy="81" rx="4" ry="2" /><ellipse cx="168" cy="85" rx="4" ry="2" /><ellipse cx="173" cy="79" rx="4" ry="2" /></g>
 								{[[84, 62, 85], [104, 103, 60], [140, 81, 12], [66, 118, -20], [39, 132, 10]].map(([x, y, angle], index) => <g key={index} transform={`translate(${x} ${y}) rotate(${angle})`} fill="#e0b47c" stroke="#e0b47c" strokeWidth=".7"><path d="M-2 0l-3 -3m3 3l-3 3M1 0l1 -4m-1 4l1 4M3 0l4 -3m-4 3l4 3" fill="none" /><ellipse cx="-3" rx="3" ry="2" /><circle cx="2" r="1.5" /><circle cx="5" r="1.7" /></g>)}
 							</svg>
-							<div className={styles.coverBottom}><span>06 / An ant colony</span><span>Watch it <span aria-hidden="true">↗</span></span></div>
+							<div className={styles.coverBottom}><span>06 / A living garden</span><span>Watch it <span aria-hidden="true">↗</span></span></div>
 						</Link>
-						<p>Choose new brood and watch the colony at work.</p>
+						<p>Shape a garden and watch its ant colonies settle in.</p>
 					</article>
 					<article hidden>
 						<Link href="/exterminator" prefetch={false} className={`${styles.cover} ${styles.exterminator}`}>

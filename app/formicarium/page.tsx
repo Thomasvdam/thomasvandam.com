@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { experimentBody, experimentDisplay } from "@/app/experiment-fonts";
-import Game from "./game";
+import Game from "./garden-game";
 
 export const metadata: Metadata = {
-  title: "Formicarium — An ant colony sandbox",
-  description: "Raise batches of workers, place food, and test an ant colony with floods and blocked passages.",
+  title: "Formicarium — A living garden",
+  description: "Shape a living garden with plants, waterways, shelter, and ant colonies. Save a habitat that grows with your experiments.",
 };
 
 export default function Page() {
