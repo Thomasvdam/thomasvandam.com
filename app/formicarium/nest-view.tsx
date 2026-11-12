@@ -5,7 +5,7 @@ import { Colony, rainy } from "./simulation";
 import { memo } from "react";
 import AntLayer from "./ant-layer";
 import type { Tool } from "./sandbox";
-import { chamberPath, noise, Point, radius, tunnelPath, tunnelPoint } from "./nest";
+import { chamberPath, noise, NestNode, Point, radius, tunnelPath, tunnelPoint } from "./nest";
 import styles from "./game.module.css";
 
 const tones = { tunnel: "#aa805a", queen: "#edb86b", food: "#b5bf76", nursery: "#ddd5b5" };
@@ -26,14 +26,14 @@ function Ant({ queen = false }: { queen?: boolean }) {
   </g>;
 }
 
-const Habitat = memo(function Habitat({ wet }: { wet: boolean }) {
+const Habitat = memo(function Habitat({ wet, undergroundOnly }: { wet: boolean; undergroundOnly: boolean }) {
   return <>
     <defs>
       <linearGradient id="forest-sky" x2="0" y2="1"><stop stopColor={wet ? "#344b48" : "#435950"}/><stop offset=".72" stopColor={"#c3c5a0"}/><stop offset="1" stopColor="#d6c49b"/></linearGradient>
       <linearGradient id="earth" x1="0" y1="0" x2=".3" y2="1"><stop stopColor="#8b6241"/><stop offset=".22" stopColor="#6a4c37"/><stop offset=".6" stopColor="#493b30"/><stop offset="1" stopColor="#252c29"/></linearGradient>
       <radialGradient id="sun-halo"><stop stopColor="#fff1be" stopOpacity=".7"/><stop offset="1" stopColor="#fff1be" stopOpacity="0"/></radialGradient>
-      <radialGradient id="room-light"><stop stopColor="#8c6741" stopOpacity=".36"/><stop offset="1" stopColor="#3b3025" stopOpacity="0"/></radialGradient>
-      <linearGradient id="cavity" x2="0" y2="1"><stop stopColor="#191e1b"/><stop offset="1" stopColor="#353027"/></linearGradient>
+      <radialGradient id="room-light"><stop stopColor="#b68e53" stopOpacity=".22"/><stop offset="1" stopColor="#3b3025" stopOpacity="0"/></radialGradient>
+      <linearGradient id="cavity" x2="0" y2="1"><stop stopColor="#131810"/><stop offset=".45" stopColor="#29271c"/><stop offset="1" stopColor="#59442b"/></linearGradient>
       <linearGradient id="ant-shell" x1="0" y1="0" x2=".4" y2="1"><stop stopColor="#e3b175"/><stop offset=".35" stopColor="#a16b41"/><stop offset="1" stopColor="#543323"/></linearGradient>
       <linearGradient id="seed" x2="1" y2="1"><stop stopColor="#e3cf8d"/><stop offset="1" stopColor="#8f8047"/></linearGradient>
       <linearGradient id="egg" x2="1" y2="1"><stop stopColor="#fff4d8"/><stop offset="1" stopColor="#b2a486"/></linearGradient>
@@ -46,7 +46,7 @@ const Habitat = memo(function Habitat({ wet }: { wet: boolean }) {
       <symbol id="fern" viewBox="0 0 70 100"><g stroke="currentColor" fill="none" strokeLinecap="round"><path d="M35 100Q15 57 40 9" strokeWidth="1.8"/>{Array.from({ length: 8 }, (_, k) => <g key={k}><path d={`M${29 + k * .4} ${85 - k * 9}Q${10 + k} ${86 - k * 9} ${7 + k * 3} ${70 - k * 9}Q${21 + k} ${72 - k * 9} ${29 + k * .4} ${85 - k * 9}`} fill="currentColor" strokeWidth=".4"/><path d={`M${29 + k * .4} ${85 - k * 9}Q${51 - k} ${82 - k * 9} ${62 - k * 3} ${65 - k * 8}Q${43 - k} ${70 - k * 9} ${29 + k * .4} ${85 - k * 9}`} fill="currentColor" strokeWidth=".4"/></g>)}</g></symbol>
     </defs>
 
-    <rect width="960" height="200" fill="url(#forest-sky)"/>
+    {!undergroundOnly && <><rect width="960" height="200" fill="url(#forest-sky)"/>
     <circle cx="702" cy="60" r="140" fill="url(#sun-halo)"/>
     <circle cx="702" cy="60" r="19" fill="#f5e5b3" opacity={wet ? ".2" : ".75"}/>
     <g opacity=".16" fill="#e9e7b7"><path d="M690 0L520 180H615L723 0Z"/><path d="M755 0L680 180H710L773 0Z"/><path d="M835 0L780 180H867L869 0Z"/></g>
@@ -83,34 +83,47 @@ const Habitat = memo(function Habitat({ wet }: { wet: boolean }) {
     <g fill={"#b8a16b"} stroke="#4a4b2c" strokeWidth=".5">{[130, 220, 370, 602, 759, 890].map((x, k) => <g key={x} transform={`translate(${x} 174) rotate(${k * 39})`}><path d="M-12 0Q0 -9 13 0Q0 7 -12 0Z"/><path d="M-10 0H10" fill="none"/></g>)}</g>
     <g transform="translate(915 174)"><path d="M-10 0l1 -24h4l2 24" fill="#d6c3a0"/><path d="M-24 -23Q-7 -47 12 -23Z" fill="#bd8b66"/><path d="M-23 -23H11" stroke="#ebcda0" strokeWidth="2"/><path d="M8 1l1 -12h3l1 12" fill="#c1b89d"/><path d="M2 -11q9 -15 18 0Z" fill="#bfa27a"/></g>
 
+    </>}
   </>;
 });
+
+const UndergroundEarth = memo(function UndergroundEarth() {
+  return <g pointerEvents="none">
+    <defs><pattern id="cutaway-material" width="384" height="384" patternUnits="userSpaceOnUse"><image href="/images/formicarium/cutaway-soil.webp" width="384" height="384"/></pattern><linearGradient id="earth-depth" x2="0" y2="1"><stop stopColor="#a5794e" stopOpacity=".08"/><stop offset="1" stopColor="#121e19" stopOpacity=".7"/></linearGradient></defs>
+    <rect y="175" width="2200" height="1500" fill="#715137"/>
+    <rect y="175" width="2200" height="1500" fill="url(#cutaway-material)" opacity=".78"/>
+    <rect y="175" width="2200" height="1500" fill="url(#earth-depth)"/>
+    {[120, 870, 1500, 1950].map((x, i) => <g key={x} fill="none" strokeLinecap="round"><path d={`M${x} 175q-40 100 10 160t-20 140m20 -140q70 20 90 90m-90 40q-70 30 -80 100`} stroke="#251f16" strokeWidth="4" opacity=".4"/><path d={`M${x - 1} 175q-40 100 10 160t-20 140m20 -140q70 20 90 90m-90 40q-70 30 -80 100`} stroke="#b09a6a" strokeWidth={i % 2 ? 1.5 : 2} opacity=".65"/><path d={`M${x - 10} 240l-20 14 -7 22m27 -22l-7 26m50 82l32 15 13 22m-13 -22l20 2m-63 47l-20 21 -27 6m27 -6l-2 19`} stroke="#bea97b" strokeWidth=".7" opacity=".5"/></g>)}
+  </g>;
+});
+const NestStructure = memo(function NestStructure({ nodes }: { nodes: NestNode[] }) {
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const edges = nestPassages(nodes).map(p => ({ id: p.id, path: tunnelPath(byId.get(p.from)!, byId.get(p.to)!, p.id), width: 12 + Math.round(Math.min(2, byId.get(p.to)!.traffic) * 10) / 2 }));
+  const rooms = nodes.filter(n => n.room !== "tunnel");
+  return <g pointerEvents="none" strokeLinecap="round" strokeLinejoin="round">
+    <g fill="none" stroke="#392b1d" opacity=".6">{edges.map(e => <path key={e.id} d={e.path} strokeWidth={e.width + 10}/>)}{rooms.map(n => <path key={n.id} d={chamberPath(n)} fill="#392b1d" strokeWidth="9"/>)}</g>
+    <g fill="none" stroke="#aa8051" opacity=".7" transform="translate(0 1.5)">{edges.map(e => <path key={e.id} d={e.path} strokeWidth={e.width + 4}/>)}{rooms.map(n => <path key={n.id} d={chamberPath(n)} fill="#aa8051" strokeWidth="3"/>)}</g>
+    <path d="M450 173Q446 188 450 198" stroke="#191d14" strokeWidth="14" fill="none"/>
+    <g stroke="#222319" fill="url(#cavity)">{edges.map(e => <path key={e.id} d={e.path} strokeWidth={e.width} fill="none"/>)}{rooms.map(n => <path key={n.id} d={chamberPath(n)} strokeWidth="1"/>)}</g>
+  </g>;
+}, (a, b) => a.nodes.length === b.nodes.length && a.nodes.every((n, i) => { const m = b.nodes[i]; return n.id === m.id && n.parent === m.parent && n.x === m.x && n.y === m.y && n.size === m.size && n.room === m.room && Math.round(Math.min(2, n.traffic) * 10) === Math.round(Math.min(2, m.traffic) * 10) && (n.links ?? []).join() === (m.links ?? []).join(); }));
 
 export default function NestView({ colony, selected, onSelect, zoom, signals, tool, onInteract, undergroundOnly = false, viewport }: {
   colony: Colony; selected: number; onSelect: (id: number) => void; zoom: boolean; signals: boolean; tool: Tool; onInteract: (point: Point) => void; undergroundOnly?: boolean; viewport?: string;
 }) {
   const wet = rainy(colony);
   const nodes = colony.nest;
-  const edges = nestPassages(nodes).map(p => ({ id: p.id, path: tunnelPath(nodes.find(n => n.id === p.from)!, nodes.find(n => n.id === p.to)!, p.id), width: 12 + Math.min(2, nodes.find(n => n.id === p.to)!.traffic) * 5 }));
+  const edges = tool === "passage" ? nestPassages(nodes).map(p => ({ id: p.id, path: tunnelPath(nodes.find(n => n.id === p.from)!, nodes.find(n => n.id === p.to)!, p.id), width: 12 + Math.min(2, nodes.find(n => n.id === p.to)!.traffic) * 5 })) : [];
   const focus = [...colony.ants, ...colony.rival.ants].find(a => a.id === selected) ?? colony.ants[0] ?? nodes[3];
   const view = viewport ?? (undergroundOnly ? "0 180 960 480" : zoom ? `${Math.max(0, Math.min(360, focus.x - 300))} ${Math.max(0, Math.min(247.5, focus.y - 206.25))} 600 412.5` : "0 0 960 660");
 
   return <div className={styles.scene}><svg className={styles.nestArt}  viewBox={view} style={undergroundOnly ? { aspectRatio: `${view.split(" ")[2]} / ${view.split(" ")[3]}` } : undefined} role="group" aria-label="Ant colony cutaway. Select an ant to follow its activity.">
-    <Habitat wet={wet}/>
-    {undergroundOnly && <g pointerEvents="none"><rect y="175" width="2200" height="1500" fill="url(#earth)"/><rect y="175" width="2200" height="1500" fill="url(#earth-grain)"/>{[300, 520, 780, 1050, 1320, 1580].map(y => <path key={y} d={`M0 ${y}Q300 ${y - 40} 600 ${y + 10}T1200 ${y}T2200 ${y + 10}`} stroke="#b8976430" strokeWidth="3" fill="none"/>)}{Array.from({ length: 160 }, (_, k) => <ellipse key={k} cx={noise(k + 70) * 2200} cy={200 + noise(k + 770) * 1400} rx={3 + noise(k + 30) * 15} ry={2 + noise(k + 300) * 5} fill={k % 2 ? "#bba27c22" : "#202e2833"}/>)}{[120, 870, 1500, 1950].map((x, i) => <path key={x} d={`M${x} 175q-40 100 10 160t-20 140m20 -140q70 20 90 90m-90 40q-70 30 -80 100`} stroke="#baa57655" strokeWidth={i % 2 ? 2 : 3} fill="none"/>)}</g>}
+    <Habitat wet={wet} undergroundOnly={undergroundOnly}/>
+    {undergroundOnly && <UndergroundEarth/>}
 
-    <g strokeLinecap="round" fill="none" strokeLinejoin="round">
-      <path d="M450 175Q446 188 450 198" stroke="#b18b5e" strokeWidth="20"/>
-      {edges.map(edge => <path key={edge.id} d={edge.path} stroke="#a37a52" strokeWidth={edge.width + 6} opacity=".65"/>)}
-      {nodes.filter(n => n.room !== "tunnel").map(n => <path key={n.id} d={chamberPath(n)} fill="#9c7852" stroke="#9c7852" strokeWidth="5" opacity=".7"/>)}
-    </g>
-    <g fill="url(#cavity)">
-      <path d="M450 173Q446 188 450 198" stroke="#1e241e" strokeWidth="14" fill="none"/>
-      {edges.map(edge => <path key={edge.id} d={edge.path} stroke="#20241d" strokeWidth={edge.width} fill="none" strokeLinecap="round"/>)}
-      {nodes.filter(n => n.room !== "tunnel").map(n => <path key={n.id} d={chamberPath(n)}/>)}
-    </g>
+    <NestStructure nodes={nodes}/>
     <g pointerEvents="none">{nodes.filter(n => n.room !== "tunnel" || (n.excavation && n.excavation.remaining <= 0)).map(n => <g key={n.id}>
-      <path d={chamberPath(n)} fill="url(#cavity)" stroke="#9c7852" strokeWidth="2"/>
+      <path d={chamberPath(n)} fill="url(#cavity)" stroke="#8a6847" strokeWidth="1"/>
       <ellipse cx={n.x} cy={n.y + 4} rx={radius(n)} ry={radius(n) * .7} fill="url(#room-light)"/>
       <path d={`M${n.x - radius(n) * .5} ${n.y + radius(n) * .65}q${radius(n) * .5} 5 ${radius(n)} -1`} stroke={tones[n.room]} strokeWidth="1" fill="none" opacity=".6"/>
       {n.food > 0 && Array.from({ length: Math.min(22, Math.ceil(n.food / 4)) }, (_, k) => <g key={k} transform={`translate(${n.x - 20 + k % 6 * 8 + noise(k + n.id) * 3} ${n.y - 8 + Math.floor(k / 6) * 7}) rotate(${noise(k + 4) * 100 - 50})`}><ellipse rx="3.7" ry="2.4" fill="url(#seed)"/><path d="M-2 0h4" stroke="#f0dfab" opacity=".6" strokeWidth=".5"/></g>)}

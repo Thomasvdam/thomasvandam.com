@@ -5,7 +5,7 @@
 .game button:disabled { cursor: not-allowed; opacity: .45; }
 .game button:focus-visible, .game a:focus-visible, .game input:focus-visible, .game select:focus-visible { outline: 2px solid #e6c48a; outline-offset: 3px; }
 .game select, .game input[type="number"] { min-width: 0; border: 1px solid #6a795c66; background: #1b3025; color: var(--ink); border-radius: 4px; padding: 7px 9px; font-size: 11px; }
-.header { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 96px; border-bottom: 1px solid var(--line); }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 15px; min-height: 76px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; gap: 18px; }
 .brand a { color: #c6c8ac; padding: 10px; }
 .brand > svg { color: #e0bb7b; }
@@ -13,7 +13,7 @@
 .brand span { display: block; font-size: 9px; color: #a4b295; letter-spacing: 3px; margin-top: 3px; }
 .headerButtons { display: flex; gap: 8px; align-items: center; }
 .headerButtons button { display: flex; align-items: center; gap: 6px; background: none; }
-.topline { display: flex; gap: 38px; align-items: center; padding: 23px 0; }
+.topline { display: flex; gap: 38px; align-items: center; padding: 18px 0; }
 .topline > div { display: flex; flex-direction: column; gap: 4px; }
 .topline strong { font-size: 25px; font-weight: 500; font-variant-numeric: tabular-nums; color: #ecdbb5; }
 .topline span { font-size: 10px; color: var(--muted); }

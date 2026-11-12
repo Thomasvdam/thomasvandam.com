@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bug, ChevronDown, Droplets, Download, Eye, Flower2, Hand, Leaf, Map, Mountain, Pause, Play, Plus, RotateCcw, Save, Shovel, Sprout, TreePine, Upload, X, ZoomIn, ZoomOut } from "lucide-react";
-import { actGarden, createGarden, creekX, GardenObject, GardenTool, HEIGHT, quality, stepGarden, totalAnts, totalFood, WIDTH } from "./garden";
+import { createGarden, creekX, GardenObject, GardenTool, HEIGHT, quality, totalAnts, totalFood, WIDTH } from "./garden";
 import { decodeGarden, encodeGarden, SAVE_KEY } from "./garden-save";
 import GardenView, { Camera, Selection } from "./garden-view";
 import { Point } from "./nest";
-import { batchProblem, prepareBatch } from "./sandbox";
+import { batchProblem } from "./sandbox";
 import { batchStatus, DT, Role, storedFood } from "./simulation";
+import { useGardenRuntime } from "./use-garden-runtime";
 import NestExplorer from "./nest-explorer";
 import styles from "./garden.module.css";
 
@@ -40,7 +41,7 @@ export default function GardenGame() {
 }
 function LivingGarden() {
   const [loaded] = useState(initial);
-  const [garden, setGarden] = useState(loaded.garden);
+  const { garden, latest, error, dispatch, replace, playback, snapshot } = useGardenRuntime(loaded.garden);
   const [saveStatus, setSaveStatus] = useState(loaded.saved);
   const [canSave, setCanSave] = useState(!loaded.protected);
   const [speed, setSpeed] = useState(1);
@@ -49,7 +50,7 @@ function LivingGarden() {
   const [selected, setSelected] = useState<Selection | null>({ kind: "colony", id: 0, point: loaded.garden.colonies[0] });
   const [camera, setCamera] = useState<Camera>({ x: 90, y: 520, width: 1250 });
   const [overlay, setOverlay] = useState<"none" | "moisture" | "fertility">("none");
-  const [signals, setSignals] = useState(true);
+  const [signals, setSignals] = useState(false);
   const [view, setView] = useState<number | null>(null);
   const [target, setTarget] = useState<Point>(landmarks[1]);
   const [start, setStart] = useState<Point | null>(null);
@@ -57,22 +58,21 @@ function LivingGarden() {
   const [reset, setReset] = useState(false);
   const [observed, setObserved] = useState(-1);
   const [role, setRole] = useState<Role>("forager");
-  const upload = useRef<HTMLInputElement>(null), latest = useRef(garden);
-  useEffect(() => { latest.current = garden; }, [garden]);
+  const upload = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (!speed || reset || help) return;
-    const timer = setInterval(() => { if (document.hidden) return; setGarden(s => { let next = s; for (let i = 0; i < speed * 2; i++) next = stepGarden(next); return next; }); }, 100);
-    return () => clearInterval(timer);
-  }, [speed, reset, help]);
-  const save = () => { if (!canSave) { setSaveStatus("Previous save preserved. Import a backup or choose New garden before saving."); return; } try { localStorage.setItem(SAVE_KEY, encodeGarden(latest.current)); setSaveStatus("Saved in this browser"); } catch { setSaveStatus("Browser save failed. Export a backup to keep this garden."); } };
+    const control = () => playback(speed, !document.hidden && !reset && !help);
+    control(); document.addEventListener("visibilitychange", control);
+    return () => { document.removeEventListener("visibilitychange", control); playback(0, false); };
+  }, [speed, reset, help, playback]);
+  const save = async () => { if (!canSave) { setSaveStatus("Previous save preserved. Import a backup or choose New garden before saving."); return; } try { localStorage.setItem(SAVE_KEY, encodeGarden(await snapshot())); setSaveStatus("Saved in this browser"); } catch { setSaveStatus("Browser save failed. Export a backup to keep this garden."); } };
   useEffect(() => {
     if (!canSave) return;
     const persist = () => { try { localStorage.setItem(SAVE_KEY, encodeGarden(latest.current)); setSaveStatus(previous => previous.startsWith("Could not import") || previous.startsWith("Save file is too large") ? previous : "Saved in this browser"); } catch { setSaveStatus("Browser save failed. Export a backup to keep this garden."); } };
     const timer = setInterval(persist, 5000); window.addEventListener("pagehide", persist); document.addEventListener("visibilitychange", persist);
     return () => { clearInterval(timer); window.removeEventListener("pagehide", persist); document.removeEventListener("visibilitychange", persist); };
-  }, [canSave]);
+  }, [canSave, latest]);
   const chooseTool = (key: GardenTool) => { setTool(key); setView(null); setStart(null); if (key !== "move") setMoving(undefined); };
-  const act = (points: Point[]) => { setGarden(s => actGarden(s, tool, points, moving)); setTarget(points.at(-1)!); if (tool === "move") { setTool("observe"); setMoving(undefined); } };
+  const act = (points: Point[]) => { dispatch({ type: "act", tool, points, moving }); setTarget(points.at(-1)!); if (tool === "move") { setTool("observe"); setMoving(undefined); } };
   const focus = (p: Point) => { setCamera(c => ({ ...c, x: Math.max(0, Math.min(WIDTH - c.width * .6, p.x - c.width / 2)), y: Math.max(0, Math.min(HEIGHT - 200, p.y - c.width * .3)) })); setView(null); setTarget(p); };
   const chosenObject = selected?.kind === "object" ? garden.objects.find(o => o.id === selected.id) : undefined;
   const chosenColony = garden.colonies.find(c => c.id === (view ?? (selected?.kind === "colony" ? selected.id : 0))) ?? garden.colonies[0];
@@ -80,15 +80,16 @@ function LivingGarden() {
   const q = quality(garden, point);
   const active = tools.find(t => t.key === tool);
   const established = garden.objects.filter(o => (o.kind === "berry" || o.kind === "flower") && o.growth >= .75).length;
-  const turnObject = (o: GardenObject) => setGarden(s => ({ ...s, objects: s.objects.map(p => p.id === o.id ? { ...p, angle: p.angle + Math.PI / 4 } : p) }));
-  const exportSave = () => { const url = URL.createObjectURL(new Blob([encodeGarden(latest.current)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "formicarium-garden.json"; a.click(); URL.revokeObjectURL(url); };
+  const turnObject = (o: GardenObject) => dispatch({ type: "rotate", id: o.id });
+  const exportSave = async () => { try { const saved = await snapshot(); const url = URL.createObjectURL(new Blob([encodeGarden(saved)], { type: "application/json" })); const a = document.createElement("a"); a.href = url; a.download = "formicarium-garden.json"; a.click(); URL.revokeObjectURL(url); } catch { setSaveStatus("Could not export yet. Pause and try again."); } };
   const batch = batchStatus(chosenColony.colony);
   const observedAnt = chosenColony.colony.ants.find(a => a.id === observed);
   return <div className={styles.game}>
     <div inert={help || reset}>
       <header className={styles.header}><div className={styles.brand}><Link href="/" aria-label="Back to homepage"><ArrowLeft size={18}/></Link><Bug size={26}/><div><h1>FORMICARIUM</h1><span>A LIVING GARDEN</span></div></div><div className={styles.headerButtons}><button onClick={() => setHelp(true)}>Field notes</button><button onClick={save} aria-label="Save garden"><Save size={17}/></button><button onClick={exportSave} aria-label="Export garden"><Download size={17}/></button><button onClick={() => upload.current?.click()} aria-label="Import garden"><Upload size={17}/></button><button onClick={() => setReset(true)} aria-label="New garden"><RotateCcw size={17}/></button></div></header>
-      <input ref={upload} type="file" accept="application/json,.json" className={styles.file} aria-label="Garden save file" onChange={async e => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; if (file.size > 32_000_000) { setSaveStatus("Save file is too large."); return; } try { const next = decodeGarden(await file.text()); setGarden(next); latest.current = next; setCanSave(true); setSpeed(0); setView(null); setSelected({ kind: "colony", id: next.colonies[0].id, point: next.colonies[0] }); setSaveStatus("Imported. Save to keep this garden in this browser."); } catch { setSaveStatus("Could not import this file. Your current garden is unchanged."); } }}/>
+      <input ref={upload} type="file" accept="application/json,.json" className={styles.file} aria-label="Garden save file" onChange={async e => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; if (file.size > 32_000_000) { setSaveStatus("Save file is too large."); return; } try { const next = decodeGarden(await file.text()); replace(next); setCanSave(true); setSpeed(0); setView(null); setSelected({ kind: "colony", id: next.colonies[0].id, point: next.colonies[0] }); setSaveStatus("Imported. Save to keep this garden in this browser."); } catch { setSaveStatus("Could not import this file. Your current garden is unchanged."); } }}/>
       <div className={styles.topline}><div><strong>{totalAnts(garden)}</strong><span>ants · {garden.colonies.length} colonies</span></div><div><strong>{established}</strong><span>established plants</span></div><div><strong>{Math.round(totalFood(garden))}</strong><span>food in nests</span></div><div><strong>{clock(garden.tick)}</strong><span>garden time</span></div><p role="status">{saveStatus}</p></div>
+      {error && <p role="alert" className={styles.notice}>The simulation paused unexpectedly. Export a backup and reload to continue.</p>}
       <div className={styles.layout}>
         <section className={styles.workspace} aria-label="Garden workspace">
           <div className={styles.mapbar}><div className={styles.viewTabs}><button aria-pressed={view === null} onClick={() => setView(null)}><Map size={15}/>Garden</button>{garden.colonies.map(c => <button key={c.id} aria-pressed={view === c.id} onClick={() => { setView(c.id); setObserved(-1); setSelected({ kind: "colony", id: c.id, point: c }); }}><i style={{ background: c.color }}/>{c.name} nest</button>)}</div><div className={styles.playback}><button aria-label={speed ? "Pause garden" : "Play garden"} onClick={() => setSpeed(speed ? 0 : 1)}>{speed ? <Pause size={15}/> : <Play size={15}/>}</button>{[1, 3, 8].map(n => <button key={n} aria-pressed={speed === n} onClick={() => setSpeed(n)}>{n}×</button>)}</div></div>
@@ -109,18 +110,18 @@ function LivingGarden() {
           <section className={styles.panel}><div className={styles.panelHeading}><h2>{chosenObject ? names[chosenObject.kind] : selected?.kind === "colony" ? `${chosenColony.name} colony` : "Ground conditions"}</h2><Eye size={16}/></div>
             {selected?.kind === "colony" ? <><p>{chosenColony.colony.result === "lost" ? "This colony has fallen. Its nest remains part of the garden." : `${chosenColony.colony.ants.filter(a => a.zone === "surface").length} outside · ${chosenColony.colony.ants.filter(a => a.zone === "nest").length} underground`}</p><dl><div><dt>Stored food</dt><dd>{Math.floor(storedFood(chosenColony.colony))}</dd></div><div><dt>Food carried home</dt><dd>{chosenColony.colony.totals.delivered}</dd></div><div><dt>Brood / hatched</dt><dd>{chosenColony.colony.brood.length} / {chosenColony.colony.totals.hatched}</dd></div><div><dt>Workers using shelter</dt><dd>{chosenColony.sheltered} visits</dd></div><div><dt>Starvation losses</dt><dd>{chosenColony.colony.totals.starved}</dd></div></dl><button className={styles.primary} onClick={() => setView(chosenColony.id)}>Look inside the nest</button></> : <>
               <dl><div><dt>Moisture</dt><dd>{Math.round(q.moisture * 100)}% · {q.moisture < .29 ? "dry" : q.moisture > .93 ? "waterlogged" : "damp"}</dd></div><div><dt>Soil fertility</dt><dd>{Math.round(q.fertility * 100)}%</dd></div><div><dt>Cover</dt><dd>{Math.round(q.cover * 100)}%</dd></div>{chosenObject && <><div><dt>{chosenObject.kind === "berry" || chosenObject.kind === "flower" ? "Growth" : "Condition"}</dt><dd>{Math.round((chosenObject.kind === "berry" || chosenObject.kind === "flower" ? chosenObject.growth : chosenObject.condition) * 100)}%</dd></div><div><dt>Available food</dt><dd>{Math.floor(chosenObject.food)}</dd></div><div><dt>Discovered by</dt><dd>{chosenObject.visits.map(id => garden.colonies.find(c => c.id === id)?.name).join(", ") || "No colony yet"}</dd></div>{chosenObject.pollen > .05 && <div><dt>Pollination</dt><dd>Yield boosted</dd></div>}</>}</dl>
-              {chosenObject && <div className={styles.objectActions}><button onClick={() => { setMoving(chosenObject.id); chooseTool("move"); }}>Move</button>{["log", "bridge"].includes(chosenObject.kind) && <button onClick={() => turnObject(chosenObject)}>Rotate</button>}<button onClick={() => { setGarden(s => actGarden(s, "remove", [chosenObject], chosenObject.id)); setSelected({ kind: "ground", point: chosenObject }); }}>Remove</button></div>}
+              {chosenObject && <div className={styles.objectActions}><button onClick={() => { setMoving(chosenObject.id); chooseTool("move"); }}>Move</button>{["log", "bridge"].includes(chosenObject.kind) && <button onClick={() => turnObject(chosenObject)}>Rotate</button>}<button onClick={() => { dispatch({ type: "act", tool: "remove", points: [chosenObject], moving: chosenObject.id }); setSelected({ kind: "ground", point: chosenObject }); }}>Remove</button></div>}
               {!chosenObject && <p>{q.moisture < .29 ? "Dry ground. Bring a channel from the stream, or use water to begin a planting." : q.moisture > .93 ? "Water is too deep for roots. Plant along the bank instead." : "Damp ground can support plants. Fallen wood improves cover and soil over time."}</p>}
             </>}
           </section>
           <section className={styles.panel}><div className={styles.panelHeading}><h2>Colonies</h2><Bug size={17}/></div>{garden.colonies.map(c => <button className={styles.colonyRow} key={c.id} onClick={() => { setSelected({ kind: "colony", id: c.id, point: c }); focus(c); }}><i style={{ background: c.color }}/><span><strong>{c.name}</strong><small>{c.colony.result === "lost" ? "Abandoned nest" : `${c.colony.ants.length} ants · ${Math.floor(storedFood(c.colony))} food`}</small></span><ChevronDown size={14}/></button>)}</section>
-          {view !== null && <section className={styles.panel}><h2>New brood</h2><p>Choose the next caste, or prepare a batch of 12 fed brood for nurses to raise.</p><select aria-label="Brood caste" value={role} onChange={e => { const next = e.target.value as Role; setRole(next); setGarden(s => ({ ...s, colonies: s.colonies.map(c => c.id === chosenColony.id ? { ...c, colony: { ...c.colony, nextRole: next } } : c) })); }}>{["forager", "nurse", "digger", "cleaner"].map(r => <option key={r} value={r}>{r}s</option>)}</select><button className={styles.primary} disabled={!!batchProblem(chosenColony.colony)} onClick={() => setGarden(s => ({ ...s, colonies: s.colonies.map(c => c.id === chosenColony.id ? { ...c, colony: prepareBatch(c.colony, role) } : c), notice: `Prepared ${role} brood in ${chosenColony.name}. Nurses must tend it.` }))}>Raise 12 · 12 food</button>{batch && <p>{batch.hatched} / {batch.total} hatched</p>}</section>}
+          {view !== null && <section className={styles.panel}><h2>New brood</h2><p>Choose the next caste, or prepare a batch of 12 fed brood for nurses to raise.</p><select aria-label="Brood caste" value={role} onChange={e => { const next = e.target.value as Role; setRole(next); dispatch({ type: "caste", colony: chosenColony.id, role: next }); }}>{["forager", "nurse", "digger", "cleaner"].map(r => <option key={r} value={r}>{r}s</option>)}</select><button className={styles.primary} disabled={!!batchProblem(chosenColony.colony)} onClick={() => dispatch({ type: "brood", colony: chosenColony.id, role })}>Raise 12 · 12 food</button>{batch && <p>{batch.hatched} / {batch.total} hatched</p>}</section>}
           <section className={styles.project}><span>TRY A LASTING CHANGE</span><h2>Make the dry reach bloom.</h2><p>Lead water from the stream. Add wood and plant beside the channel. Watch for growth, visitors, and new ant trails.</p><button onClick={() => { focus(landmarks[1]); setSelected({ kind: "ground", point: landmarks[1] }); }}>Go to the dry reach <ArrowLeft size={14} style={{ transform: "rotate(180deg)" }}/></button></section>
         </aside>
       </div>
       <section className={styles.history}><div><h2>Garden history</h2><span>{garden.harvested} food collected · {garden.planted} plantings</span></div><div role="log" aria-live="off">{garden.log.slice(0, 5).map((e, i) => <p key={`${e.tick}-${i}`}><time>{clock(e.tick)}</time>{e.text}</p>)}</div></section>
       <footer className={styles.footer}><span>Saved locally · export a backup to take your garden elsewhere.</span><span>The garden rests while this tab is hidden or closed.</span></footer>
     </div>
-    {(help || reset) && <div className={styles.scrim}><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="garden-dialog" onKeyDown={e => { if (e.key === "Escape") { setHelp(false); setReset(false); } if (e.key === "Tab") { const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>("button"), first = buttons[0], last = buttons[buttons.length - 1]; if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); } } }}><h2 id="garden-dialog">{reset ? "Start a fresh garden?" : "Tend a place. Watch it change."}</h2>{reset ? <><p>This replaces the garden in this browser. Export it first if you want to keep a copy.</p><button autoFocus className={styles.primary} onClick={() => { const next = createGarden(); setGarden(next); latest.current = next; setCanSave(true); setSelected({ kind: "colony", id: 0, point: next.colonies[0] }); setView(null); setTool("observe"); setCamera({ x: 90, y: 520, width: 1250 }); setReset(false); setSaveStatus("New garden. Previous browser save will be replaced on autosave."); }}>Start fresh</button><button onClick={() => setReset(false)}>Keep this garden</button></> : <><p>The two colonies share the same garden. They find food locally, remember their journeys, and leave trails as they carry it home. Look inside a nest to follow deliveries, nursing, and excavation. Small nests expand as food, brood, and traffic create demand for space; diggers open chambers and bypasses while haulers clear their soil piles.</p><p>Connect channels to water, plant along their edges, and add fallen wood for shelter and fertile soil. Bridges open crossings. Pollinators visit mature plants. Fruit provides temporary food and gradually enriches the ground.</p><p>Prepare a damp, sheltered food supply before introducing another colony. Their repeated visits and food trails show which parts of the garden they use.</p><p>Autosaves stay in this browser. Export/import makes a portable backup. Nothing ages or starves while the tab is hidden or closed.</p><button autoFocus className={styles.primary} onClick={() => setHelp(false)}>Back to the garden</button></>}</section></div>}
+    {(help || reset) && <div className={styles.scrim}><section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="garden-dialog" onKeyDown={e => { if (e.key === "Escape") { setHelp(false); setReset(false); } if (e.key === "Tab") { const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>("button"), first = buttons[0], last = buttons[buttons.length - 1]; if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); } } }}><h2 id="garden-dialog">{reset ? "Start a fresh garden?" : "Tend a place. Watch it change."}</h2>{reset ? <><p>This replaces the garden in this browser. Export it first if you want to keep a copy.</p><button autoFocus className={styles.primary} onClick={() => { const next = createGarden(); replace(next); setCanSave(true); setSelected({ kind: "colony", id: 0, point: next.colonies[0] }); setView(null); setTool("observe"); setCamera({ x: 90, y: 520, width: 1250 }); setReset(false); setSaveStatus("New garden. Previous browser save will be replaced on autosave."); }}>Start fresh</button><button onClick={() => setReset(false)}>Keep this garden</button></> : <><p>The two colonies share the same garden. They find food locally, remember their journeys, and leave trails as they carry it home. Look inside a nest to follow deliveries, nursing, and excavation. Small nests expand as food, brood, and traffic create demand for space; diggers open chambers and bypasses while haulers clear their soil piles.</p><p>Connect channels to water, plant along their edges, and add fallen wood for shelter and fertile soil. Bridges open crossings. Pollinators visit mature plants. Fruit provides temporary food and gradually enriches the ground.</p><p>Prepare a damp, sheltered food supply before introducing another colony. Their repeated visits and food trails show which parts of the garden they use.</p><p>Autosaves stay in this browser. Export/import makes a portable backup. Nothing ages or starves while the tab is hidden or closed.</p><button autoFocus className={styles.primary} onClick={() => setHelp(false)}>Back to the garden</button></>}</section></div>}
   </div>;
 }
