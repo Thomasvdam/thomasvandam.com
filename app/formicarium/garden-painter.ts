@@ -1,5 +1,6 @@
-import { CELL, COLS, ROWS, cellPoint, creekX, Garden, GardenObject, HEIGHT, WIDTH } from "./garden";
+import { CELL, COLS, ROWS, Garden, GardenObject, HEIGHT, WIDTH } from "./garden";
 import { noise } from "./nest";
+import { paintWaterways } from "./waterways";
 
 // Alpha bounds within the six 512px cells of the botanical atlas.
 const sprites = {
@@ -36,35 +37,10 @@ export function paintTerrain(ctx: CanvasRenderingContext2D, field: HTMLCanvasEle
     const wet = s.moisture[i], fertile = s.fertility[i], grain = noise(i) * 6;
     pixels.data.set([125 - wet * 48 - fertile * 13 + grain, 111 - wet * 11 + fertile * 9 + grain, 76 - wet * 12 + grain, 255], i * 4);
   }
-  f.putImageData(pixels, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; ctx.drawImage(field, 0, 0, WIDTH, HEIGHT);
+  f.putImageData(pixels, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "low"; ctx.drawImage(field, 0, 0, WIDTH, HEIGHT);
   ctx.fillStyle = texture; ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  if (ground) { ctx.save(); ctx.globalCompositeOperation = "soft-light"; ctx.globalAlpha = .85; ctx.fillStyle = ground; ctx.fillRect(0, 0, WIDTH, HEIGHT); ctx.restore(); }
-  ctx.lineJoin = "round"; ctx.lineCap = "round";
-  ctx.beginPath(); for (let y = -30; y <= HEIGHT + 30; y += 10) { if (y === -30) ctx.moveTo(creekX(y), y); else ctx.lineTo(creekX(y), y); }
-  // Soft banks and irregular shallows keep the stream legible without road-like bands.
-  for (const [color, width] of [["#66704a", 128], ["#9a9470", 116], ["#405a46", 104], ["#618d7c", 95]] as const) { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke(); }
-  for (const p of [{ x: 590, y: 820, r: 65 }, { x: 1820, y: 520, r: 77 }]) {
-    const g = ctx.createRadialGradient(p.x - 15, p.y - 20, 5, p.x, p.y, p.r); g.addColorStop(0, "#83a99a"); g.addColorStop(.8, "#4a796b"); g.addColorStop(1, "#364c39"); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r, p.r * .92, -.2, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#7d8056"; ctx.lineWidth = 5; ctx.stroke();
-  }
-  for (let i = 0; i < s.channels.length; i++) if (s.channels[i]) {
-    const p = cellPoint(i), x = i % COLS;
-    const adjacent = [x > 0 ? i - 1 : -1, x < COLS - 1 ? i + 1 : -1, i >= COLS ? i - COLS : -1, i + COLS < s.channels.length ? i + COLS : -1].filter(k => k >= 0 && s.channels[k]).map(cellPoint).map(q => ({ x: (q.x + p.x) / 2, y: (q.y + p.y) / 2 }));
-    ctx.beginPath(); if (adjacent.length === 2) { ctx.moveTo(adjacent[0].x, adjacent[0].y); ctx.quadraticCurveTo(p.x, p.y, adjacent[1].x, adjacent[1].y); } else for (const q of adjacent) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); }
-    ctx.strokeStyle = "#a29770"; ctx.lineWidth = 25; ctx.stroke(); ctx.strokeStyle = "#48573c"; ctx.lineWidth = 20; ctx.stroke(); ctx.strokeStyle = s.water[i] > .2 ? "#6d9584" : "#635b40"; ctx.lineWidth = 13; ctx.stroke();
-    if (adjacent.length < 2) { ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.arc(p.x, p.y, 6.5, 0, Math.PI * 2); ctx.fill(); }
-  }
-  // Small stones and bank plants are deterministic scenery, never obstacles.
-  for (let i = 0; i < 190; i++) {
-    const y = noise(i + 500) * HEIGHT, side = i % 2 ? -1 : 1, x = creekX(y) + side * (59 + noise(i + 51) * 17);
-    ctx.fillStyle = i % 4 ? "#748151" : "#b0ac89"; ctx.beginPath(); ctx.ellipse(x, y, 2 + noise(i + 2) * 4, 1 + noise(i + 8) * 3, noise(i) * 6, 0, Math.PI * 2); ctx.fill();
-    if (i % 3) { ctx.strokeStyle = "#a6b47b80"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x - 2, y - 7, x - 6, y - 9); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 2, y - 9, x + 5, y - 12); ctx.stroke(); }
-  }
-  for (let i = 0; i < 90; i++) {
-    const y = noise(i + 1800) * HEIGHT, side = i % 2 ? -1 : 1, x = creekX(y) + side * (37 + noise(i + 71) * 8);
-    ctx.fillStyle = i % 3 ? "#b1b39540" : "#334f4038"; ctx.beginPath(); ctx.ellipse(x, y, 2 + noise(i) * 5, 3 + noise(i + 81) * 9, -.3, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.strokeStyle = "#c9e3ce36"; ctx.lineWidth = 1;
-  for (let i = 0; i < 40; i++) { const y = i * 39 + 8; ctx.beginPath(); ctx.moveTo(creekX(y) - 25, y); ctx.quadraticCurveTo(creekX(y) - 5, y + 7, creekX(y) + 17, y + 4); ctx.stroke(); }
+  if (ground) { ctx.save(); ctx.globalAlpha = .28; ctx.fillStyle = ground; ctx.fillRect(0, 0, WIDTH, HEIGHT); ctx.restore(); }
+  paintWaterways(ctx, s, texture, ground);
 }
 export function paintGarden(ctx: CanvasRenderingContext2D, terrain: HTMLCanvasElement, atlas: HTMLImageElement | null, s: Garden) {
   ctx.drawImage(terrain, 0, 0);
