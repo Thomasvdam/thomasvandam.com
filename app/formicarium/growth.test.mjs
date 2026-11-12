@@ -74,3 +74,13 @@ test("busy chambers enlarge only after a digger reaches and removes soil from a 
   for (let i = 0; i < 100 && !s.ants[0].cargo; i++) s = step(s);
   expect(s.nest[4].size).toBeGreaterThan(2); expect(s.ants[0].cargo.kind).toBe("soil"); expect(s.totals.soil).toBe(0);
 });
+
+test("a just-completed bypass is available to routing in the same mutable step", () => {
+  let s = withLoop(); const face = s.nest[7], target = s.nest[4];
+  face.links = []; face.x = target.x + 25; face.y = target.y; face.excavation = { angle: Math.PI, remaining: 0, dug: 1, target: target.id, room: "tunnel" };
+  s.ants = [newAnt(0, "digger", face)]; s.ants[0].rest = 0; s.ants[0].hunger = 0;
+  // signals() builds connectivity before this ant breaks through.
+  s = step(s);
+  expect(s.nest[7].excavation).toBeUndefined(); expect(s.nest[7].links).toEqual([4]);
+  expect(adjacentNodes(s.nest, s.nest[4]).map(n => n.id)).toContain(7); expect(nestGrowth(s).bypasses).toBe(1);
+});

@@ -35,6 +35,8 @@ export function clearSoil(s: Colony, p: Point, anchor: number, self = -1, target
   for (const edge of nestPassages(s.nest)) {
     if (edge.to === self || edge.from === self) continue;
     const a = s.nest.find(n => n.id === edge.from)!, b = s.nest.find(n => n.id === edge.to)!;
+    // The curve bends by at most 11px; include the full 14px clearance plus padding.
+    if (p.x < Math.min(a.x, b.x) - 40 || p.x > Math.max(a.x, b.x) + 40 || p.y < Math.min(a.y, b.y) - 40 || p.y > Math.max(a.y, b.y) + 40) continue;
     const goal = s.nest.find(n => n.id === target);
     if (goal && (a.id === target || b.id === target) && distance(p, goal) < radius(goal) + 25) continue;
     if ((a.id === anchor || b.id === anchor) && distance(p, origin) < radius(origin) + 25) continue;
