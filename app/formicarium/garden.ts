@@ -1,5 +1,6 @@
 import { Ant, Colony, createColony, DT, ENTRANCE, step, storedFood } from "./simulation";
 import { distance, noise, Point, segmentDistance } from "./nest";
+import { gardenConflict } from "./garden-conflict";
 import { MEAL, SEEK_FOOD } from "./nutrition";
 
 export const WIDTH = 2400, HEIGHT = 1560, CELL = 30, COLS = WIDTH / CELL, ROWS = HEIGHT / CELL, CELLS = COLS * ROWS;
@@ -38,11 +39,12 @@ export function createGarden(): Garden {
     const o = object(s, kind, { x, y }); if (kind === "berry" || kind === "flower") { o.growth = 1; o.food = 18; s.moisture[cellAt(o)] = .65; } s.objects.push(o);
   }
   s.colonies = [makeColony(0, "Cedar", { x: 440, y: 960 }), makeColony(1, "Ochre", { x: 1960, y: 560 })];
-  event(s, "Cedar and Ochre have settled on opposite banks. The dry reach between them is yours to shape.");
+  event(s, "Cedar and Ochre established.");
   return s;
 }
 function neighbors(i: number) { const x = i % COLS, y = Math.floor(i / COLS); return [x > 0 ? i - 1 : -1, x < COLS - 1 ? i + 1 : -1, y > 0 ? i - COLS : -1, y < ROWS - 1 ? i + COLS : -1].filter(k => k >= 0); }
 function ecology(s: Garden) {
+  s.objects = s.objects.filter(o => o.kind !== "fruit" || o.food > 0 || o.condition > .02);
   const water = s.water.slice(), moisture = s.moisture.slice();
   for (let i = 0; i < CELLS; i++) {
     const p = cellPoint(i), adjacent = neighbors(i);
@@ -95,9 +97,11 @@ function outside(s: Garden, home: GardenColony, a: Ant) {
     if (move(s, a, home, true)) enter(a); return;
   }
   if (a.role === "soldier" && a.hunger <= SEEK_FOOD) {
+    if (a.local) { a.action = "Approaching a nearby enemy"; move(s, a, a.local, true); a.local = null; return; }
     a.action = "Patrolling the ground around the entrance";
     move(s, a, { x: home.x + Math.cos(s.tick * DT * .12 + a.id) * 100, y: home.y + Math.sin(s.tick * DT * .12 + a.id) * 100 }, true); return;
   }
+  if (a.reportNest && a.role !== "soldier") a.returning = true;
   if (a.returning || a.cargo || a.hunger > SEEK_FOOD || a.explored > 75) {
     a.action = a.cargo ? "Carrying a seed home · marking a trail" : "Retracing a route to the nest";
     if (a.cargo?.kind === "food") { const k = cellAt(a); home.trail[k] = Math.min(8, home.trail[k] + DT * 2); }
@@ -109,7 +113,7 @@ function outside(s: Garden, home: GardenColony, a: Ant) {
   const source = s.objects.find(o => o.food >= 1 && distance(o, a) < 30);
   if (source) {
     source.food--; a.cargo = { kind: "food", amount: 1 }; a.returning = true; s.harvested++; home.visits++;
-    if (!source.visits.includes(home.id)) { source.visits.push(home.id); event(s, `${home.name} discovered ${source.kind === "fruit" ? "fallen fruit" : source.kind === "berry" ? "a berry bush" : "a flower patch"}. A new foraging route is forming.`); }
+    if (!source.visits.includes(home.id)) { source.visits.push(home.id); event(s, `${home.name} discovered ${source.kind === "fruit" ? "fallen fruit" : source.kind === "berry" ? "a berry bush" : "a flower patch"}.`); }
     return;
   }
   const shelter = s.objects.find(o => o.kind === "log" && distance(o, a) < 55);
@@ -131,18 +135,23 @@ export function stepGarden(previous: Garden): Garden {
   if (s.tick % 20 === 0) { s.moisture = s.moisture.slice(); s.water = s.water.slice(); s.fertility = s.fertility.slice(); ecology(s); }
   for (const old of previous.colonies) {
     const before = new Map(old.colony.ants.map(a => [a.id, a.zone]));
-    const colony = old.colony.result === "alive" ? step(old.colony) : { ...old.colony, sources: [] };
+    const colony = old.colony.result === "alive" ? step(old.colony) : { ...old.colony, tick: old.colony.tick + 1, sources: [], fallen: old.colony.fallen.filter(a => a.until > (old.colony.tick + 1) * DT) };
     const home = { ...old, colony, trail: old.trail.slice() };
     for (let i = 0; i < CELLS; i++) home.trail[i] *= Math.exp(-DT / 45);
     for (const dropped of colony.sources) if (dropped.amount > 0) { const o = object(s, "fruit", dropped); o.food = dropped.amount; o.age = 0; s.objects.push(o); }
     colony.sources = [];
     for (const a of colony.ants) if (a.zone === "surface" && colony.result === "alive") {
       if (before.get(a.id) === "nest") { a.x = home.x; a.y = home.y; a.memory = [{ x: home.x, y: home.y }]; a.angle = noise(a.id + s.tick) * Math.PI * 2; a.explored = 0; a.returning = false; }
-      outside(s, home, a);
+
     }
     const opened = colony.nest.filter(n => n.openedAt !== undefined && !old.colony.nest.find(p => p.id === n.id)?.openedAt);
     for (const n of opened) event(s, `${home.name} ${n.links?.length ? "opened a bypass between existing routes" : n.room === "nursery" ? "finished a new nursery" : n.room === "food" ? "opened a new food chamber" : "extended its tunnel network"}.`);
     s.colonies.push(home);
+  }
+  const fighting = gardenConflict(s);
+  for (const home of s.colonies) for (const a of home.colony.ants) {
+    if (a.zone === "surface" && home.colony.result === "alive" && !fighting.has(a)) outside(s, home, a);
+    else if (a.zone === "nest" && a.reportNest && a.node >= 0) { const n = home.colony.nest.find(n => n.id === a.node); if (n) n.scent.alarm = 2; a.reportNest = false; }
   }
   for (const bee of s.insects) {
     if (bee.rest > 0) { bee.rest -= DT; continue; }
@@ -171,9 +180,9 @@ export function actGarden(previous: Garden, tool: GardenTool, points: Point[], m
         if (Math.floor(previousCell / COLS) !== Math.floor(k / COLS) && previousCell % COLS !== k % COLS) s.channels[Math.floor(previousCell / COLS) * COLS + k % COLS] = 1;
         previousCell = k; }
     }
-    event(s, "Channel dug. Connect it to the stream or a pond to bring water into dry ground."); return s;
+    event(s, "Channel dug."); return s;
   }
-  if (tool === "water") { for (let i = 0; i < CELLS; i++) if (distance(cellPoint(i), point) < 65) s.water[i] = Math.max(s.water[i], .5); event(s, "Ground watered. A connected channel provides a lasting supply."); return s; }
+  if (tool === "water") { for (let i = 0; i < CELLS; i++) if (distance(cellPoint(i), point) < 65) s.water[i] = Math.max(s.water[i], .5); event(s, "Ground watered."); return s; }
   const nearest = moving !== undefined ? s.objects.find(o => o.id === moving) : s.objects.filter(o => distance(o, point) < 70).sort((a, b) => distance(a, point) - distance(b, point))[0];
   if (tool === "remove") {
     if (nearest) { s.objects = s.objects.filter(o => o.id !== nearest.id); event(s, `Removed ${nearest.kind}.`); }
@@ -191,7 +200,7 @@ export function actGarden(previous: Garden, tool: GardenTool, points: Point[], m
   }
   if (s.objects.length >= 300) { s.notice = "The garden has 300 objects. Remove or move something before adding more."; return s; }
   const o = object(s, tool, point); s.objects.push(o); if (tool === "berry" || tool === "flower") s.planted++;
-  event(s, tool === "log" ? "Fallen wood placed. It shelters ants, retains moisture, and slowly enriches the soil." : tool === "bridge" ? "Bridge built. Ants can now cross water along its span." : tool === "fruit" ? "Fruit placed. Ants must discover it; leftovers slowly become fertile soil." : tool === "berry" || tool === "flower" ? "Planted. Growth depends on moisture and soil; mature plants provide renewable food." : "Rock placed. Foragers will seek a way around it.");
+  event(s, tool === "berry" || tool === "flower" ? "Planted." : tool === "bridge" ? "Bridge placed." : tool === "log" ? "Wood placed." : tool === "fruit" ? "Fruit placed." : "Rock placed.");
   return s;
 }
 export const totalAnts = (s: Garden) => s.colonies.reduce((n, c) => n + c.colony.ants.length, 0);

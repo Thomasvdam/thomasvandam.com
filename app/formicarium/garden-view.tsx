@@ -27,8 +27,9 @@ export default function GardenView({ garden, camera, onCamera, tool, signals, ov
   useEffect(() => {
     const el = canvas.current!, ctx = el.getContext("2d")!;
     const terrain = document.createElement("canvas"), scenery = document.createElement("canvas"), field = document.createElement("canvas");
-    terrain.width = scenery.width = WIDTH; terrain.height = scenery.height = HEIGHT; field.width = COLS; field.height = ROWS;
+    terrain.width = WIDTH / 2; terrain.height = HEIGHT / 2; scenery.width = WIDTH; scenery.height = HEIGHT; field.width = COLS; field.height = ROWS;
     const soil = terrain.getContext("2d")!, scene = scenery.getContext("2d")!, texture = soil.createPattern(soilTexture(), "repeat")!;
+    soil.setTransform(.5, 0, 0, .5, 0, 0);
     let groundTexture: CanvasPattern | null = null; const ground = new Image(); ground.onload = () => { groundTexture = soil.createPattern(ground, "repeat"); groundTexture?.setTransform(new DOMMatrix().scale(.5)); terrainState = null; dirty = true; }; ground.src = "/images/formicarium/garden-soil.webp";
     const atlas = new Image(); let art: HTMLImageElement | null = null, dirty = true, frame = 0;
     atlas.onload = () => { art = atlas; dirty = true; }; atlas.src = "/images/formicarium/garden-atlas.webp";
@@ -50,11 +51,13 @@ export default function GardenView({ garden, camera, onCamera, tool, signals, ov
       const t = Math.min(1, (now - changed) / interval);
       const state = [s, c, r.signals, r.overlay, r.selected, gesture.current, gesture.current?.points.length];
       if (!dirty && t === 1 && state.every((v, i) => v === last[i])) return; last = state;
-      const sceneState = [s, r.signals, r.overlay, art];
+      if (!terrainState || s.tick < terrainState.tick || (Math.floor(s.tick / 20) !== Math.floor(terrainState.tick / 20) && now - terrainAt > 1000) || s.channels.some((v, i) => v !== terrainState!.channels[i])) {
+        paintTerrain(soil, field, texture, s, groundTexture); terrainAt = now; terrainState = s;
+      }
+      const objects = s.objects.map(o => `${o.id}:${o.kind}:${o.x}:${o.y}:${o.angle}:${Math.floor(o.growth * 20)}:${Math.floor(o.food / 4)}`).join(";");
+      const homes = s.colonies.map(h => `${h.id}:${h.x}:${h.y}:${h.name}:${h.color}`).join(";");
+      const sceneState = [terrainAt, objects, homes, r.signals, r.overlay, r.signals ? s : null, r.overlay !== "none" ? s : null, art];
       if (dirty || sceneState.some((v, i) => v !== painted[i])) {
-        if (!terrainState || s.tick < terrainState.tick || now - terrainAt > 500 || s.channels.some((v, i) => v !== terrainState!.channels[i])) {
-          paintTerrain(soil, field, texture, s, groundTexture); terrainAt = now; terrainState = s;
-        }
         paintGarden(scene, terrain, art, s);
         if (r.overlay !== "none") for (let i = 0; i < s.moisture.length; i++) { const p = cellPoint(i), v = r.overlay === "moisture" ? s.moisture[i] : s.fertility[i]; scene.fillStyle = r.overlay === "moisture" ? `rgba(110,201,219,${v * .45})` : `rgba(220,194,115,${v * .45})`; scene.fillRect(p.x - 15, p.y - 15, CELL, CELL); }
         if (r.signals) for (const home of s.colonies) for (let i = 0; i < home.trail.length; i++) if (home.trail[i] > .05) {
@@ -74,8 +77,14 @@ export default function GardenView({ garden, camera, onCamera, tool, signals, ov
         const x = from.x + (a.x - from.x) * blend, y = from.y + (a.y - from.y) * blend;
         if (x < c.x - 20 || x > c.x + c.width + 20 || y < c.y - 20 || y > c.y + viewHeight + 20) continue;
         const angle = from.angle + Math.atan2(Math.sin(a.angle - from.angle), Math.cos(a.angle - from.angle)) * blend;
+        if (a.fighting) { ctx.strokeStyle = "#f3a777"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.stroke(); }
         ctx.save(); ctx.translate(x, y); ctx.rotate(angle); if (a.role === "soldier") ctx.scale(1.15, 1.15); ctx.drawImage(images.get(`${a.role}-${a.cargo?.kind ?? "none"}`)!, -16, -12.8, 32, 25.6); ctx.restore();
       }
+      for (const home of s.colonies) for (const fallen of home.colony.fallen) {
+        if (fallen.x < c.x || fallen.x > c.x + c.width || fallen.y < c.y || fallen.y > c.y + viewHeight) continue;
+        ctx.globalAlpha = Math.min(.6, Math.max(0, (fallen.until - home.colony.tick * .05) / 4)); ctx.strokeStyle = home.color; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(fallen.x - 4, fallen.y - 3); ctx.lineTo(fallen.x + 4, fallen.y + 3); ctx.moveTo(fallen.x + 4, fallen.y - 3); ctx.lineTo(fallen.x - 4, fallen.y + 3); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
       for (const bee of s.insects) {
         if (bee.x < c.x || bee.x > c.x + c.width || bee.y < c.y || bee.y > c.y + viewHeight) continue;
         ctx.save(); ctx.translate(bee.x, bee.y); ctx.rotate(bee.angle); ctx.fillStyle = "#f2efd4aa"; ctx.beginPath(); ctx.ellipse(-1, -3, 4, 2.5, -.5, 0, Math.PI * 2); ctx.ellipse(-1, 3, 4, 2.5, .5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#d9b66b"; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = "#453c29"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-2, -2); ctx.lineTo(-2, 2); ctx.stroke(); ctx.restore();
