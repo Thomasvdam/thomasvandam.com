@@ -363,6 +363,15 @@ function broodSlot(s: Colony, n: NestNode): Point {
   const count = s.brood.filter(b => b.node === n.id && b.carrier === null).length;
   return { x: n.x - 22.5 + count % 6 * 9, y: n.y - 12 + Math.floor(count / 6) % 4 * 8 };
 }
+export function nurseCaste(s: Colony, nurse: Ant, n: NestNode): Role {
+  const nearby = s.ants.filter(a => a.zone === "nest" && distance(a, nurse) < 120);
+  const raised = s.brood.filter(b => b.care > 0 && distance(b, nurse) < 120);
+  const demand: Record<Role, number> = { forager: .4, nurse: .2, digger: .18 + n.scent.work * .15, cleaner: .12 + n.scent.clean * .3, soldier: .08 + n.scent.alarm * .5 };
+  return ROLES.reduce((best, role) => {
+    const score = (r: Role) => (nearby.filter(a => a.role === r).length + raised.filter(b => b.role === r).length) / demand[r];
+    return score(role) < score(best) ? role : best;
+  }, "forager" as Role);
+}
 function interactBrood(s: Colony, a: Ant, n: NestNode) {
   if (a.cargo?.kind === "brood") {
     if (s.gardenSurface && n.room === "nursery") {
@@ -386,6 +395,7 @@ function interactBrood(s: Colony, a: Ant, n: NestNode) {
   if (a.cargo?.kind === "food" && hungry) {
     a.action = "Delivering food to hungry brood";
     if (!walk(a, hungry, DT)) return true;
+    if (s.gardenSurface && hungry.age < 20 && hungry.fed === 0 && hungry.batch === undefined) hungry.role = nurseCaste(s, a, n);
     hungry.fed++; hungry.neglect = 0; a.cargo = null; a.rest = 1; n.waste += .01; s.totals.fed++; return true;
   }
   if (a.cargo?.kind === "food" && n.room === "queen" && s.queenHunger > .25) {
@@ -401,6 +411,7 @@ function interactBrood(s: Colony, a: Ant, n: NestNode) {
   }
   if (!a.cargo && n.room === "nursery" && n.water <= .3 && needsCare) {
     a.action = "Tending a larva"; if (!walk(a, needsCare, DT)) return true;
+    if (s.gardenSurface && needsCare.age < 20 && needsCare.care === 0 && needsCare.batch === undefined) needsCare.role = nurseCaste(s, a, n);
     needsCare.care += 2; needsCare.neglect = 0; a.rest = 1.5;
     return true;
   }
@@ -735,7 +746,7 @@ export function step(previous: Colony): Colony {
     const waiting = s.brood.filter(b => b.node === queen.id && b.carrier === null).length;
     if (s.brood.length < 36 && s.ants.length + s.brood.length < 400 && waiting < 4 && s.queenHunger < .9) {
       const id = s.nextBrood++;
-      s.brood.push({ id, role: s.nextRole, node: queen.id, carrier: null, x: queen.x - 10 + id % 3 * 8, y: queen.y + 10, fed: 0, care: 0, age: 0, neglect: 0 });
+      s.brood.push({ id, role: s.gardenSurface ? "forager" : s.nextRole, node: queen.id, carrier: null, x: queen.x - 10 + id % 3 * 8, y: queen.y + 10, fed: 0, care: 0, age: 0, neglect: 0 });
     }
     s.eggClock = 12;
   }

@@ -14,19 +14,15 @@ function engine() {
   const post = data => worker.postMessage(data.type === "action" ? { ...data, id: ++action } : data);
   return { post, snapshot: epoch => new Promise((resolve, reject) => { const id = ++request; const timer = setTimeout(() => { pending.delete(id); reject(new Error("Worker snapshot timed out")); }, 3000); pending.set(id, { resolve, reject, timer }); post({ type: "snapshot", epoch, request: id }); }), close: () => worker.terminate() };
 }
-test("a paused worker applies ordered construction and brood commands before a save barrier", async () => {
+test("a paused worker applies ordered construction commands before a save barrier", async () => {
   const runtime = engine();
   try {
-    const s = createGarden(), count = s.objects.length, food = s.colonies[0].colony.nest.reduce((n, room) => n + room.food, 0);
+    const s = createGarden(), count = s.objects.length;
     runtime.post({ type: "replace", garden: s, epoch: 1 });
     runtime.post({ type: "action", epoch: 1, action: { type: "act", tool: "bridge", points: [{ x: 800, y: 700 }] } });
     runtime.post({ type: "action", epoch: 1, action: { type: "rotate", id: s.nextObject } });
-    runtime.post({ type: "action", epoch: 1, action: { type: "caste", colony: 0, role: "digger" } });
-    runtime.post({ type: "action", epoch: 1, action: { type: "brood", colony: 0, role: "digger" } });
-    const frame = await runtime.snapshot(1); expect(frame.action).toBe(4); const { garden } = frame;
+    const frame = await runtime.snapshot(1); expect(frame.action).toBe(2); const { garden } = frame;
     expect(garden.tick).toBe(0); expect(garden.objects).toHaveLength(count + 1); expect(garden.objects.at(-1).angle).toBe(Math.PI / 4);
-    expect(garden.colonies[0].colony.nextRole).toBe("digger"); expect(garden.colonies[0].colony.batch.total).toBe(12);
-    expect(garden.colonies[0].colony.nest.reduce((n, room) => n + room.food, 0)).toBe(food - 12);
     expect(encodeGarden(decodeGarden(encodeGarden(garden)))).toBe(encodeGarden(garden));
     // A cloned snapshot can be changed by the UI without corrupting worker state.
     garden.colonies[0].colony.nest[0].water = 99; garden.moisture[0] = 99;

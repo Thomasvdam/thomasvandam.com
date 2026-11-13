@@ -14,8 +14,6 @@ export function drawGardenObject(ctx: CanvasRenderingContext2D, o: GardenObject,
   const height = o.kind === "bridge" ? 52 : width * sh / sw;
   ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.angle);
   ctx.fillStyle = "#18201935"; ctx.beginPath(); ctx.ellipse(4, 7, width * .43, height * .35, 0, 0, Math.PI * 2); ctx.fill();
-  if (o.condition < .6) ctx.filter = "saturate(.45) sepia(.3)";
-  else if (o.kind === "berry" && o.food < 1) ctx.filter = "saturate(.6)";
   ctx.drawImage(atlas, sx, sy, sw, sh, -width / 2, -height / 2, width, height);
   ctx.restore();
 }
@@ -43,7 +41,7 @@ export function paintTerrain(ctx: CanvasRenderingContext2D, field: HTMLCanvasEle
   paintWaterways(ctx, s, texture, ground);
 }
 export function paintGarden(ctx: CanvasRenderingContext2D, terrain: HTMLCanvasElement, atlas: HTMLImageElement | null, s: Garden) {
-  ctx.drawImage(terrain, 0, 0);
+  ctx.drawImage(terrain, 0, 0, WIDTH, HEIGHT);
   if (atlas) for (const o of [...s.objects].sort((a, b) => a.y - b.y)) drawGardenObject(ctx, o, atlas);
   for (const home of s.colonies) {
     const mound = ctx.createRadialGradient(home.x - 5, home.y - 7, 3, home.x, home.y, 34); mound.addColorStop(0, "#c2ac7c"); mound.addColorStop(.7, "#9f8b60"); mound.addColorStop(1, "#83794e00"); ctx.fillStyle = mound; ctx.beginPath(); ctx.ellipse(home.x, home.y, 40, 30, -.2, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#242b1d"; ctx.beginPath(); ctx.ellipse(home.x, home.y - 3, 10, 7, -.2, 0, Math.PI * 2); ctx.fill();
