@@ -93,11 +93,28 @@ export default function Home() {
 						</Link>
 						<p>Scorekeepers, counters, and a little help with the investigation.</p>
 					</article>
+					<article>
+						<Link href="/formicarium" prefetch={false} className={`${styles.cover} ${styles.formicarium}`}>
+							<h3 aria-label="Formicarium">Formi<br />carium.</h3>
+							<svg className={styles.formicariumNest} viewBox="0 0 240 180" aria-hidden="true" focusable="false">
+								<path d="M0 45Q60 34 120 43T240 42V180H0Z" fill="#69513b" />
+								<path d="M0 45Q60 34 120 43T240 42" fill="none" stroke="#9da671" strokeWidth="4" />
+								<path d="M86 40Q78 73 103 99T100 161M99 90Q126 68 166 83M110 120Q156 104 185 131M98 109Q63 107 39 132" fill="none" stroke="#b99363" strokeWidth="12" strokeLinecap="round" />
+								<path d="M86 40Q78 73 103 99T100 161M99 90Q126 68 166 83M110 120Q156 104 185 131M98 109Q63 107 39 132" fill="none" stroke="#25291f" strokeWidth="8" strokeLinecap="round" />
+								<g fill="#25291f" stroke="#b99363" strokeWidth="2"><ellipse cx="166" cy="83" rx="23" ry="14" /><ellipse cx="185" cy="131" rx="25" ry="17" /><ellipse cx="39" cy="132" rx="25" ry="15" /></g>
+								<g fill="#dfcf9f"><ellipse cx="178" cy="127" rx="3" ry="4" /><ellipse cx="186" cy="130" rx="3" ry="4" /><ellipse cx="194" cy="126" rx="3" ry="4" /></g>
+								<g fill="#abb978"><ellipse cx="160" cy="81" rx="4" ry="2" /><ellipse cx="168" cy="85" rx="4" ry="2" /><ellipse cx="173" cy="79" rx="4" ry="2" /></g>
+								{[[84, 62, 85], [104, 103, 60], [140, 81, 12], [66, 118, -20], [39, 132, 10]].map(([x, y, angle], index) => <g key={index} transform={`translate(${x} ${y}) rotate(${angle})`} fill="#e0b47c" stroke="#e0b47c" strokeWidth=".7"><path d="M-2 0l-3 -3m3 3l-3 3M1 0l1 -4m-1 4l1 4M3 0l4 -3m-4 3l4 3" fill="none" /><ellipse cx="-3" rx="3" ry="2" /><circle cx="2" r="1.5" /><circle cx="5" r="1.7" /></g>)}
+							</svg>
+							<div className={styles.coverBottom}><span>06 / A living garden</span><span>Watch it <span aria-hidden="true">↗</span></span></div>
+						</Link>
+						<p>Shape a garden and watch its ant colonies settle in.</p>
+					</article>
 					<article hidden>
 						<Link href="/exterminator" prefetch={false} className={`${styles.cover} ${styles.exterminator}`}>
 							<h3>Extermi<br />nator.</h3>
 							<div className={styles.exterminatorField} aria-hidden="true"><i /><i /><i /></div>
-							<div className={styles.coverBottom}><span>06 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
+							<div className={styles.coverBottom}><span>07 / A survival game</span><span>Jump in <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>See how long you can keep going.</p>
 					</article>
