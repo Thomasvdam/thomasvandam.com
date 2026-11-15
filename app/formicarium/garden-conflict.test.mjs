@@ -32,3 +32,6 @@ test("a nurse changes young brood during a physical meal, while adult roles stay
  s.brood=[{id:100,role:"forager",node:n.id,carrier:null,x:n.x,y:n.y,fed:0,care:0,age:5,neglect:0}];s.nextBrood=101;
  const roles=s.ants.map(a=>a.role),next=step(s);expect(next.brood[0].role).toBe("soldier");expect(next.brood[0].fed).toBe(1);expect(next.ants.map(a=>a.role)).toEqual(roles);expect(s.brood[0].role).toBe("forager");
 });
+test("only nearby witnesses carry alarm; contact does not instantly inform the nest",()=>{
+ const s=arena(),h=s.colonies[0],near=newAnt(1,"forager",{x:760,y:700},"surface"),far=newAnt(2,"forager",{x:400,y:700},"surface");h.colony.ants.push(near,far);gardenConflict(s);expect(near.reportNest).toBe(true);expect(far.reportNest).toBe(false);expect(near.fighting).toBe(false);expect(h.colony.nest.every(n=>n.scent.alarm===0)).toBe(true);
+});

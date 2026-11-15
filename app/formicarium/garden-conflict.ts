@@ -30,6 +30,14 @@ export function gardenConflict(s: Garden) {
       damage.set(target.ant, (damage.get(target.ant) ?? 0) + DT * (a.role === "soldier" ? .95 : .22));
     } else if (a.role === "soldier") { a.local = { x: target.ant.x, y: target.ant.y }; }
   }
+  // Nearby workers can witness alarm and physically carry the report home.
+  // Guards respond to the local disturbance rather than knowing remote enemy positions.
+  for (const list of buckets.values()) for (const { ant: a, home } of list) if (!busy.has(a)) {
+    let clash: Ant | undefined;
+    const x = Math.floor(a.x / 100), y = Math.floor(a.y / 100);
+    for (let dy = -1; dy <= 1 && !clash; dy++) for (let dx = -1; dx <= 1 && !clash; dx++) clash = buckets.get(`${x + dx},${y + dy}`)?.find(other => other.home.id === home.id && busy.has(other.ant) && distance(a, other.ant) < 70)?.ant;
+    if (clash) { a.reportNest = true; if (a.role === "soldier") a.local = { x: clash.x, y: clash.y }; }
+  }
   for (const [ant, amount] of damage) ant.health -= amount;
   for (const home of s.colonies) {
     const dead = home.colony.ants.filter(a => a.health <= 0);
