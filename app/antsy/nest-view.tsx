@@ -89,7 +89,7 @@ const Habitat = memo(function Habitat({ wet, undergroundOnly }: { wet: boolean; 
 
 const UndergroundEarth = memo(function UndergroundEarth() {
   return <g pointerEvents="none">
-    <defs><pattern id="cutaway-material" width="384" height="384" patternUnits="userSpaceOnUse"><image href="/images/formicarium/cutaway-soil.webp" width="384" height="384"/></pattern><linearGradient id="earth-depth" x2="0" y2="1"><stop stopColor="#a5794e" stopOpacity=".08"/><stop offset="1" stopColor="#121e19" stopOpacity=".7"/></linearGradient></defs>
+    <defs><pattern id="cutaway-material" width="384" height="384" patternUnits="userSpaceOnUse"><image href="/images/antsy/cutaway-soil.webp" width="384" height="384"/></pattern><linearGradient id="earth-depth" x2="0" y2="1"><stop stopColor="#a5794e" stopOpacity=".08"/><stop offset="1" stopColor="#121e19" stopOpacity=".7"/></linearGradient></defs>
     <rect y="175" width="2200" height="1500" fill="#715137"/>
     <rect y="175" width="2200" height="1500" fill="url(#cutaway-material)" opacity=".78"/>
     <rect y="175" width="2200" height="1500" fill="url(#earth-depth)"/>

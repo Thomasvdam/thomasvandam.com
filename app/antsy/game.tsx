@@ -88,7 +88,7 @@ export default function Game() {
 
   return <div className={styles.game}><div inert={help || ended || confirmReset}>
     <header className={styles.header}>
-      <div className={styles.brand}><Link href="/" aria-label="Back to homepage"><ArrowLeft size={17}/></Link><Bug size={27}/><h1>FORMICARIUM</h1><span>COLONY GUARDIAN</span></div>
+      <div className={styles.brand}><Link href="/" aria-label="Back to homepage"><ArrowLeft size={17}/></Link><Bug size={27}/><h1>antsy</h1><span>COLONY GUARDIAN</span></div>
       <div className={styles.headerActions}><button onClick={() => setHelp(true)} aria-label="How to play"><HelpCircle size={18}/></button><button onClick={() => setConfirmReset(true)} aria-label="Restart colony"><RotateCcw size={17}/></button></div>
     </header>
     <section className={styles.status} aria-label="Colony status">

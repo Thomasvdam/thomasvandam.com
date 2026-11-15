@@ -1,5 +1,6 @@
 import { MAX_NEST_NODES } from "./growth";
 import { CELLS, Garden, HEIGHT, WIDTH } from "./garden";
+// Keep the original storage key so existing browser saves survive the rename.
 export const SAVE_KEY = "formicarium.garden.v1";
 export function encodeGarden(s: Garden) { return JSON.stringify(s, (_key, value) => ArrayBuffer.isView(value) ? Array.from(value as Float32Array) : value); }
 export function decodeGarden(raw: string): Garden {
