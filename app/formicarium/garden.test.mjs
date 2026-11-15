@@ -68,3 +68,26 @@ test("a pollinator must visit plants to improve their yield", () => {
   s = stepGarden(s); expect(s.insects[0].pollen).toBe(true); expect(s.objects[0].food).toBe(19); expect(s.objects[1].pollen).toBe(0);
   s = advance(s, 300); expect(s.objects[1].pollen).toBeGreaterThan(0);
 });
+test("hungry surface workers eat reachable food before returning past it", () => {
+ for(const role of ["forager","soldier","nurse","digger","cleaner"]){let s=bare();const home=makeColony(0,"Cedar",{x:700,y:700});const a=newAnt(0,role,{x:760,y:700},"surface");a.hunger=1.49;a.rest=0;a.returning=true;a.memory=[{x:700,y:700}];home.colony.ants=[a];home.colony.brood=[];home.colony.eggClock=10000;s.colonies=[home];s=actGarden(s,"fruit",[a]);s=stepGarden(s);expect(s.colonies[0].colony.ants[0].hunger).toBeLessThan(1);expect(s.objects[0].food).toBe(89);expect(s.colonies[0].colony.totals.eaten).toBe(1);expect(s.colonies[0].colony.totals.delivered).toBe(0)}
+});
+test("nearby food scent is local and cannot pull foragers through an obstacle",()=>{
+ let s=bare();const home=makeColony(0,"Cedar",{x:700,y:700}),a=newAnt(0,"forager",home,"surface");a.hunger=0;a.angle=0;a.rest=0;home.colony.ants=[a];home.colony.brood=[];home.colony.eggClock=10000;s.colonies=[home];s=actGarden(s,"fruit",[{x:760,y:700}]);expect(stepGarden(s).colonies[0].colony.ants[0].action).toBe("Approaching nearby food");s=actGarden(s,"rock",[{x:730,y:700}]);expect(stepGarden(s).colonies[0].colony.ants[0].action).not.toBe("Approaching nearby food");
+});
+test("a nurse feeds a hungry queen before more larvae in the same chamber", async()=>{
+ const {step}=await import("./simulation");const s=makeColony(0,"Cedar",{x:700,y:700}).colony,n=s.nest.find(n=>n.room==="queen"),a=newAnt(0,"nurse",n);a.cargo={kind:"food",amount:1};a.rest=0;a.hunger=0;s.ants=[a];s.queenHunger=.9;s.eggClock=10000;s.brood=[{id:0,role:"forager",node:n.id,carrier:null,x:n.x,y:n.y,fed:0,care:0,age:0,neglect:0}];const next=step(s);expect(next.queenHunger).toBeLessThan(.41);expect(next.brood[0].fed).toBe(0);expect(next.ants[0].cargo).toBeNull();expect(s.queenHunger).toBe(.9);
+});
+test("food collection requires reaching the patch and memories survive a save",()=>{
+ let s=bare();const h=makeColony(0,"Cedar",{x:700,y:700}),a=newAnt(0,"forager",h,"surface");a.rest=0;a.hunger=0;h.colony.ants=[a];h.colony.brood=[];h.colony.eggClock=10000;s.colonies=[h];s=actGarden(s,"fruit",[{x:720,y:700}]);s=stepGarden(s);expect(s.colonies[0].colony.ants[0].cargo).toBeNull();
+ for(let i=0;i<30&&!s.colonies[0].colony.ants[0].cargo;i++)s=stepGarden(s);
+ expect(s.colonies[0].colony.ants[0].cargo?.kind).toBe("food");expect(s.colonies[0].colony.ants[0].foodMemory).toEqual({x:720,y:700});
+ const restored=decodeGarden(encodeGarden(s));expect(encodeGarden(stepGarden(restored))).toBe(encodeGarden(stepGarden(s)));
+ const broken=JSON.parse(encodeGarden(s));broken.colonies[0].colony.ants[0].foodMemory={x:-1,y:0};expect(()=>decodeGarden(JSON.stringify(broken))).toThrow();
+});
+test("the opening shares food and produces conflict, while removing the bridge separates colonies",()=>{
+ let s=createGarden(),clashed=false;for(let i=0;i<6000;i++){s=stepGarden(s);clashed ||= s.log.some(e=>e.text.includes("clashed"));}
+ expect(s.colonies.every(h=>h.colony.result==="alive"&&h.colony.queenHealth>=90&&h.colony.totals.starved===0&&h.colony.totals.delivered>10)).toBe(true);
+ expect(s.objects.find(o=>o.kind==="fruit"&&o.y===900).visits.sort()).toEqual([0,1]);expect(s.colonies.reduce((n,h)=>n+h.colony.totals.casualties,0)).toBeGreaterThan(0);expect(clashed).toBe(true);
+ let separate=createGarden();separate.objects=separate.objects.filter(o=>o.kind!=="bridge");for(let i=0;i<1200;i++)separate=stepGarden(separate);
+ expect(separate.colonies.every(h=>h.colony.totals.casualties===0&&h.colony.result==="alive")).toBe(true);expect(separate.log.some(e=>e.text.includes("clashed"))).toBe(false);
+},45000);

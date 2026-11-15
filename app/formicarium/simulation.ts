@@ -17,6 +17,7 @@ export type Cargo = { kind: "food" | "soil" | "water" | "waste" | "brood"; amoun
 export type Ant = Point & {
   id: number; role: Role; team: "home" | "rival"; health: number; fighting: boolean; reportNest: boolean; raid: boolean; angle: number; zone: "nest" | "surface"; node: number; previous: number;
   edge: { from: number; to: number; t: number } | null; local: Point | null;
+  foodMemory?: Point;
   cargo: Cargo | null; memory: Point[]; returning: boolean; explored: number;
   probe?: Point & { angle: number; anchor: number; length?: number; room?: NestNode["room"]; target?: number };
   bornAt?: number;
@@ -54,7 +55,7 @@ export function newAnt(id: number, role: Role, n: Point & { id?: number }, zone:
     hunger: noise(id + 71) * .5, rest: noise(id + 51), stationary: 0, waiting: 0, recovery: 0, recent: [], action: role === "forager" ? "Exploring" : "Sensing nearby signals", speed: 27 + noise(id + 13) * 10 };
 }
 function cloneAnt(a: Ant): Ant {
-  return { ...a, edge: a.edge ? { ...a.edge } : null, local: a.local ? { ...a.local } : null, cargo: a.cargo ? { ...a.cargo } : null, memory: [...a.memory], probe: a.probe ? { ...a.probe } : undefined, recent: [...a.recent] };
+  return { ...a, foodMemory: a.foodMemory ? { ...a.foodMemory } : undefined, edge: a.edge ? { ...a.edge } : null, local: a.local ? { ...a.local } : null, cargo: a.cargo ? { ...a.cargo } : null, memory: [...a.memory], probe: a.probe ? { ...a.probe } : undefined, recent: [...a.recent] };
 }
 export function newRival(id: number, role: Role, point: Point = RIVAL_HOME): Ant {
   const a = newAnt(id, role, point, "surface");
@@ -391,6 +392,10 @@ function interactBrood(s: Colony, a: Ant, n: NestNode) {
     const egg = local[0];
     if (egg) { if (!walk(a, egg, DT)) return true; a.cargo = { kind: "brood", amount: 1, brood: egg.id }; egg.carrier = a.id; a.action = "Carrying brood to a nursery"; return true; }
   }
+  if (s.gardenSurface && a.cargo?.kind === "food" && n.room === "queen" && s.queenHunger > .6) {
+    a.action = "Feeding the hungry queen"; if (!walk(a, n, DT)) return true;
+    s.queenHunger = Math.max(0, s.queenHunger - .5); s.queenHealth = Math.min(100, s.queenHealth + 4); a.cargo = null; a.rest = 1; s.totals.fed++; return true;
+  }
   const hungry = local.find(b => b.fed < foodNeeded(b));
   if (a.cargo?.kind === "food" && hungry) {
     a.action = "Delivering food to hungry brood";
@@ -644,7 +649,7 @@ function signals(s: Colony) {
     const connected = adjacent(s, n);
     const emission: Record<Scent, number> = {
       home: n.id === 0 ? 1 : 0, store: n.room === "food" ? Math.max(0, 1 - n.food / (n.size * 55)) : 0,
-      food: Math.min(1, n.food / 12), brood: Math.min(1.5, localBrood.filter(b => b.fed < foodNeeded(b) || b.care < careNeeded(b)).length * .3 + (n.room === "queen" ? s.queenHunger : 0)),
+      food: Math.min(1, n.food / 12), brood: Math.min(1.5, localBrood.filter(b => b.fed < foodNeeded(b) || b.care < careNeeded(b)).length * .3 + (n.room === "queen" ? s.queenHunger * (s.gardenSurface ? 3 : 1) : 0)),
       nursery: n.room === "nursery" && n.water <= .3 ? Math.max(0, 1 - localBrood.length / nurserySlots(n)) : 0,
       work: n.excavation || connected.some(p => blockedBetween(n, p)) || (s.gardenSurface && growthNeed(s, n)) ? 1 : 0, alarm: 0, clean: Math.min(1, n.waste * 3 + n.water * 4), crowd: Math.min(2, density),
     };

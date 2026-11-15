@@ -27,7 +27,7 @@ export function object(s: Garden, kind: Kind, p: Point): GardenObject {
 }
 export function makeColony(id: number, name: string, p: Point, tick = 0): GardenColony {
   const colony = createColony(731 + id * 53, false); colony.gardenSurface = true; colony.sources = []; colony.nextRole = "forager";
-  const limits = { forager: 32, nurse: 8, digger: 10, cleaner: 6, soldier: 0 };
+  const limits = { forager: 30, nurse: 8, digger: 10, cleaner: 6, soldier: 2 };
   colony.ants = colony.ants.filter(a => --limits[a.role] >= 0);
   for (const a of colony.ants) if (a.zone === "surface" && colony.result === "alive") { a.x = p.x + (noise(a.id + id * 100) - .5) * 110; a.y = p.y + (noise(a.id + 98) - .5) * 110; a.memory = [{ ...p }]; a.rest = 0; }
   return { ...p, id, name, color: ["#d6bd7b", "#e69b89", "#8ec9c1", "#bbacd9"][id % 4], born: tick, colony, trail: new Float32Array(CELLS), visits: 0, sheltered: 0 };
@@ -35,11 +35,17 @@ export function makeColony(id: number, name: string, p: Point, tick = 0): Garden
 export function createGarden(): Garden {
   const s: Garden = { version: 1, tick: 0, seed: 7193, nextObject: 0, nextColony: 2, objects: [], colonies: [], moisture: new Float32Array(CELLS), water: new Float32Array(CELLS), channels: new Uint8Array(CELLS), fertility: new Float32Array(CELLS), insects: [{ id: 0, x: 540, y: 980, angle: 0, pollen: false, rest: 0 }, { id: 1, x: 1810, y: 640, angle: 2, pollen: false, rest: 0 }], log: [], notice: "", planted: 0, harvested: 0 };
   for (let i = 0; i < CELLS; i++) { const p = cellPoint(i); const wet = spring(p); s.water[i] = wet ? 1 : 0; s.moisture[i] = wet ? .95 : .12 + noise(i + 10) * .12; s.fertility[i] = .25 + noise(i) * .23; }
-  for (const [kind, x, y] of [["log", 460, 875], ["log", 1960, 500], ["berry", 520, 890], ["flower", 450, 1020], ["berry", 1890, 600], ["flower", 2000, 620], ["fruit", 710, 1070], ["fruit", 1750, 400], ["rock", 870, 280], ["rock", 1520, 1300], ["log", 1650, 1130]] as [Kind, number, number][]) {
+  for (const [kind, x, y] of [["log", creekX(900) - 220, 850], ["log", creekX(900) + 220, 850], ["berry", creekX(900) - 235, 930], ["flower", creekX(900) - 195, 1020], ["berry", creekX(900) + 235, 930], ["flower", creekX(900) + 195, 1020], ["fruit", creekX(900) - 210, 1040], ["fruit", creekX(900) + 210, 1040], ["berry", creekX(860) - 85, 860], ["berry", creekX(860) + 85, 860], ["bridge", creekX(900), 900], ["fruit", creekX(900), 900], ["rock", 870, 280], ["rock", 1520, 1300], ["log", 1650, 1130]] as [Kind, number, number][]) {
     const o = object(s, kind, { x, y }); if (kind === "berry" || kind === "flower") { o.growth = 1; o.food = 18; s.moisture[cellAt(o)] = .65; } s.objects.push(o);
   }
-  s.colonies = [makeColony(0, "Cedar", { x: 440, y: 960 }), makeColony(1, "Ochre", { x: 1960, y: 560 })];
-  event(s, "Cedar and Ochre established.");
+  s.colonies = [makeColony(0, "Cedar", { x: creekX(900) - 155, y: 900 }), makeColony(1, "Ochre", { x: creekX(900) + 155, y: 900 })];
+  // Irrigation stops beside the roots, keeping the nest entrances and plants above water.
+  for (const [x, y] of [[creekX(900) - 205, 930], [creekX(900) + 205, 930]]) {
+    const start = cellAt({ x: creekX(y), y }), end = cellAt({ x, y });
+    for (let k = Math.min(start, end); k <= Math.max(start, end); k++) { s.channels[k] = 1; s.water[k] = Math.pow(.97, Math.abs(k - start)); }
+  }
+  s.objects.find(o => o.kind === "fruit" && o.y === 900)!.food = 240;
+  event(s, "Cedar and Ochre forage around the shared crossing.");
   return s;
 }
 function neighbors(i: number) { const x = i % COLS, y = Math.floor(i / COLS); return [x > 0 ? i - 1 : -1, x < COLS - 1 ? i + 1 : -1, y > 0 ? i - COLS : -1, y < ROWS - 1 ? i + COLS : -1].filter(k => k >= 0); }
@@ -90,7 +96,17 @@ function move(s: Garden, a: Ant, target: Point, direct: boolean) {
   }
   a.angle += .5; return false;
 }
+function clearRoute(s: Garden, a: Point, b: Point) {
+  const steps = Math.max(1, Math.ceil(distance(a, b) / 8));
+  for (let i = 1; i <= steps; i++) if (!traversable(s, { x: a.x + (b.x - a.x) * i / steps, y: a.y + (b.y - a.y) * i / steps })) return false;
+  return true;
+}
+function localFood(s: Garden, a: Ant) {
+  return s.objects.filter(o => o.food >= 1 && distance(o, a) < 120 && clearRoute(s, a, o)).sort((p, q) => q.food / (20 + distance(q, a)) ** 2 - p.food / (20 + distance(p, a)) ** 2)[0];
+}
 function outside(s: Garden, home: GardenColony, a: Ant) {
+  const meal = a.hunger >= SEEK_FOOD && !a.cargo ? s.objects.find(o => o.food >= 1 && distance(o, a) < 30 && clearRoute(s, a, o)) : undefined;
+  if (meal) { meal.food--; a.hunger = Math.max(0, a.hunger - MEAL); a.action = "Eating nearby food"; home.colony.totals.eaten++; return; }
   if (a.hunger > SEEK_FOOD && a.cargo?.kind === "food") { a.cargo = null; a.hunger = Math.max(0, a.hunger - MEAL); home.colony.totals.eaten++; }
   if (a.role !== "forager" && a.role !== "soldier") {
     if (a.cargo) { const kind = a.cargo.kind; if (kind === "soil" || kind === "water" || kind === "waste") home.colony.totals[kind] += a.cargo.amount; a.cargo = null; }
@@ -98,6 +114,8 @@ function outside(s: Garden, home: GardenColony, a: Ant) {
   }
   if (a.role === "soldier" && a.hunger <= SEEK_FOOD) {
     if (a.local) { a.action = "Approaching a nearby enemy"; move(s, a, a.local, true); a.local = null; return; }
+    const food = localFood(s, a);
+    if (food) { a.action = "Guarding nearby food"; move(s, a, { x: food.x + Math.cos(a.id) * 10, y: food.y + Math.sin(a.id) * 10 }, true); return; }
     a.action = "Patrolling the ground around the entrance";
     move(s, a, { x: home.x + Math.cos(s.tick * DT * .12 + a.id) * 100, y: home.y + Math.sin(s.tick * DT * .12 + a.id) * 100 }, true); return;
   }
@@ -106,12 +124,16 @@ function outside(s: Garden, home: GardenColony, a: Ant) {
     a.action = a.cargo ? "Carrying a seed home · marking a trail" : "Retracing a route to the nest";
     if (a.cargo?.kind === "food") { const k = cellAt(a); home.trail[k] = Math.min(8, home.trail[k] + DT * 2); }
     while (a.memory.length > 1 && !traversable(s, a.memory.at(-1)!) && distance(a, a.memory.at(-1)!) < 85) a.memory.pop();
+    // Only shortcut a remembered route when the intervening ground is locally visible and open.
+    for (let i = 0; i < a.memory.length - 1; i++) if (distance(a, a.memory[i]) < 100 && clearRoute(s, a, a.memory[i])) { a.memory.length = i + 1; break; }
     const target = a.memory.at(-1) ?? home;
     if (move(s, a, target, true)) { if (a.memory.length) a.memory.pop(); else enter(a); }
     return;
   }
-  const source = s.objects.find(o => o.food >= 1 && distance(o, a) < 30);
+  // Harvest at the patch itself, so opposing collectors actually meet at contested food.
+  const source = s.objects.find(o => o.food >= 1 && distance(o, a) < 6 && clearRoute(s, a, o));
   if (source) {
+    a.foodMemory = { x: source.x, y: source.y };
     source.food--; a.cargo = { kind: "food", amount: 1 }; a.returning = true; s.harvested++; home.visits++;
     if (!source.visits.includes(home.id)) { source.visits.push(home.id); event(s, `${home.name} discovered ${source.kind === "fruit" ? "fallen fruit" : source.kind === "berry" ? "a berry bush" : "a flower patch"}.`); }
     return;
@@ -124,6 +146,10 @@ function outside(s: Garden, home: GardenColony, a: Ant) {
   if (Math.max(left, right, forward) > (noise(a.id + 99) > .7 ? .3 : .03) && random(s) > .12) a.angle += left > forward && left > right ? -.18 : right > forward ? .18 : 0;
   else a.angle += (random(s) - .5) * .22;
   a.action = Math.max(left, right, forward) > .03 ? "Following a local food trail" : "Exploring the garden";
+  if (a.foodMemory && distance(a, a.foodMemory) < 30 && !s.objects.some(o => o.food >= 1 && distance(o, a.foodMemory!) < 30)) a.foodMemory = undefined;
+  const known = a.foodMemory && distance(a, a.foodMemory) < 250 && clearRoute(s, a, a.foodMemory) ? a.foodMemory : undefined;
+  const nearbyFood = known ?? localFood(s, a);
+  if (nearbyFood) { a.angle = Math.atan2(nearbyFood.y - a.y, nearbyFood.x - a.x); a.action = known ? "Returning to known food" : "Approaching nearby food"; }
   const heading = a.angle; move(s, a, { x: a.x + Math.cos(heading) * 30, y: a.y + Math.sin(heading) * 30 }, false);
   if (distance(a, a.memory.at(-1) ?? home) > 22) a.memory.push({ x: a.x, y: a.y });
   a.explored += DT;
