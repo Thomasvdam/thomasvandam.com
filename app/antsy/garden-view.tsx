@@ -30,9 +30,9 @@ export default function GardenView({ garden, camera, onCamera, tool, signals, ov
     terrain.width = WIDTH / 2; terrain.height = HEIGHT / 2; scenery.width = WIDTH; scenery.height = HEIGHT; field.width = COLS; field.height = ROWS;
     const soil = terrain.getContext("2d")!, scene = scenery.getContext("2d")!, texture = soil.createPattern(soilTexture(), "repeat")!;
     soil.setTransform(.5, 0, 0, .5, 0, 0);
-    let groundTexture: CanvasPattern | null = null; const ground = new Image(); ground.onload = () => { groundTexture = soil.createPattern(ground, "repeat"); groundTexture?.setTransform(new DOMMatrix().scale(.5)); terrainState = null; dirty = true; }; ground.src = "/images/formicarium/garden-soil.webp";
+    let groundTexture: CanvasPattern | null = null; const ground = new Image(); ground.onload = () => { groundTexture = soil.createPattern(ground, "repeat"); groundTexture?.setTransform(new DOMMatrix().scale(.5)); terrainState = null; dirty = true; }; ground.src = "/images/antsy/garden-soil.webp";
     const atlas = new Image(); let art: HTMLImageElement | null = null, dirty = true, frame = 0;
-    atlas.onload = () => { art = atlas; dirty = true; }; atlas.src = "/images/formicarium/garden-atlas.webp";
+    atlas.onload = () => { art = atlas; dirty = true; }; atlas.src = "/images/antsy/garden-atlas.webp";
     const images = new Map<string, HTMLCanvasElement>();
     for (const role of ROLES) for (const cargo of cargoKinds) images.set(`${role}-${cargo}`, antSprite(role, cargo, "home"));
     let previous = new Map(latest.current.garden.colonies.flatMap(h => h.colony.ants.map(a => [`${h.id}-${a.id}`, a] as const)));

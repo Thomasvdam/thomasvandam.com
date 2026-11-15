@@ -1,12 +1,12 @@
-# Formicarium artwork
+# Antsy artwork
 
 Generated using the built-in image_gen tool on 2026-11-12. No CLI/API fallback was used. The source PNGs were packaged as WebP using Sharp; alpha was preserved for the atlas.
 
 | Project asset | Dimensions | Use |
 | --- | --- | --- |
-| `public/images/formicarium/garden-atlas.webp` | 1536 × 1024 | Six isolated botanical objects, cropped to alpha bounds in garden-painter.ts |
-| `public/images/formicarium/garden-soil.webp` | 768 × 768 | Repeating garden material, softly blended with live moisture/fertility colors |
-| `public/images/formicarium/cutaway-soil.webp` | 768 × 768 | Repeating underground material below the live tunnel geometry |
+| `public/images/antsy/garden-atlas.webp` | 1536 × 1024 | Six isolated botanical objects, cropped to alpha bounds in garden-painter.ts |
+| `public/images/antsy/garden-soil.webp` | 768 × 768 | Repeating garden material, softly blended with live moisture/fertility colors |
+| `public/images/antsy/cutaway-soil.webp` | 768 × 768 | Repeating underground material below the live tunnel geometry |
 
 Scenery does not change simulation geometry. In particular, bridge decks still match the traversable span. Plants scale with growth, fruit scales with remaining food, and ants/cargo are shared procedural sprites in both views.
 

@@ -1,8 +1,9 @@
-# Formicarium — a living garden
+# Antsy
 
-`/formicarium` opens a persistent, pannable 24 × 15.6 m garden. Two colonies share
-its food sources and waterways. The main experiment is to bring a dry patch to
-life with connected irrigation, plants, shelter, and new foraging routes.
+`/antsy` opens a persistent, pannable 24 × 15.6 m garden. Two colonies share
+its food sources and waterways. Players reshape the garden, support colonies, and provoke conflicts around
+shared food and crossings. Fresh gardens begin with both nests near a contested
+bridge; existing saves retain their layout.
 
 ## Lasting changes
 
@@ -37,14 +38,15 @@ Surface food and pheromones are sensed locally. Each ant remembers its own walk;
 only food carriers reinforce the food trail. Some explorers are less responsive
 to established trails. Foragers can detour around obstacles and skip nearby
 breadcrumbs covered by a new obstacle. Trail colors indicate which colony uses
-an area. Colonies compete for the same finite food but do not automatically raid
-one another in this garden prototype.
+an area. Colonies fight on contact, guards respond locally, and witnesses carry
+alarm back to the nest. Conflict currently stays above ground.
 
 Hunger is slower here than in the earlier survival sandbox (one fifth of its
 rate). Suitable starting habitats sustain the colonies while the player builds.
 Food consumption, brood care, digging, hunger, and possible colony failure still
-require actual ant activity. Caste selection and optional batches are available
-inside each nest. Surface physics is local steering, not a global route planner;
+require actual ant activity. Nurses influence young brood during feeding and
+care using locally encountered workers, brood, and chemical cues. Adult roles stay
+fixed; there are no player hatching controls. Surface physics is local steering, not a global route planner;
 ants do not have rigid-body collision.
 
 ## Nest expansion
@@ -90,12 +92,15 @@ tick; it never advances from elapsed wall-clock time. The simulation also stops
 while the tab is hidden. An unreadable browser save is preserved, with autosaving
 paused until the user imports a backup or explicitly starts a new garden.
 
+`/formicarium` redirects permanently to `/antsy`. The original browser storage
+key and save format are preserved; exports use `antsy-garden.json`.
+
 This is a local prototype: there is no account/cloud sync or automatic queen
 migration. Additional colonies are explicitly introduced into a prepared habitat.
 
 ## Validation
 
-`bun test app/formicarium` covers both the original ant mechanics and the garden:
+`bun test app/antsy` covers both the original ant mechanics and the garden:
 irrigation connectivity (including diagonal strokes), growing conditions,
 decomposition, physical bridge crossings and nest deliveries, local discovery,
 object movement, habitat-gated founding, pollination, snapshot immutability,
