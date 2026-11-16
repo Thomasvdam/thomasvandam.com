@@ -97,7 +97,7 @@ export default function Home() {
 						<Link href="/antsy" prefetch={false} className={`${styles.cover} ${styles.antsy}`}>
 							<h3>Antsy.</h3>
 							<Image className={styles.antsyArt} src="/images/antsy/home-card.webp" width={960} height={640} sizes="(max-width: 600px) 300px, 360px" alt="" />
-							<div className={styles.coverBottom}><span>06 / Sandbox game</span><span>Play it <span aria-hidden="true">↗</span></span></div>
+							<div className={styles.coverBottom}><span>06 / Sandbox game</span><span>Try it <span aria-hidden="true">↗</span></span></div>
 						</Link>
 						<p>Rival ant colonies in a garden you can reshape.</p>
 					</article>

@@ -33,18 +33,24 @@ export function makeColony(id: number, name: string, p: Point, tick = 0): Garden
   for (const a of colony.ants) if (a.zone === "surface" && colony.result === "alive") { a.x = p.x + (noise(a.id + id * 100) - .5) * 110; a.y = p.y + (noise(a.id + 98) - .5) * 110; a.memory = [{ ...p }]; a.rest = 0; }
   return { ...p, id, name, color: ["#d6bd7b", "#e69b89", "#8ec9c1", "#bbacd9"][id % 4], born: tick, colony, trail: new Float32Array(CELLS), visits: 0, sheltered: 0 };
 }
+function startColony(s: Garden, id: number, name: string, p: Point) {
+  const home = makeColony(id, name, p, s.tick);
+  // A dry spawn on the far bank can be just as stranded as one in the water.
+  for (const a of home.colony.ants) if (a.zone === "surface" && !clearRoute(s, home, a)) { a.x = home.x; a.y = home.y; }
+  return home;
+}
 export function createGarden(): Garden {
   const s: Garden = { version: 1, tick: 0, seed: 7193, nextObject: 0, nextColony: 2, objects: [], colonies: [], moisture: new Float32Array(CELLS), water: new Float32Array(CELLS), channels: new Uint8Array(CELLS), fertility: new Float32Array(CELLS), insects: [{ id: 0, x: 540, y: 980, angle: 0, pollen: false, rest: 0 }, { id: 1, x: 1810, y: 640, angle: 2, pollen: false, rest: 0 }], log: [], notice: "", planted: 0, harvested: 0 };
   for (let i = 0; i < CELLS; i++) { const p = cellPoint(i); const wet = spring(p); s.water[i] = wet ? 1 : 0; s.moisture[i] = wet ? .95 : .12 + noise(i + 10) * .12; s.fertility[i] = .25 + noise(i) * .23; }
   for (const [kind, x, y] of [["log", creekX(900) - 220, 850], ["log", creekX(900) + 220, 850], ["berry", creekX(900) - 235, 930], ["flower", creekX(900) - 195, 1020], ["berry", creekX(900) + 235, 930], ["flower", creekX(900) + 195, 1020], ["fruit", creekX(900) - 210, 1040], ["fruit", creekX(900) + 210, 1040], ["berry", creekX(860) - 85, 860], ["berry", creekX(860) + 85, 860], ["bridge", creekX(900), 900], ["fruit", creekX(900), 900], ["rock", 870, 280], ["rock", 1520, 1300], ["log", 1650, 1130]] as [Kind, number, number][]) {
     const o = object(s, kind, { x, y }); if (kind === "berry" || kind === "flower") { o.growth = 1; o.food = 18; s.moisture[cellAt(o)] = .65; } s.objects.push(o);
   }
-  s.colonies = [makeColony(0, "Cedar", { x: creekX(900) - 155, y: 900 }), makeColony(1, "Ochre", { x: creekX(900) + 155, y: 900 })];
-  // Irrigation stops beside the roots, keeping the nest entrances and plants above water.
-  for (const [x, y] of [[creekX(900) - 205, 930], [creekX(900) + 205, 930]]) {
+  // Keep a dry clearing around each entrance; irrigate between the plants farther south.
+  for (const [x, y] of [[creekX(900) - 205, 990], [creekX(900) + 205, 990]]) {
     const start = cellAt({ x: creekX(y), y }), end = cellAt({ x, y });
     for (let k = Math.min(start, end); k <= Math.max(start, end); k++) { s.channels[k] = 1; s.water[k] = Math.pow(.97, Math.abs(k - start)); }
   }
+  s.colonies = [startColony(s, 0, "Cedar", { x: creekX(900) - 155, y: 900 }), startColony(s, 1, "Ochre", { x: creekX(900) + 155, y: 900 })];
   s.objects.find(o => o.kind === "fruit" && o.y === 900)!.food = 240;
   event(s, "Cedar and Ochre are looking for food near the bridge.");
   return s;
@@ -221,8 +227,7 @@ export function actGarden(previous: Garden, tool: GardenTool, points: Point[], m
     if (s.colonies.length >= 4) { s.notice = "There's only room for four colonies."; return s; }
     if (s.colonies.some(c => distance(c, point) < 220) || !traversable(s, point)) { s.notice = "Choose open ground at least 220 cm from another entrance."; return s; }
     if (q.moisture < .24 || q.moisture > .9 || q.cover < .3 || q.food < 8) { s.notice = "Add food and fallen wood nearby, and make sure the ground is damp."; return s; }
-    const id = s.nextColony++; const name = ["Cedar", "Ochre", "Willow", "Fern"][id % 4]; const home = makeColony(id, name, point, s.tick);
-    for (const a of home.colony.ants) if (a.zone === "surface" && !traversable(s, a)) { a.x = home.x; a.y = home.y; }
+    const id = s.nextColony++; const name = ["Cedar", "Ochre", "Willow", "Fern"][id % 4]; const home = startColony(s, id, name, point);
     s.colonies = [...s.colonies, home]; event(s, `${name} established a new nest.`); return s;
   }
   if (s.objects.length >= 300) { s.notice = "The garden is full. Remove something before adding more."; return s; }

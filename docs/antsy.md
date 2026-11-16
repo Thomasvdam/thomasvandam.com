@@ -3,7 +3,9 @@
 `/antsy` opens a persistent, pannable 24 × 15.6 m garden. Two colonies share
 its food sources and waterways. Players reshape the garden, support colonies, and provoke conflicts around
 shared food and crossings. Fresh gardens begin with both nests near a contested
-bridge; existing saves retain their layout.
+bridge, with irrigation set back to leave dry ground around each entrance.
+Existing saves retain their layout. New colonies place surface workers only where
+they have a clear route back to the entrance, including when founded beside water.
 
 ## Lasting changes
 
