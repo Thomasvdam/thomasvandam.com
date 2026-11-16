@@ -39,18 +39,33 @@ function startColony(s: Garden, id: number, name: string, p: Point) {
   for (const a of home.colony.ants) if (a.zone === "surface" && !clearRoute(s, home, a)) { a.x = home.x; a.y = home.y; }
   return home;
 }
-export function createGarden(): Garden {
-  const s: Garden = { version: 1, tick: 0, seed: 7193, nextObject: 0, nextColony: 2, objects: [], colonies: [], moisture: new Float32Array(CELLS), water: new Float32Array(CELLS), channels: new Uint8Array(CELLS), fertility: new Float32Array(CELLS), insects: [{ id: 0, x: 540, y: 980, angle: 0, pollen: false, rest: 0 }, { id: 1, x: 1810, y: 640, angle: 2, pollen: false, rest: 0 }], log: [], notice: "", planted: 0, harvested: 0 };
+export function createGarden(seed = Math.floor(Math.random() * 0x100000000)): Garden {
+  const s: Garden = { version: 1, tick: 0, seed: seed >>> 0, nextObject: 0, nextColony: 2, objects: [], colonies: [], moisture: new Float32Array(CELLS), water: new Float32Array(CELLS), channels: new Uint8Array(CELLS), fertility: new Float32Array(CELLS), insects: [{ id: 0, x: 540, y: 980, angle: 0, pollen: false, rest: 0 }, { id: 1, x: 1810, y: 640, angle: 2, pollen: false, rest: 0 }], log: [], notice: "", planted: 0, harvested: 0 };
   for (let i = 0; i < CELLS; i++) { const p = cellPoint(i); const wet = spring(p); s.water[i] = wet ? 1 : 0; s.moisture[i] = wet ? .95 : .12 + noise(i + 10) * .12; s.fertility[i] = .25 + noise(i) * .23; }
-  for (const [kind, x, y] of [["log", creekX(900) - 220, 850], ["log", creekX(900) + 220, 850], ["berry", creekX(900) - 235, 930], ["flower", creekX(900) - 195, 1020], ["berry", creekX(900) + 235, 930], ["flower", creekX(900) + 195, 1020], ["fruit", creekX(900) - 210, 1040], ["fruit", creekX(900) + 210, 1040], ["berry", creekX(860) - 85, 860], ["berry", creekX(860) + 85, 860], ["bridge", creekX(900), 900], ["fruit", creekX(900), 900], ["rock", 870, 280], ["rock", 1520, 1300], ["log", 1650, 1130]] as [Kind, number, number][]) {
-    const o = object(s, kind, { x, y }); if (kind === "berry" || kind === "flower") { o.growth = 1; o.food = 18; s.moisture[cellAt(o)] = .65; } s.objects.push(o);
-  }
-  // Keep a dry clearing around each entrance; irrigate between the plants farther south.
-  for (const [x, y] of [[creekX(900) - 205, 990], [creekX(900) + 205, 990]]) {
-    const start = cellAt({ x: creekX(y), y }), end = cellAt({ x, y });
+  const add = (kind: Kind, p: Point) => {
+    const o = object(s, kind, p);
+    if (kind === "berry" || kind === "flower") { o.growth = 1; o.food = 18; s.moisture[cellAt(o)] = .65; }
+    if (kind === "log") o.angle = (random(s) - .5) * .8;
+    s.objects.push(o);
+  };
+  // Stagger the nests along opposite banks instead of mirroring one clearing.
+  const homes = [-1, 1].map(side => {
+    const y = 900 + side * (25 + random(s) * 30);
+    return { x: creekX(y) + side * (155 + random(s) * 35), y };
+  });
+  for (const [id, home] of homes.entries()) {
+    const side = id === 0 ? -1 : 1;
+    add("log", { x: home.x + side * (45 + random(s) * 25), y: home.y - 55 - random(s) * 20 });
+    add("berry", { x: home.x + side * (75 + random(s) * 20), y: home.y + 25 + random(s) * 15 });
+    add("flower", { x: home.x + side * (30 + random(s) * 25), y: home.y + 120 + random(s) * 20 });
+    add("fruit", { x: home.x + side * (60 + random(s) * 20), y: home.y + 140 + random(s) * 20 });
+    // Keep canals outside the dry entrance clearing, beside the food plants.
+    const y = Math.ceil((home.y + 90) / CELL) * CELL;
+    const start = cellAt({ x: creekX(y), y }), end = cellAt({ x: home.x + side * 55, y });
     for (let k = Math.min(start, end); k <= Math.max(start, end); k++) { s.channels[k] = 1; s.water[k] = Math.pow(.97, Math.abs(k - start)); }
   }
-  s.colonies = [startColony(s, 0, "Cedar", { x: creekX(900) - 155, y: 900 }), startColony(s, 1, "Ochre", { x: creekX(900) + 155, y: 900 })];
+  for (const [kind, x, y] of [["berry", creekX(860) - 85, 860], ["berry", creekX(860) + 85, 860], ["bridge", creekX(900), 900], ["fruit", creekX(900), 900], ["rock", 870 + random(s) * 100, 230 + random(s) * 100], ["rock", 1470 + random(s) * 120, 1250 + random(s) * 100], ["log", 1600 + random(s) * 120, 1080 + random(s) * 100]] as [Kind, number, number][]) add(kind, { x, y });
+  s.colonies = homes.map((p, id) => startColony(s, id, ["Cedar", "Ochre"][id], p));
   s.objects.find(o => o.kind === "fruit" && o.y === 900)!.food = 240;
   event(s, "Cedar and Ochre are looking for food near the bridge.");
   return s;

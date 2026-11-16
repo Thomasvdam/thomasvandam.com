@@ -3,17 +3,27 @@ import { actGarden, cellAt, COLS, createGarden, creekX, makeColony, quality, ste
 import { decodeGarden, encodeGarden } from "./garden-save";
 import { newAnt } from "./simulation";
 const advance = (s, ticks) => { for (let i = 0; i < ticks; i++) s = stepGarden(s); return s; };
-function bare() { const s = createGarden(); s.colonies = []; s.objects = []; s.insects = []; return s; }
-test("starter nests have a dry clearing and no workers spawn in canals", () => {
-  const s = createGarden();
-  for (const home of s.colonies) {
-    for (let y = -75; y <= 75; y += 15) for (let x = -75; x <= 75; x += 15) if (Math.hypot(x, y) <= 75) {
-      expect(traversable(s, { x: home.x + x, y: home.y + y })).toBe(true);
+function bare() { const s = createGarden(7193); s.colonies = []; s.objects = []; s.insects = []; return s; }
+test("random starts vary the layout while preserving safe, fed clearings", () => {
+  const layouts = new Set();
+  for (let seed = 1; seed <= 32; seed++) {
+    const s = createGarden(seed);
+    layouts.add(JSON.stringify(s.colonies.map(c => [c.x, c.y])));
+    expect(s.colonies[0].y).not.toBe(s.colonies[1].y);
+    for (const home of s.colonies) {
+      for (let y = -75; y <= 75; y += 15) for (let x = -75; x <= 75; x += 15) if (Math.hypot(x, y) <= 75) {
+        expect(traversable(s, { x: home.x + x, y: home.y + y })).toBe(true);
+      }
+      const outside = home.colony.ants.filter(a => a.zone === "surface");
+      expect(outside.length).toBeGreaterThan(0);
+      expect(outside.every(a => traversable(s, a))).toBe(true);
+      expect(s.objects.some(o => o.kind === "berry" && o.food > 0 && Math.hypot(o.x - home.x, o.y - home.y) < 120)).toBe(true);
     }
-    const outside = home.colony.ants.filter(a => a.zone === "surface");
-    expect(outside.length).toBeGreaterThan(0);
-    expect(outside.every(a => traversable(s, a))).toBe(true);
   }
+  expect(layouts.size).toBe(32);
+  expect(encodeGarden(createGarden(42))).toBe(encodeGarden(createGarden(42)));
+  const restored = decodeGarden(encodeGarden(createGarden(2026)));
+  expect(encodeGarden(stepGarden(restored))).toBe(encodeGarden(stepGarden(createGarden(2026))));
 });
 test("a new colony beside a canal keeps its workers on the entrance bank", () => {
   const p = { x: 700, y: 650 };
@@ -65,26 +75,26 @@ test("unseen food does not steer ants; discovery and delivery are separate", () 
   expect(next.objects[0].food).toBe(89); expect(next.objects[0].visits).toEqual([0]); expect(next.colonies[0].colony.ants[0].cargo.kind).toBe("food"); expect(next.colonies[0].colony.totals.delivered).toBe(0);
 });
 test("moving a resource preserves its food, growth, and previously laid trails", () => {
-  const s = actGarden(createGarden(), "fruit", [{ x: 700, y: 700 }]); const o = s.objects.at(-1); const snapshot = encodeGarden(s);
+  const s = actGarden(createGarden(7193), "fruit", [{ x: 700, y: 700 }]); const o = s.objects.at(-1); const snapshot = encodeGarden(s);
   const moved = actGarden(s, "move", [{ x: 800, y: 600 }], o.id);
   expect(moved.objects.at(-1).food).toBe(o.food); expect(moved.objects.at(-1).growth).toBe(o.growth); expect(moved.colonies[0].trail).toEqual(s.colonies[0].trail); expect(encodeGarden(s)).toBe(snapshot);
 });
 test("a colony can establish only in a prepared habitat", () => {
-  let s = createGarden(); const p = { x: 800, y: 650 }; const denied = actGarden(s, "found", [p]); expect(denied.colonies).toHaveLength(2);
+  let s = createGarden(7193); const p = { x: 800, y: 650 }; const denied = actGarden(s, "found", [p]); expect(denied.colonies).toHaveLength(2);
   s = actGarden(s, "log", [p]); s = actGarden(s, "fruit", [{ x: p.x + 60, y: p.y }]); s.moisture[cellAt(p)] = .5;
   s = actGarden(s, "found", [p]); expect(s.colonies).toHaveLength(3); expect(s.colonies[2].name).toBe("Willow"); expect(s.log[0].text).toContain("established");
 });
 test("save restoration preserves ecology, ants, trails, nests, and exact continuation", () => {
-  const original = advance(createGarden(), 100); const text = encodeGarden(original); const restored = decodeGarden(text);
+  const original = advance(createGarden(7193), 100); const text = encodeGarden(original); const restored = decodeGarden(text);
   expect(encodeGarden(restored)).toBe(text); expect(encodeGarden(stepGarden(restored))).toBe(encodeGarden(stepGarden(original))); expect(restored.tick).toBe(original.tick);
 });
 test("malformed and incompatible saves are rejected", () => {
   expect(() => decodeGarden("{}")).toThrow(); expect(() => decodeGarden("not json")).toThrow();
-  const s = createGarden(); const raw = JSON.parse(encodeGarden(s)); raw.moisture = []; expect(() => decodeGarden(JSON.stringify(raw))).toThrow();
+  const s = createGarden(7193); const raw = JSON.parse(encodeGarden(s)); raw.moisture = []; expect(() => decodeGarden(JSON.stringify(raw))).toThrow();
   const corrupt = JSON.parse(encodeGarden(s)); corrupt.colonies[0].colony.nest[0].parent = 999; expect(() => decodeGarden(JSON.stringify(corrupt))).toThrow();
 });
 test("stepping the garden leaves its previous snapshot unchanged", () => {
-  const s = createGarden(); const before = encodeGarden(s); advance(s, 21); expect(encodeGarden(s)).toBe(before);
+  const s = createGarden(7193); const before = encodeGarden(s); advance(s, 21); expect(encodeGarden(s)).toBe(before);
 });
 test("a pollinator must visit plants to improve their yield", () => {
   let s = bare(); s = actGarden(s, "flower", [{ x: 700, y: 700 }]); s = actGarden(s, "berry", [{ x: 820, y: 700 }]);
@@ -108,10 +118,10 @@ test("food collection requires reaching the patch and memories survive a save",(
  const restored=decodeGarden(encodeGarden(s));expect(encodeGarden(stepGarden(restored))).toBe(encodeGarden(stepGarden(s)));
  const broken=JSON.parse(encodeGarden(s));broken.colonies[0].colony.ants[0].foodMemory={x:-1,y:0};expect(()=>decodeGarden(JSON.stringify(broken))).toThrow();
 });
-test("the opening shares food and produces conflict, while removing the bridge separates colonies",()=>{
- let s=createGarden(),clashed=false;for(let i=0;i<6000;i++){s=stepGarden(s);clashed ||= s.log.some(e=>e.text.includes("clashed"));}
+for (const seed of [7193, 42, 2026]) test(`opening ${seed} shares food and produces conflict; removing the bridge separates colonies`,()=>{
+ let s=createGarden(seed),clashed=false;for(let i=0;i<6000;i++){s=stepGarden(s);clashed ||= s.log.some(e=>e.text.includes("clashed"));}
  expect(s.colonies.every(h=>h.colony.result==="alive"&&h.colony.queenHealth>=90&&h.colony.totals.starved===0&&h.colony.totals.delivered>10)).toBe(true);
  expect(s.objects.find(o=>o.kind==="fruit"&&o.y===900).visits.sort()).toEqual([0,1]);expect(s.colonies.reduce((n,h)=>n+h.colony.totals.casualties,0)).toBeGreaterThan(0);expect(clashed).toBe(true);
- let separate=createGarden();separate.objects=separate.objects.filter(o=>o.kind!=="bridge");for(let i=0;i<1200;i++)separate=stepGarden(separate);
+ let separate=createGarden(seed);separate.objects=separate.objects.filter(o=>o.kind!=="bridge");for(let i=0;i<1200;i++)separate=stepGarden(separate);
  expect(separate.colonies.every(h=>h.colony.totals.casualties===0&&h.colony.result==="alive")).toBe(true);expect(separate.log.some(e=>e.text.includes("clashed"))).toBe(false);
 },45000);
