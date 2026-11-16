@@ -88,7 +88,7 @@ export default function Game() {
 
   return <div className={styles.game}><div inert={help || ended || confirmReset}>
     <header className={styles.header}>
-      <div className={styles.brand}><Link href="/" aria-label="Back to homepage"><ArrowLeft size={17}/></Link><Bug size={27}/><h1>antsy</h1><span>COLONY GUARDIAN</span></div>
+      <div className={styles.brand}><Link href="/" aria-label="Back to homepage"><ArrowLeft size={17}/></Link><Bug size={27}/><h1>antsy</h1></div>
       <div className={styles.headerActions}><button onClick={() => setHelp(true)} aria-label="How to play"><HelpCircle size={18}/></button><button onClick={() => setConfirmReset(true)} aria-label="Restart colony"><RotateCcw size={17}/></button></div>
     </header>
     <section className={styles.status} aria-label="Colony status">
@@ -132,7 +132,7 @@ export default function Game() {
         </section>
         <section className={styles.panel}>
           <div className={styles.panelTitle}><h2>Raise a batch</h2><Sprout size={17}/></div>
-          <p>Choose a caste for 12 new ants. Preparing fed brood costs 12 stored food; nurses finish their care.</p>
+          <p>Choose the role of 12 new ants. They cost 12 food and need a nurse to care for them.</p>
           <div className={styles.casteChoices}>{ROLES.map(role => {
             const { label, icon: Icon, color, description } = roleInfo[role];
             return <button key={role} aria-pressed={colony.nextRole === role} disabled={ended} onClick={() => setColony(s => ({ ...s, nextRole: role }))}>
@@ -144,7 +144,7 @@ export default function Game() {
           <p className={styles.batchHint}>{batch?.remaining ? (!speed ? "Paused — press play to incubate." : "Nurses must visit every larva. Add nurses if care is slow.") : problem ?? `About ${BATCH_SECONDS}s with nurses. Existing ants keep their roles.`}</p>
         </section>
         <section className={styles.panel} aria-label="Ant inspector">
-          <div className={styles.panelTitle}><h2>Under observation</h2><Eye size={16}/></div>
+          <div className={styles.panelTitle}><h2>Selected ant</h2><Eye size={16}/></div>
           {ant && <><label className={styles.observeRole}>Observe role<select aria-label="Observe role" value={ant.role} onChange={e => {
             const peers = colony.ants.filter(a => a.role === e.target.value); const next = peers.find(a => a.cargo) ?? peers[0]; if (next) setSelected(next.id);
           }}>{ROLES.map(role => <option key={role} value={role} disabled={!population[role]}>{roleInfo[role].label}</option>)}</select></label><div className={styles.antIdentity}><i style={{ background: ant.team === "rival" ? "#ed8c86" : roleInfo[ant.role].color }}/><strong>{ant.team === "rival" ? "Rival " : ""}{ant.role} #{ant.id}</strong><button onClick={followNext} aria-label="Follow next ant"><ChevronRight size={17}/></button></div><p className={styles.antAction}>{ant.action}</p><div className={styles.antDetails}><span>{ant.zone === "surface" ? "Forest floor" : "Inside the nest"}</span><span>{ant.cargo ? `Carrying ${ant.cargo.kind}` : "Empty mandibles"}</span><span>Combat health {Math.ceil(ant.health / (ant.role === "soldier" ? 3.2 : 1.2) * 100)}%</span><label className={styles.energy}>Energy {energy(ant.hunger)}%{ant.hunger >= WEAK_HUNGER ? " · Weak — needs food urgently" : ant.hunger >= SEEK_FOOD ? " · Seeking food" : ""}<progress max={100} value={energy(ant.hunger)} aria-label="Ant energy"/></label></div></>}
@@ -168,7 +168,7 @@ export default function Game() {
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
       }
     }}>
-      {help && !ended && !confirmReset ? <><span className={styles.eyebrow}>COLONY GUARDIAN</span><h2 id="dialog-title">Help it thrive.</h2><p>Watch over a colony competing with a rival nest. Move food and stones, wash trails away, or intervene directly. Each ant still senses and works for itself.</p><ul><li><strong>Raise a batch.</strong> Prepare 12 fed brood for 12 food. They can hatch in about 12 seconds with nurse care; existing adults keep their roles.</li><li><strong>Shape their world.</strong> The hand moves food and stones. Stones obstruct both colonies; water washes both colonies’ trails away. Strikes can hit your own workers.</li><li><strong>Defend the hive.</strong> Rival scouts must find your entrance and return home before recruiting raiders. Raise soldiers to follow local alarms and protect food, brood, and the queen.</li></ul><p className={styles.note}>Pheromones show your food trails in green, rival trails in pink, and alarms in red. Workers need a meal about every minute; soldiers twice as often. Weak ants slow down. Select an ant to see what it is doing.</p><button className={styles.action} autoFocus onClick={() => { setHelp(false); setSpeed(1); }}>Watch over the colony <Play size={16}/></button><button className={styles.close} aria-label="Close instructions" onClick={() => setHelp(false)}><X size={20}/></button></> : confirmReset ? <><h2 id="dialog-title">Start a new colony?</h2><p>Your current colony will be lost.</p><button className={styles.action} autoFocus onClick={reset}>Start again</button><button className={styles.cancel} onClick={() => setConfirmReset(false)}>Keep playing</button></> : <><span className={styles.eyebrow}>COLONY LOST</span><h2 id="dialog-title">The nest falls silent.</h2><p>The colony lasted {clock(elapsed(colony))}. Watch food deliveries and nurse care, and choose new brood to address the shortages.</p><button className={styles.action} autoFocus onClick={reset}>Start a new colony</button></>}
+      {help && !ended && !confirmReset ? <><h2 id="dialog-title">How to play</h2><p>Move food and stones with the hand. Stones block ants from both colonies. Water washes away their trails. A strike can hit your own ants too.</p><p>Choose a role for new brood. Each batch costs 12 food and needs nurse care before it can hatch. Rival scouts can lead raiders to your nest; soldiers follow alarm scents to fight them off.</p><p className={styles.note}>Select an ant to see what it’s doing. Food trails are green, rival trails pink, and alarms red. Workers need a meal about every minute; soldiers eat twice as often.</p><button className={styles.action} autoFocus onClick={() => { setHelp(false); setSpeed(1); }}>Play <Play size={16}/></button><button className={styles.close} aria-label="Close instructions" onClick={() => setHelp(false)}><X size={20}/></button></> : confirmReset ? <><h2 id="dialog-title">Start a new colony?</h2><p>Your current colony will be lost.</p><button className={styles.action} autoFocus onClick={reset}>Start again</button><button className={styles.cancel} onClick={() => setConfirmReset(false)}>Keep playing</button></> : <><span className={styles.eyebrow}>COLONY LOST</span><h2 id="dialog-title">The colony is gone.</h2><p>The colony lasted {clock(elapsed(colony))}. Keep an eye on food and nurses next time.</p><button className={styles.action} autoFocus onClick={reset}>Start a new colony</button></>}
     </section></div>}
   </div>;
 }

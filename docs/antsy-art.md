@@ -1,5 +1,15 @@
 # Antsy artwork
 
+## Homepage card
+
+`public/images/antsy/home-card.webp` (960 × 640) shows rival ants tugging at a berry. Generated on 2026-11-16 with the built-in image_gen tool, then resized and encoded as WebP with Sharp, preserving alpha. No CLI/API fallback was used.
+
+Final prompt:
+
+Use case: stylized-concept. Asset type: transparent cutout illustration for the homepage card of Antsy, a playful ant-colony sandbox game. Create one lively, beautifully hand-painted miniature scene: two small rival groups of anatomically recognizable ants, one warm honey-brown and the other reddish chestnut, trying to carry the same ripe red blackberry in opposite directions over a short mossy twig bridge. Ants have six spindly legs, elbowed antennae, three-part bodies and shiny abdomens. Convey amusing stubborn teamwork with energetic poses, not human faces, clothes or props. Include a few tiny crumbs, one curled green leaf and a small irregular patch of soil under the bridge; keep the silhouette compact and readable at thumbnail size. Three-quarter overhead view, rich natural material detail, soft warm highlights, painterly game illustration, earthy greens and browns with a juicy red berry focal point. All elements form one complete isolated vignette centered on genuinely transparent alpha, with generous clear padding. No rectangular landscape background, sky, text, lettering, logo, watermark, border, diagram or UI. No gore, weapons, human hands or oversized eyes. A whimsical game about tiny turf wars, not a scientific specimen illustration.
+
+## Garden assets
+
 Generated using the built-in image_gen tool on 2026-11-12. No CLI/API fallback was used. The source PNGs were packaged as WebP using Sharp; alpha was preserved for the atlas.
 
 | Project asset | Dimensions | Use |

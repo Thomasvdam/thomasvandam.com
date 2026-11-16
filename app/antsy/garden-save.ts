@@ -6,7 +6,7 @@ export function encodeGarden(s: Garden) { return JSON.stringify(s, (_key, value)
 export function decodeGarden(raw: string): Garden {
   if (raw.length > 32_000_000) throw new Error("Save file is too large.");
   const s = JSON.parse(raw) as Garden;
-  const assert = (ok: unknown) => { if (!ok) throw new Error("This is not a supported garden save."); };
+  const assert = (ok: unknown) => { if (!ok) throw new Error("This file isn't an Antsy save."); };
   const finite = (n: unknown) => typeof n === "number" && Number.isFinite(n);
   const point = (p: { x: number; y: number }) => p && finite(p.x) && finite(p.y) && p.x >= 0 && p.x <= WIDTH && p.y >= 0 && p.y <= HEIGHT;
   const numbers = (a: unknown, length: number, max = 100) => Array.isArray(a) && a.length === length && a.every(n => finite(n) && n >= 0 && n <= max);

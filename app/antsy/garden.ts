@@ -20,6 +20,7 @@ export function quality(s: Garden, p: Point) {
   const food = s.objects.reduce((n, o) => n + (distance(o, p) < 220 ? o.food : 0), 0);
   return { moisture: s.moisture[k], fertility: s.fertility[k], cover, food };
 }
+const objectNames = { berry: "berry bush", flower: "flowers", log: "fallen wood", bridge: "bridge", fruit: "fruit", rock: "rock" };
 const event = (s: Garden, text: string) => { s.log = [{ tick: s.tick, text }, ...s.log].slice(0, 50); s.notice = text; };
 const random = (s: Garden) => { s.seed = (Math.imul(s.seed, 1664525) + 1013904223) >>> 0; return s.seed / 4294967296; };
 export function object(s: Garden, kind: Kind, p: Point): GardenObject {
@@ -45,7 +46,7 @@ export function createGarden(): Garden {
     for (let k = Math.min(start, end); k <= Math.max(start, end); k++) { s.channels[k] = 1; s.water[k] = Math.pow(.97, Math.abs(k - start)); }
   }
   s.objects.find(o => o.kind === "fruit" && o.y === 900)!.food = 240;
-  event(s, "Cedar and Ochre forage around the shared crossing.");
+  event(s, "Cedar and Ochre are looking for food near the bridge.");
   return s;
 }
 function neighbors(i: number) { const x = i % COLS, y = Math.floor(i / COLS); return [x > 0 ? i - 1 : -1, x < COLS - 1 ? i + 1 : -1, y > 0 ? i - COLS : -1, y < ROWS - 1 ? i + COLS : -1].filter(k => k >= 0); }
@@ -67,7 +68,7 @@ function ecology(s: Garden) {
       const suitable = q.moisture >= .29 && q.moisture < .94 && q.fertility >= .22;
       const previous = o.growth;
       o.growth = Math.max(.02, Math.min(1, o.growth + (suitable ? .009 * (.5 + q.fertility) : -.0015)));
-      if (previous < .75 && o.growth >= .75) event(s, `A ${o.kind === "berry" ? "berry bush" : "flower patch"} has established. It can now feed garden inhabitants.`);
+      if (previous < .75 && o.growth >= .75) event(s, `A ${o.kind === "berry" ? "berry bush" : "flower patch"} is fully grown. Ants can eat here now.`);
       if (suitable && o.growth > .75) o.food = Math.min(25, o.food + (o.kind === "berry" ? .22 : .12) * (1 + Math.min(1, o.pollen)));
       o.pollen *= .997;
       if (o.growth > .5) s.fertility[k] = Math.min(1, s.fertility[k] + .0003);
@@ -171,7 +172,7 @@ export function stepGarden(previous: Garden): Garden {
 
     }
     const opened = colony.nest.filter(n => n.openedAt !== undefined && !old.colony.nest.find(p => p.id === n.id)?.openedAt);
-    for (const n of opened) event(s, `${home.name} ${n.links?.length ? "opened a bypass between existing routes" : n.room === "nursery" ? "finished a new nursery" : n.room === "food" ? "opened a new food chamber" : "extended its tunnel network"}.`);
+    for (const n of opened) event(s, `${home.name} ${n.links?.length ? "dug a shortcut between tunnels" : n.room === "nursery" ? "finished a new nursery" : n.room === "food" ? "opened a new food chamber" : "dug a new tunnel"}.`);
     s.colonies.push(home);
   }
   const fighting = gardenConflict(s);
@@ -211,20 +212,20 @@ export function actGarden(previous: Garden, tool: GardenTool, points: Point[], m
   if (tool === "water") { for (let i = 0; i < CELLS; i++) if (distance(cellPoint(i), point) < 65) s.water[i] = Math.max(s.water[i], .5); event(s, "Ground watered."); return s; }
   const nearest = moving !== undefined ? s.objects.find(o => o.id === moving) : s.objects.filter(o => distance(o, point) < 70).sort((a, b) => distance(a, point) - distance(b, point))[0];
   if (tool === "remove") {
-    if (nearest) { s.objects = s.objects.filter(o => o.id !== nearest.id); event(s, `Removed ${nearest.kind}.`); }
+    if (nearest) { s.objects = s.objects.filter(o => o.id !== nearest.id); event(s, `Removed ${objectNames[nearest.kind]}.`); }
     else { s.channels[cellAt(point)] = 0; event(s, "Channel filled in."); } return s;
   }
-  if (tool === "move") { const o = s.objects.find(o => o.id === moving); if (o) { o.x = point.x; o.y = point.y; event(s, `Moved ${o.kind}. Existing trails will fade as ants find the new location.`); } return s; }
+  if (tool === "move") { const o = s.objects.find(o => o.id === moving); if (o) { o.x = point.x; o.y = point.y; event(s, `Moved ${objectNames[o.kind]}. Ants will need to find it again.`); } return s; }
   if (tool === "found") {
     const q = quality(s, point);
-    if (s.colonies.length >= 4) { s.notice = "This garden supports up to four colonies."; return s; }
+    if (s.colonies.length >= 4) { s.notice = "There's only room for four colonies."; return s; }
     if (s.colonies.some(c => distance(c, point) < 220) || !traversable(s, point)) { s.notice = "Choose open ground at least 220 cm from another entrance."; return s; }
-    if (q.moisture < .24 || q.moisture > .9 || q.cover < .3 || q.food < 8) { s.notice = "A new colony needs damp ground, nearby food, and wood cover. Prepare the habitat first."; return s; }
+    if (q.moisture < .24 || q.moisture > .9 || q.cover < .3 || q.food < 8) { s.notice = "Add food and fallen wood nearby, and make sure the ground is damp."; return s; }
     const id = s.nextColony++; const name = ["Cedar", "Ochre", "Willow", "Fern"][id % 4]; const home = makeColony(id, name, point, s.tick);
     for (const a of home.colony.ants) if (a.zone === "surface" && !traversable(s, a)) { a.x = home.x; a.y = home.y; }
-    s.colonies = [...s.colonies, home]; event(s, `${name} established in the habitat you prepared.`); return s;
+    s.colonies = [...s.colonies, home]; event(s, `${name} established a new nest.`); return s;
   }
-  if (s.objects.length >= 300) { s.notice = "The garden has 300 objects. Remove or move something before adding more."; return s; }
+  if (s.objects.length >= 300) { s.notice = "The garden is full. Remove something before adding more."; return s; }
   const o = object(s, tool, point); s.objects.push(o); if (tool === "berry" || tool === "flower") s.planted++;
   event(s, tool === "berry" || tool === "flower" ? "Planted." : tool === "bridge" ? "Bridge placed." : tool === "log" ? "Wood placed." : tool === "fruit" ? "Fruit placed." : "Rock placed.");
   return s;

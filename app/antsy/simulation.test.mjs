@@ -68,7 +68,7 @@ describe("local foraging and transport", () => {
     s.trail[fieldIndex(450 + Math.cos(.65) * 13, 145 + Math.sin(.65) * 13)] = 2;
     const attracted = step(s);
     expect(attracted.ants[0].angle).not.toBe(plain.ants[0].angle);
-    expect(attracted.ants[0].action).toContain("Following a food pheromone");
+    expect(attracted.ants[0].action).toContain("Following a food trail");
   });
 });
 
