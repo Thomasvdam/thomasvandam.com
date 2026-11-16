@@ -25,7 +25,6 @@ const tools: { key: GardenTool; label: string; icon: typeof Eye; hint: string }[
   { key: "found", label: "New colony", icon: Bug, hint: "Start a colony near food and fallen wood, on damp ground." },
   { key: "remove", label: "Remove", icon: X, hint: "Remove an object or fill in a channel." },
 ];
-const landmarks = [{ label: "Cedar bank", x: creekX(900) - 155, y: 900 }, { label: "Dry reach", x: 800, y: 620 }, { label: "Stream crossing", x: creekX(860), y: 860 }, { label: "Willow meadow", x: 1530, y: 1040 }, { label: "Ochre grove", x: creekX(900) + 155, y: 900 }];
 const names = { berry: "Berry bush", flower: "Flower patch", log: "Fallen wood", bridge: "Wooden bridge", fruit: "Fallen fruit", rock: "Rock" };
 const clock = (tick: number) => `${Math.floor(tick * DT / 60)}:${Math.floor(tick * DT % 60).toString().padStart(2, "0")}`;
 const subscribe = () => () => {};
@@ -41,6 +40,7 @@ export default function GardenGame() {
 function LivingGarden() {
   const [loaded] = useState(initial);
   const { garden, latest, error, dispatch, replace, playback, snapshot } = useGardenRuntime(loaded.garden);
+  const landmarks = [{ label: "Cedar bank", x: garden.colonies[0].x, y: garden.colonies[0].y }, { label: "Dry reach", x: 800, y: 620 }, { label: "Stream crossing", x: creekX(860), y: 860 }, { label: "Willow meadow", x: 1530, y: 1040 }, { label: "Ochre grove", x: garden.colonies[1]?.x ?? garden.colonies[0].x, y: garden.colonies[1]?.y ?? garden.colonies[0].y }];
   const [saveStatus, setSaveStatus] = useState(loaded.saved);
   const [canSave, setCanSave] = useState(!loaded.protected);
   const [speed, setSpeed] = useState(1);

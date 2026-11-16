@@ -17,7 +17,7 @@ function engine() {
 test("a paused worker applies ordered construction commands before a save barrier", async () => {
   const runtime = engine();
   try {
-    const s = createGarden(), count = s.objects.length;
+    const s = createGarden(7193), count = s.objects.length;
     runtime.post({ type: "replace", garden: s, epoch: 1 });
     runtime.post({ type: "action", epoch: 1, action: { type: "act", tool: "bridge", points: [{ x: 800, y: 700 }] } });
     runtime.post({ type: "action", epoch: 1, action: { type: "rotate", id: s.nextObject } });
@@ -32,7 +32,7 @@ test("a paused worker applies ordered construction commands before a save barrie
 test("importing a replacement rejects stale commands and pause prevents further steps", async () => {
   const runtime = engine();
   try {
-    runtime.post({ type: "replace", garden: createGarden(), epoch: 1 });
+    runtime.post({ type: "replace", garden: createGarden(7193), epoch: 1 });
     runtime.post({ type: "control", speed: 8, running: true });
     await new Promise(resolve => setTimeout(resolve, 300));
     runtime.post({ type: "control", speed: 8, running: false });
@@ -40,7 +40,7 @@ test("importing a replacement rejects stale commands and pause prevents further 
     await new Promise(resolve => setTimeout(resolve, 150));
     expect((await runtime.snapshot(1)).garden.tick).toBe(paused.garden.tick);
     runtime.post({ type: "control", speed: 8, running: true });
-    const replacement = createGarden(); replacement.tick = 1500;
+    const replacement = createGarden(7193); replacement.tick = 1500;
     runtime.post({ type: "replace", garden: replacement, epoch: 2 });
     runtime.post({ type: "action", epoch: 1, action: { type: "act", tool: "fruit", points: [{ x: 800, y: 700 }] } });
     const restored = await runtime.snapshot(2); expect(encodeGarden(restored.garden)).toBe(encodeGarden(replacement));
