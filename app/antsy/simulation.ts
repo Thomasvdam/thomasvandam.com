@@ -70,7 +70,7 @@ function returnTarget(s: Colony, a: Ant, home: Point) {
 }
 function rivalSurface(s: Colony, a: Ant) {
   if (a.cargo || a.returning || a.reportNest) {
-    a.action = a.reportNest ? "Carrying a nest-discovery trail home" : a.cargo ? "Carrying a seed to the rival nest" : "Returning to the rival nest";
+    a.action = a.reportNest ? "Heading home to lead others to a nest" : a.cargo ? "Carrying a seed to the rival nest" : "Returning to the rival nest";
     const k = fieldIndex(a.x, a.y);
     if (a.cargo?.kind === "food") s.rival.trail[k] = Math.min(6, s.rival.trail[k] + DT * 1.5);
     if (a.reportNest) s.rival.raidTrail[k] = Math.min(6, s.rival.raidTrail[k] + DT * 3);
@@ -106,7 +106,7 @@ function rivalSurface(s: Colony, a: Ant) {
 }
 function guardSurface(s: Colony, a: Ant) {
   if (distance(a, ENTRANCE) < 28 && s.nest[0].scent.alarm > .08) {
-    a.action = "Entering the nest after sensing an alarm at its doorway"; if (surfaceMove(a, ENTRANCE, s.stones, DT)) enterNest(a); return;
+    a.action = "Following an alarm into the nest"; if (surfaceMove(a, ENTRANCE, s.stones, DT)) enterNest(a); return;
   }
   let strongest = .025; let target: Point | null = null;
   // A soldier samples only the alarm within its own sensory radius.
@@ -115,7 +115,7 @@ function guardSurface(s: Colony, a: Ant) {
     const value = s.alarm[fieldIndex(p.x, p.y)] / (1 + Math.hypot(dx, dy) / 45);
     if (value > strongest) { strongest = value; target = p; }
   }
-  if (target && distance(a, target) > 3) { a.action = "Following a nearby alarm pheromone"; surfaceMove(a, target, s.stones, DT); return; }
+  if (target && distance(a, target) > 3) { a.action = "Following a nearby alarm scent"; surfaceMove(a, target, s.stones, DT); return; }
   const patrol = { x: ENTRANCE.x + Math.cos(elapsed(s) * .16 + a.id * 2) * 65, y: 145 + Math.sin(elapsed(s) * .23 + a.id) * 17 };
   a.action = "Patrolling around the nest entrance"; surfaceMove(a, patrol, s.stones, DT);
 }
@@ -278,7 +278,7 @@ function surface(s: Colony, a: Ant) {
   const found = s.sources.find(food => !food.lifted && food.amount > 0 && distance(a, food) < 14);
   if (found) {
     found.amount--; a.cargo = { kind: "food", amount: 1 }; a.returning = true;
-    if (found.amount === 0) journal(s, "A food patch is exhausted. Its unreplenished trail will fade.");
+    if (found.amount === 0) journal(s, "A food patch is empty. Its trail will fade as ants stop bringing food home.");
     return;
   }
   exploreSurface(s, a, s.trail);
@@ -292,7 +292,7 @@ function exploreSurface(s: Colony, a: Ant, field: Float32Array) {
     else if (right > forward) a.angle += .22;
     a.angle += (random(s) - .5) * .12;
   } else a.angle += (random(s) - .5) * (a.team === "rival" ? .16 : .48);
-  a.action = following ? "Following a food pheromone trail" : "Exploring for food";
+  a.action = following ? "Following a food trail" : "Exploring for food";
   const heading = a.angle;
   surfaceMove(a, { x: a.x + Math.cos(heading) * 20, y: a.y + Math.sin(heading) * 20 }, s.stones, DT);
   if (a.x <= 16 || a.x >= 944) a.angle = Math.PI - a.angle;
@@ -410,7 +410,7 @@ function interactBrood(s: Colony, a: Ant, n: NestNode) {
   }
   const needsCare = local.find(b => b.fed >= foodNeeded(b) && b.care < careNeeded(b));
   if (a.cargo?.kind === "food" && !hungry && needsCare && n.water <= .3) {
-    a.action = "Caching a spare meal before tending brood";
+    a.action = "Putting food away before tending brood";
     if (!walk(a, n, DT)) return true;
     n.food += a.cargo.amount; a.cargo = null; return true;
   }
@@ -425,7 +425,7 @@ function interactBrood(s: Colony, a: Ant, n: NestNode) {
 function gardenDig(s: Colony, a: Ant, n: NestNode) {
   const task = n.excavation;
   if (task) {
-    a.action = task.remaining > 0 ? "Excavating a new passage" : "Hollowing out a new chamber";
+    a.action = task.remaining > 0 ? "Digging a new tunnel" : "Digging out a new room";
     if (!walk(a, n, DT)) return;
     if (task.remaining > 0) {
       const bite = Math.min(6, task.remaining), next = { x: n.x + Math.cos(task.angle) * bite, y: n.y + Math.sin(task.angle) * bite };
@@ -435,7 +435,7 @@ function gardenDig(s: Colony, a: Ant, n: NestNode) {
       const target = s.nest.find(p => p.id === task.target);
       if (target && distance(n, target) <= radius(target) + 17) {
         n.links = [...(n.links ?? []), target.id]; n.openedAt = elapsed(s); delete n.excavation;
-        journal(s, "Diggers broke through to an existing passage. A new bypass is open."); return;
+        journal(s, "Diggers joined two tunnels. The shortcut is open."); return;
       }
       const room = task.room ?? "food";
       if (room !== "tunnel" && n.size < 1.5) {
@@ -452,14 +452,14 @@ function gardenDig(s: Colony, a: Ant, n: NestNode) {
   if (!a.probe && (n.room === "food" || n.room === "nursery") && n.size < 4 && (n.scent.crowd > .5 || n.food > n.size * 55 * .85 || s.brood.filter(b => b.node === n.id).length > nurserySlots(n) * .6)) {
     const size = Math.min(4, n.size + .08), angle = noise(a.id + 183) * Math.PI * 2;
     if (!s.nest.some(p => p.id !== n.id && distance(p, n) < radius(p) + 25 * Math.sqrt(size) + 8)) {
-      a.action = "Enlarging a busy chamber wall";
+      a.action = "Making a busy room bigger";
       if (!walk(a, { x: n.x + Math.cos(angle) * radius(n) * .85, y: n.y + Math.sin(angle) * radius(n) * .55 }, DT)) return;
       n.size = size; a.cargo = { kind: "soil", amount: 1 }; a.rest = .2; return;
     }
   }
   if (a.probe?.anchor !== n.id) a.probe = undefined;
   if (a.probe) {
-    a.action = "Reaching the wall to start an excavation";
+    a.action = "Heading to the wall to start digging";
     if (!walk(a, a.probe, DT)) return;
     // Another digger may have started here while this ant approached the wall.
     if (s.nest.length < MAX_NEST_NODES && s.nest.filter(p => p.excavation).length < 6 && !s.nest.some(p => p.parent === n.id && (distance(p, a) < 28 || Math.abs(Math.atan2(Math.sin(Math.atan2(p.y - n.y, p.x - n.x) - a.probe!.angle), Math.cos(Math.atan2(p.y - n.y, p.x - n.x) - a.probe!.angle))) < .45))) {
@@ -470,13 +470,13 @@ function gardenDig(s: Colony, a: Ant, n: NestNode) {
     a.probe = undefined; return;
   }
   const bypass = n.traffic > .2 && random(s) < .3 ? planGrowth(s, a, n, () => random(s), true) : null;
-  if (bypass) { a.probe = bypass; a.action = "Probing a shorter route between remembered junctions"; return; }
+  if (bypass) { a.probe = bypass; a.action = "Looking for a shortcut"; return; }
   const faces = neighbors(s, n).filter(p => p.excavation);
   const face = faces[Math.floor(random(s) * faces.length)];
-  if (face) { a.action = "Joining a nearby excavation"; a.edge = { from: n.id, to: face.id, t: 0 }; return; }
+  if (face) { a.action = "Joining other diggers"; a.edge = { from: n.id, to: face.id, t: 0 }; return; }
   const plan = planGrowth(s, a, n, () => random(s));
-  if (plan) { a.probe = plan; a.action = "Probing soil for more working space"; return; }
-  a.action = "Following demand for storage, brood space, or wider routes"; chooseNeighbor(s, a, n, "work"); a.rest = .3;
+  if (plan) { a.probe = plan; a.action = "Looking for room to dig"; return; }
+  a.action = "Looking for a busy part of the nest to expand"; chooseNeighbor(s, a, n, "work"); a.rest = .3;
 }
 function startDig(s: Colony, a: Ant, n: NestNode) {
   // Probe only nearby soil. A new passage requires reaching the wall and
@@ -498,7 +498,7 @@ function startDig(s: Colony, a: Ant, n: NestNode) {
     const wall = { x: n.x + Math.cos(angle) * r, y: n.y + Math.sin(angle) * r * (n.room === "tunnel" ? 1 : .63 + noise(n.id + 12) * .15) };
     const soil = { x: wall.x + Math.cos(angle) * 18, y: wall.y + Math.sin(angle) * 18 };
     if (!soilIsClear(s, soil, n.id)) continue;
-    a.probe = { ...wall, angle, anchor: n.id }; a.action = "Probing soil beside congestion"; return true;
+    a.probe = { ...wall, angle, anchor: n.id }; a.action = "Looking for space beside a busy tunnel"; return true;
   }
   return false;
 }
@@ -522,14 +522,14 @@ function dig(s: Colony, a: Ant, n: NestNode) {
     if ((n.room !== "food" && n.room !== "nursery") || n.size >= 4 || n.scent.crowd < .65) return false;
     const angle = noise(a.id + 183) * Math.PI * 2;
     const wall = { x: n.x + Math.cos(angle) * radius(n) * .85, y: n.y + Math.sin(angle) * radius(n) * .55 };
-    a.action = "Enlarging a crowded chamber";
+    a.action = "Making a crowded room bigger";
     if (!walk(a, wall, DT)) return true;
     const size = Math.min(4, n.size + .04);
     if (s.nest.some(other => other.id !== n.id && distance(other, n) < radius(other) + 25 * Math.sqrt(size) + 5)) return false;
     n.size = size; a.cargo = { kind: "soil", amount: 1 }; a.rest = .7;
     return true;
   }
-  a.action = "Excavating soil at the tunnel face";
+  a.action = "Digging at the end of a tunnel";
   if (!walk(a, n, DT)) return true;
   const next = { x: n.x + Math.cos(task.angle) * 1.5, y: n.y + Math.sin(task.angle) * 1.5 };
   if (task.remaining > 0 && soilIsClear(s, next, n.parent!, n.id)) {
@@ -573,10 +573,10 @@ function nestBehavior(s: Colony, a: Ant) {
   if (a.role === "forager") {
     if (s.gardenSurface && a.cargo?.kind === "food" && n.room === "food" && n.food > n.size * 55 * .5) {
       const room = neighbors(s, n).filter(p => p.room === "food" && !p.excavation && p.food / (p.size * 55) < n.food / (n.size * 55) - .2).sort((a, b) => a.food / a.size - b.food / b.size)[0];
-      if (room) { a.action = "Distributing food into a newly available store"; a.edge = { from: n.id, to: room.id, t: 0 }; a.local = null; return; }
+      if (room) { a.action = "Taking food to an empty store"; a.edge = { from: n.id, to: room.id, t: 0 }; a.local = null; return; }
     }
     if (a.cargo?.kind === "food" && n.room === "food" && n.food + a.cargo.amount <= Math.floor(n.size * 55)) {
-      a.action = "Depositing food in the store";
+      a.action = "Putting food in the store";
       if (!walk(a, n, DT)) return;
       n.food += a.cargo.amount; a.cargo = null; s.totals.delivered++;
       if (s.totals.delivered === 1) journal(s, "The first seed has been carried from a food patch into storage.");
@@ -592,7 +592,7 @@ function nestBehavior(s: Colony, a: Ant) {
       if (walk(a, { x: n.x + Math.cos(angle) * radius(n) * .7, y: n.y + Math.sin(angle) * radius(n) * .4 }, DT)) a.rest = 1;
       return;
     }
-    a.action = a.cargo ? "Carrying food to a store" : "Following the nest-exit scent";
+    a.action = a.cargo ? "Carrying food to a store" : "Following the scent toward the exit";
     chooseNeighbor(s, a, n, a.cargo ? "store" : "home"); return;
   }
   if (a.role === "nurse") {
@@ -614,14 +614,14 @@ function nestBehavior(s: Colony, a: Ant) {
     n.spoil = (n.spoil ?? 0) - 1; a.cargo = { kind: "soil", amount: 1 }; a.action = "Collecting loose soil"; a.rest = .3; return;
   }
   if (s.gardenSurface && a.role === "digger" && a.cargo?.kind === "soil" && !n.excavation && (n.spoil ?? 0) < 18 && adjacent(s, n).some(p => p.excavation)) {
-    a.action = "Caching excavated soil at a junction for haulers";
+    a.action = "Leaving soil for another ant to carry out";
     if (!walk(a, n, DT)) return;
     n.spoil = (n.spoil ?? 0) + a.cargo.amount; a.cargo = null; a.rest = .25; return;
   }
   if (a.cargo) { a.action = `Carrying ${a.cargo.kind} to the surface`; chooseNeighbor(s, a, n, "home"); return; }
   if (a.role === "cleaner") {
     if (n.water > .025 || n.waste > .01) {
-      a.action = n.water > .025 ? "Collecting water" : "Collecting refuse";
+      a.action = n.water > .025 ? "Collecting water" : "Picking up waste";
       if (!walk(a, n, DT)) return;
       if (n.water > .025) { const amount = Math.min(.04, n.water); n.water -= amount; a.cargo = { kind: "water", amount }; }
       else { const amount = Math.min(.04, n.waste); n.waste -= amount; a.cargo = { kind: "waste", amount }; }
@@ -631,13 +631,13 @@ function nestBehavior(s: Colony, a: Ant) {
       a.action = "Resting · no cleaning needed nearby"; a.rest = 2;
       a.local = { x: n.x + (noise(a.id) - .5) * radius(n), y: n.y + radius(n) * .3 }; return;
     }
-    a.action = "Following damp or refuse scent"; chooseNeighbor(s, a, n, "clean"); return;
+    a.action = "Following the smell of water or waste"; chooseNeighbor(s, a, n, "clean"); return;
   }
   if (s.gardenSurface) { gardenDig(s, a, n); return; }
   if (dig(s, a, n)) return;
   if (a.probe && startDig(s, a, n)) return;
   if (n.scent.crowd > 1 && n.id !== 0 && s.ants.filter(other => other.role !== "digger" && other.zone === "nest" && distance(other, n) < radius(n) + 6).length >= 5 && startDig(s, a, n)) return;
-  a.action = "Sensing congestion or disturbed soil";
+  a.action = "Checking for crowded tunnels or loose soil";
   chooseNeighbor(s, a, n, n.scent.work > .04 ? "work" : "crowd");
 }
 function signals(s: Colony) {
@@ -734,11 +734,11 @@ export function step(previous: Colony): Colony {
         const text = `Batch ready: ${s.batch.total} new ${s.batch.role}s joined the colony.`;
         journal(s, text); s.notice = { text, point: { x: b.x, y: b.y } };
       }
-    } else journal(s, `A ${b.role} hatched where a nurse fed and tended its brood.`);
+    } else journal(s, `A new ${b.role} hatched after being fed and cared for.`);
   }
   const neglected = s.brood.filter(b => b.neglect > 150 && b.carrier === null);
   if (neglected.length) {
-    s.brood = s.brood.filter(b => !neglected.includes(b)); journal(s, "Neglected brood died without enough nurse visits.");
+    s.brood = s.brood.filter(b => !neglected.includes(b)); journal(s, "Some brood died without enough nurse care.");
     if (s.batch && neglected.some(b => b.batch === s.batch!.id) && !s.brood.some(b => b.batch === s.batch!.id)) {
       s.notice = { text: `Batch ended: ${s.batch.hatched} of ${s.batch.total} survived. Add nurses or keep the nursery dry next time.`, point: null };
     }
