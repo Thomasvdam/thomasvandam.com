@@ -4,6 +4,30 @@ import { decodeGarden, encodeGarden } from "./garden-save";
 import { newAnt } from "./simulation";
 const advance = (s, ticks) => { for (let i = 0; i < ticks; i++) s = stepGarden(s); return s; };
 function bare() { const s = createGarden(); s.colonies = []; s.objects = []; s.insects = []; return s; }
+test("starter nests have a dry clearing and no workers spawn in canals", () => {
+  const s = createGarden();
+  for (const home of s.colonies) {
+    for (let y = -75; y <= 75; y += 15) for (let x = -75; x <= 75; x += 15) if (Math.hypot(x, y) <= 75) {
+      expect(traversable(s, { x: home.x + x, y: home.y + y })).toBe(true);
+    }
+    const outside = home.colony.ants.filter(a => a.zone === "surface");
+    expect(outside.length).toBeGreaterThan(0);
+    expect(outside.every(a => traversable(s, a))).toBe(true);
+  }
+});
+test("a new colony beside a canal keeps its workers on the entrance bank", () => {
+  const p = { x: 700, y: 650 };
+  let s = actGarden(bare(), "log", [p]);
+  s = actGarden(s, "fruit", [{ x: 660, y: 650 }]); s.moisture[cellAt(p)] = .5;
+  s = actGarden(s, "channel", [{ x: 730, y: 580 }, { x: 730, y: 720 }]);
+  for (let k = 0; k < s.channels.length; k++) if (s.channels[k]) s.water[k] = .9;
+  // The old scatter put some ants in the canal or on the opposite bank.
+  expect(makeColony(s.nextColony, "Willow", p).colony.ants.some(a => a.zone === "surface" && a.x >= 720)).toBe(true);
+  s = actGarden(s, "found", [p]); expect(s.colonies).toHaveLength(1);
+  const outside = s.colonies[0].colony.ants.filter(a => a.zone === "surface");
+  expect(outside.length).toBeGreaterThan(0);
+  expect(outside.every(a => a.x < 720 && traversable(s, a))).toBe(true);
+});
 test("a channel carries water from the stream to previously dry ground", () => {
   let s = bare(); const y = 740, start = { x: creekX(y), y }, end = { x: creekX(y) - 240, y: y - 180 };
   const old = quality(s, end).moisture; s = actGarden(s, "channel", [start, end]);
